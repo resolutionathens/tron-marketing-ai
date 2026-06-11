@@ -46,8 +46,18 @@ fi
 # ---- 2. Start dev server if not already up ----------------------------------
 if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
   echo "starting bun dev on :$PORT..." >&2
-  # Run from the repo root (two levels up from this script's directory).
-  REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+  # Find the repo root from the CALLER's cwd, not the script's location: the
+  # skill now ships inside the tron plugin cache, so script-relative path math
+  # would point at the plugin dir (which has no `dev` script). Walk up from cwd
+  # to the marketing-pages app (identified by its package.json name).
+  REPO_ROOT="${PWD}"
+  while [[ "$REPO_ROOT" != "/" ]] && ! grep -q '"facilitron-marketing-pages"' "$REPO_ROOT/package.json" 2>/dev/null; do
+    REPO_ROOT="$(dirname "$REPO_ROOT")"
+  done
+  if [[ "$REPO_ROOT" == "/" ]]; then
+    echo "preview.sh: not inside the marketing-pages repo (cwd=$PWD)" >&2
+    exit 1
+  fi
   (
     cd "$REPO_ROOT"
     # shellcheck disable=SC1091
