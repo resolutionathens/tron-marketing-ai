@@ -25,7 +25,7 @@ Browser on the left, vim top-right, terminal bottom-right.
 The user will either:
 - Provide an explicit branch name — use `wt switch <branch>` to switch to it and get the path
 - Say they want the current one — use `wt list` to identify it (marked with `@`)
-- Have just created one via the start-ticket skill — use that branch name
+- Have just created one via the tron:start-ticket skill — use that branch name
 
 First, check available worktrees:
 ```bash

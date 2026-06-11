@@ -23,7 +23,7 @@ Run `git branch --show-current`.
 
 Run `git status --porcelain`.
 
-If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the git-commit skill.
+If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the tron:git-commit skill.
 
 ## Step 3: Ensure branch is pushed
 
@@ -99,5 +99,5 @@ Show the PR URL returned by `gh pr create`.
 ## Next steps
 
 After the PR is merged, remind the user:
-- **Deploy:** Use **git-pushtoprod** to merge master into staging and production
-- **Clean up worktree** (if working in one): use `wt remove` or the **close-worktree** skill
+- **Deploy:** Use **tron:git-pushtoprod** to merge master into staging and production
+- **Clean up worktree** (if working in one): use `wt remove` or the **tron:close-worktree** skill

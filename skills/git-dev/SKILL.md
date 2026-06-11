@@ -20,7 +20,7 @@ Run `git branch --show-current`.
 
 Run `git status --porcelain`.
 
-If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the git-commit skill.
+If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the tron:git-commit skill.
 
 ## Step 3: Detect worktree vs regular checkout
 
@@ -87,8 +87,8 @@ Tell the user:
 ## Next steps
 
 After testing on dev, remind the user:
-- **Ready for review?** Use the **git-pr** skill to create a PR back to master
-- **After PR is merged?** Use **git-pushtoprod** to deploy master to staging and production
+- **Ready for review?** Use the **tron:git-pr** skill to create a PR back to master
+- **After PR is merged?** Use **tron:git-pushtoprod** to deploy master to staging and production
 - **Done with this ticket?** Clean up the worktree:
   ```
   git worktree remove ../<branch-name>
