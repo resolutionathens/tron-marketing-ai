@@ -132,15 +132,23 @@ tron-marketing-ai/
 ├── .claude-plugin/
 │   ├── plugin.json          # the plugin manifest (name: tron)
 │   └── marketplace.json     # single-plugin marketplace, source "."
-├── skills/                  # one dir per skill, each self-contained
+├── skills/                  # one dir per skill
 │   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
-│   ├── preview-page/        # bundles its own package.json + playwright scripts
-│   ├── news-item/  guide-item/   # each bundles scripts/ (fetch-confluence.sh, to-webp.sh)
+│   ├── preview-page/        # bundles its own package.json + playwright scripts (single-skill)
 │   └── …
 ├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
-│   └── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
+│   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
+│   ├── confluence/          # fetch-confluence.sh — used by news-item + guide-item
+│   └── image/               # to-webp.sh — used by news-item + guide-item
 └── README.md
 ```
 
-Skills reference their own bundled files through **`$CLAUDE_SKILL_DIR`** (set by the
-plugin to the skill's directory), so they resolve regardless of the working directory.
+Two reference patterns:
+
+- A skill's **own** bundled files resolve through **`$CLAUDE_SKILL_DIR`** (set by the
+  plugin to that skill's directory) — e.g. `md-to-pdf` and `preview-page`, whose assets
+  are single-skill.
+- **Shared** tooling used by several skills lives once under `tools/` and resolves through
+  **`${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…`** — the `CLAUDE_PLUGIN_ROOT`
+  var with a fallback two levels up from the skill dir, so it works whichever variable the
+  runtime exports.

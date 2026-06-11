@@ -108,16 +108,17 @@ The description's `inlineCard` attr holds the Confluence URL (often a tiny link
 like `/wiki/x/XXXXX`). Capture the target keywords from the description too — they
 shape the title, the meta description, and the H2s.
 
-Then fetch the page and its images with the bundled script. **This skill ships its
-own scripts under `${CLAUDE_SKILL_DIR}/scripts/`** — the `tron` plugin sets
-`CLAUDE_SKILL_DIR` to this skill's directory, so it resolves regardless of the
-current working directory:
+Then fetch the page and its images with the shared script. **The Confluence and
+image helpers live in the plugin's shared `tools/` dir** (one copy, used by both
+`tron:news-item` and `tron:guide-item`). Resolve it via `CLAUDE_PLUGIN_ROOT`, with
+a fallback up two levels from `CLAUDE_SKILL_DIR` (the skill's own dir) so it works
+whichever variable the runtime exports:
 
 ```bash
-SKILL="$CLAUDE_SKILL_DIR"                    # this skill's bundled directory (set by the plugin)
+TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"   # plugin-level shared tools
 set -a; source ~/.env; set +a               # cold-start insurance: 1Password may still be writing ~/.env on the first call
 
-"$SKILL/scripts/fetch-confluence.sh" <confluence-url-or-page-id> /tmp/news-<slug>
+"$TOOLS/confluence/fetch-confluence.sh" <confluence-url-or-page-id> /tmp/news-<slug>
 ```
 
 This writes `/tmp/news-<slug>/body.html` (the storage-format body to convert) and
@@ -154,7 +155,7 @@ under the hood, zero deps — no ImageMagick or cwebp needed), caps the longest
 edge at 2000px without ever upscaling, and re-encodes to WebP at quality 82:
 
 ```bash
-TOWEBP="$SKILL/scripts/to-webp.sh"   # $SKILL=$CLAUDE_SKILL_DIR from Stage 1
+TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"   # shared plugin tool
 
 # Each inline image
 "$TOWEBP" "/tmp/news-<slug>/raw/<original-name>" "<out>/<name>.webp"
@@ -165,8 +166,8 @@ TOWEBP="$SKILL/scripts/to-webp.sh"   # $SKILL=$CLAUDE_SKILL_DIR from Stage 1
 
 ### Upload to ImageKit
 
-The ImageKit CLI (documented in `~/.claude/CLAUDE.md`) keeps filenames exactly as
-given — no random suffix — so the paths are predictable:
+The ImageKit CLI (bundled in the plugin at `tools/imagekit/`) keeps filenames exactly
+as given — no random suffix — so the paths are predictable:
 
 ```bash
 set -a; source ~/.env; set +a

@@ -96,12 +96,13 @@ keywords — they shape the title, the meta description, the H2s, and the TOC la
 
 Fetch the page and its referenced images with this skill's bundled script (it
 sources `~/.env`, writes the storage body and only the images the body references).
-It's the same script `tron:news-item` ships — both skills carry their own copy under
-`${CLAUDE_SKILL_DIR}/scripts/` so each stays self-contained:
+It's the same script `tron:news-item` uses — one shared copy lives in the plugin's
+`tools/` dir, resolved via `CLAUDE_PLUGIN_ROOT` (falling back two levels up from the
+skill's own `CLAUDE_SKILL_DIR`):
 
 ```bash
-SKILL="$CLAUDE_SKILL_DIR"   # this skill's bundled directory (set by the plugin)
-"$SKILL/scripts/fetch-confluence.sh" <confluence-url-or-page-id> /tmp/guide-<slug>
+TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"   # plugin-level shared tools
+"$TOOLS/confluence/fetch-confluence.sh" <confluence-url-or-page-id> /tmp/guide-<slug>
 ```
 
 This writes `/tmp/guide-<slug>/body.html` and `/tmp/guide-<slug>/raw/<name>` per
@@ -118,7 +119,7 @@ the bundled helper (Bun `Bun.Image`, caps longest edge at 2000px, q82), or
 `cwebp`/`sips` directly:
 
 ```bash
-TOWEBP="$CLAUDE_SKILL_DIR/scripts/to-webp.sh"
+TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"   # shared plugin tool
 "$TOWEBP" "/tmp/guide-<slug>/raw/<original>" "/tmp/guide-<slug>/<name>.webp"
 ```
 
