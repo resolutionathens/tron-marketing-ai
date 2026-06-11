@@ -34,8 +34,15 @@ fi
 : "${JIRA_API_TOKEN:?JIRA_API_TOKEN not set and not found in ~/.env}"
 
 # Atlassian account email for basic auth — from env (ATLASSIAN_EMAIL, e.g. in ~/.env)
-# or the local git identity as a fallback.
-EMAIL="${ATLASSIAN_EMAIL:-$(git config user.email 2>/dev/null || true)}"
+# or the local git identity as a fallback. The git fallback is a footgun in repos
+# whose git email isn't the Atlassian account (you'd 401 with no clue why), so warn
+# loudly when we fall back rather than failing silently.
+if [[ -n "${ATLASSIAN_EMAIL:-}" ]]; then
+  EMAIL="$ATLASSIAN_EMAIL"
+else
+  EMAIL="$(git config user.email 2>/dev/null || true)"
+  [[ -n "$EMAIL" ]] && echo "NOTE: ATLASSIAN_EMAIL unset — using git email '$EMAIL' for Confluence auth. If that isn't your Atlassian account email, export ATLASSIAN_EMAIL or you'll get a 401." >&2
+fi
 : "${EMAIL:?Set ATLASSIAN_EMAIL to your Atlassian account email (in ~/.env or the environment)}"
 
 # Hand the credentials to curl via a temp netrc instead of -u, so the API token

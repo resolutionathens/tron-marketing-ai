@@ -11,7 +11,7 @@ Fetch Confluence page content. **Always use `acli`** — it carries working auth
 
 **Requires:** `acli` (the Atlassian CLI, already authenticated against facilitron.atlassian.net).
 
-> The old `curl` + `JIRA_API_TOKEN` recipe is deprecated — that token is stale and returns `401`. Do not reach for it; use `acli`.
+> Prefer `acli` here: it carries its own login, so there's no `ATLASSIAN_EMAIL`/`JIRA_API_TOKEN` setup and no basic-auth gotchas. The `curl` + `JIRA_API_TOKEN` REST path still works (it's what `tron:news-item` and `tron:guide-item` use to download image attachments through the `api.atlassian.com` gateway), but for simply *reading* a page `acli` is less fuss — reach for the token path only when you specifically need attachment bytes.
 
 ## Step 1: Resolve the page ID
 
