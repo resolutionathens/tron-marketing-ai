@@ -22,8 +22,10 @@ set -euo pipefail
 
 INPUT="${1:?Usage: fetch-confluence.sh <page-id-or-tiny-link> <output-dir>}"
 OUTDIR="${2:?Usage: fetch-confluence.sh <page-id-or-tiny-link> <output-dir>}"
-CLOUD_ID="91c1b48f-c272-40fb-9c7f-cc5f23bb74d7"
-BASE="https://facilitron.atlassian.net/wiki"
+# Defaults target Facilitron's Atlassian instance (this is an internal tool);
+# override CONFLUENCE_CLOUD_ID / CONFLUENCE_BASE for a different site.
+CLOUD_ID="${CONFLUENCE_CLOUD_ID:-91c1b48f-c272-40fb-9c7f-cc5f23bb74d7}"
+BASE="${CONFLUENCE_BASE:-https://facilitron.atlassian.net/wiki}"
 
 # 1. Make sure the token is available — ~/.env is not sourced into every shell.
 if [[ -z "${JIRA_API_TOKEN:-}" && -f "$HOME/.env" ]]; then
@@ -36,6 +38,16 @@ fi
 EMAIL="${ATLASSIAN_EMAIL:-$(git config user.email 2>/dev/null || true)}"
 : "${EMAIL:?Set ATLASSIAN_EMAIL to your Atlassian account email (in ~/.env or the environment)}"
 
+# Hand the credentials to curl via a temp netrc instead of -u, so the API token
+# never appears in the process list (ps/top) while these requests run. The file
+# is mode 600 and removed on exit.
+BASE_HOST="${BASE#*://}"; BASE_HOST="${BASE_HOST%%/*}"
+NETRC="$(mktemp)"
+chmod 600 "$NETRC"
+trap 'rm -f "$NETRC"' EXIT
+printf 'machine %s login %s password %s\nmachine api.atlassian.com login %s password %s\n' \
+  "$BASE_HOST" "$EMAIL" "$JIRA_API_TOKEN" "$EMAIL" "$JIRA_API_TOKEN" > "$NETRC"
+
 mkdir -p "$OUTDIR/raw"
 
 # 2. Resolve a tiny link (/wiki/x/XXXXX) to a numeric page ID if needed.
@@ -47,7 +59,7 @@ fi
 : "${PAGE_ID:?Could not resolve a page ID from: $INPUT}"
 
 # 3. Fetch the storage-format body. The v2 pages API works with basic auth.
-curl -s -u "$EMAIL:$JIRA_API_TOKEN" \
+curl -s --netrc-file "$NETRC" \
   "$BASE/api/v2/pages/$PAGE_ID?body-format=storage" -o "$OUTDIR/page.json"
 python3 -c "
 import json,sys
@@ -60,7 +72,7 @@ print('TITLE:', d['title'])
 
 # 4. List attachments, then download only the ones the body actually references
 #    (Confluence pages routinely carry extra unused uploads).
-curl -s -u "$EMAIL:$JIRA_API_TOKEN" \
+curl -s --netrc-file "$NETRC" \
   "$BASE/api/v2/pages/$PAGE_ID/attachments?limit=100" -o "$OUTDIR/attachments.json"
 
 python3 - "$OUTDIR" <<'PY'
@@ -94,7 +106,7 @@ PY
 #    --location-trusted is required: the gateway 302s to api.media.atlassian.com
 #    and curl drops credentials on a cross-host redirect without it.
 while IFS=$'\t' read -r name link; do
-  curl -s -L --location-trusted -u "$EMAIL:$JIRA_API_TOKEN" \
+  curl -s -L --location-trusted --netrc-file "$NETRC" \
     "https://api.atlassian.com/ex/confluence/$CLOUD_ID/wiki$link" \
     -o "$OUTDIR/raw/$name"
 done < "$OUTDIR/_dl.tsv"

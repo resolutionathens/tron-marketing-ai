@@ -2,7 +2,7 @@
 # preview-page: open a Nuxt route in the cmux browser pane.
 #
 # Resolves <route-or-file> to http://localhost:4001/<route>, starts
-# `bun dev` if port 4001 is free, waits for the "Local:" log line,
+# `bun dev` if port 4001 is free, waits until the port accepts connections,
 # then opens a new browser surface in the existing browser pane.
 #
 # Usage:
@@ -56,9 +56,13 @@ if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
     disown
   )
 
-  # Wait for "Local:" line, or bail if errors show up.
+  # Wait until the port actually accepts connections, or bail if errors show up.
+  # A network probe is robust to changes in the Nuxt/Bun ready banner; curl exits
+  # non-zero (connection refused) until the server is listening, then succeeds on
+  # any HTTP response (-f is intentionally omitted so a 404 still counts as "up").
+  server_up() { curl -s -o /dev/null --max-time 2 "http://localhost:${PORT}/"; }
   for _ in $(seq 1 60); do
-    if grep -q "Local:" "$LOG" 2>/dev/null; then
+    if server_up; then
       break
     fi
     if grep -Eq "^(Error|error|Failed)" "$LOG" 2>/dev/null; then
@@ -69,8 +73,8 @@ if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
     sleep 1
   done
 
-  if ! grep -q "Local:" "$LOG" 2>/dev/null; then
-    echo "dev server didn't print 'Local:' within 60s; see $LOG" >&2
+  if ! server_up; then
+    echo "dev server didn't start listening on :$PORT within 60s; see $LOG" >&2
     exit 1
   fi
 fi

@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { parse as parseYaml } from "yaml";
 
 const SKILL_DIR = dirname(fileURLToPath(import.meta.url));
@@ -135,7 +135,10 @@ function stripChecklistGroups(md: string): string {
 }
 
 for (const file of files) {
-  const raw = readFileSync(file, "utf8");
+  // Normalize CRLF → LF so the front-matter split and the ::faq/::checklist
+  // parsers (which all key off "\n---\n" and trimmed lines) work on pasted
+  // content with Windows line endings, not just LF repo files.
+  const raw = readFileSync(file, "utf8").replace(/\r\n/g, "\n");
   const { front, body } = splitFrontMatter(raw);
   const title = (front.title as string) ?? basename(file, ".md");
 
@@ -152,8 +155,20 @@ for (const file of files) {
   writeFileSync(mdPath, fullMd);
 
   console.log(`→ ${pdfPath}`);
-  execSync(
-    `pandoc "${mdPath}" -o "${pdfPath}" --pdf-engine=xelatex -V geometry:margin=1in -V mainfont="Helvetica" -V colorlinks=true -V linkcolor=NavyBlue -V urlcolor=NavyBlue`,
+  // execFileSync (no shell) so a filename with shell metacharacters can't be
+  // interpreted — args go straight to pandoc as an argv array.
+  execFileSync(
+    "pandoc",
+    [
+      mdPath,
+      "-o", pdfPath,
+      "--pdf-engine=xelatex",
+      "-V", "geometry:margin=1in",
+      "-V", "mainfont=Helvetica",
+      "-V", "colorlinks=true",
+      "-V", "linkcolor=NavyBlue",
+      "-V", "urlcolor=NavyBlue",
+    ],
     { stdio: "inherit" },
   );
 }

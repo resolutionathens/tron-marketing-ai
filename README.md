@@ -111,6 +111,8 @@ your shell or add them to your `marketing-pages/.env.local`.
 | `ATLASSIAN_EMAIL` | Confluence REST basic auth (attachment downloads); falls back to `git config user.email` |
 | `JIRA_API_TOKEN` | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`) |
 | `IMAGEKIT_PRIVATE_KEY` | all ImageKit uploads |
+| `CONFLUENCE_CLOUD_ID` | *(optional)* override the Confluence cloud ID — defaults to Facilitron's instance |
+| `CONFLUENCE_BASE` | *(optional)* override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 
 - **1Password** (app + optional `op` CLI, `brew install 1password-cli`) populates `~/.env`.
   If a skill reports a token is unset, the 1Password agent likely isn't running.
