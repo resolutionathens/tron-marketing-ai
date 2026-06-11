@@ -90,6 +90,6 @@ Other Confluence groups: `acli confluence blog`, `acli confluence space`. Run `a
 Only if `acli` is unavailable. **The `JIRA_API_TOKEN` / 1Password ATATT token is stale and returns `401`** — this will almost certainly fail; refresh the token before relying on it.
 
 ```bash
-curl -s -u "ian@facilitron.com:$JIRA_API_TOKEN" \
+curl -s -u "$ATLASSIAN_EMAIL:$JIRA_API_TOKEN" \
   "https://facilitron.atlassian.net/wiki/api/v2/pages/<PAGE_ID>?body-format=storage"
 ```

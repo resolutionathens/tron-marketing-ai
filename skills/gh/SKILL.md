@@ -9,7 +9,7 @@ allowed-tools:
 
 # GitHub via `gh`
 
-Use the `gh` CLI (`/opt/homebrew/bin/gh`) for everything GitHub. The user is currently authed as `resolutionathens` with `gist, project, read:org, repo, workflow` scopes — no `admin:org`, so org-level admin ops will fail with a scope error and should not be attempted.
+Use the `gh` CLI (`brew install gh`, typically at `/opt/homebrew/bin/gh`) for everything GitHub. Run `gh auth status` to see the active account and token scopes. A typical dev token carries `gist, project, read:org, repo, workflow` but **not** `admin:org`, so org-level admin ops will fail with a scope error — check scopes before attempting them rather than assuming.
 
 ## Auto-trigger behavior
 
@@ -190,7 +190,7 @@ gh api "repos/:owner/:repo/deployments/$DEPLOY_ID/statuses" --jq '.[0] | {state,
 | **CircleCI**                                          | ⚠ Depends on the orb — often NO | `circleci runs` / workflow output (see `/circleci`)                            |
 | **Plain `gh workflow` actions deploying to anywhere** | ❌ Unless the workflow explicitly calls `actions/github-script` to create one | `gh run view <run-id> --log` and grep for the URL                              |
 
-**The athenspedia / photozines / mabe-nuxt / fiftymillimeter / fourXfive / ospdbe / photozines.com / slouching-towards-hollywood / truck-ianslap-top repos all deploy Workers via `wrangler-action`** — for those, ignore `gh api .../deployments` (you'll see only `github-pages` stubs from a vestigial pages workflow) and go straight to:
+**For any repo that deploys Workers via `wrangler-action`**, ignore `gh api .../deployments` (you'll see only `github-pages` stubs from a vestigial pages workflow) and go straight to:
 
 ```bash
 # In the project directory:

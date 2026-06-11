@@ -59,7 +59,7 @@ detect_deploy_target() {
 
 ## Workers gotcha
 
-**Cloudflare Workers (deployed via `wrangler deploy` or `cloudflare/wrangler-action`) does not create per-PR preview URLs by default.** Each deploy overwrites the production Worker. So for repos like `athenspedia`, `photozines`, `mabe-nuxt`, `fiftymillimeter`, `fourXfive`, `ospdbe`, `slouching-towards-hollywood`, `truck-ianslap-top` — there is no preview URL for a PR branch.
+**Cloudflare Workers (deployed via `wrangler deploy` or `cloudflare/wrangler-action`) does not create per-PR preview URLs by default.** Each deploy overwrites the production Worker. So for any repo deployed this way there is no preview URL for a PR branch.
 
 The realistic answer in these cases is one of:
 1. **"Merge to main and check production"** — for low-stakes changes.
@@ -166,7 +166,7 @@ detect_deploy_target → circleci (marketing-pages)
    This PR is on `MD-1743-homepage-access-issue-announcement` which won't deploy anywhere until merged into `dev`.
    After merge: https://dev.<marketing-domain>"
 
-> "preview URL for the athenspedia PR"
+> "preview URL for the <Workers-deployed repo> PR"
 detect_deploy_target → cf-workers
 → "Same Workers gotcha — no preview URL. Use the dev server."
 

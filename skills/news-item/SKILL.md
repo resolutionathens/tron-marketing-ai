@@ -130,7 +130,7 @@ If you need to do this by hand (script unavailable), the non-obvious parts: the
 v2 pages API (`/wiki/api/v2/pages/<id>?body-format=storage`) works with basic
 auth, but the `/wiki/download/` servlet **401s** with an API token — download
 attachments through the gateway instead:
-`curl -L --location-trusted -u "ian@facilitron.com:$JIRA_API_TOKEN" "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`
+`curl -L --location-trusted -u "$ATLASSIAN_EMAIL:$JIRA_API_TOKEN" "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`
 
 ---
 

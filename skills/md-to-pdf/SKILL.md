@@ -27,7 +27,7 @@ $CLAUDE_SKILL_DIR/   # build.ts, template.tex, fonts/, facilitron-logo.png
 
 ## Requirements
 
-The skill assumes these are installed (already true on Ian's machine):
+The skill assumes these are installed (see the plugin README's Dependencies section):
 
 - `bun` — runs the script
 - `pandoc` (Homebrew: `brew install pandoc`) — typesetting
@@ -117,6 +117,6 @@ Either way, when you're done the PDF lands wherever you wrote it — open it and
 The logo PNG (`facilitron-logo.png`) was rasterized once from `public/img/logos/facilitron-logo.svg` via `rsvg-convert -w 600`. If the brand logo changes, regenerate it:
 
 ```bash
-rsvg-convert -w 600 /Users/slip/Documents/GitHub/marketing-pages/public/img/logos/facilitron-logo.svg \
+rsvg-convert -w 600 <marketing-pages>/public/img/logos/facilitron-logo.svg \
   -o "$CLAUDE_SKILL_DIR/facilitron-logo.png"
 ```

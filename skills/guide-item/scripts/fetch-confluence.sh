@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Fetch a Confluence page's storage body + download the image attachments it
-# actually references. Handles the two auth gotchas that waste time otherwise:
+# actually references.
+#
+# NOTE: prefer `acli` for the page BODY where you can (it's already authenticated,
+# no email/token needed). This script uses the REST gateway because the image
+# ATTACHMENT download (the /wiki/download/ 401 gotcha) still requires basic auth +
+# the api.atlassian.com gateway, which acli doesn't expose.
+#
+# Handles the two auth gotchas that waste time otherwise:
 #   1. ~/.env (1Password-generated) holds JIRA_API_TOKEN but isn't auto-sourced.
 #   2. The /wiki/download/ servlet 401s with an API token — you must go through
 #      the api.atlassian.com gateway route and follow the redirect to media.
@@ -15,7 +22,6 @@ set -euo pipefail
 
 INPUT="${1:?Usage: fetch-confluence.sh <page-id-or-tiny-link> <output-dir>}"
 OUTDIR="${2:?Usage: fetch-confluence.sh <page-id-or-tiny-link> <output-dir>}"
-EMAIL="ian@facilitron.com"
 CLOUD_ID="91c1b48f-c272-40fb-9c7f-cc5f23bb74d7"
 BASE="https://facilitron.atlassian.net/wiki"
 
@@ -24,6 +30,11 @@ if [[ -z "${JIRA_API_TOKEN:-}" && -f "$HOME/.env" ]]; then
   set -a; source "$HOME/.env"; set +a
 fi
 : "${JIRA_API_TOKEN:?JIRA_API_TOKEN not set and not found in ~/.env}"
+
+# Atlassian account email for basic auth — from env (ATLASSIAN_EMAIL, e.g. in ~/.env)
+# or the local git identity as a fallback.
+EMAIL="${ATLASSIAN_EMAIL:-$(git config user.email 2>/dev/null || true)}"
+: "${EMAIL:?Set ATLASSIAN_EMAIL to your Atlassian account email (in ~/.env or the environment)}"
 
 mkdir -p "$OUTDIR/raw"
 

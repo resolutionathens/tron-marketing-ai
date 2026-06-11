@@ -226,7 +226,7 @@ The toolkit naming convention is `.webp` — the list page builds the URL as `to
 cwebp -q 85 <source-image-path> -o /tmp/<slug>.webp
 ```
 
-`cwebp` ships with the Homebrew `webp` package and is already on Ian's machine. Quality 85 lands around 30–60 KB for a 1600px-wide card image, which is well under the listing-page budget.
+`cwebp` ships with the Homebrew `webp` package (`brew install webp`). Quality 85 lands around 30–60 KB for a 1600px-wide card image, which is well under the listing-page budget.
 
 Then upload:
 

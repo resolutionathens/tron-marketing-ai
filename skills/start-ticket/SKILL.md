@@ -92,7 +92,7 @@ After `wt switch`, get the worktree's absolute path from `wt list` output — th
 
 ## Step 2.5: Carry over gitignored env files
 
-`.env`, `.dev.vars`, `.env.local`, and similar secret files are gitignored, so `wt switch -c` does **not** copy them into the new worktree. Without them, the dev server typically boots but every request 500s with "X is required" config errors (e.g. `BETTER_AUTH_SECRET is required` on athenspedia).
+`.env`, `.dev.vars`, `.env.local`, and similar secret files are gitignored, so `wt switch -c` does **not** copy them into the new worktree. Without them, the dev server typically boots but every request 500s with "X is required" config errors (e.g. `BETTER_AUTH_SECRET is required`).
 
 Check the main checkout (`~/Documents/GitHub/<project>/`) for these files and copy any that exist into the worktree. The set varies per repo — check what's actually there rather than guessing:
 
@@ -275,8 +275,8 @@ When finished: wt merge or tron:close-worktree
 
 **GitHub example:**
 ```
-Issue resolutionathens/athenspedia#185: "Improve better-auth UX and review our implementation"
-Assignee: @resolutionathens
+Issue acme-org/acme-app#185: "Improve better-auth UX and review our implementation"
+Assignee: @your-handle
 Workspace: issue-185-improve-better-auth-ux
 When finished: wt merge or tron:close-worktree
 ```
