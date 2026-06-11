@@ -1,0 +1,207 @@
+% =============================================================================
+% Facilitron-branded LaTeX starter — styled to match the marketing-pages site.
+%
+% Use when the markdown → pandoc → xelatex path produces ugly tables
+% (3+ tables, columns > 4, content that needs page-breaking with repeated
+% headers, or fillable form-style grids).
+%
+% Usage (the tron:md-to-pdf skill does this for you):
+%   1. Copy this file, substituting @@SKILLDIR@@ with this skill's bundled dir:
+%        sed "s|@@SKILLDIR@@|$CLAUDE_SKILL_DIR|g" "$CLAUDE_SKILL_DIR/template.tex" \
+%           > /tmp/facilitron-md-to-pdf/<slug>.tex
+%   2. Edit the eyebrow, title, and content body (search for "EDIT:" markers).
+%   3. Build:
+%        xelatex -interaction=nonstopmode -output-directory=/tmp/facilitron-md-to-pdf \
+%                /tmp/facilitron-md-to-pdf/<slug>.tex
+%   4. Open the PDF, then upload to ImageKit the same way as the markdown path.
+%
+% Design mirrors the site (assets/css/tailwind.css + tailwind.config.ts):
+%   - Fonts: Inter (body), Archivo (display; ExtraLight for the hero H1 like
+%     the site's weight-200 hero), IBM Plex Mono (figures + eyebrow).
+%   - Ink: tron-asphalt-900 (#171b2a), NOT pure black. Links/figures: primary-600.
+%   - Stat cards: rounded tron-primary-50 callout boxes with a primary-500 bar.
+%   - Tables: gray-200 header + white/gray-100 zebra + thin asphalt rules.
+% Fonts are vendored in this skill's fonts/ dir; the @@SKILLDIR@@ token below is
+% substituted with $CLAUDE_SKILL_DIR on copy, so it builds from /tmp with no
+% system font install regardless of where the plugin is installed.
+% =============================================================================
+
+\documentclass[11pt]{article}
+
+% --- Page layout -------------------------------------------------------------
+\usepackage[margin=1in]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+\linespread{1.12}
+
+% --- Fonts -------------------------------------------------------------------
+\usepackage{fontspec}
+\def\facfonts{@@SKILLDIR@@/fonts/}
+
+% Body: Inter. Vendored as a variable font (no static weights ship upstream),
+% so bold and italic are synthesized.
+\setmainfont{Inter-Variable.ttf}[Path=\facfonts, AutoFakeBold=1.8, AutoFakeSlant=0.15]
+
+% Display: Archivo. ExtraLight + tight tracking for the hero H1 (the site's
+% frame-h1 is weight 200); Regular/SemiBold/Bold for section headings.
+\newfontfamily\archivo[Path=\facfonts, Extension=.ttf,
+  UprightFont=Archivo-Regular, BoldFont=Archivo-Bold]{Archivo-Regular}
+\newfontfamily\archivosemi[Path=\facfonts, Extension=.ttf]{Archivo-SemiBold}
+\newfontfamily\herofont[Path=\facfonts, Extension=.ttf, LetterSpace=-2.0]{Archivo-ExtraLight}
+
+% Mono / figures: IBM Plex Mono. \num{} sets figures in mono; \eyebrowfont is
+% the wide-tracked uppercase label above a title.
+\newfontfamily\plexmono[Path=\facfonts, Extension=.otf,
+  UprightFont=IBMPlexMono-Regular, BoldFont=IBMPlexMono-SemiBold]{IBMPlexMono-Regular}
+\newcommand{\num}[1]{{\plexmono #1}}
+\newfontfamily\eyebrowfont[Path=\facfonts, Extension=.otf, LetterSpace=8.0]{IBMPlexMono-Medium}
+
+% --- Colors (resolved tron tokens from assets/css/tailwind.css) --------------
+\usepackage[table]{xcolor}
+\definecolor{asphaltink}{HTML}{171B2A}   % tron-asphalt-900  body + headings
+\definecolor{asphaltlead}{HTML}{3E4564}  % tron-asphalt-700  subtitle / lead
+\definecolor{asphaltmute}{HTML}{545C84}  % tron-asphalt-600  fine print / captions
+\definecolor{primary500}{HTML}{1670E6}   % tron-primary-500  accent bar
+\definecolor{primary600}{HTML}{1059FC}   % tron-primary-600  links + figures
+\definecolor{primary50}{HTML}{EFF6FF}    % tron-primary-50   card fill
+\definecolor{brand700}{HTML}{0068AB}     % tron-brand-700    eyebrow
+\definecolor{tablehead}{HTML}{E5E7EB}    % gray-200          table header
+\definecolor{zebra}{HTML}{F3F4F6}        % gray-100          zebra row
+\definecolor{ruleclr}{HTML}{C2C6DA}      % tron-asphalt-200  table rules
+
+\usepackage[colorlinks=true,linkcolor=primary600,urlcolor=primary600]{hyperref}
+
+% --- Tables, lists, graphics, boxes ------------------------------------------
+\usepackage{graphicx}
+\usepackage{longtable}   % tables that break across pages with repeated headers
+\usepackage{array}       % column types like p{Wcm}
+\usepackage{booktabs}    % \toprule \midrule \bottomrule
+\usepackage{enumitem}    % checklist spacing control
+\usepackage{amssymb}     % \square for outline checkboxes
+\usepackage[most]{tcolorbox} % rounded cards
+
+\arrayrulecolor{ruleclr}
+\setlength\LTleft{0pt}
+\setlength\LTright{\fill}
+\renewcommand{\arraystretch}{1.35}
+
+% Logo lookup — keeps \includegraphics{facilitron-logo.png} resolving from /tmp.
+\graphicspath{{@@SKILLDIR@@/}}
+
+% --- Helper macros -----------------------------------------------------------
+\newcommand{\fchk}{\raisebox{-0.5pt}{\large$\square$}}   % outline checkbox
+
+% Eyebrow label above a title (uppercase, wide-tracked, brand-700).
+\newcommand{\eyebrow}[1]{{\eyebrowfont\fontsize{10}{12}\selectfont\color{brand700} #1}\par\vspace{0.5em}}
+
+% h2-style section heading: Archivo bold, asphalt ink.
+\newcommand{\sectionhd}[1]{\vspace{0.7em}{\archivo\bfseries\fontsize{17}{19}\selectfont\color{asphaltink} #1}\vspace{0.35em}\par}
+
+% Rounded stat card (the site "callout" card: primary-50 fill, 16px corners,
+% 4px left accent bar). Use \stat{big number}{label} inside a tcbraster.
+\newtcolorbox{statcard}{
+  enhanced, arc=8pt, boxrule=0pt, colback=primary50, colframe=primary50,
+  borderline west={3pt}{0pt}{primary500},
+  left=14pt, right=12pt, top=11pt, bottom=11pt,
+}
+\newcommand{\stat}[2]{%
+  \begin{statcard}
+    {\plexmono\bfseries\fontsize{30}{32}\selectfont\color{primary600} #1}\\[3pt]
+    {\archivo\fontsize{11}{14}\selectfont\color{asphaltink} #2}
+  \end{statcard}%
+}
+
+% Table header cell type (the gray-200 fill comes from \rowcolor{tablehead}).
+\newcommand{\thd}[1]{{\archivosemi\color{asphaltink} #1}}
+
+% =============================================================================
+\begin{document}
+\color{asphaltink}
+
+% --- Header (logo + eyebrow + title) -----------------------------------------
+\includegraphics[width=150pt]{facilitron-logo.png}
+
+\vspace{1.1em}
+
+% EDIT: short uppercase kicker, or delete this line.
+\eyebrow{DOCUMENT KICKER}
+
+% EDIT: the document title. Use \\ to break lines. Archivo ExtraLight, like the
+% site hero. Drop the fontsize a few points for very long titles.
+{\herofont\fontsize{36}{38}\selectfont\color{asphaltink} Document Title\\Second Line}
+
+\vspace{0.7em}
+
+% EDIT: subtitle / one-line summary, or delete.
+{\archivo\fontsize{13}{17}\selectfont\color{asphaltlead} A one-line subtitle in the lead ink color}
+
+\vspace{0.3em}
+
+% EDIT: fine print (source, date range), or delete.
+{\fontsize{9.5}{13}\selectfont\color{asphaltmute} Source / date-range fine print goes here.}
+
+\vspace{1.3em}
+
+% --- Headline stat cards (optional) ------------------------------------------
+% EDIT: two metric cards side by side. Delete the whole block if not needed.
+\begin{tcbraster}[raster columns=2, raster column skip=14pt, raster equal height=rows]
+  \stat{1,604}{First metric\\label}
+  \stat{2,963}{Second metric\\label}
+\end{tcbraster}
+
+\vspace{1.1em}
+
+% EDIT: lead-in paragraph. Set inline figures in mono with \num{...}, e.g.
+% \num{5,159}. Keep it short — the PDF is a printable take-away.
+Replace this paragraph with the document's lead-in copy.
+
+\sectionhd{Example: data table (longtable, zebra)}
+
+% Gray header + white/gray-100 zebra + thin asphalt rules, like the site's
+% dashboard tables. \rowcolors{3}{...} starts striping at the first BODY row
+% (row 1 = header, row 2 = first body row stays white).
+{\rowcolors{3}{zebra}{white}
+\begin{longtable}{@{} l r r @{}}
+\rowcolor{tablehead}
+\thd{Month} & \thd{Metric A} & \thd{Metric B} \\
+\noalign{\vskip-0.6pt}\hline
+\endhead
+November 2025 & \num{222} & \num{370} \\
+December 2025 & \num{118} & \num{181} \\
+January 2026  & \num{177} & \num{247} \\
+\hline
+\rowcolor{white}
+{\archivosemi Total} & {\archivosemi\num{517}} & {\archivosemi\num{798}} \\
+\end{longtable}}
+
+\sectionhd{Example: fillable checklist row}
+
+% \fchk gives an outline checkbox for form-style grids.
+\begin{tabular}{@{} p{0.6cm} p{14cm} @{}}
+\fchk & Confirm tenant has signed certificate of insurance on file \\
+\fchk & Walk the facility with the tenant before and after the event \\
+\fchk & Reset HVAC and lighting to default schedule after event ends \\
+\end{tabular}
+
+\sectionhd{Example: maintenance schedule (longtable)}
+
+% A wider longtable that breaks across pages and repeats its header.
+{\rowcolors{3}{zebra}{white}
+\begin{longtable}{@{} p{2.5cm} p{3.5cm} p{8.5cm} @{}}
+\rowcolor{tablehead}
+\thd{Frequency} & \thd{System} & \thd{Task} \\
+\noalign{\vskip-0.6pt}\hline
+\endfirsthead
+\rowcolor{tablehead}
+\thd{Frequency} & \thd{System} & \thd{Task} \\
+\noalign{\vskip-0.6pt}\hline
+\endhead
+Monthly   & HVAC     & Replace filters; inspect condensate drains; check airflow at registers \\
+Monthly   & Plumbing & Inspect under-sink fittings for leaks; flush floor drains \\
+Quarterly & Roofing  & Inspect membrane and flashing; clear gutters and downspouts \\
+Annually  & Fire systems & Sprinkler inspection by licensed contractor; alarm test \\
+\end{longtable}}
+
+% EDIT: add more sections with \sectionhd{...}, tables, \stat cards, etc.
+
+\end{document}

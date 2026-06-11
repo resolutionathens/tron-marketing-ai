@@ -1,0 +1,14 @@
+{
+  "name": "tron",
+  "owner": {
+    "name": "Facilitron",
+    "url": "https://github.com/Facilitron"
+  },
+  "plugins": [
+    {
+      "name": "tron",
+      "source": ".",
+      "description": "Facilitron marketing-pages AI toolkit: Jira/Confluence intake, git lifecycle, content pipelines (news, toolkit, guides), branded PDF export, ImageKit/Figma asset ops, and page-preview tooling."
+    }
+  ]
+}

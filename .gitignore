@@ -1,0 +1,13 @@
+# Dependencies installed on first use (preview-page, md-to-pdf)
+node_modules/
+
+# Build/scratch artifacts
+*.tsbuildinfo
+/tmp/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

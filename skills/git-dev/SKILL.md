@@ -1,0 +1,95 @@
+---
+name: git-dev
+description: "Merge the current feature branch into the dev branch and push. Use this skill when the user says 'merge to dev', 'push to dev', 'deploy to dev', 'send to dev', or anything that implies they want their feature branch merged into the dev environment branch."
+allowed-tools:
+  - Bash
+  - AskUserQuestion
+---
+
+# Merge to Dev Assistant
+
+Merge the current clean feature branch into dev, push, and return to the feature branch. Works from both regular checkouts and worktrees.
+
+## Step 1: Validate current branch
+
+Run `git branch --show-current`.
+
+**Stop if** the current branch is `master`, `main`, `dev`, or `production` — the user must be on a feature branch.
+
+## Step 2: Ensure clean working tree
+
+Run `git status --porcelain`.
+
+If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the git-commit skill.
+
+## Step 3: Detect worktree vs regular checkout
+
+```bash
+MAIN_REPO=$(git rev-parse --path-format=absolute --git-common-dir | sed 's/\/.git$//')
+CURRENT_DIR=$(pwd)
+```
+
+If `MAIN_REPO` and `CURRENT_DIR` are different, you're in a worktree. The dev branch needs to be checked out from the main repo, not the worktree.
+
+## Step 4: Merge into dev
+
+**From a worktree:**
+```bash
+git -C "$MAIN_REPO" checkout dev
+git -C "$MAIN_REPO" pull
+git -C "$MAIN_REPO" merge <feature-branch-name>
+git -C "$MAIN_REPO" push
+```
+
+**From a regular checkout:**
+```bash
+git checkout dev
+git pull
+git merge <feature-branch-name>
+git push
+```
+
+If the merge fails due to conflicts, check which files conflicted:
+
+- **`package.json` and `package-lock.json`** — always keep dev's version. These files should never be updated by feature-branch merges into dev or staging; those branches manage their own dependency state. Resolve automatically:
+  ```bash
+  git -C "$MAIN_REPO" checkout --ours package.json package-lock.json
+  git -C "$MAIN_REPO" add package.json package-lock.json
+  ```
+  (omit `-C "$MAIN_REPO"` from a regular checkout.)
+
+- **Any other file** — stop and tell the user. Do NOT attempt to resolve other conflicts automatically.
+
+After resolving package file conflicts, continue the merge with `git commit --no-edit`, then push.
+
+Never force push. If the push fails, report the error and stop.
+
+## Step 5: Return to previous state
+
+**From a worktree:** Return the main repo to master:
+```bash
+git -C "$MAIN_REPO" checkout master
+```
+The worktree is still on the feature branch — no action needed there.
+
+**From a regular checkout:**
+```bash
+git checkout <feature-branch-name>
+```
+
+## Step 6: Report
+
+Tell the user:
+- The feature branch that was merged
+- Confirmation that dev is updated and pushed
+- That they're back on their feature branch (or still in their worktree)
+
+## Next steps
+
+After testing on dev, remind the user:
+- **Ready for review?** Use the **git-pr** skill to create a PR back to master
+- **After PR is merged?** Use **git-pushtoprod** to deploy master to staging and production
+- **Done with this ticket?** Clean up the worktree:
+  ```
+  git worktree remove ../<branch-name>
+  ```

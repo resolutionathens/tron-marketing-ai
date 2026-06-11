@@ -1,0 +1,8 @@
+{
+  "name": "preview-page-skill",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

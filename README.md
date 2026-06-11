@@ -1,0 +1,133 @@
+# tron — Facilitron marketing-pages AI toolkit
+
+A Claude Code **plugin** bundling the skills that drive day-to-day work on the
+[Facilitron marketing site](https://www.facilitron.com): Jira/Confluence intake, the
+git task lifecycle, content pipelines (news, toolkit, guides), branded PDF export,
+ImageKit/Figma asset operations, and page-preview tooling.
+
+It is its own repository so the skills can be versioned, reviewed, and installed across
+Facilitron repos independently of any single project checkout.
+
+---
+
+## What's inside
+
+| Group | Skills |
+|---|---|
+| **Ticket intake** | `tron:jira`, `tron:jira-comment`, `tron:confluence` |
+| **Git lifecycle** | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:task` (whole-flow orchestrator) |
+| **Content pipelines** | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item` |
+| **Assets & media** | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf` |
+| **Preview & deploy** | `tron:preview-page`, `tron:preview-url`, `tron:gh` |
+
+Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
+(`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
+guard** and refuse to write unless the current checkout is `marketing-pages`.
+
+---
+
+## Installing it (consumer repos)
+
+Add the marketplace and enable the plugin in the consumer repo's `.claude/settings.json`
+(this is what `marketing-pages` does):
+
+```jsonc
+{
+  "extraKnownMarketplaces": {
+    "tron": { "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" } }
+  },
+  "enabledPlugins": { "tron@tron": true }
+}
+```
+
+On the next session Claude Code fetches the marketplace, installs the plugin into its
+cache, and the `tron:*` skills become available.
+
+### Developing the plugin (live edit loop)
+
+The github source caches the plugin, so edits don't show up until you push + update.
+While **working on the skills**, add the local checkout as a directory marketplace
+instead, so edits are picked up without a round-trip:
+
+```
+/plugin marketplace add /Users/slip/Documents/GitHub/tron-marketing-ai
+/plugin install tron@tron
+```
+
+Use the github source for the committed team setup; the local directory source for
+authoring.
+
+---
+
+## Dependencies
+
+The skills shell out to a number of CLIs and services that **do not ship with macOS**.
+Install what you need for the skills you'll actually use — nothing here is required just
+to load the plugin; a skill only fails if you invoke it without its tool present.
+
+### Command-line tools
+
+| Tool | Install (macOS) | Needed by |
+|---|---|---|
+| **acli** (Atlassian CLI) | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `task`, `news-item`, `guide-item`, `toolkit-item` |
+| **cmux** (terminal/worktree manager) | Install separately — not on Homebrew | `start-ticket`, `open-worktree`, `close-worktree`, `preview-page`, `task` |
+| **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `task` |
+| **bun** | `brew install oven-sh/bun/bun` | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item` |
+| **node** (Node.js) | `brew install node` | ImageKit CLI consumers + `preview-page`, `md-to-pdf` |
+| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item` |
+| **pandoc** | `brew install pandoc` | `md-to-pdf` (pandoc fallback path) |
+| **xelatex** (BasicTeX/MacTeX) | `brew install --cask basictex` (+ `tlmgr install` extras) | `md-to-pdf` (preferred LaTeX path) |
+| **Playwright + Chromium** | per-skill: `(cd $CLAUDE_SKILL_DIR && bun i && bunx playwright install chromium)` | `preview-page` (headless/responsive shots) |
+| **codex** (OpenAI Codex CLI) | `npm i -g @openai/codex` → `codex login` | `gen-image`, `guide-item`, `toolkit-item` (card images) |
+| **jq** | `brew install jq` | `gh`, `preview-url`, `start-ticket` |
+| **webp / cwebp** | `brew install webp` | image fallback for `news-item`, `guide-item`, `toolkit-item` (primary path uses Bun's built-in `Bun.Image` — no install) |
+| **librsvg / rsvg-convert** | `brew install librsvg` | `md-to-pdf` (only to regenerate the logo PNG — rare) |
+| **ripgrep (rg)** | `brew install ripgrep` | recommended for the internal-link `find`/grep checks |
+
+`git`, `curl`, and `sips` ship with macOS — no install needed.
+
+### Global tool (not bundled in the plugin)
+
+- **ImageKit CLI** — `~/.claude/tools/imagekit/imagekit.mjs` (documented in the user's
+  global `~/.claude/CLAUDE.md`). Used by every skill that uploads media (`news-item`,
+  `guide-item`, `toolkit-item`, `figma-to-imagekit`, `md-to-pdf`). Requires the
+  `IMAGEKIT_PRIVATE_KEY` env var. It lives outside the plugin, so it must be present on
+  the machine separately.
+
+### MCP servers
+
+- **Figma Dev Mode MCP** — required by `tron:figma-to-imagekit` (and used for design
+  comparisons in `preview-page`). Connect it in Claude Code before running figma exports.
+
+### Environment variables
+
+Both live in `~/.env` (generated by 1Password) and are usually auto-sourced; skills
+fall back to `set -a; source ~/.env; set +a` if a token is missing.
+
+| Var | Used for |
+|---|---|
+| `JIRA_API_TOKEN` | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`) |
+| `IMAGEKIT_PRIVATE_KEY` | all ImageKit uploads |
+
+- **1Password** (app + optional `op` CLI, `brew install 1password-cli`) populates `~/.env`.
+  If a skill reports a token is unset, the 1Password agent likely isn't running.
+
+---
+
+## Repo layout
+
+```
+tron-marketing-ai/
+├── .claude-plugin/
+│   ├── plugin.json          # the plugin manifest (name: tron)
+│   └── marketplace.json     # single-plugin marketplace, source "."
+├── skills/                  # one dir per skill, each self-contained
+│   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
+│   ├── preview-page/        # bundles its own package.json + playwright scripts
+│   ├── news-item/  guide-item/   # each bundles scripts/ (fetch-confluence.sh, to-webp.sh)
+│   └── …
+└── README.md
+```
+
+Skills reference their own bundled files through **`$CLAUDE_SKILL_DIR`** (set by the
+plugin to the skill's directory), so they resolve regardless of the working directory.
