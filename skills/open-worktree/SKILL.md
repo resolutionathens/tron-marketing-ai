@@ -112,9 +112,10 @@ Confirm the workspace is ready with the workspace name and the layout. Keep it b
 
 Worktrees inherit *tracked* files only. Two things that often bite when reopening one:
 
-- **Gitignored env files don't follow worktrees.** `.env`, `.dev.vars`, `.env.local`, etc. live only in the original checkout. If the user reports the dev server returning 500s like "X is required" or "config invalid", check the worktree root and copy any missing env files from `~/Documents/GitHub/<project>/`:
+- **Gitignored env files don't follow worktrees.** `.env`, `.dev.vars`, `.env.local`, etc. live only in the original checkout. If the user reports the dev server returning 500s like "X is required" or "config invalid", check the worktree root and copy any missing env files from the main checkout (found via `git worktree list`, whose first entry is the primary checkout):
   ```bash
-  ls -1a ~/Documents/GitHub/<project>/ | grep -E '^\.(env|dev\.vars)' || true
+  MAIN_CHECKOUT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
+  ls -1a "$MAIN_CHECKOUT" | grep -E '^\.(env|dev\.vars)' || true
   # cp each match into the worktree
   ```
 - **Empty `node_modules/`.** If `ls <worktree>/node_modules/ | head -1` is empty, the original `wt` post-create hook silently failed. Run the project's install command (`bun install`, `pnpm install`, etc.) before launching dev.

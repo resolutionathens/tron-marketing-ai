@@ -88,16 +88,18 @@ mise trust <worktree-path>/.mise.toml
 
 Then re-run the `node_modules/` sanity check above.
 
-After `wt switch`, get the worktree's absolute path from `wt list` output — the worktree path follows a pattern like `~/Documents/GitHub/<project>.<branch-name>`.
+After `wt switch`, get the worktree's absolute path from `wt list` output — the worktree path follows a pattern like `<project>.<branch-name>` alongside the main checkout.
 
 ## Step 2.5: Carry over gitignored env files
 
 `.env`, `.dev.vars`, `.env.local`, and similar secret files are gitignored, so `wt switch -c` does **not** copy them into the new worktree. Without them, the dev server typically boots but every request 500s with "X is required" config errors (e.g. `BETTER_AUTH_SECRET is required`).
 
-Check the main checkout (`~/Documents/GitHub/<project>/`) for these files and copy any that exist into the worktree. The set varies per repo — check what's actually there rather than guessing:
+Find the main checkout from `git worktree list` (its first entry is always the primary checkout, wherever the user keeps their repos) and copy any gitignored env files it has into the worktree. The set varies per repo — check what's actually there rather than guessing:
 
 ```bash
-ls -1a ~/Documents/GitHub/<project>/ | grep -E '^\.(env|dev\.vars)' || true
+MAIN_CHECKOUT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
+ls -1a "$MAIN_CHECKOUT" | grep -E '^\.(env|dev\.vars)' || true
+# cp each match into the worktree root
 ```
 
 For each match, `cp` it into the worktree root. Don't list them in the user-facing summary — this is plumbing.
