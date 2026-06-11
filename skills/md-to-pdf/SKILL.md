@@ -102,7 +102,7 @@ Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/faci
 1. Open the resulting PDF(s) so the user can review (`open <pdf-path>`).
 2. After approval, upload to ImageKit using the imagekit CLI:
    ```bash
-   node ~/.claude/tools/imagekit/imagekit.mjs upload <path-to-pdf> --name <filename>.pdf --folder <imagekit-folder>
+   node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name <filename>.pdf --folder <imagekit-folder>
    ```
    Always pass `--name` so ImageKit doesn't append a random suffix to the filename.
 3. Reference the uploaded PDF from the markdown via the appropriate front-matter field (e.g., `download: <filename>.pdf` for toolkit items).

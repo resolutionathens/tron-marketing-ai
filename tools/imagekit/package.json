@@ -1,0 +1,11 @@
+{
+  "name": "tron-imagekit-cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vendored ImageKit CDN CLI for the tron plugin. node_modules is not committed; imagekit.mjs lazy-installs this dependency on first run.",
+  "type": "module",
+  "bin": { "imagekit": "./imagekit.mjs" },
+  "dependencies": {
+    "@imagekit/nodejs": "^7.7.0"
+  }
+}

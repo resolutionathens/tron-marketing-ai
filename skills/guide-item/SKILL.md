@@ -126,7 +126,7 @@ Upload to ImageKit (CLI keeps `--name` exactly — no random suffix):
 
 ```bash
 set -a; source ~/.env; set +a
-IK=~/.claude/tools/imagekit/imagekit.mjs
+IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
 
 # Body images — one folder per guide
 node $IK upload "/tmp/guide-<slug>/<name>.webp" --name <name>.webp --folder guides/<slug>

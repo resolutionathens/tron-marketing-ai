@@ -170,7 +170,7 @@ given — no random suffix — so the paths are predictable:
 
 ```bash
 set -a; source ~/.env; set +a
-IK=~/.claude/tools/imagekit/imagekit.mjs
+IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
 
 # Featured image
 node $IK upload "<out>/<slug>.webp" --folder blog-featured

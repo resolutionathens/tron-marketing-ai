@@ -11,7 +11,7 @@ Export design assets from Figma, optimize them with pngquant, and upload to Imag
 
 - `IMAGEKIT_PRIVATE_KEY` environment variable
 - `pngquant` installed locally
-- ImageKit CLI at `~/.claude/tools/imagekit/imagekit.mjs`
+- ImageKit CLI — bundled in the plugin at `tools/imagekit/imagekit.mjs` (invoked below; lazy-installs its dep on first run)
 - **Either**: Figma MCP plugin enabled in this session (primary path — no token needed), **or** `FIGMA_ACCESS_TOKEN` env var with `file_content:read` scope (REST fallback for headless/CI runs).
 
 ## Subagents & model tiers
@@ -146,7 +146,7 @@ done
 Upload using the ImageKit CLI. When `--name` is specified, the file will NOT get a random suffix appended.
 
 ```bash
-node ~/.claude/tools/imagekit/imagekit.mjs upload /tmp/optimized/filename.png \
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload /tmp/optimized/filename.png \
   --folder product/works/main --name filename.png
 ```
 
@@ -174,8 +174,8 @@ Scale options: `scale=1` (1x), `scale=2` (2x retina, recommended), `scale=4` (4x
 
 After uploading, delete any accidentally-suffixed duplicates:
 ```bash
-node ~/.claude/tools/imagekit/imagekit.mjs list --path product/works/main --limit 30
-node ~/.claude/tools/imagekit/imagekit.mjs bulk-delete ID1 ID2 ID3
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" list --path product/works/main --limit 30
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" bulk-delete ID1 ID2 ID3
 ```
 
 ## CDN base URL

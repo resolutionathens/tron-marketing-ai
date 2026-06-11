@@ -202,7 +202,7 @@ Either way, output lands at `/tmp/facilitron-md-to-pdf/<slug>.pdf`. Open it (`op
 Always pass `--name` so ImageKit doesn't append a random suffix.
 
 ```bash
-node ~/.claude/tools/imagekit/imagekit.mjs upload \
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload \
   /tmp/facilitron-md-to-pdf/<slug>.pdf \
   --name <slug>.pdf \
   --folder toolkit/downloads
@@ -231,7 +231,7 @@ cwebp -q 85 <source-image-path> -o /tmp/<slug>.webp
 Then upload:
 
 ```bash
-node ~/.claude/tools/imagekit/imagekit.mjs upload \
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload \
   /tmp/<slug>.webp \
   --name <slug>.webp \
   --folder toolkit

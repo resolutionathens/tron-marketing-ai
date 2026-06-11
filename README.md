@@ -86,13 +86,18 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 `git`, `curl`, and `sips` ship with macOS — no install needed.
 
-### Global tool (not bundled in the plugin)
+### Bundled tool — ImageKit CLI
 
-- **ImageKit CLI** — `~/.claude/tools/imagekit/imagekit.mjs` (documented in the user's
-  global `~/.claude/CLAUDE.md`). Used by every skill that uploads media (`news-item`,
-  `guide-item`, `toolkit-item`, `figma-to-imagekit`, `md-to-pdf`). Requires the
-  `IMAGEKIT_PRIVATE_KEY` env var. It lives outside the plugin, so it must be present on
-  the machine separately.
+The **ImageKit CLI** is vendored in the plugin at `tools/imagekit/imagekit.mjs` and used by
+every skill that uploads media (`news-item`, `guide-item`, `toolkit-item`,
+`figma-to-imagekit`, `md-to-pdf`). Skills invoke it via
+`${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs`, so it
+resolves from any skill regardless of cwd.
+
+Its `node_modules` is **not** committed (keeps the repo lean); the script **lazy-installs**
+its one dependency (`@imagekit/nodejs`) next to itself on first run — so it needs `node` +
+`npm` and a network connection the first time, then runs offline after. Requires the
+`IMAGEKIT_PRIVATE_KEY` env var (auto-loaded from `~/.env` if present).
 
 ### MCP servers
 
@@ -132,6 +137,8 @@ tron-marketing-ai/
 │   ├── preview-page/        # bundles its own package.json + playwright scripts
 │   ├── news-item/  guide-item/   # each bundles scripts/ (fetch-confluence.sh, to-webp.sh)
 │   └── …
+├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
+│   └── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 └── README.md
 ```
 
