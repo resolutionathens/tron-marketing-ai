@@ -4,6 +4,9 @@
     "name": "Facilitron",
     "url": "https://github.com/Facilitron"
   },
+  "metadata": {
+    "description": "Facilitron's internal marketplace for the tron marketing-pages AI toolkit plugin."
+  },
   "plugins": [
     {
       "name": "tron",
