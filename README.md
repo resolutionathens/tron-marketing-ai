@@ -86,7 +86,17 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 `git`, `curl`, and `sips` ship with macOS — no install needed.
 
-### Bundled tool — ImageKit CLI
+### Bundled tools
+
+The plugin vendors a couple of Node CLIs under `tools/`, each invoked via
+`${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/<name>/…` and each **lazy-installing**
+its own `node_modules` on first run (not committed — needs `node` + `npm` + network the
+first time, then runs offline):
+
+- **`md-to-adf`** (`tools/md-to-adf/md-to-adf.mjs`) — converts markdown → Atlassian Document
+  Format JSON for rich Jira descriptions (`tron:jira`). Wraps `markdown-to-adf` (`story` preset).
+
+**ImageKit CLI**
 
 The **ImageKit CLI** is vendored in the plugin at `tools/imagekit/imagekit.mjs` and used by
 every skill that uploads media (`news-item`, `guide-item`, `toolkit-item`,
@@ -138,6 +148,7 @@ tron-marketing-ai/
 │   └── …
 ├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
+│   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)
 │   ├── confluence/          # fetch-confluence.sh — used by news-item + guide-item
 │   └── image/               # to-webp.sh — used by news-item + guide-item
 └── README.md

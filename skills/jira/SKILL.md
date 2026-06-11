@@ -62,11 +62,11 @@ acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>
 
 **Key fact:** `acli` sends `--description` as plain text wrapped in a single ADF paragraph node. Jira Cloud's REST API v3 requires Atlassian Document Format (ADF) JSON for any structured content. **Markdown passed via `--description` renders literally** — `##`, `**bold**`, backticks, bullets all show up as raw characters.
 
-**Don't ask the user to paste into the Jira UI as a workaround.** Use the local helper to convert markdown → ADF and pass it via `--description-file`:
+**Don't ask the user to paste into the Jira UI as a workaround.** Use the bundled helper (vendored in the plugin at `tools/md-to-adf/`, lazy-installs its dep on first run) to convert markdown → ADF and pass it via `--description-file`:
 
 ```bash
-# Write the description as markdown, then:
-~/.claude/tools/md-to-adf/md-to-adf < /tmp/desc.md > /tmp/desc.adf.json
+# Write the description as markdown, then convert (default preset: story):
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs" < /tmp/desc.md > /tmp/desc.adf.json
 
 # Create with rich formatting
 acli jira workitem create \

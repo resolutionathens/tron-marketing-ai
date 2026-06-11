@@ -1,0 +1,11 @@
+{
+  "name": "tron-md-to-adf",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vendored markdown→ADF helper for the tron plugin (Jira rich descriptions). node_modules is not committed; md-to-adf.mjs lazy-installs this dependency on first run.",
+  "type": "module",
+  "bin": { "md-to-adf": "./md-to-adf.mjs" },
+  "dependencies": {
+    "markdown-to-adf": "^0.2.20"
+  }
+}
