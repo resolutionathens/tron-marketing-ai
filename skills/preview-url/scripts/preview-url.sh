@@ -101,7 +101,7 @@ case "$TARGET" in
     emit true cf-workers null n/a "workers has no per-PR preview URL — each deploy overwrites production; use the dev server or merge to check prod"
     ;;
   circleci)
-    emit true circleci null low "branch deploys per-CircleCI config — route to /circleci for the branch→URL mapping (do not hardcode here)"
+    emit true circleci null low "branch deploys per-CircleCI config — consult the marketing-pages branch→URL table in this skill (Recipes by target › CircleCI) before the CircleCI API; /circleci has the same table plus bucket detail"
     ;;
   *)
     emit false unknown null none "no deploy signal in $REPO — ask the user where this deploys"

@@ -32,7 +32,7 @@ GitHub Pages) resolves the branch's preview URL via `gh`. One JSON line on stdou
 Read the result, then act:
 - **`url` present** → hand it to the user (lead with the URL); offer `/agent-browser`.
 - **`target":"cf-workers"`** → there is no per-PR preview; say so up front (dev server or merge-to-prod).
-- **`target":"circleci"`** → route to `/circleci` for the branch→URL mapping (the script intentionally does **not** hardcode Facilitron bucket URLs — that table is owned by `/circleci`).
+- **`target":"circleci"`** → look the branch up in the **marketing-pages branch→URL table** under "Recipes by target › CircleCI" below. That table is the first-class answer — consult it **before** hitting the CircleCI API or grepping a job log. (The script intentionally doesn't hardcode Facilitron bucket URLs, but the skill prose does; `/circleci` carries the same table plus deploy-target/bucket detail.)
 - **`url":null` on a gh-deployment target** → CI is likely mid-build, or `gh` wasn't authed/in the right checkout; fall back to the recipes below.
 - **`target":"unknown"`** → ask the user where it deploys.
 
@@ -136,7 +136,21 @@ gh pr view --json comments --jq '.comments[] | select(.author.login | test("fly|
 
 ### CircleCI
 
-For Facilitron repos with fixed branch→bucket mappings (`marketing-pages`, `marketing-dynamic-landing-pages`, nuxt-layers playgrounds), the URL is a function of the branch — see `/circleci` for the table. The skill should consult that table BEFORE hitting the API.
+For Facilitron repos with fixed branch→bucket mappings (`marketing-pages`, `marketing-dynamic-landing-pages`, nuxt-layers playgrounds), the URL is a **function of the branch**, not a per-PR preview. **Look the branch up in the table below before hitting the CircleCI API or grepping a job log** — it's the authoritative answer and saves the round trip. (Source of truth: each repo's own `README.md` "Production Environments" section; this table mirrors it.)
+
+#### marketing-pages (`Facilitron/marketing-pages`)
+
+| Branch       | Environment | URL                                    |
+|--------------|-------------|----------------------------------------|
+| `dev`        | Development | https://morning-coast.facilitron.com   |
+| `staging`    | Staging     | https://staging.facilitron.com         |
+| `production` | Production  | https://www.facilitron.com             |
+
+Only `dev`, `staging`, and `production` deploy — the CircleCI `build_and_deploy` workflow filters to exactly those three branches. The `dev` alias is **`morning-coast.facilitron.com`**, not `dev.facilitron.com` — it's a CloudFront alias served via Heroku (a `server: Heroku` header on dev is expected, sometimes with an A/B variant cookie). **`master` and feature/PR branches don't deploy anywhere** — there is no per-PR preview; merge into `dev` and visit the dev URL above once CircleCI finishes.
+
+> When curling any of these CloudFront-served URLs to verify a deploy, always pass `--compressed` — they return gzip by default, which silently breaks `grep`.
+
+The sibling repos (`marketing-dynamic-landing-pages`, nuxt-layers playgrounds) also deploy per-branch via CircleCI but to their **own** domains — check each repo's README rather than assuming these URLs. `/circleci` carries this same table plus the per-branch deploy-target/bucket names.
 
 For arbitrary CircleCI projects:
 
@@ -193,7 +207,7 @@ detect_deploy_target → cf-workers
 detect_deploy_target → circleci (marketing-pages)
 → "Marketing-pages doesn't preview per-PR — it deploys per-branch.
    This PR is on `MD-1743-homepage-access-issue-announcement` which won't deploy anywhere until merged into `dev`.
-   After merge: https://dev.<marketing-domain>"
+   After merge into dev: https://morning-coast.facilitron.com"
 
 > "preview URL for the <Workers-deployed repo> PR"
 detect_deploy_target → cf-workers
