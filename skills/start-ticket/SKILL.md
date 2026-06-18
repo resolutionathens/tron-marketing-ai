@@ -11,6 +11,41 @@ allowed-tools:
 
 Set up everything needed to begin work on a ticket: look it up, create a worktree, transition the ticket, and open a cmux workspace with the browser on the ticket page. Works for both **Jira tickets** (via `acli`) and **GitHub issues** (via `gh`).
 
+## Fast path (deterministic spine)
+
+The mechanical middle of this skill — classify the ref, create the branch+worktree,
+carry over gitignored env files, transition/assign the ticket — is one script:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/start-ticket.sh <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
+```
+
+Use it like this:
+1. **First, look up the ticket yourself (Step 1 below)** — you need the title/description
+   to (a) summarize for the user and (b) word a good branch slug. That reading is judgment;
+   the script doesn't do it.
+2. Run the script with the ref and either `--branch <name>` (you chose the slug) or
+   `--summary "<ticket title>"` (it slugifies into `<KEY>-slug` / `issue-<N>-slug`).
+3. It detects Jira-vs-GitHub, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`
+   from the main checkout into the new worktree (the Step 2.5 pitfall — skip it and the
+   dev server 500s), and transitions Jira → *In Progress* / assigns the GitHub issue.
+
+One JSON line on stdout (narration on stderr):
+
+```json
+{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"transitioned":true}
+{"ok":false,"error":"ambiguous-ref","ref":"42","hint":"use #N for a GitHub issue or PROJ-N for Jira"}
+```
+
+Read `worktreePath` from the result, then **continue with the judgment steps the script
+does NOT do**: the cmux workspace (Step 4), the dev-server offer (Step 5), and the worker
+spawn (Step 6). Pass `--no-transition` when you only want the worktree (e.g. the ticket is
+already In Progress). Smoke the deterministic core with
+`bash $CLAUDE_SKILL_DIR/scripts/test-start-ticket.sh`.
+
+The detailed steps below remain the reference (and the fallback when the script reports
+`ambiguous-ref`, `wt-switch-failed`, or a non-blocking transition failure).
+
 ## Step 0: Detect ticket type
 
 Inspect the user's input and pick the path:

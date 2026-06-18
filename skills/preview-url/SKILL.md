@@ -10,6 +10,35 @@ allowed-tools:
 
 Find the staging/preview URL for a deployed branch. This skill is **routing logic**, not novel API integration — it detects the deploy target and delegates to the appropriate underlying skill (`/gh`, `/circleci`, `/cloudflare-cli`).
 
+## Fast path (deterministic)
+
+The detection + the registered-deployment lookup are mechanical — run the bundled
+script first:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/preview-url.sh [--repo <path>] [--branch <branch>]
+```
+
+It detects the deploy target from filesystem signals (same precedence as the table
+below), and for targets that register GitHub deployments (Vercel / Netlify / CF Pages /
+GitHub Pages) resolves the branch's preview URL via `gh`. One JSON line on stdout:
+
+```json
+{"ok":true,"target":"cf-pages","branch":"x","url":"https://…pages.dev","confidence":"high","reason":"…"}
+{"ok":true,"target":"cf-workers","branch":"x","url":null,"confidence":"n/a","reason":"workers has no per-PR preview URL …"}
+{"ok":false,"target":"unknown","branch":"x","url":null,"confidence":"none","reason":"no deploy signal — ask the user"}
+```
+
+Read the result, then act:
+- **`url` present** → hand it to the user (lead with the URL); offer `/agent-browser`.
+- **`target":"cf-workers"`** → there is no per-PR preview; say so up front (dev server or merge-to-prod).
+- **`target":"circleci"`** → route to `/circleci` for the branch→URL mapping (the script intentionally does **not** hardcode Facilitron bucket URLs — that table is owned by `/circleci`).
+- **`url":null` on a gh-deployment target** → CI is likely mid-build, or `gh` wasn't authed/in the right checkout; fall back to the recipes below.
+- **`target":"unknown"`** → ask the user where it deploys.
+
+Smoke the detection with `bash $CLAUDE_SKILL_DIR/scripts/test-preview-url.sh`. Everything
+below is the reference for the URL recipes and the cases the script routes onward.
+
 ## The detection flow
 
 Walk this top-down. First match wins. The signals are usually unambiguous; if more than one matches, prefer the higher in the list (most projects only have one real deploy target).
