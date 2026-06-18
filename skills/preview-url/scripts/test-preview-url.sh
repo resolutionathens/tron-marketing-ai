@@ -62,8 +62,9 @@ pass "wrangler.jsonc + Pages marker → cf-pages"
 D="$(mk circle)"; mkdir -p "$D/.circleci"; echo 'version: 2.1' > "$D/.circleci/config.yml"
 O="$(run "$D")"; echo "  → $O"
 has "$O" '"target":"circleci"' ".circleci → circleci"
-has "$O" 'route to /circleci' "circleci should route onward, not guess a URL"
-pass ".circleci/config.yml → circleci (routes to /circleci)"
+has "$O" '"url":null' "circleci should route onward (no hardcoded URL guess)"
+has "$O" 'table in this skill' "circleci reason points at the in-skill branch→URL table"
+pass ".circleci/config.yml → circleci (routes to in-skill table, no URL guess)"
 
 # nothing → unknown, ok:false
 D="$(mk bare)"; echo '# readme' > "$D/README.md"
