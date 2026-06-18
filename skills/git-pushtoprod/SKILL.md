@@ -10,6 +10,37 @@ allowed-tools:
 
 Merge master into staging and production branches, pushing both, then return to the original branch. Works from both regular checkouts and worktrees.
 
+## Fast path (deterministic)
+
+This flow is mechanical — run the bundled script instead of the steps below:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/git-pushtoprod.sh [--no-jira] [--key <TICKET>]
+```
+
+It checks the tree is clean, brings `master` current, merges master into `staging`
+then `production` (pushing each), and transitions the ticket to **Done**. It stops at
+the **first** failed/conflicted environment — `production` is never touched if
+`staging` fails — so a partial deploy is impossible to miss. `package.json`/
+`package-lock.json` conflicts resolve to `--ours`; any other conflict aborts that
+environment and is reported. The Jira key is parsed from the branch unless you pass
+`--key`; `--no-jira` skips the transition (e.g. GitHub-issue work).
+
+One JSON line on stdout (narration on stderr):
+
+```json
+{"ok":true,"staging":true,"production":true,"jira":"MD-1801:Done","leftovers":[]}
+{"ok":false,"staging":false,"production":false,"error":"staging-conflicts","conflicts":["src/a.ts"],"jira":null,"leftovers":["staging","production"]}
+```
+
+`leftovers` lists the environments that did **not** ship. Smoke it with
+`bash $CLAUDE_SKILL_DIR/scripts/test-git-pushtoprod.sh`. The steps below are the
+explanation / manual fallback for conflict cases.
+
+> **Tier reminder:** a production deploy is a high-risk action. This script is the
+> *mechanics*; the decision to run it stays with the human/PR gate — don't invoke it
+> autonomously.
+
 ## Step 1: Ensure clean working tree
 
 Run `git status --porcelain`.

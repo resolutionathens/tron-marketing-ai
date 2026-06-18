@@ -10,6 +10,33 @@ allowed-tools:
 
 Merge the current clean feature branch into dev, push, and return to the feature branch. Works from both regular checkouts and worktrees.
 
+## Fast path (deterministic)
+
+This whole flow is mechanical — run the bundled script instead of the steps below:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/git-dev.sh [feature-branch]   # defaults to the current branch
+```
+
+It validates the branch (refuses master/main/dev/staging/production), checks the
+working tree is clean, detects worktree-vs-checkout, merges the feature into `dev`,
+pushes, and restores your starting state. The **only** conflict it resolves is
+`package.json`/`package-lock.json` (→ `--ours`, per the project rule that the
+long-lived branches own their dependency state); **any other conflict aborts the
+merge cleanly and is handed back to you** — read the conflicting files, resolve with
+the user, and don't re-run blindly.
+
+It prints one JSON line on stdout (narration on stderr):
+
+```json
+{"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"worktree":true,"depsResolved":["package.json"]}
+{"ok":false,"branch":"MD-1801-x","target":"dev","error":"conflicts","conflicts":["src/a.ts"]}
+```
+
+`ok:false` with `"error":"dirty-working-tree"` means commit/stash first (tron:git-commit).
+Smoke it any time with `bash $CLAUDE_SKILL_DIR/scripts/test-git-dev.sh`. The steps below
+are the explanation / manual fallback for when the script reports a conflict.
+
 ## Step 1: Validate current branch
 
 Run `git branch --show-current`.
