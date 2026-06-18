@@ -1,7 +1,7 @@
 {
   "name": "tron",
   "description": "Facilitron marketing-pages AI toolkit: Jira/Confluence intake, git lifecycle, content pipelines (news, toolkit, guides), branded PDF export, ImageKit/Figma asset ops, and page-preview tooling.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Facilitron",
     "url": "https://www.facilitron.com"
