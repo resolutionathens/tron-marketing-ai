@@ -10,6 +10,40 @@ allowed-tools:
 
 Remove git worktrees that are no longer needed using `wt`, along with their cmux workspaces and optionally their branches.
 
+## Fast path (deterministic) — when you already know the branch
+
+When you know exactly which branch to close (the common case after a merge, and the
+only case when the OS routes here), skip the interactive steps and run the bundled
+script. It does the fixed sequence as ONE command — close the cmux workspace, remove
+the worktree and verify it's gone, delete the local branch, delete the origin branch —
+and is **idempotent**: any piece that's already gone counts as done, not an error.
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/close-worktree.sh <branch> [--force] [--keep-branch] [--keep-remote]
+```
+
+- `--force` — force-remove a dirty worktree / force-delete an unmerged branch.
+- `--keep-branch` — remove the worktree only, leave the branch (local + remote).
+- `--keep-remote` — delete the local branch but leave origin's copy.
+
+It prints exactly one line of JSON on stdout (everything else is on stderr):
+
+```json
+{"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"worktreePath":"/…",
+ "localBranchDeleted":true,"remoteBranchDeleted":true,"workspaceClosed":true,"leftovers":[]}
+```
+
+`ok` is `false` (and exit code `1`) **iff `leftovers` is non-empty** — i.e. something it
+was asked to remove is still present (usually a dirty worktree or unmerged branch; rerun
+with `--force`, or stop and tell the user if they may have unsaved work). The result
+fields mirror the dimensions the OS independently verifies, so the skill *does* the
+cleanup and the OS *confirms* it — neither trusts the other's word. The narrative below
+is the fallback for when you DON'T already know the branch (the user said "clean up" and
+you need to show the list and let them pick) or when something goes wrong.
+
+Smoke it against real git any time with
+`bash $CLAUDE_SKILL_DIR/scripts/test-close-worktree.sh`.
+
 ## Step 1: Identify worktrees to close
 
 Run:
