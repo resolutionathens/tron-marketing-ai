@@ -20,6 +20,10 @@ Facilitron repos independently of any single project checkout.
 | **Assets & media** | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf` |
 | **Preview & deploy** | `tron:preview-page`, `tron:preview-url`, `tron:gh` |
 | **Thinking & meetings** | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap-factory` (transcript → recap + action items) |
+| **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast) |
+| **Content drafting** (git-free) | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet` |
+| **SEO** (git-free) | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (GSC + GA4) |
+| **Manager / board** (git-free) | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold` |
 
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
 (`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo

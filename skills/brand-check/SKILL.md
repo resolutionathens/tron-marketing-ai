@@ -1,0 +1,77 @@
+---
+name: brand-check
+description: "Audit a design asset or a rendered marketing page against Facilitron brand guidelines — color palette / tron- Tailwind tokens, typography, logo usage and clear-space, and WCAG color contrast. Use this skill when a designer wants to verify brand consistency before handoff, or when a ticket is about color/brand correctness: 'does this match our brand', 'brand check this asset', 'are these the right colors', 'check the palette', 'is this on-brand', 'verify logo usage', 'check color contrast', or tickets like color libraries, color refinement, chart color schemes, brand guidelines, or ADA contrast fixes. Works on an image file, a Figma frame, or a live/staging URL. Git-free — reports findings; it does not edit code, branch, or open PRs."
+allowed-tools:
+  - Bash
+  - Read
+  - Glob
+  - Grep
+  - WebFetch
+  - Skill
+---
+
+# /brand-check — Brand & contrast audit
+
+Check a design asset or rendered page against the Facilitron brand system and report what's off —
+**before** it ships or goes to print. Read-only and git-free: it produces a findings report, not edits.
+
+## What it checks
+
+1. **Palette** — colors used vs the Facilitron brand palette / `tron-` Tailwind design tokens.
+   Flags off-palette colors and near-misses (close-but-not-exact hexes that should snap to a token).
+2. **Typography** — type families/weights vs the brand type system; flags non-brand fonts.
+3. **Logo usage** — correct lockup, 1-color vs full-color, adequate clear-space, not stretched/recolored.
+4. **WCAG color contrast** — text/!UI contrast ratios against AA (4.5:1 body, 3:1 large/UI). This is
+   the same lens as the ADA work — for a *live page*, defer to `/a11y-scan` for the full automated pass.
+
+## Inputs
+
+- **Image asset** (PNG/JPG/SVG) — read the file; sample dominant colors.
+- **Figma frame** — use the Figma MCP (`get_variable_defs` for bound tokens, `get_screenshot`,
+  `get_design_context`) to read actual styles rather than eyeballing.
+- **Live / staging URL** — fetch the page; for a full accessibility/contrast pass run `/a11y-scan`
+  against it and fold the contrast findings in here.
+
+## Resolve the brand source of truth
+
+Pull the canonical tokens rather than relying on memory:
+
+- **Brand knowledge** in tron-os: `knowledge/brand/` (palette, type, logo rules) if present.
+- **`tron-` Tailwind tokens** in the marketing-pages repo — grep the Tailwind config / theme for the
+  color scale the design system actually ships:
+
+```bash
+# in the marketing-pages checkout
+grep -rEn "tron-[a-z]+" tailwind.config.* app/assets 2>/dev/null | head
+```
+
+Treat those tokens as the allow-list. Anything outside it is a finding.
+
+## Sampling colors from an asset
+
+```bash
+# Dominant colors from a raster asset (ImageMagick if available)
+magick "<asset>" -resize 25% -colors 8 -unique-colors txt: 2>/dev/null | grep -oE '#[0-9A-Fa-f]{6}'
+```
+
+For each sampled hex, find the nearest brand token; if the delta is non-trivial and it's meant to be
+a brand color, flag it to snap to the token.
+
+## Contrast math
+
+For two colors, compute the WCAG ratio (relative luminance, `(L1+0.05)/(L2+0.05)`). Report pass/fail
+at AA: **4.5:1** normal text, **3:1** large text (≥24px or ≥19px bold) and UI/graphics. Call out the
+specific failing pair (e.g. breadcrumb link on background — cf. MCR-348).
+
+## Output
+
+A findings report grouped by category:
+
+| Category | Finding | Where | Severity | Fix |
+|---|---|---|---|---|
+| Palette | `#1F4FD8` is not a brand token (nearest: `tron-blue` `#2563EB`) | hero CTA | medium | snap to `tron-blue` |
+| Contrast | breadcrumb link 3.1:1 on `#F5F5F5` (AA needs 4.5:1) | /support | high | darken link to ≥`#5A6B8C` |
+| Logo | logo recolored to white on light bg | footer | high | use full-color lockup |
+
+End with a one-line verdict: **on-brand** / **needs fixes (N high, M medium)**. If the user wants the
+findings on the ticket, offer `tron:jira-comment` (confirm before posting).
