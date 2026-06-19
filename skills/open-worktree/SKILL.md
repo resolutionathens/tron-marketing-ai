@@ -20,6 +20,32 @@ Open an existing git worktree in a new cmux workspace with a three-pane layout:
 
 Browser on the left, vim top-right, terminal bottom-right.
 
+## Fast path (scripted)
+
+Resolve the worktree and fix the two footguns (missing gitignored env files, an
+empty `node_modules`) in one deterministic call before touching cmux:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/open-worktree.sh --branch <name> [--no-switch]
+```
+
+It runs `wt switch <branch> --yes` (unless `--no-switch`), resolves the worktree
+path from `git worktree list`, copies the gitignored `.env*`/`.dev.vars*` files
+from the primary checkout, and reports whether `node_modules` is empty. One JSON
+line on stdout:
+
+```json
+{"ok":true,"branch":"MD-1801-x","worktreePath":"/…","mainCheckout":"/…","envCopied":[".env.local"],"nodeModulesEmpty":false}
+{"ok":false,"branch":"x","error":"worktree-not-found","hint":"create it with tron:start-ticket, or check `wt list`"}
+```
+
+Take `worktreePath` from the result and use it as the `<absolute-path>` in the
+cmux steps below. If `nodeModulesEmpty` is true, run the project's install before
+launching dev. Smoke it with `bash $CLAUDE_SKILL_DIR/scripts/test-open-worktree.sh`.
+
+The cmux three-pane composition below stays manual — surface layout is judgment,
+not a fixed sequence (its sibling `start-ticket` keeps cmux setup in prose too).
+
 ## Determine the worktree path
 
 The user will either:

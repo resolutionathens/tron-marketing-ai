@@ -13,6 +13,26 @@ Fetch Confluence page content. **Always use `acli`** — it carries working auth
 
 > Prefer `acli` here: it carries its own login, so there's no `ATLASSIAN_EMAIL`/`JIRA_API_TOKEN` setup and no basic-auth gotchas. The `curl` + `JIRA_API_TOKEN` REST path still works (it's what `tron:news-item` and `tron:guide-item` use to download image attachments through the `api.atlassian.com` gateway), but for simply *reading* a page `acli` is less fuss — reach for the token path only when you specifically need attachment bytes.
 
+## Fast path (scripted)
+
+Resolution + fetch are mechanical — run the bundled wrapper instead of hand-rolling
+the redirect/extract dance:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/confluence.sh resolve <url-or-id>   # → {"ok":true,"pageId":"…","source":"raw|url|tiny"}
+bash $CLAUDE_SKILL_DIR/scripts/confluence.sh fetch   <url-or-id>   # storage body → stdout (title/version → stderr)
+bash $CLAUDE_SKILL_DIR/scripts/confluence.sh images  body.html     # referenced attachment filenames, doc order
+```
+
+`resolve` extracts the id offline from a raw id or a full `/pages/<id>/` URL and only
+follows a redirect for `/wiki/x/` tiny links. `fetch` runs the `acli` command below and
+prints the raw storage body — pipe that into **Step 3** (the conversion is still a
+judgment step; the script does not summarize). Smoke the offline surface with
+`bash $CLAUDE_SKILL_DIR/scripts/test-confluence.sh`. The same `cl_extract_page_id`
+resolver backs `tools/confluence/fetch-confluence.sh`, so the pipelines share one
+implementation. The prose below is the reference for what each step does and the
+faithful-markdown contract the conversion must honor.
+
 ## Step 1: Resolve the page ID
 
 The user may provide:

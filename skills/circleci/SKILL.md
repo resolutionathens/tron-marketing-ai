@@ -11,6 +11,39 @@ allowed-tools:
 
 Use the `circleci` CLI (`/opt/homebrew/bin/circleci`) for config tasks and local job execution. For everything else (listing pipelines, watching runs, fetching logs, finding deploy URLs), hit the **CircleCI v2 API** with `curl` — the CLI exposes a much narrower surface than the API does.
 
+## Fast path (scripted)
+
+Every recipe below is also a subcommand of the bundled wrapper — reach for it
+first instead of reassembling `curl … | jq …` by hand:
+
+```bash
+bash $CLAUDE_SKILL_DIR/scripts/circleci.sh <subcommand> [flags]
+```
+
+| Want | Command |
+|------|---------|
+| Auth check | `circleci.sh me` |
+| Branch's workflow statuses (the green/red dots) | `circleci.sh status [--slug S] [--branch B]` |
+| Latest pipelines / workflows / jobs | `circleci.sh pipelines` · `workflows` · `jobs --workflow ID` |
+| Poll a workflow to completion | `circleci.sh watch --workflow ID [--interval 15]` |
+| A job's artifacts (deploy URLs often live here) | `circleci.sh artifacts --job N` |
+| Raw step logs (`--grep-urls` for deployed URLs) | `circleci.sh logs --job N [--tail 250] [--grep-urls]` |
+| Rerun (everything or `--from-failed`) / trigger | `circleci.sh rerun --workflow ID` · `trigger` |
+| Derive `gh/Org/repo` from the origin remote | `circleci.sh slug` |
+| **marketing-pages** per-branch URL | `circleci.sh deploy-url <dev\|staging\|production>` |
+| Config validate / process / local run | `circleci.sh validate` · `process` · `local --job-name NAME` |
+
+It resolves the token from `$CIRCLECI_TOKEN` (else `~/.circleci/cli.yml`), defaults
+the slug from `git remote origin` and the branch from `HEAD`, and emits one JSON
+line per verdict (`logs`/`process`/`validate`/`local` print raw text). Exit `0`
+success / `1` logical failure / `2` usage error. For `watch`, run it with
+`run_in_background: true` + `Monitor` to stream the status ticks (it polls every
+`--interval` seconds, default 15). Smoke the offline surface (slug derivation, the
+deploy-url table, the usage contract) with `bash $CLAUDE_SKILL_DIR/scripts/test-circleci.sh`.
+
+The prose below is the reference for what each subcommand does under the hood and
+the cases worth understanding (the run model, the deploy-URL table, troubleshooting).
+
 ## Setup: auth (prerequisite)
 
 The `circleci` CLI and the v2 API both require a personal API token. On this machine, `~/.circleci/cli.yml` exists but contains no token yet — the user must set one up before any read calls work.

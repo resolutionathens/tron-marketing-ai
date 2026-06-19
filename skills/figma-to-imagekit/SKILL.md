@@ -33,6 +33,34 @@ subagent per node.** The split:
 Assemble the Step 5 summary table from the returned rows. Don't fan out a
 single-image export — the spawn overhead isn't worth it.
 
+## Fast path (scripted)
+
+The mechanical leg (Steps 2→4: download → `sips` resize → `pngquant` → ImageKit
+upload) is bundled as one script — this is exactly what each per-node subagent
+runs, given a resolved asset URL and the name/folder/resize you decided:
+
+```bash
+# Pure URL parse (Step 1) — fileKey + colon-form nodeId, offline:
+bash $CLAUDE_SKILL_DIR/scripts/figma-export.sh parse-url "<figma-design-url>"
+
+# The per-node pipeline (Steps 2–4), one result row of JSON:
+bash $CLAUDE_SKILL_DIR/scripts/figma-export.sh run \
+  --url "<resolved-asset-url>" --name hero.png \
+  --folder product/works/main [--resize 1280] [--quality 65-80] [--overwrite]
+```
+
+```json
+{"ok":true,"name":"hero.png","original":5359283,"optimized":155937,"savings":"97%","path":"product/works/main/hero.png","url":"https://ik…","uploaded":true}
+```
+
+`run` accepts `--file <path>` instead of `--url` (already-downloaded source) and
+`--no-upload` to stop after optimizing (returns the local savings). It rejects
+non-PNG sources up front — for jpg/svg use the format options in the prose below.
+Collect each row into the Step 5 table. Smoke it (URL parse + the real
+resize/optimize leg, no upload) with `bash $CLAUDE_SKILL_DIR/scripts/test-figma-export.sh`.
+The judgment — node discovery, naming, resize target — stays with the orchestrator;
+the prose below is the reference for those decisions and the REST/MCP export paths.
+
 ## Workflow
 
 ### 1. Identify Figma nodes to export

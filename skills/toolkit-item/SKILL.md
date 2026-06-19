@@ -96,20 +96,40 @@ skeleton:
 (The PDF, by contrast, carries only the actionable section — the procedure steps, the
 checklist body, or the fillable grid. See step 3.)
 
+## Shared scripted helpers
+
+The deterministic backbone every content skill repeats (repo guard, slug, the
+facilitron.com→relative link rewrite, internal-path validation) is one shared
+wrapper — use it instead of hand-rolling these:
+
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" check-repo                         # → {"ok":true,"isMarketingPages":true} (step 0 guard)
+bash "$C" slug "<title>"                      # → {"ok":true,"slug":"…"}              (the slug in step 2)
+bash "$C" rewrite-links content/resources/toolkit/<slug>.md   # facilitron.com→relative, in place (step 2)
+bash "$C" check-link /product/works           # → {"ok":true,"exists":true,"resolved":"pages/…"} (verify links)
+```
+
+Each emits one JSON line; `ok:false` (exit 1) is a real verdict (wrong repo, dead
+internal link). Smoke them with `bash ${CLAUDE_PLUGIN_ROOT:-…}/tools/content/test-content.sh`.
+The PDF build, schema authoring, and component choices below stay judgment.
+
 ## Step-by-step
 
 ### 0. Preflight — confirm you're in the marketing-pages repo
 
 The `tron` plugin can be installed in any Facilitron repo, but this skill writes
 marketing-pages content (`content/resources/toolkit/`). **Verify the checkout first and
-stop if it doesn't match** — worktrees of marketing-pages still match (shared remote):
+stop if it doesn't match** — `content.sh check-repo` is the guard (worktrees of
+marketing-pages still match — shared remote):
 
 ```bash
-git remote get-url origin 2>/dev/null | grep -qi 'marketing-pages' \
-  || echo "✋ NOT in the marketing-pages repo — this skill builds marketing-pages content. Switch to that checkout first."
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo \
+  | grep -q '"isMarketingPages":true' \
+  || echo "✋ NOT in the marketing-pages repo — switch to that checkout first."
 ```
 
-If the guard prints the warning, ask the user to switch to the marketing-pages checkout
+If the guard fails, ask the user to switch to the marketing-pages checkout
 before continuing — don't write files into the wrong repo.
 
 ### 1. Read the source markdown

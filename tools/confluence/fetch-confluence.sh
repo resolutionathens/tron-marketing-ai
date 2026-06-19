@@ -57,11 +57,12 @@ printf 'machine %s login %s password %s\nmachine api.atlassian.com login %s pass
 
 mkdir -p "$OUTDIR/raw"
 
-# 2. Resolve a tiny link (/wiki/x/XXXXX) to a numeric page ID if needed.
-if [[ "$INPUT" =~ ^[0-9]+$ ]]; then
-  PAGE_ID="$INPUT"
-else
-  PAGE_ID=$(curl -sIL "$INPUT" | grep -i '^location:' | tail -1 | grep -oE '[0-9]+' | tail -1)
+# 2. Resolve to a numeric page ID. confluence-lib resolves raw ids and full
+#    /pages/<id>/ URLs offline; only a /wiki/x/ tiny link needs the redirect.
+# shellcheck source=/dev/null
+source "$(dirname "$0")/confluence-lib.sh"
+if ! PAGE_ID="$(cl_extract_page_id "$INPUT")"; then
+  PAGE_ID="$(curl -sIL "$INPUT" | grep -i '^location:' | tail -1 | grep -oE '[0-9]+' | tail -1)"
 fi
 : "${PAGE_ID:?Could not resolve a page ID from: $INPUT}"
 

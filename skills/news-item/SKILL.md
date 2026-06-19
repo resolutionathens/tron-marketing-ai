@@ -82,18 +82,38 @@ are the judgment core and the correctness gate.
 
 ---
 
+## Shared scripted helpers
+
+The deterministic backbone shared with `tron:toolkit-item` and `tron:guide-item`
+(repo guard, slug, the facilitron.com→relative link rewrite, internal-path
+validation) is one wrapper — use it instead of hand-rolling these:
+
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" check-repo                       # marketing-pages guard (below)
+bash "$C" slug "<ticket summary minus Cluster:>"   # the slug that drives both ImageKit folders
+bash "$C" rewrite-links content/resources/news/<slug>.md   # facilitron.com→relative, in place (Stage 3)
+bash "$C" check-link /product/facilitron-scheduling-and-reservations   # verify an internal link resolves
+```
+
+Each emits one JSON line. Smoke them with
+`bash ${CLAUDE_PLUGIN_ROOT:-…}/tools/content/test-content.sh`. The Confluence→markdown
+transform, component choices, and column balancing below stay judgment.
+
 ## Preflight — confirm you're in the marketing-pages repo
 
 The `tron` plugin can be installed in any Facilitron repo, but this skill writes
 marketing-pages content (`content/resources/news/`). **Verify the checkout first and
-stop if it doesn't match** — worktrees of marketing-pages still match (shared remote):
+stop if it doesn't match** — `content.sh check-repo` is the guard (worktrees of
+marketing-pages still match — shared remote):
 
 ```bash
-git remote get-url origin 2>/dev/null | grep -qi 'marketing-pages' \
-  || echo "✋ NOT in the marketing-pages repo — this skill builds marketing-pages content. Switch to that checkout first."
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo \
+  | grep -q '"isMarketingPages":true' \
+  || echo "✋ NOT in the marketing-pages repo — switch to that checkout first."
 ```
 
-If the guard prints the warning, ask the user to switch to the marketing-pages checkout
+If the guard fails, ask the user to switch to the marketing-pages checkout
 before continuing — don't write files into the wrong repo.
 
 ## Stage 1 — Intake

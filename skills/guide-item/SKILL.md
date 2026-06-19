@@ -69,18 +69,40 @@ subagents, keep design judgment in the orchestrator.
 
 ---
 
+## Shared scripted helpers
+
+The deterministic backbone shared with `tron:toolkit-item` and `tron:news-item`
+(repo guard, slug, the facilitron.com→relative link rewrite, internal-path
+validation) plus the guide-card numbering is one wrapper:
+
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" check-repo                          # marketing-pages guard (below)
+bash "$C" slug "<title>"                       # the slug driving the .vue file + ImageKit folders
+bash "$C" check-link /product/works            # verify an internal link before it 404s the prerender
+# next free guide-card index (Stage 2) — feed the existing names in:
+node "$IK" list --path guides --limit 50 | grep -oE 'guide-?[0-9]+\.webp' \
+  | bash "$C" next-index --prefix guide --suffix .webp     # → {"ok":true,"next":"05"}
+```
+
+Each emits one JSON line. Smoke them with
+`bash ${CLAUDE_PLUGIN_ROOT:-…}/tools/content/test-content.sh`. Page composition,
+component choices, and card generation below stay judgment.
+
 ## Preflight — confirm you're in the marketing-pages repo
 
 The `tron` plugin can be installed in any Facilitron repo, but this skill writes
 marketing-pages pages (`pages/resources/guides/`). **Verify the checkout first and
-stop if it doesn't match** — worktrees of marketing-pages still match (shared remote):
+stop if it doesn't match** — `content.sh check-repo` is the guard (worktrees of
+marketing-pages still match — shared remote):
 
 ```bash
-git remote get-url origin 2>/dev/null | grep -qi 'marketing-pages' \
-  || echo "✋ NOT in the marketing-pages repo — this skill builds marketing-pages content. Switch to that checkout first."
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo \
+  | grep -q '"isMarketingPages":true' \
+  || echo "✋ NOT in the marketing-pages repo — switch to that checkout first."
 ```
 
-If the guard prints the warning, ask the user to switch to the marketing-pages checkout
+If the guard fails, ask the user to switch to the marketing-pages checkout
 before continuing — don't write files into the wrong repo.
 
 ## Stage 1 — Intake
