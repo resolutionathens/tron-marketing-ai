@@ -22,8 +22,10 @@ Facilitron repos independently of any single project checkout.
 | **Thinking & meetings** | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap-factory` (transcript → recap + action items) |
 | **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast) |
 | **Content drafting** (git-free) | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet` |
-| **SEO** (git-free) | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (GSC + GA4) |
+| **SEO** (git-free) | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (work with the seo.facilitron.work GSC report) |
 | **Manager / board** (git-free) | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold` |
+| **Video** (git-free) | `tron:video-brief` (brief + script + shot list), `tron:video-publish` (YouTube/social publishing kit) |
+| **Social** (git-free) | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights) |
 
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
 (`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
