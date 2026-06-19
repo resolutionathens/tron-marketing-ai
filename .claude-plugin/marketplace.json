@@ -11,7 +11,7 @@
     {
       "name": "tron",
       "source": ".",
-      "description": "Facilitron marketing-pages AI toolkit: Jira/Confluence intake, git lifecycle, role skills (designer creative/brand, content drafting, SEO audits/reports, manager board ops), content pipelines (news, toolkit, guides), branded PDF export, ImageKit/Figma asset ops, and page-preview tooling."
+      "description": "Facilitron marketing-pages AI toolkit: Jira/Confluence intake, git lifecycle, role skills (designer creative/brand, content drafting, SEO audits/reports, manager board ops, video briefs/publishing, social posts/spotlights), content pipelines (news, toolkit, guides), branded PDF export, ImageKit/Figma asset ops, and page-preview tooling."
     }
   ]
 }
