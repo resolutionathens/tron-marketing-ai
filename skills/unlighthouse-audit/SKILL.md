@@ -11,7 +11,7 @@ This skill delegates the audit to the **`unlighthouse-runner`** subagent (runs o
 
 ## What to do
 
-1. **Pick the target:** prod `https://www.facilitron.com`, staging, `http://localhost:3000` (dev server must already be running), or a section (`--urls-pattern '/resources/**'`). Pass through `--throttle` / `--desktop` / `--samples` only if the user asks.
+1. **Pick the target:** prod `https://www.facilitron.com`, staging, `http://localhost:3000` (dev server must already be running), or a section (`--include-urls '/resources/**'`). Pass through `--throttle` / `--desktop` / `--samples` only if the user asks.
 2. **Delegate to `unlighthouse-runner`** (Task tool): "Run a site-wide Lighthouse audit on `<target>` in headless/static mode and return the lowest-scoring pages plus the biggest-impact opportunities."
 3. **Relay the runner's summary.**
 

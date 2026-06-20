@@ -11,8 +11,10 @@ You are a link-validation runner. You receive a target (an absolute file path, a
 1. Verify install: `lychee --version`. If missing, report that the caller needs to run `brew install lychee`, then stop.
 2. Run lychee with sensible defaults:
    ```
-   lychee --no-progress --cache --max-cache-age 1d --accept 200,206,429 --exclude-mail <target>
+   lychee --no-progress --cache --max-cache-age 1d --accept 200,206,429 <target>
    ```
+   (Mail links are excluded by default in current lychee — there is no `--exclude-mail` flag; pass
+   `--include-mail` only if the caller wants `mailto:` links checked.)
    - Directory of markdown → use a glob like `'content/**/*.md'`.
    - Live site → pass the sitemap URL, or a seed URL with `--max-depth 2`.
    - If anti-bot domains dominate the noise (LinkedIn 999, Cloudflare 403), add `--exclude '<regex>'`.

@@ -25,7 +25,7 @@ This skill delegates the actual link-check to the **`lychee-link-runner`** subag
 
 ## Notes
 
-- The runner already applies sensible defaults (`--cache`, `--accept 200,206,429`, `--exclude-mail`). Only pass extra flags (`--include-fragments`, `--require-https`, `--exclude '<regex>'`, `--format json`) through the prompt if the user asks.
+- The runner already applies sensible defaults (`--cache`, `--max-cache-age 1d`, `--accept 200,206,429`). Mail links are excluded by default in current lychee — only pass `--include-mail` to check them. Pass other extra flags (`--include-fragments`, `--require-https`, `--exclude '<regex>'`, `--format json`) through the prompt if the user asks.
 - For projects that run lychee regularly, suggest a `lychee.toml` at the repo root with standard exclusions/accept-codes so future runs need no flags.
 - **Cost:** the heavy run-and-parse happens on Haiku in an isolated context; the main session only sees the final report.
 - Good pre-publish step alongside **`tron:news-item`** / **`tron:guide-item`** / **`tron:toolkit-item`** (run it before opening the PR).
