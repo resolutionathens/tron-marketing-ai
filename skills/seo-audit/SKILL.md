@@ -1,5 +1,7 @@
 ---
 name: seo-audit
+model: sonnet
+effort: medium
 description: "Run an on-page + technical SEO audit of a page or URL — title/meta, heading structure, schema/structured data, canonical, internal links, image alt, indexability, and Core Web Vitals — and return prioritized findings + fixes against a target query set. Use this skill when SEO wants to audit a page: 'SEO audit dfp.facilitron.com', 'audit this landing page for search', 'why isn't this page ranking', 'on-page SEO check for MCR-332', or any SEO-audit ticket. Folds in /unlighthouse-audit (perf), /a11y-scan (a11y), and /lychee-link-check (links). Git-free — produces an audit + fix spec; the page edits are a separate git task."
 allowed-tools:
   - Bash

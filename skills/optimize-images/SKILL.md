@@ -1,5 +1,7 @@
 ---
 name: optimize-images
+model: haiku
+effort: low
 description: "Optimize PNG images using pngquant to reduce file size while preserving visual quality. Use this skill whenever the user wants to compress, optimize, shrink, or reduce the size of PNG images. Also trigger when the user mentions pngquant, image optimization, image compression, or says things like 'these PNGs are too large', 'compress these images', 'optimize for web', 'reduce image file size', or 'make these images smaller'. Even if the user just says 'optimize' near image files, this skill applies."
 allowed-tools:
   - Task

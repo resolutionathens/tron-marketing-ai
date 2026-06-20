@@ -1,5 +1,7 @@
 ---
 name: brand-check
+model: sonnet
+effort: medium
 description: "Audit a design asset or a rendered marketing page against Facilitron brand guidelines — color palette / tron- Tailwind tokens, typography, logo usage and clear-space, and WCAG color contrast. Use this skill when a designer wants to verify brand consistency before handoff, or when a ticket is about color/brand correctness: 'does this match our brand', 'brand check this asset', 'are these the right colors', 'check the palette', 'is this on-brand', 'verify logo usage', 'check color contrast', or tickets like color libraries, color refinement, chart color schemes, brand guidelines, or ADA contrast fixes. Works on an image file, a Figma frame, or a live/staging URL. Git-free — reports findings; it does not edit code, branch, or open PRs."
 allowed-tools:
   - Bash
