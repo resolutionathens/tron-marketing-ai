@@ -1,0 +1,16 @@
+extends: existence
+message: "Avoid '%s' as link text — describe the destination instead (a11y: WCAG 2.4.4)."
+level: warning
+ignorecase: true
+nonword: false
+scope: raw
+tokens:
+  - '\[click here\]\('
+  - '\[click this\]\('
+  - '\[learn more\]\('
+  - '\[read more\]\('
+  - '\[see here\]\('
+  - '\[here\]\('
+  - '\[this link\]\('
+  - '\[more\]\('
+  - '\[link\]\('

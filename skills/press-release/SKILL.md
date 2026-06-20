@@ -18,8 +18,18 @@ review-ready markdown draft. Serves the MCR "Press Releases" and "Media Outreach
 ## Inputs
 - The announcement: what, who, when, why it matters. Pull from the Jira ticket
   (`acli jira workitem view <KEY> --json`) and any Confluence brief (`tron:confluence`).
-- Approved quotes (exec, partner, customer) and the official boilerplate. If the boilerplate isn't
-  provided, use the standard Facilitron boilerplate and flag it for confirmation.
+- **Boilerplate + media contact are standing assets — source them, don't leave them blank.** Pull the
+  approved "About Facilitron" boilerplate and the press/media-contact line from the press kit
+  (`tron:confluence` "Press Kit" / newsroom page, or the live newsroom at
+  `facilitron.com/resources/news`). If you can't reach it, fall back to the standing default below and
+  flag it for confirmation — so the **only** real gaps left are the quotes:
+
+  > **About Facilitron** — Facilitron is a facility scheduling, rental, and management platform that
+  > helps school districts and public agencies open their spaces to the community, streamline
+  > reservations and payments, and recover revenue. Learn more at facilitron.com. *(confirm — standing
+  > boilerplate)*
+
+- Approved quotes (exec, partner, customer). These are the genuine `TODO` — don't fabricate them.
 
 ## Standard structure
 ```

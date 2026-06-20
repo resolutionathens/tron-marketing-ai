@@ -18,14 +18,17 @@ bulk-creates silently.
 ## Templates
 | Template | Sub-tasks |
 |---|---|
-| **creative-production** (default for swag/collateral) | Design · Design Approval · Order Logistics · Ordered · Delivered |
+| **creative-production** (default for swag/collateral) | Design · Design Approval · Order Logistics · Final Approval · Ordered · Delivered |
 | **print-collateral** | Design · Design Approval · Print Proof · Printed · Delivered |
 | **web-page** | Content · Design · Build · SEO review · QA · Publish |
 | **custom** | you provide the list |
 
-The board already follows the creative-production pattern (e.g. MCR-186 Totebag Design → Tote Design
-Approval → Order Logistics → Totes Ordered → Totes Delivered). This reproduces it consistently and
-names sub-tasks `<Item> <Step>`.
+The board already follows the creative-production pattern — the **live MCR chain is six steps**: the
+swag tickets carry a **Final Approval** gate between Order Logistics and Ordered (verified on the
+Totebag and Pins chains), so the default reproduces all six. Before scaffolding, glance at a recent
+sibling chain (`acli jira workitem view <SIBLING> --json`) and match it: board naming is inconsistent
+in practice ("Order Pins" vs "Totes Ordered", "Totebag Design" vs "Sticker Design"). Default to the
+clean `<Item> <Step>` convention, but if the surrounding tickets use a different label, follow them.
 
 ## Flow
 1. **Resolve the parent:** `acli jira workitem view <PARENT> --json` — confirm project, item name,

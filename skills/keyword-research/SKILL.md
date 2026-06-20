@@ -16,8 +16,13 @@ quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and con
 
 ## Method
 1. **Seed** — start from the product/topic, competitor pages, and the page's current rankings.
-2. **Real data first** — pull existing queries (impressions/position) from Search Console via
-   `/tron-report`; queries on page 2 (positions 11–20) are the quick-win pool.
+2. **Real data first (when you can reach it)** — pull existing queries (impressions/position) from
+   Search Console via `/tron-report`; queries on page 2 (positions 11–20) are the quick-win pool.
+   **Fallback if GSC is unreachable** (the `/tron-report` CLI and seo.facilitron.work are behind
+   Cloudflare Access — many non-technical users can't reach them): skip the quick-win pull and build
+   the map from the **expand** step alone (step 3), **but say so** — flag that the "Quick wins" section
+   is empty for lack of GSC data and that `est. difficulty`/`current pos` columns are estimates, not
+   measured. Ask whoever has GSC access (or the SEO lead) to paste the page-2 query list to fill it in.
 3. **Expand** — related terms, questions (People-Also-Ask style), modifiers (location, "for schools",
    "for districts"), long-tail.
 4. **Cluster by intent:**

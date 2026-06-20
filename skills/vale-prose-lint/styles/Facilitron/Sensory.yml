@@ -1,0 +1,13 @@
+extends: existence
+message: "'%s' relies on sensory/positional cues that may not work for all users — describe the content instead."
+level: suggestion
+ignorecase: true
+nonword: false
+tokens:
+  - see (?:below|above|the image|the figure|the table)
+  - look at the
+  - as shown (?:below|above)
+  - in the image (?:below|above)
+  - the (?:below|above) (?:image|table|figure|chart)
+  - click on
+  - tap on

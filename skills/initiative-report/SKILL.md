@@ -15,16 +15,37 @@ Summarize where a Marketing Initiative, Theme, Epic, or Campaign stands. Git-fre
 writes a status summary for sharing up.
 
 ## Resolve the tree
-Given a parent key (Initiative/Theme/Epic/Campaign), pull it + its descendants:
+Given a parent key (Initiative/Theme/Epic/Campaign), pull it **plus every descendant** — not just
+direct children. `parent = <PARENT>` is **single-level**: on MCR an Initiative's real subtree is
+Initiative → Epic → Task → Sub-task (often 100+ items), so a one-level query computes % complete on
+the wrong denominator. Walk the tree breadth-first until no new children appear:
 ```bash
-acli jira workitem view <PARENT> --json
-# children (Epics under an Initiative, Stories/Tasks under an Epic, Sub-tasks under those):
-acli jira workitem search --jql 'parent = <PARENT> OR "Epic Link" = <PARENT> ORDER BY status' --limit 200 --json
+acli jira workitem view <PARENT> --json   # the parent itself
+
+# BFS every level of descendants (jq is fine — this runs on your machine, not a sandbox).
+# csv() squeezes runs of spaces/newlines into single commas and trims the ends, so jq's
+# newline-separated output becomes a valid JQL list (no leading/empty element).
+csv() { tr -s ' \n' ',' | sed 's/^,//;s/,$//'; }
+frontier="<PARENT>"; all=""
+while [ -n "$frontier" ]; do
+  list=$(printf '%s' "$frontier" | csv)
+  kids=$(acli jira workitem search --jql "parent in ($list)" --limit 200 --json | jq -r '.[].key')
+  [ -z "$kids" ] && break
+  all="$all $kids"; frontier="$kids"
+done
+# $all = every descendant key. Pull their statuses to compute % complete over the FULL set:
+keys=$(printf '%s' "$all" | csv)
+acli jira workitem search --jql "key in ($keys)" \
+  --fields key,summary,status,assignee,duedate,updated --limit 1000 --json
 ```
-For a Theme, walk one level down to its Initiatives and summarize each.
+Do **not** use `"Epic Link" = <PARENT>` — MCR's marketing hierarchy is `parent`-based and Epic Link
+adds zero rows. For a Theme, the same BFS applies (its Initiatives are just the first level down);
+optionally summarize per-Initiative as well as the rollup. If any level hits the 200 cap, paginate
+(`--limit`/offset) and note the board is larger than one page.
 
 ## Compute
-- **% complete** = Done / total (and a count: `12/20 done, 3 in progress, 5 to do`).
+- **% complete** = Done / total over **every descendant** gathered above (not just direct children),
+  with a count: `35/118 done, 12 in progress, 71 to do`. State the denominator so the number is auditable.
 - **Shipped** — recently moved to Done (with dates if available).
 - **In flight** — In Progress, with owner.
 - **At risk / blocked** — overdue, flagged, or stalled.

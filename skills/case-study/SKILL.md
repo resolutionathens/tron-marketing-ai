@@ -24,6 +24,14 @@ the source facts. Git-free: it writes a markdown draft and routes publishing to 
 - **Confluence brief / interview notes** — pull with `tron:confluence`.
 - **Metrics** — booking volume, revenue, hours saved, utilization, time-to-launch. These are the spine.
 
+### Secure the spine before drafting
+The Results section *is* the case study — a draft with an all-`TODO` Results block is a skeleton, not
+a usable draft. So **before writing**, check whether the inputs already carry 3–4 quantified outcomes
+and a named pull-quote. If they don't (MCR tickets usually don't — most are thin editorial tasks),
+**ask for them first** with **AskUserQuestion**: the 3–4 headline metrics and the attributable
+customer quote (speaker + title). Only fall back to `> TODO:` for a metric the user genuinely doesn't
+have yet — never open with an empty Results block when one question would fill it.
+
 ## Structure (Facilitron case study)
 1. **Header** — district/customer, region, size; one-line outcome.
 2. **Challenge** — the situation before Facilitron (manual scheduling, lost revenue, no visibility).

@@ -1,0 +1,6 @@
+extends: existence
+message: "Avoid em-dashes — prefer commas, periods, or parentheses for tighter prose."
+level: warning
+nonword: true
+tokens:
+  - '—'
