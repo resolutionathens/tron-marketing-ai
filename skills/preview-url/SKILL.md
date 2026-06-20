@@ -1,5 +1,7 @@
 ---
 name: preview-url
+model: haiku
+effort: low
 description: "Given a branch (default: current) and a repo (default: cwd), find the staging/preview URL where the latest commit is deployed. Detects the deploy target from repo signals (`.circleci/config.yml`, `wrangler.{toml,jsonc}`, `vercel.json`, `netlify.toml`, `fly.toml`, GH Actions workflows) and routes to the right lookup recipe. Use this skill whenever the user asks 'where's my staging link', 'what's the preview URL for this PR', 'where did this deploy', 'has staging updated yet', 'can you grab the deploy URL', or anything that implies 'I want to look at the deployed version of this branch in a browser'. Use as the FINAL step in the canonical task lifecycle right before /agent-browser to walk the deployed feature."
 allowed-tools:
   - Bash

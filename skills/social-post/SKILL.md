@@ -1,5 +1,7 @@
 ---
 name: social-post
+model: sonnet
+effort: medium
 description: "Draft a Facilitron social post from a topic, asset, or link — a master caption plus per-platform variants for Instagram, Facebook, and LinkedIn (the IG/FB/LI pattern), each with the right length, hashtags, CTA, and image/aspect note. Use this skill when social wants a post: 'draft a social post for X', 'IG/FB/LI copy for the Summer Summit recap', 'caption for this', 'post about the DevFees webinar', or a CCAL Social Post ticket. For people/district/facility spotlights use tron:spotlight. Git-free — produces copy; scheduling happens in the social tools."
 allowed-tools:
   - Bash

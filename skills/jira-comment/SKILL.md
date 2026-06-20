@@ -1,5 +1,7 @@
 ---
 name: jira-comment
+model: sonnet
+effort: medium
 description: Add a short, plain-language progress or summary comment to a Jira ticket using the `acli` CLI, in a voice that's succinct, non-technical, prose (no bullets), and free of em dashes. Use this skill whenever the user says "comment on the ticket", "add a Jira comment", "leave a note on CCAL-XXXX", "note what we did on the ticket", "drop a comment on MD-1234", "update the ticket", or otherwise wants to post a quick status, progress, or summary comment to a Jira issue. Trigger even when the user doesn't explicitly say "Jira"; phrases like "comment on it" in a context where a Jira key or active ticket is in play count.
 allowed-tools:
   - Bash

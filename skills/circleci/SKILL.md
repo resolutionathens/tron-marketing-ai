@@ -1,5 +1,7 @@
 ---
 name: circleci
+model: sonnet
+effort: medium
 description: "Interact with CircleCI from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, retrieve deploy URLs, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'is staging done deploying yet', 'why did CircleCI fail', 'watch the CI run on this branch'), wants to know whether a deploy finished, asks about the staging/production URL for a deployed branch, wants to validate or lint a CircleCI config, wants to test a job locally before pushing, or pastes a circleci.com/pipelines/... URL. Specifically relevant to the Facilitron `marketing-pages`, `marketing-dynamic-landing-pages`, and nuxt-layers-playground repos — they use CircleCI for their dev/staging/production deploys to S3+CloudFront. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'is the deploy done', 'config validate', 'run this job locally', 'fetch the artifact', 'CI is red', 'why is the build failing'."
 allowed-tools:
   - Bash

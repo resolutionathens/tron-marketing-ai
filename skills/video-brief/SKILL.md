@@ -1,5 +1,7 @@
 ---
 name: video-brief
+model: sonnet
+effort: medium
 description: "Turn a video request or ticket into a production-ready brief — purpose, audience, key message, script/voiceover, and a shot list — so an editor can go straight to work. Use this skill when video wants to plan a piece: 'brief the support video for X', 'script the DevFees feature video', 'plan the FU recap reel', 'shot list for the webinar cutdown', or a CCAL Video ticket. Produces a brief + script + shot list and points downstream to the production chain (Rough Cut → GFX → Color → Sound → Deliverables) and to remotion-narrated-film for generated/narrated explainers. Git-free — it plans; editing happens in the NLE."
 allowed-tools:
   - Bash

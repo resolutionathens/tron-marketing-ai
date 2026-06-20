@@ -1,5 +1,7 @@
 ---
 name: initiative-report
+model: sonnet
+effort: medium
 description: "Roll up the progress of a Marketing Initiative, Theme, Epic, or Campaign — child tickets by status, percent complete, what shipped, what's in flight, blockers, and what's next — into a shareable status summary. Use this skill when a manager wants a status roll-up: 'status of the ADA Compliance initiative', 'how's the FU6 event tracking', 'roll up the Tickets epic', 'progress report for MCR-355', 'what shipped under Brand & Creative', or any initiative/theme status ask. Git-free — reads Jira and writes a summary."
 allowed-tools:
   - Bash

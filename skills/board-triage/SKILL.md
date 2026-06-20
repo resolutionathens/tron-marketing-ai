@@ -1,5 +1,7 @@
 ---
 name: board-triage
+model: sonnet
+effort: medium
 description: "Review a Jira marketing board (default MCR) and surface what needs attention — new/unassigned tickets, stale or blocked items, missing priorities or due dates, and ownership gaps — with suggested assignments and priorities grouped by Marketing Theme. Use this skill when a manager wants to run the board: 'triage the MCR board', 'what needs attention on the board', 'morning board review', 'who should pick these up', 'what's stale', or any standup/board-grooming ask. Git-free — reads Jira and proposes changes; it applies assignments/transitions only on your confirmation."
 allowed-tools:
   - Bash

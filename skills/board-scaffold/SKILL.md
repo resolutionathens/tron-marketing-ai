@@ -1,5 +1,7 @@
 ---
 name: board-scaffold
+model: sonnet
+effort: low
 description: "Scaffold a repeatable set of Jira sub-tasks under a parent ticket from a template — most notably the standard Facilitron creative production chain (Design → Design Approval → Order Logistics → Ordered → Delivered) used across swag and event collateral, but also custom checklists. Use this skill when a manager/designer wants to set up a ticket's sub-tasks: 'scaffold the sub-tasks for this swag item', 'set up the production chain under MCR-305', 'add the standard design→deliver steps', 'break this down into sub-tasks', or when creating a new merch/collateral item that needs the usual lifecycle. Git-free (Jira writes) — always previews and confirms before creating anything."
 allowed-tools:
   - Bash

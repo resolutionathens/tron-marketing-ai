@@ -1,5 +1,7 @@
 ---
 name: keyword-research
+model: sonnet
+effort: medium
 description: "Research and cluster keywords for a topic, product, or page — grouping by search intent (informational / commercial / transactional), mapping clusters to target pages, and flagging gaps and quick wins. Use this skill when SEO wants keyword work: 'keyword research for facility rentals', 'find keywords for the Tickets page', 'what should this landing page target', 'build a keyword map for B2B', or keyword-strategy tickets (MCR-266, MCR-332). Pulls real query data from Search Console where possible. Git-free — produces a keyword map / brief."
 allowed-tools:
   - Bash

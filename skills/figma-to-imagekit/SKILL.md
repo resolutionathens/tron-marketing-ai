@@ -1,5 +1,7 @@
 ---
 name: figma-to-imagekit
+model: sonnet
+effort: medium
 description: "Export images from Figma designs and upload them to ImageKit CDN. Use this skill when the user wants to export assets from Figma, upload design images to ImageKit, move illustrations from Figma to production, or says things like 'grab that image from Figma', 'export and upload', 'get the images from the design', 'upload to ImageKit from Figma', or 'pull assets from Figma'. Also trigger when the user provides Figma node IDs or URLs and mentions uploading or exporting images."
 ---
 

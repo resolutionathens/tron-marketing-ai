@@ -1,5 +1,7 @@
 ---
 name: git-dev
+model: sonnet
+effort: low
 description: "Merge the current feature branch into the dev branch and push. Use this skill when the user says 'merge to dev', 'push to dev', 'deploy to dev', 'send to dev', or anything that implies they want their feature branch merged into the dev environment branch."
 allowed-tools:
   - Bash

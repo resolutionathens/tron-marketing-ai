@@ -1,5 +1,7 @@
 ---
 name: task
+model: sonnet
+effort: medium
 description: "Walk the canonical Facilitron task lifecycle end-to-end: ticket lookup → branch & worktree → atomic commits → dev → PR → prod → cleanup. Use this skill ONLY when the user asks for the whole flow at once — phrases like 'ship MD-XXXX end-to-end', 'take this ticket from start to finish', 'walk me through the full Facilitron flow', 'run the full lifecycle on CCAL-XXXX', or 'do everything for this ticket'. Do NOT use this skill when the user asks for a single stage ('commit', 'open a PR', 'start MD-XXXX'); those have their own dedicated skills (tron:git-commit, tron:git-pr, tron:start-ticket). This is the orchestrator for whole-lifecycle requests, not individual moves."
 allowed-tools:
   - Skill

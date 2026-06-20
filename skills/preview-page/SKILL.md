@@ -1,5 +1,7 @@
 ---
 name: preview-page
+model: haiku
+effort: low
 description: Open a marketing-pages route in the cmux browser pane so the user can visually inspect it. Spins up the Nuxt dev server on port 4001 if it isn't running, then adds a new browser surface in the browser pane pointing at the requested URL. Use this whenever the user asks to "preview", "open in the browser", "show me the page", "check this in cmux", "load it up", "open that route", or anything similar after creating or editing a `pages/**/*.vue` file. Also trigger when they say "let's both look at it" or "pop it open" right after a page edit — that phrasing implies opening it in the cmux browser pane, not just printing the URL.
 ---
 

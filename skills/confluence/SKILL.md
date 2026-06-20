@@ -1,5 +1,7 @@
 ---
 name: confluence
+model: haiku
+effort: low
 description: Fetch and read Confluence pages by URL or page ID. Use this skill whenever the user shares a Confluence link (including tiny links like /wiki/x/XXXXX), mentions a Confluence page, asks to read or pull content from Confluence, or references facilitron.atlassian.net/wiki. Also trigger when the user says "check Confluence", "grab that page", "pull the content from wiki", or wants to work with content that lives in Confluence.
 allowed-tools:
   - Bash

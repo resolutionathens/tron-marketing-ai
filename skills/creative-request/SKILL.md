@@ -1,5 +1,7 @@
 ---
 name: creative-request
+model: sonnet
+effort: medium
 description: "Intake a Facilitron creative/design request and turn it into a review-ready design brief + asset plan. Use this skill when a designer is starting a creative ticket — a swag/merch item (hats, tees, totes, pins, towels, lanyards, badges), event collateral or signage (posters, banners, backdrops, napkins, menus), a Figma product page, a onesheet, or any MCR 'Design Request'. Trigger on 'start this design ticket', 'work up a brief for MCR-123', 'what do I need to design here', 'spec this creative request', 'kick off the design for the FU6 backdrop', or pasting a design/creative Jira ticket. Pulls the ticket + any linked Confluence/Figma brief, pins down deliverable specs (dimensions, format, brand tokens, deadline), and produces a brief + checklist; routes the actual asset export to tron:figma-to-imagekit / tron:gen-image. Git-free — does not branch, commit, or open PRs."
 allowed-tools:
   - Bash
