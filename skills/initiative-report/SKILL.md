@@ -22,16 +22,20 @@ the wrong denominator. Walk the tree breadth-first until no new children appear:
 ```bash
 acli jira workitem view <PARENT> --json   # the parent itself
 
-# BFS every level of descendants (jq is fine — this runs on your machine, not a sandbox):
+# BFS every level of descendants (jq is fine — this runs on your machine, not a sandbox).
+# csv() squeezes runs of spaces/newlines into single commas and trims the ends, so jq's
+# newline-separated output becomes a valid JQL list (no leading/empty element).
+csv() { tr -s ' \n' ',' | sed 's/^,//;s/,$//'; }
 frontier="<PARENT>"; all=""
 while [ -n "$frontier" ]; do
-  list=$(echo "$frontier" | tr ' ' ',' | sed 's/,$//')
+  list=$(printf '%s' "$frontier" | csv)
   kids=$(acli jira workitem search --jql "parent in ($list)" --limit 200 --json | jq -r '.[].key')
   [ -z "$kids" ] && break
   all="$all $kids"; frontier="$kids"
 done
 # $all = every descendant key. Pull their statuses to compute % complete over the FULL set:
-acli jira workitem search --jql "key in ($(echo $all | tr ' ' ',' | sed 's/,$//'))" \
+keys=$(printf '%s' "$all" | csv)
+acli jira workitem search --jql "key in ($keys)" \
   --fields key,summary,status,assignee,duedate,updated --limit 1000 --json
 ```
 Do **not** use `"Epic Link" = <PARENT>` — MCR's marketing hierarchy is `parent`-based and Epic Link
