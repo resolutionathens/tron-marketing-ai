@@ -1,5 +1,7 @@
 ---
 name: open-worktree
+model: sonnet
+effort: low
 description: "Open a git worktree in a new cmux workspace with browser, vim, and terminal. Use this skill when the user says 'open worktree', 'open that worktree', 'set up workspace for <branch>', 'open workspace for <ticket>', or wants to start working in a worktree that already exists. Also trigger when the user says 'open it in cmux', 'set up cmux for that', or references a worktree path they want to work in."
 allowed-tools:
   - Bash

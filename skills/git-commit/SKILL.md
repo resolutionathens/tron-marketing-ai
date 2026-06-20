@@ -1,5 +1,7 @@
 ---
 name: git-commit
+model: sonnet
+effort: medium
 description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use this skill when the user says 'commit', 'commit and push', 'save my changes', 'push this up', or anything that implies they want to commit their current work. Also trigger when the user asks to 'ship it', 'wrap this up', or wants to finalize changes they've been working on."
 allowed-tools:
   - Bash

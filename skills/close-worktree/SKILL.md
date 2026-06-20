@@ -1,5 +1,7 @@
 ---
 name: close-worktree
+model: sonnet
+effort: low
 description: "Close and clean up git worktrees and their associated cmux workspaces. Use this skill when the user says 'close worktree', 'remove worktree', 'clean up worktree', 'delete worktree', or wants to remove a worktree they're done with. Also trigger when the user says 'I'm done with this branch', 'tear down the workspace', or 'clean up finished worktrees'."
 allowed-tools:
   - Bash

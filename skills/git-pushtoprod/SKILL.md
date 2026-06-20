@@ -1,5 +1,7 @@
 ---
 name: git-pushtoprod
+model: sonnet
+effort: low
 description: "Merge master into staging and production branches, pushing both. Use this skill when the user says 'push to prod', 'deploy to production', 'push to staging and production', 'ship to prod', or anything that implies they want master deployed to the staging and production branches."
 allowed-tools:
   - Bash

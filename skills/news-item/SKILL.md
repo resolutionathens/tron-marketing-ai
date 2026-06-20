@@ -1,5 +1,7 @@
 ---
 name: news-item
+model: opus
+effort: high
 description: Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Handles the full workflow — fetching the Confluence page, downloading and converting its images to webp, uploading them to ImageKit, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks wired up. Use this skill whenever the user wants to "start the news item", "create the news article", "build out this cluster article", "turn this Confluence draft into a news post", references a Jira "Blog Post" or "Cluster:" ticket with a Confluence link, or drops a featuredimg into the repo root and mentions a news/blog/cluster article. Also trigger when the user says "publish this article", "get this post on the site", or is working a CCAL/MD ticket whose summary starts with "Cluster:" — even if they describe only one part (e.g. "just do the images"), this skill owns the whole pipeline so the pieces stay consistent.
 ---
 

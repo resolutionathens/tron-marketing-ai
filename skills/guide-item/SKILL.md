@@ -1,5 +1,7 @@
 ---
 name: guide-item
+model: opus
+effort: high
 description: Publish a new long-form guide to /resources/guides on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Unlike news and toolkit items, a guide is a bespoke Vue PAGE composed from section/display components (not a Nuxt-Content markdown file) — this skill handles the full workflow: fetching the Confluence page, downloading and converting its images to webp, uploading them to ImageKit, composing the page from the standard guide component palette, registering it in the guides index, and wiring SEO meta. Use this skill whenever the user wants to "start the guide", "create a new guide", "build out this guide", "turn this Confluence draft into a guide page", "add a guide to /resources/guides", references a Jira "Guide" or "Pillar" ticket with a Confluence link, or says "publish this guide" / "get this guide on the site". Even if they describe only one part ("just do the images", "just scaffold the page"), this skill owns the whole pipeline so the pieces stay consistent.
 ---
 

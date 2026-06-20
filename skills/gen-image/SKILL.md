@@ -1,5 +1,7 @@
 ---
 name: gen-image
+model: sonnet
+effort: low
 description: "Generate a new image in the style of reference images using codex's built-in image_gen tool. Use when the user wants to create an image that matches the visual style of existing photos — color palette, lighting, mood, composition, medium. Trigger on: 'generate an image like these', 'create an image in this style', 'make something that looks like these photos', '/gen-image', 'gen image from folder', 'generate image like [folder]', or any request to produce a new image matching a reference set."
 allowed-tools:
   - Bash

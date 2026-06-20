@@ -1,5 +1,7 @@
 ---
 name: git-pr
+model: sonnet
+effort: medium
 description: "Create a pull request from the current feature branch with an auto-generated title and description. Use this skill when the user says 'create a PR', 'open a pull request', 'make a PR', 'submit for review', or anything that implies they want to create a pull request on GitHub. Also trigger when the user says 'PR this', 'put up a PR', or asks to get their branch reviewed."
 allowed-tools:
   - Bash
