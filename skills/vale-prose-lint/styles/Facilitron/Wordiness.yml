@@ -1,0 +1,32 @@
+extends: substitution
+message: "Tighten: prefer '%s' over '%s'."
+level: warning
+ignorecase: true
+swap:
+  in order to: to
+  in order for: for
+  due to the fact that: because
+  at this point in time: now
+  at the present time: now
+  at the end of the day: ""
+  for the purpose of: for
+  in the event that: if
+  with regard to: about
+  with respect to: about
+  in the process of: ""
+  utilize: use
+  utilization: use
+  utilizes: uses
+  utilized: used
+  leverage: use
+  leverages: uses
+  leveraged: used
+  prior to: before
+  subsequent to: after
+  in spite of: despite
+  a number of: several
+  a majority of: most
+  the vast majority of: most
+  on a daily basis: daily
+  on a weekly basis: weekly
+  on a monthly basis: monthly

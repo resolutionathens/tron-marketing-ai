@@ -1,0 +1,14 @@
+extends: substitution
+message: "Use '%s' instead of '%s' for consistency."
+level: warning
+ignorecase: true
+swap:
+  preventative maintenance: preventive maintenance
+  preventative: preventive
+  check list: checklist
+  check-list: checklist
+  e-mail: email
+  e mail: email
+  website's: site's
+  web site: website
+  log-in: login

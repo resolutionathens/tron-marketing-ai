@@ -1,0 +1,16 @@
+extends: existence
+message: "'%s' weakens the claim — drop or commit to something specific."
+level: suggestion
+ignorecase: true
+nonword: false
+tokens:
+  - very
+  - really
+  - quite
+  - rather
+  - somewhat
+  - basically
+  - essentially
+  - actually
+  - literally
+  - simply

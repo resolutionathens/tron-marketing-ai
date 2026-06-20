@@ -1,0 +1,32 @@
+extends: existence
+message: "'%s' is vague marketing language — replace with a specific claim or remove."
+level: warning
+ignorecase: true
+nonword: false
+tokens:
+  - world[- ]class
+  - best[- ]in[- ]class
+  - cutting[- ]edge
+  - bleeding[- ]edge
+  - state[- ]of[- ]the[- ]art
+  - next[- ]generation
+  - next[- ]gen
+  - game[- ]chang(?:er|ing)
+  - revolutionary
+  - paradigm shift
+  - synergy
+  - synergies
+  - mission[- ]critical
+  - turnkey
+  - one[- ]stop[- ]shop
+  - holistic
+  - end[- ]to[- ]end solution
+  - robust(?:ly)?
+  - seamless(?:ly)?
+  - frictionless
+  - empower(?:s|ed|ing)?
+  - unleash
+  - unlock the power of
+  - take it to the next level
+  - move the needle
+  - circle back

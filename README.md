@@ -26,6 +26,7 @@ Facilitron repos independently of any single project checkout.
 | **Manager / board** (git-free) | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold` |
 | **Video** (git-free) | `tron:video-brief` (brief + script + shot list), `tron:video-publish` (YouTube/social publishing kit) |
 | **Social** (git-free) | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights) |
+| **Audits & QA** (read-only) | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:lychee-link-check` (broken links), `tron:vale-prose-lint` (prose/style), `tron:unlighthouse-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
 
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
 (`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
@@ -81,7 +82,11 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 | **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `task` |
 | **bun** | `brew install oven-sh/bun/bun` | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item` |
 | **node** (Node.js) | `brew install node` | ImageKit CLI consumers + `preview-page`, `md-to-pdf` |
-| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item` |
+| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item`, `lychee-link-check` |
+| **pa11y / axe** (a11y scanners) | `npm i -g pa11y pa11y-ci @axe-core/cli` | `a11y-scan` |
+| **vale** (prose linter) | `brew install vale` | `vale-prose-lint` |
+| **unlighthouse** (site Lighthouse) | `npx unlighthouse` (no install; downloads Chromium on first run) | `unlighthouse-audit` |
+| **pngquant** (PNG compressor) | `brew install pngquant` | `optimize-images` |
 | **pandoc** | `brew install pandoc` | `md-to-pdf` (pandoc fallback path) |
 | **xelatex** (BasicTeX/MacTeX) | `brew install --cask basictex` (+ `tlmgr install` extras) | `md-to-pdf` (preferred LaTeX path) |
 | **Playwright + Chromium** | per-skill: `(cd $CLAUDE_SKILL_DIR && bun i && bunx playwright install chromium)` | `preview-page` (headless/responsive shots) |
@@ -152,7 +157,11 @@ tron-marketing-ai/
 ├── skills/                  # one dir per skill
 │   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
 │   ├── preview-page/        # bundles its own package.json + playwright scripts (single-skill)
+│   ├── vale-prose-lint/     # bundles the Facilitron Vale style pack under styles/
 │   └── …
+├── agents/                  # runner subagents the audit skills delegate to (Haiku/Sonnet)
+│   ├── a11y-scan-runner.md  # axe/pa11y · lychee-link-runner · unlighthouse-runner ·
+│   └── …                    # optimize-images-runner · vale-prose-runner
 ├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 │   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)

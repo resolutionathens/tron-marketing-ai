@@ -1,0 +1,14 @@
+extends: substitution
+message: "Capitalize the brand: use 'Facilitron' / 'K-12' / 'PreK-12'."
+level: error
+ignorecase: true
+nonword: false
+# Match only in prose contexts. Skips URLs (slash), emails (@), filenames
+# (.com, .png, etc.), and slugs (hyphen) — period is allowed only when followed
+# by whitespace or end-of-string (sentence terminator), not before .com/.org.
+swap:
+  '(^|[\s,;:(\[])facilitron([\s,;:!?)\]]|\.\s|\.$|$)': '$1Facilitron$2'
+  '(^|[\s,;:(\[])k-12([\s,;:!?)\]]|\.\s|\.$|$)': '$1K-12$2'
+  '(^|[\s,;:(\[])k12([\s,;:!?)\]]|\.\s|\.$|$)': '$1K-12$2'
+  '(^|[\s,;:(\[])prek-12([\s,;:!?)\]]|\.\s|\.$|$)': '$1PreK-12$2'
+  '(^|[\s,;:(\[])pre-k-12([\s,;:!?)\]]|\.\s|\.$|$)': '$1PreK-12$2'

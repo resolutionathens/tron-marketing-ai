@@ -1,0 +1,7 @@
+extends: existence
+message: "Sentence starts with '%s' — consider tightening (e.g., 'There are five steps' → 'Five steps:')."
+level: suggestion
+ignorecase: false
+nonword: false
+tokens:
+  - '(?:^|\. )There (?:is|are|was|were) '
