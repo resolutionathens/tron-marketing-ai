@@ -1,9 +1,11 @@
 ---
 name: a11y-scan
 description: "Run automated accessibility (WCAG) scans against a URL or sitemap using pa11y and axe-core. Use this skill when the user wants to check accessibility, audit a11y compliance, find WCAG violations, scan for accessibility issues, or says things like 'a11y scan', 'pa11y', 'axe', 'check accessibility', 'wcag check', 'audit accessibility', 'accessibility audit', 'find a11y issues', or 'is this page WCAG compliant'. Highly relevant to the ongoing WCAG 2.1 AA audit work (April 2026 ADA Title II deadline) — use whenever new pages or templates need verification, or when triaging Confluence pages from Taras."
+allowed-tools:
+  - Task
 ---
 
-# Accessibility Scan (pa11y + axe)
+# /a11y-scan — Accessibility scan (pa11y + axe)
 
 This skill delegates the scan to the **`a11y-scan-runner`** subagent (runs on Haiku to keep cost low). Your job is to resolve the target and hand off — **don't run the scanners yourself.**
 

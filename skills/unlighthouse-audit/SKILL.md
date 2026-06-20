@@ -1,9 +1,11 @@
 ---
 name: unlighthouse-audit
 description: "Run a site-wide Lighthouse audit (performance, SEO, accessibility, best practices) using unlighthouse, which crawls every page in a site and reports per-page scores plus aggregated insights. Use this skill when the user wants a Lighthouse report, a performance audit, an SEO audit, a site-wide health check, Core Web Vitals data, or says things like 'run lighthouse', 'audit the site', 'unlighthouse', 'check site performance', 'check our SEO scores', 'score the marketing site', 'find pages with bad LCP/CLS', or 'run a perf audit'. Prefer this over single-page Lighthouse when the user wants coverage across multiple pages."
+allowed-tools:
+  - Task
 ---
 
-# Unlighthouse Site Audit
+# /unlighthouse-audit — Site-wide Lighthouse audit
 
 This skill delegates the audit to the **`unlighthouse-runner`** subagent (runs on Haiku). Your job is to pick the site target and hand off — **don't run unlighthouse yourself.**
 
