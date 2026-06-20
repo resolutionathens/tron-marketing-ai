@@ -20,9 +20,22 @@ Default board: **MCR** (the marketing master board). Hierarchy: Marketing Theme 
 Campaign/Epic/Story/Task/Sub-task.
 
 ## Pull the board
+`acli jira workitem search` only returns a fixed set of fields and **rejects `--fields updated`,
+`duedate`, or `parent`** — so the bare search can't compute the stale / overdue / orphaned lenses.
+Pull the candidate keys with search, then **enrich each with `view`** (where those fields resolve):
 ```bash
-acli jira workitem search --jql 'project = MCR AND statusCategory != Done ORDER BY updated ASC' --limit 200 --json
+# 1. Candidate set (keys + the fields search does return). Raise the limit / paginate — MCR has
+#    more than 200 non-Done items, and --limit 200 silently truncates.
+acli jira workitem search --jql 'project = MCR AND statusCategory != Done ORDER BY updated ASC' \
+  --limit 500 --json | jq -r '.[].key' > /tmp/manager/triage-keys.txt
+
+# 2. Enrich: updated, duedate, and parent only exist on the full item view.
+while read k; do
+  acli jira workitem view "$k" --fields '*all' --json
+done < /tmp/manager/triage-keys.txt | jq -s '.'
 ```
+Enrichment is what powers lenses 2–3 below; without it, only Unassigned, WIP-load, and status are
+computable. If the board is large, enrich just the actionable slice (To Do / In Progress) first.
 
 ## Triage lenses
 1. **Unassigned + actionable** — To Do / In Progress with no assignee.
