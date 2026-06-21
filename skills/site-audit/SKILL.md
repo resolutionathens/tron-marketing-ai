@@ -1,5 +1,5 @@
 ---
-name: unlighthouse-audit
+name: site-audit
 model: haiku
 effort: low
 description: "Run a site-wide Lighthouse audit (performance, SEO, accessibility, best practices) using unlighthouse, which crawls every page in a site and reports per-page scores plus aggregated insights. Use this skill ONLY for multi-page / whole-site crawls — when the user wants coverage across many pages, says things like 'run lighthouse across the site', 'audit the site', 'unlighthouse', 'check site performance', 'score the whole marketing site', 'site-wide health check', 'find pages with bad LCP/CLS', or 'run a site perf audit'. For a single page's on-page SEO use tron:seo-audit; for one URL's accessibility use tron:a11y-scan."
@@ -7,7 +7,7 @@ allowed-tools:
   - Task
 ---
 
-# /unlighthouse-audit — Site-wide Lighthouse audit
+# /site-audit — Site-wide Lighthouse audit
 
 This skill delegates the audit to the **`unlighthouse-runner`** subagent (runs on Haiku). Your job is to pick the site target and hand off — **don't run unlighthouse yourself.**
 
@@ -22,7 +22,7 @@ This skill delegates the audit to the **`unlighthouse-runner`** subagent (runs o
 3. **Relay the runner's summary.**
 
 ## Notes
-- The runner runs the bundled `scripts/unlighthouse-audit.sh`, which always uses the headless `unlighthouse-ci` binary (`--build-static --reporter csvExpanded`) with real scoping flags (`--include-urls` regex for a section, `--urls` for a single page) and parses the CSV — never the interactive UI, never the non-existent `--urls-pattern`.
+- The runner runs the bundled `scripts/site-audit.sh`, which always uses the headless `unlighthouse-ci` binary (`--build-static --reporter csvExpanded`) with real scoping flags (`--include-urls` regex for a section, `--urls` for a single page) and parses the CSV — never the interactive UI, never the non-existent `--urls-pattern`.
 - First run is slow (downloads Chromium).
 - unlighthouse's a11y score is a sanity check only — use `tron:a11y-scan` (axe/pa11y) for authoritative WCAG. Remind the user to gitignore `.unlighthouse/`.
 - Pairs well with `tron:seo-report` (GSC + GA4 data) for a fuller SEO / real-user-CWV picture.

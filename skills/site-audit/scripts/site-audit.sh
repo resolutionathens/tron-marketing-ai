@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# unlighthouse-audit: the DETERMINISTIC core of tron:unlighthouse-audit. The runner
+# site-audit: the DETERMINISTIC core of tron:site-audit. The runner
 # subagent (haiku) invokes THIS script with a target instead of assembling the npx
 # command itself — which is how it previously ran the wrong binary (bare `unlighthouse`,
 # which opens an interactive UI and ignores --build-static/--reporter) with a flag that
@@ -12,7 +12,7 @@
 #   --build-static, --reporter csvExpanded, --output-path, --no-cache, --samples
 #
 # Usage:
-#   unlighthouse-audit.sh <target-url> [--page | --full] [--samples N] [--desktop] [--throttle]
+#   site-audit.sh <target-url> [--page | --full] [--samples N] [--desktop] [--throttle]
 #     default            : SECTION scope — crawl the origin, keep only paths under the
 #                          target's path (regex-anchored via --include-urls). A bare
 #                          origin with no path naturally means the whole site.
@@ -28,9 +28,9 @@
 # stderr. The caller reads the CSV and summarizes — this script only runs the audit.
 set -euo pipefail
 
-log() { echo "unlighthouse-audit: $*" >&2; }
+log() { echo "site-audit: $*" >&2; }
 
-TARGET="${1:?usage: unlighthouse-audit.sh <target-url> [--page|--full] [--samples N] [--desktop]}"
+TARGET="${1:?usage: site-audit.sh <target-url> [--page|--full] [--samples N] [--desktop]}"
 shift || true
 
 MODE="section"          # section | page | full

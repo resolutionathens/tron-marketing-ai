@@ -52,3 +52,6 @@ acli jira workitem create --project MCR --type Sub-task --parent <PARENT> \
 - Keep naming consistent with the board's convention (`<Item> <Step>`).
 
 End with the list of created sub-task keys and the parent they hang under.
+
+## Next step
+Once the chain exists, point the user at `tron:start-ticket <KEY>` to pick up the first sub-task (branch + worktree + In Progress transition in one move).

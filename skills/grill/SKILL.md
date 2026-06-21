@@ -2,7 +2,7 @@
 name: grill
 model: opus
 effort: high
-description: "Critical-interrogation pass on a piece of marketing content or a brief before it ships — surfaces hidden assumptions, vague claims, missing edge cases, and the pushback a reviewer or customer will have. Use when the user says '/grill', 'grill this', 'grill me on this', 'stress-test this', 'poke holes in', 'red-team this', 'what am I missing', 'pressure-test the copy', or pastes a news/cluster article draft, a guide, a toolkit SOP, a landing-page section, a campaign brief, or an email and asks for tough questions before publish. Output is a Grill Memo with prioritized findings and concrete fixes. This finds weakness; it does not check mechanics — pair with /vale-prose-lint (prose), /lychee-link-check (links), and /code-review (code)."
+description: "Critical-interrogation pass on a piece of marketing content or a brief before it ships — surfaces hidden assumptions, vague claims, missing edge cases, and the pushback a reviewer or customer will have. Use when the user says '/grill', 'grill this', 'grill me on this', 'stress-test this', 'poke holes in', 'red-team this', 'what am I missing', 'pressure-test the copy', or pastes a news/cluster article draft, a guide, a toolkit SOP, a landing-page section, a campaign brief, or an email and asks for tough questions before publish. Output is a Grill Memo with prioritized findings and concrete fixes. This finds weakness; it does not check mechanics — pair with /prose-lint (prose), /link-check (links), and /code-review (code)."
 allowed-tools:
   - Read
   - Grep
@@ -14,11 +14,11 @@ allowed-tools:
 
 `/brainstorm` is open-ended ideation. `/grill` is the opposite: take an existing piece of content and find
 every weak spot before a reviewer — or a customer — does. It is the substance critique that sits alongside
-the mechanical gates: `/vale-prose-lint` catches style and terminology, `/lychee-link-check` catches broken
+the mechanical gates: `/prose-lint` catches style and terminology, `/link-check` catches broken
 links, `/code-review` catches code bugs. `/grill` asks the harder question — *is this argument sound,
 specific, and complete?*
 
-## When to Use
+## When to use
 
 - Before publishing a news/cluster article, guide, or toolkit SOP
 - Before sending a campaign brief or messaging doc to a stakeholder
@@ -26,11 +26,11 @@ specific, and complete?*
 - Before an email or social post goes out
 - Anytime a draft feels "fine" but you want a real critique, not a rubber stamp
 
-## When NOT to Use
+## When NOT to use
 
 - You don't have a draft yet — use `/brainstorm` first
-- You only want a style/terminology pass — use `/vale-prose-lint`
-- You only want a link audit — use `/lychee-link-check`
+- You only want a style/terminology pass — use `/prose-lint`
+- You only want a link audit — use `/link-check`
 - The artifact is code — use `/code-review`
 
 > **`/grill` vs the gates:** `/grill` finds weakness in the *substance*. The gates check *mechanics*. Run
@@ -117,7 +117,7 @@ verdict: Ship-ready | Needs Iteration | Pull Back
 {Brief callout of what's strong — keeps the critique calibrated and prevents nitpicking everything.}
 
 ## Next Step
-- **Ship-ready:** run the mechanical gates (`/vale-prose-lint`, `/lychee-link-check`) and publish via the
+- **Ship-ready:** run the mechanical gates (`/prose-lint`, `/link-check`) and publish via the
   right content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`).
 - **Needs Iteration:** address blockers, then re-run `/grill` or move to the gates.
 - **Pull Back:** the piece has a framing problem (wrong audience, wrong angle, missing premise) — return to

@@ -149,6 +149,8 @@ Tell the user:
 - Master was merged into production and pushed
 - They're back on their original branch (or still in their worktree)
 
+Then offer **tron:jira-comment** to post a short "shipped to production" note on the ticket.
+
 ## Cleanup reminder
 
 If working in a worktree and this ticket is fully deployed, remind the user they can clean it up:

@@ -103,6 +103,8 @@ Write a `brief.md` (default to `/tmp/creative/<KEY>-brief.md`, or a path the use
 
 ### 6. Route production + post the brief
 
+- For a multi-step production item (swag, event collateral), offer `tron:board-scaffold` to set up
+  the standard Design → Approval → Order → Delivered sub-task chain under the ticket.
 - When the design exists in Figma → `tron:figma-to-imagekit` to export to the CDN.
 - Net-new imagery → `tron:gen-image`.
 - Print PDF → `tron:md-to-pdf`.

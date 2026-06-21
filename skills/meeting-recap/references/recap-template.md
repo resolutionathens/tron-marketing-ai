@@ -1,6 +1,6 @@
 # Recap Template
 
-The canonical recap shape produced by `meeting-recap-factory`. Save the populated file locally; if a section
+The canonical recap shape produced by `meeting-recap`. Save the populated file locally; if a section
 has no content, write "None" rather than dropping the heading.
 
 ```markdown

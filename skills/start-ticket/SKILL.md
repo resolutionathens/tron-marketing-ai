@@ -180,7 +180,7 @@ Skipping any of these is fine if it fails — just mention it and continue.
 
 ## Step 4: Set up the cmux workspace
 
-**Skip this entire step when invoked by the `tron:task` orchestrator.** That skill drives every stage itself, so a dedicated cmux workspace just goes unused — jump to the dev-server offer (Step 5) and omit the `Workspace:` line from the final confirmation. Only do this cmux step when `tron:start-ticket` runs on its own.
+**Skip this entire step when invoked by the `tron:ship-ticket` orchestrator.** That skill drives every stage itself, so a dedicated cmux workspace just goes unused — jump to the dev-server offer (Step 5) and omit the `Workspace:` line from the final confirmation. Only do this cmux step when `tron:start-ticket` runs on its own.
 
 Create a workspace with a two-pane layout — browser on the left showing the ticket, terminal on the right:
 
@@ -253,11 +253,11 @@ cd <worktree-absolute-path> && bun dev   # or the repo's dev command
 
 Tell the user the dev server is running and on which URL (the dev server prints its `Local: http://localhost:PORT/` once it boots; tail the log if needed to confirm the port). If you spawn a worker in Step 6, pass this URL into its kickoff.
 
-When invoked by the `tron:task` orchestrator, still offer this step — unlike cmux, a worktree-scoped dev server is genuinely useful during orchestrator-driven UI work.
+When invoked by the `tron:ship-ticket` orchestrator, still offer this step — unlike cmux, a worktree-scoped dev server is genuinely useful during orchestrator-driven UI work.
 
 ## Step 6: Offer to spawn a worker agent in the worktree pane
 
-This is the autonomy step. Instead of leaving the terminal pane idle, launch a Claude worker *in that pane* to start the ticket while you stay the orchestrator in your own pane. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:task` orchestrator** (it drives the work itself and needs no separate worker).
+This is the autonomy step. Instead of leaving the terminal pane idle, launch a Claude worker *in that pane* to start the ticket while you stay the orchestrator in your own pane. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself and needs no separate worker).
 
 The worker lands in the **right-side terminal surface** noted in Step 4b (already `cd`'d into the worktree). There are two launch variants — pick based on the work:
 

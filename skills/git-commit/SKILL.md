@@ -123,3 +123,7 @@ Show a summary of all commits made:
 - Each commit hash and message (`git log --oneline -N` where N is the number of commits)
 - Push result
 - Brief confirmation
+
+## Next steps
+
+After committing, point the user at the next lifecycle stage: `tron:git-dev` (promote to the dev branch) or `tron:git-pr` (open a PR for review).

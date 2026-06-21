@@ -16,7 +16,7 @@ a campaign around Y") but haven't pinned down the audience, the angle, or whethe
 runs *upstream* of the content pipeline: the output is an Ideation Note that a content skill
 (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`) can then turn into a real page.
 
-## When to Use
+## When to use
 
 - "I've been noodling on a campaign around back-to-school facility prep — what should we explore?"
 - "We want to rank for {topic} — what's the content play?"
@@ -24,7 +24,7 @@ runs *upstream* of the content pipeline: the output is an Ideation Note that a c
 - Pre-production, when you don't yet have a clear angle or audience
 - Greenfield exploration before committing time to a page or campaign
 
-## When NOT to Use
+## When NOT to use
 
 - You already have a clear, scoped idea → go straight to the content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`)
 - You have a *draft* and want it stress-tested → use `/grill`
@@ -126,8 +126,11 @@ ready_to_produce: false   # flip to true once discovery work below is done
 - {anything unresolved}
 
 ## Next Step
-- Once discovery is done, hand to the right content skill: `tron:news-item` (article),
-  `tron:guide-item` (guide), or `tron:toolkit-item` (SOP/checklist/template).
+- Once discovery is done, hand to the right production skill for the idea:
+  - **Web content** → `tron:news-item` (article), `tron:guide-item` (guide), `tron:toolkit-item` (SOP/checklist/template).
+  - **Campaign / lifecycle** → `tron:email-campaign`, `tron:social-post`.
+  - **Narrative / proof** → `tron:case-study`, `tron:press-release`.
+  - **A new landing page** → `tron:landing-page-seo` (target keywords + on-page spec).
 - Or run `/grill` to stress-test the hypothesis before committing.
 ```
 

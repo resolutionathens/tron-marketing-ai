@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Offline smoke test for unlighthouse-audit.sh — verifies the assembled command uses the
+# Offline smoke test for site-audit.sh — verifies the assembled command uses the
 # CORRECT binary/flags and scopes the crawl, WITHOUT downloading Chromium or hitting the
 # network (UNLH_DRY_RUN short-circuits before npx runs).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SCRIPT="$HERE/unlighthouse-audit.sh"
+SCRIPT="$HERE/site-audit.sh"
 export UNLH_DRY_RUN=1
 
 fail=0

@@ -2,7 +2,7 @@
 
 The questioning discipline `/grill` runs against marketing content — articles, guides, SOPs, landing copy,
 briefs, emails. It finds weakness in the *substance* of a piece before a reviewer or customer does. It is not
-a style or link check (that's `/vale-prose-lint` and `/lychee-link-check`) — it interrogates the argument.
+a style or link check (that's `/prose-lint` and `/link-check`) — it interrogates the argument.
 
 ## The Four Dimensions
 
@@ -126,6 +126,6 @@ Match the grill to the artifact's stage:
 
 - ❌ Critique without a fix recommendation — "this is weak" with no path forward
 - ❌ Flag every micro-imperfection — calibrate to severity
-- ❌ Re-do the mechanical gates — style nits belong to `/vale-prose-lint`, broken links to `/lychee-link-check`
+- ❌ Re-do the mechanical gates — style nits belong to `/prose-lint`, broken links to `/link-check`
 - ❌ Grill content that already shipped as if it were a draft — focus on what's worth revising
 - ❌ Invent an audience the brief never named — grill the piece in front of you, not an imagined one

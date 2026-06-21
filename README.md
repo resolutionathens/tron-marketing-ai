@@ -15,18 +15,19 @@ Facilitron repos independently of any single project checkout.
 | Group | Skills |
 |---|---|
 | **Ticket intake** | `tron:jira`, `tron:jira-comment`, `tron:confluence` |
-| **Git lifecycle** | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:task` (whole-flow orchestrator) |
+| **Git lifecycle** | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator) |
 | **Content pipelines** | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item` |
 | **Assets & media** | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf` |
 | **Preview & deploy** | `tron:preview-page`, `tron:preview-url`, `tron:gh` |
-| **Thinking & meetings** | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap-factory` (transcript → recap + action items) |
+| **CI / pipelines** | `tron:circleci` (list/watch pipelines, fetch logs, validate `.circleci/config.yml`) |
+| **Thinking & meetings** | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap` (transcript → recap + action items) |
 | **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast) |
 | **Content drafting** (git-free) | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet` |
 | **SEO** (git-free) | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (work with the seo.facilitron.work GSC report) |
 | **Manager / board** (git-free) | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold` |
 | **Video** (git-free) | `tron:video-brief` (brief + script + shot list), `tron:video-publish` (YouTube/social publishing kit) |
 | **Social** (git-free) | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights) |
-| **Audits & QA** (read-only) | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:lychee-link-check` (broken links), `tron:vale-prose-lint` (prose/style), `tron:unlighthouse-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
+| **Audits & QA** (read-only) | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:link-check` (broken links), `tron:prose-lint` (prose/style), `tron:site-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
 
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
 (`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
@@ -106,15 +107,15 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 | Tool | Install (macOS) | Needed by |
 |---|---|---|
-| **acli** (Atlassian CLI) | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `task`, `news-item`, `guide-item`, `toolkit-item` |
-| **cmux** (terminal/worktree manager) | Install separately — not on Homebrew | `start-ticket`, `open-worktree`, `close-worktree`, `preview-page`, `task` |
-| **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `task` |
+| **acli** (Atlassian CLI) | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
+| **cmux** (terminal/worktree manager) | Install separately — not on Homebrew | `start-ticket`, `open-worktree`, `close-worktree`, `preview-page`, `ship-ticket` |
+| **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket` |
 | **bun** | `brew install oven-sh/bun/bun` | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item` |
 | **node** (Node.js) | `brew install node` | ImageKit CLI consumers + `preview-page`, `md-to-pdf` |
-| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item`, `lychee-link-check` |
+| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item`, `link-check` |
 | **pa11y / axe** (a11y scanners) | `npm i -g pa11y pa11y-ci @axe-core/cli` | `a11y-scan` |
-| **vale** (prose linter) | `brew install vale` | `vale-prose-lint` |
-| **unlighthouse** (site Lighthouse) | `npx unlighthouse` (no install; downloads Chromium on first run) | `unlighthouse-audit` |
+| **vale** (prose linter) | `brew install vale` | `prose-lint` |
+| **unlighthouse** (site Lighthouse) | `npx unlighthouse` (no install; downloads Chromium on first run) | `site-audit` |
 | **pngquant** (PNG compressor) | `brew install pngquant` | `optimize-images` |
 | **pandoc** | `brew install pandoc` | `md-to-pdf` (pandoc fallback path) |
 | **xelatex** (BasicTeX/MacTeX) | `brew install --cask basictex` (+ `tlmgr install` extras) | `md-to-pdf` (preferred LaTeX path) |
@@ -186,7 +187,7 @@ tron-marketing-ai/
 ├── skills/                  # one dir per skill
 │   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
 │   ├── preview-page/        # bundles its own package.json + playwright scripts (single-skill)
-│   ├── vale-prose-lint/     # bundles the Facilitron Vale style pack under styles/
+│   ├── prose-lint/     # bundles the Facilitron Vale style pack under styles/
 │   └── …
 ├── agents/                  # runner subagents the audit skills delegate to (Haiku/Sonnet)
 │   ├── a11y-scan-runner.md  # axe/pa11y · lychee-link-runner · unlighthouse-runner ·
@@ -195,6 +196,10 @@ tron-marketing-ai/
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 │   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)
 │   ├── confluence/          # fetch-confluence.sh — used by news-item + guide-item
+│   ├── content/             # content.sh + content-lib.sh — slug/check-repo helpers for the content pipelines
+│   ├── git/                 # git-promote.sh — deterministic git-dev / git-pushtoprod flow
+│   ├── ticket/              # ticket-lib.sh — shared Jira/GitHub lookup helpers (start-ticket, ship-ticket)
+│   ├── worktree/            # worktree-lib.sh — shared worktree + cmux setup/teardown helpers
 │   └── image/               # to-webp.sh — used by news-item + guide-item
 └── README.md
 ```

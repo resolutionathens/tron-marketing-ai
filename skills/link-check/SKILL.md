@@ -1,5 +1,5 @@
 ---
-name: lychee-link-check
+name: link-check
 model: haiku
 effort: low
 description: "Check for broken or dead links in markdown content, HTML pages, sitemaps, or any URL using lychee. Use this skill when the user wants to validate links, find broken/dead URLs, audit a site for 404s, verify internal/external links, or says things like 'check for broken links', 'find dead links', 'lychee', 'link check', 'verify these links work', 'audit the links on the site', 'are any links broken in this content', or 'lint the URLs'. Especially relevant before publishing toolkit items, blog posts, redirects changes, or any content/*.md update where links could rot."
@@ -8,7 +8,7 @@ allowed-tools:
   - Bash
 ---
 
-# /lychee-link-check — Broken-link check
+# /link-check — Broken-link check
 
 This skill delegates the actual link-check to the **`lychee-link-runner`** subagent, which runs on **Haiku** to keep cost low. Your job (the main agent) is only to resolve the target and hand off — **do not run lychee yourself.**
 

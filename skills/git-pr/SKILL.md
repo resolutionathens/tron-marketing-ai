@@ -102,4 +102,5 @@ Show the PR URL returned by `gh pr create`.
 
 After the PR is merged, remind the user:
 - **Deploy:** Use **tron:git-pushtoprod** to merge master into staging and production
+- **Update the ticket:** offer **tron:jira-comment** to post a short progress note with the PR link
 - **Clean up worktree** (if working in one): use `wt remove` or the **tron:close-worktree** skill

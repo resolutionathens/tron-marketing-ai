@@ -1,6 +1,6 @@
 ---
 name: unlighthouse-runner
-description: Runs a site-wide Lighthouse audit via unlighthouse in headless/static mode, parses the per-page scores, and returns lowest-scorers + biggest-impact opportunities. Invoked by the /unlighthouse-audit skill.
+description: Runs a site-wide Lighthouse audit via unlighthouse in headless/static mode, parses the per-page scores, and returns lowest-scorers + biggest-impact opportunities. Invoked by the /site-audit skill.
 model: haiku
 tools: Bash, Read, Grep, Glob
 ---
@@ -18,15 +18,15 @@ target. Do not type an `npx` line.**
 
 ```bash
 # Resolve the skill dir without relying on $CLAUDE_SKILL_DIR (not exported to this bash).
-name=unlighthouse-audit
+name=site-audit
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/unlighthouse-audit.sh
+# fall back to the newest INSTALLED copy that actually contains scripts/site-audit.sh
 # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
-[ -e "$SKILL_DIR/scripts/unlighthouse-audit.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/unlighthouse-audit.sh" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/scripts/unlighthouse-audit.sh" ] || { echo "tron:$name: can't find scripts/unlighthouse-audit.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+[ -e "$SKILL_DIR/scripts/site-audit.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/site-audit.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/site-audit.sh" ] || { echo "tron:$name: can't find scripts/site-audit.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 
 # Run it. It prints the absolute path to the parsed CSV on stdout.
-CSV="$(bash "$SKILL_DIR/scripts/unlighthouse-audit.sh" "<target-url>" [--page|--full] [--samples N] [--desktop])"
+CSV="$(bash "$SKILL_DIR/scripts/site-audit.sh" "<target-url>" [--page|--full] [--samples N] [--desktop])"
 ```
 
 **Scope modes (the script picks real `unlighthouse-ci` flags for you):**

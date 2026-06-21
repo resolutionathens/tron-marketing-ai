@@ -403,7 +403,10 @@ paragraphs, lists) with `::image-text`/`::fImg` for visuals and `::faq` at the e
    (`bun run dev` hardcodes `--port=4001`, and bare `nuxt` isn't on PATH — call the
    local binary as above.) Then ask the user to confirm the hero + all inline
    images render. Don't run `build` to verify — the dev server is for that.
-4. **Clean up** — remove the dropped-in featured image from the repo root and the
+4. **Prose & a11y** — before publish, offer a copy pass with `tron:prose-lint`
+   on the new markdown, and `tron:a11y-scan` against the rendered page (catches the
+   WCAG regressions a manual read misses).
+5. **Clean up** — remove the dropped-in featured image from the repo root and the
    `/tmp/news-<slug>` working directory once the page looks right.
 
 The article file is the only thing that should end up tracked in git.

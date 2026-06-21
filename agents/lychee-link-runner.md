@@ -1,6 +1,6 @@
 ---
 name: lychee-link-runner
-description: Runs lychee link-checking against a file, directory glob, live URL, or sitemap and returns a triaged summary of broken/redirected links. Mechanical and read-only; invoked by the /lychee-link-check skill.
+description: Runs lychee link-checking against a file, directory glob, live URL, or sitemap and returns a triaged summary of broken/redirected links. Mechanical and read-only; invoked by the /link-check skill.
 model: haiku
 tools: Bash, Read, Glob, Grep
 ---

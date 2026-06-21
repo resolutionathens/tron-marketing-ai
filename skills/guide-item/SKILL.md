@@ -369,7 +369,9 @@ body-image folder.
    (`find pages -type f -name "*.vue" | grep -i <keyword>`). Watch the known trap:
    `/product/scheduling-and-reservations/` has no index — use
    `/product/facilitron-scheduling-and-reservations`.
-5. **Clean up** — remove the dropped-in sources and `/tmp/guide-<slug>`. Only the new
+5. **Prose & a11y** — before publish, offer `tron:prose-lint` on the copy and
+   `tron:a11y-scan` against the rendered guide route (new pages should clear the WCAG gate).
+6. **Clean up** — remove the dropped-in sources and `/tmp/guide-<slug>`. Only the new
    `.vue` page and the `index.vue` edit should end up tracked.
 
 ## Common pitfalls

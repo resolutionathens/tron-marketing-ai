@@ -97,3 +97,5 @@ open -a Preview "$OUT"   # macOS — avoids Photoshop hijacking PNGs
   tool, and copies out **only** an image newer than that run (never a stale one).
 - Default size `1024x1024`, quality `high` (override via `GENIMG_SIZE` / `GENIMG_QUALITY`).
   `gpt-image-2` does not support transparent backgrounds. Typical time: 30–90 seconds.
+- **Next step:** generated PNGs are large — before shipping one to the web or CDN, run
+  `tron:optimize-images` to compress (and convert to WebP) it.

@@ -47,7 +47,7 @@ H2/H3 structure that covers the intent + supporting terms.
 - Add <Product/FAQ/Breadcrumb> JSON-LD: <fields>
 
 ## Technical / CWV
-- <e.g. preload hero, lazy-load below fold> (from /unlighthouse-audit)
+- <e.g. preload hero, lazy-load below fold> (from /site-audit)
 ```
 
 ## Rules

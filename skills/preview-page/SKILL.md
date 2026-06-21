@@ -286,6 +286,8 @@ One line, with the URL. They're about to look at it; they don't need a recap of 
 
 If the change is non-trivial, run `cmux browser --surface $S errors list` and a `get text` for the most important element before saying "preview is up." Catching a broken h1 yourself is cheaper than catching it through the user's eyes — and far cheaper than a screenshot round-trip.
 
+For a brand-new or substantially-changed page, offer the automated gates once it looks right: `tron:a11y-scan` (WCAG) and `tron:brand-check` (palette / `tron-` tokens / contrast) against the same URL.
+
 ## When things go sideways
 
 - **No browser pane found.** Create one: `cmux new-pane --type browser --direction right --url "<full-url>"`. Tell the user you split a new pane because no browser pane existed.

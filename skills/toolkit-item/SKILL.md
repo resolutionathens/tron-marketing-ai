@@ -286,6 +286,8 @@ Tell the user:
 - ImageKit URLs for the PDF and image (so they can sanity-check)
 - A short test plan they can run on dev: load `/resources/toolkit`, click the new card, click Download PDF
 
+Before publish, offer a QA pass: `tron:prose-lint` on the markdown, `tron:link-check` on its links, and `tron:a11y-scan` against the rendered toolkit page.
+
 Don't auto-commit or push — leave that to the user (or to a separate `git-commit` invocation).
 
 ## Common pitfalls
