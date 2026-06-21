@@ -9,11 +9,24 @@ description: Convert a Facilitron Nuxt-Content markdown file into a branded PDF,
 
 Convert Facilitron Nuxt-Content markdown into branded PDFs.
 
-This skill ships its LaTeX template, brand fonts, logo, and a pandoc build script inside the `tron` plugin. Reference them through `$CLAUDE_SKILL_DIR` — the plugin sets it to this skill's bundled directory, so commands work from any worktree or cwd:
+This skill ships its LaTeX template, brand fonts, logo, and a pandoc build script inside the `tron` plugin:
 
 ```
-$CLAUDE_SKILL_DIR/   # template.tex, fonts/, facilitron-logo.png, build.ts
+$SKILL_DIR/   # template.tex, fonts/, facilitron-logo.png, build.ts
 ```
+
+**Resolve `$SKILL_DIR` robustly first.** `$CLAUDE_SKILL_DIR` is *not* always exported into the agent's Bash environment (e.g. under the headless worker), and the plugin's cache path is version-pinned — so never hardcode a path like `…/cache/tron/tron/0.8.0/skills/md-to-pdf`. Compute it once and reuse it in every command below:
+
+```bash
+name=md-to-pdf
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains template.tex
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/template.tex" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/template.tex" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/template.tex" ] || { echo "tron:$name: can't find template.tex — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+```
+
+This prefers the env hint, then the newest *installed copy that actually contains the asset* (so a stale mirror missing it is skipped, and same-version ties go to the marketplace copy) — and survives a plugin version bump. `build.ts` additionally resolves its own assets relative to itself (`import.meta.url`), so once you invoke it through `$SKILL_DIR` it needs no env var at all.
 
 ## Two paths — default to LaTeX
 
@@ -25,17 +38,19 @@ The **pandoc-from-markdown** path (`build.ts`) is a **fallback** — reach for i
 
 ## Default path — author in LaTeX from the template
 
-The skill ships a Facilitron-branded starter at `$CLAUDE_SKILL_DIR/template.tex`, styled to mirror the marketing-pages site (`assets/css/tailwind.css`). It pre-wires: the logo; the brand fonts (Inter body / Archivo display / IBM Plex Mono figures); `tron-asphalt-900` ink for text and headings (not pure black) with `tron-primary-600` links; an `\eyebrow{...}` kicker and an Archivo-ExtraLight hero title matching the site's weight-200 `frame-h1`; rounded `tron-primary-50` stat cards with a `primary-500` accent bar (`\stat{number}{label}` inside a `tcbraster`, the site's "callout" pattern); dashboard-style tables (gray-200 header via `\thd{}` + white/`gray-100` zebra + thin asphalt rules); the `\num{...}` mono-figure macro; and `\fchk` (outline checkbox).
+The skill ships a Facilitron-branded starter at `$SKILL_DIR/template.tex`, styled to mirror the marketing-pages site (`assets/css/tailwind.css`). It pre-wires: the logo; the brand fonts (Inter body / Archivo display / IBM Plex Mono figures); `tron-asphalt-900` ink for text and headings (not pure black) with `tron-primary-600` links; an `\eyebrow{...}` kicker and an Archivo-ExtraLight hero title matching the site's weight-200 `frame-h1`; rounded `tron-primary-50` stat cards with a `primary-500` accent bar (`\stat{number}{label}` inside a `tcbraster`, the site's "callout" pattern); dashboard-style tables (gray-200 header via `\thd{}` + white/`gray-100` zebra + thin asphalt rules); the `\num{...}` mono-figure macro; and `\fchk` (outline checkbox).
 
 ```bash
 mkdir -p /tmp/facilitron-md-to-pdf
 # Substitute @@SKILLDIR@@ with this skill's bundled dir so the font + logo paths resolve
-sed "s|@@SKILLDIR@@|$CLAUDE_SKILL_DIR|g" "$CLAUDE_SKILL_DIR/template.tex" > /tmp/facilitron-md-to-pdf/<slug>.tex
+sed "s|@@SKILLDIR@@|$SKILL_DIR|g" "$SKILL_DIR/template.tex" > /tmp/facilitron-md-to-pdf/<slug>.tex
 # Edit <slug>.tex — replace the title and example sections (the EDIT: markers) with real content
 xelatex -interaction=nonstopmode -output-directory=/tmp/facilitron-md-to-pdf /tmp/facilitron-md-to-pdf/<slug>.tex
 ```
 
-Edit the `EDIT:` markers for your content. The template uses `\graphicspath` to keep `\includegraphics{facilitron-logo.png}` resolving even when copied to `/tmp`, and references the vendored brand fonts in `fonts/` via the `@@SKILLDIR@@` token (substituted with `$CLAUDE_SKILL_DIR` by the `sed` above), so it works with no further setup or system font install. **Run `xelatex` twice** if hyperref complains about needing a rerun for outlines.
+Edit the `EDIT:` markers for your content. The template uses `\graphicspath` to keep `\includegraphics{facilitron-logo.png}` resolving even when copied to `/tmp`, and references the vendored brand fonts in `fonts/` via the `@@SKILLDIR@@` token (substituted with `$SKILL_DIR` by the `sed` above), so it works with no further setup or system font install. **Run `xelatex` twice** if hyperref complains about needing a rerun for outlines.
+
+> **Quotes:** the template wires up `csquotes` with `\MakeOuterQuote{"}`, so author body text with either real Unicode curly quotes (`“ ”`) or plain straight quotes (`"..."`) — both render as proper curly quotes in Archivo. **Never** use TeX-style ``` ``...'' ``` — the backtick opening-quote ligature doesn't map in the brand font and prints a literal `` ` `` glyph.
 
 **Requirements:** `xelatex` (BasicTeX or MacTeX). The brand fonts are bundled — no system font install needed. See the plugin README's Dependencies section.
 
@@ -66,7 +81,7 @@ For tables that span pages, swap `tabular` for `longtable` so headers repeat and
 A quick path for plain prose with no tables or forms. It renders in Helvetica (not the brand fonts) and is "dumb on purpose" — it pipes the markdown through pandoc with the logo and title bolted on top.
 
 ```bash
-bun "$CLAUDE_SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>]
+bun "$SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>]
 ```
 
 - One or more markdown file paths (positional)
@@ -104,7 +119,7 @@ Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/faci
 1. Open the resulting PDF(s) so the user can review (`open <pdf-path>`).
 2. After approval, upload to ImageKit using the imagekit CLI:
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name <filename>.pdf --folder <imagekit-folder>
+   node "${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name <filename>.pdf --folder <imagekit-folder>
    ```
    Always pass `--name` so ImageKit doesn't append a random suffix to the filename.
 3. Reference the uploaded PDF from the markdown via the appropriate front-matter field (e.g., `download: <filename>.pdf` for toolkit items).
@@ -119,5 +134,5 @@ The logo PNG (`facilitron-logo.png`) was rasterized once from `public/img/logos/
 
 ```bash
 rsvg-convert -w 600 <marketing-pages>/public/img/logos/facilitron-logo.svg \
-  -o "$CLAUDE_SKILL_DIR/facilitron-logo.png"
+  -o "$SKILL_DIR/facilitron-logo.png"
 ```

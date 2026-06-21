@@ -2,7 +2,7 @@
 name: landing-page-seo
 model: sonnet
 effort: medium
-description: "Produce an on-page SEO optimization spec for a specific landing page against a target keyword set — recommended title/meta/H1, heading outline, content additions, internal links, schema, and CWV fixes — as a concrete change list a developer can implement. Use this skill when SEO wants to optimize a page for search: 'optimize the DFP landing page for search', 'on-page spec for dfp.facilitron.com', 'make this page rank for X', 'redesign landing page for search visibility' (MCR-333, MCR-331, MCR-278). Builds on tron:seo-audit + tron:keyword-research. Git-free — outputs the spec; implementation is a git task."
+description: "Produce an on-page SEO optimization spec for a specific landing page against a target keyword set — recommended title/meta/H1, heading outline, content additions, internal links, schema, and CWV fixes — as a concrete change list a developer can implement. Use this skill when SEO wants the prescriptive fix spec for a page — what to change to rank: 'optimize/rewrite the DFP landing page for search', 'on-page spec for dfp.facilitron.com', 'make this page rank for X', 'redesign landing page for search visibility' (MCR-333, MCR-331, MCR-278). To first DIAGNOSE a page's current state (findings, not a change spec) use tron:seo-audit; this skill produces the change spec that builds on tron:seo-audit + tron:keyword-research. Git-free — outputs the spec; implementation is a git task."
 allowed-tools:
   - Bash
   - Read

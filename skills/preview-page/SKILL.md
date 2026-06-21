@@ -26,7 +26,16 @@ If the guard warns, ask the user to switch to the marketing-pages checkout befor
 The shortest path:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/preview.sh <route-or-file>
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash; never hardcode a version-pinned path. (Skill-local bun/deps
+# commands below still use $CLAUDE_SKILL_DIR — those run in interactive context.)
+name=preview-page
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/preview.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/preview.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/preview.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/preview.sh" ] || { echo "tron:$name: can't find scripts/preview.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/preview.sh" <route-or-file>
 ```
 
 The script handles everything below. Use it directly when you already know what to preview. The rest of this document is for the cases where you don't, or when something goes wrong.
@@ -83,10 +92,10 @@ The trade-off vs. the interactive loop: zero mid-build HITL gates, so any diverg
 ### The gate — must do, in order
 
 1. **Pull the Figma node screenshot.** `mcp__plugin_figma_figma__get_screenshot` with the section's node ID, download via curl to `/tmp/figma-<section>.png`.
-2. **Open the compare view (it captures dev for you).** `bash $CLAUDE_SKILL_DIR/scripts/compare.sh <figma-png> <route> <section-index>`. The script uses headless Chromium at Figma-native 1440px viewport to clip the dev section to its bounding box, then opens a three-mode compare page: **Side** (side-by-side), **Stack** (opacity slider overlay), **Diff** (mix-blend-mode: difference). The user sees this in the browser pane.
+2. **Open the compare view (it captures dev for you).** `bash "$SKILL_DIR/scripts/compare.sh" <figma-png> <route> <section-index>`. The script uses headless Chromium at Figma-native 1440px viewport to clip the dev section to its bounding box, then opens a three-mode compare page: **Side** (side-by-side), **Stack** (opacity slider overlay), **Diff** (mix-blend-mode: difference). The user sees this in the browser pane.
 
    - `<route>` is the path on the dev server (e.g. `/solutions/maintenance-teams`).
-   - `<section-index>` is the 0-based position in the section locator's matches (covers `<main> section`, `section[aria-label]`, and `[class*="py-14/16/20"]`). **Don't count by hand.** Run `bash $CLAUDE_SKILL_DIR/scripts/compare.sh --list <route>` first — it prints a table of `idx | height | aria-label or first heading` so you can pick the right one in one read. Re-run after page edits since adding/removing a section shifts every later index.
+   - `<section-index>` is the 0-based position in the section locator's matches (covers `<main> section`, `section[aria-label]`, and `[class*="py-14/16/20"]`). **Don't count by hand.** Run `bash "$SKILL_DIR/scripts/compare.sh" --list <route>` first — it prints a table of `idx | height | aria-label or first heading` so you can pick the right one in one read. Re-run after page edits since adding/removing a section shifts every later index.
    - **Why Playwright not cmux:** macOS WKWebView doesn't support `viewport.set`, so cmux screenshots are stuck at the cmux pane width (~1279px). Figma renders at 1440px. Mismatched viewports give different text wrapping and different responsive layouts — overlay/diff would be noise. Headless Chromium at 1440 matches Figma's render, so element positions overlay cleanly.
 
 3. **Read BOTH PNGs into your context in the same turn.** Use `Read` on `/tmp/cmp-figma.png` and `/tmp/cmp-dev.png` back-to-back so you see them at once. Reading them in separate turns lets the first slip out of working memory.
@@ -206,7 +215,9 @@ If the only remaining items are these framing artifacts, the section is done.
 `cmux browser viewport <w> <h>` is **not supported on macOS WKWebView**, which is what the cmux pane uses — you cannot resize the cmux browser pane for responsive screenshots. Use the headless helper instead:
 
 ```bash
-# from inside $CLAUDE_SKILL_DIR (uses the skill's own playwright)
+# run from inside the skill dir so it uses the skill's own playwright; the :? guard
+# prevents an unset var from running these in (and mutating) the wrong directory.
+cd "${CLAUDE_SKILL_DIR:?unset — run from the skill's writable checkout}"
 bun scripts/responsive-shot.mjs <url> mobile  /tmp/m.png          # 375px, dsf 2, above-the-fold
 bun scripts/responsive-shot.mjs <url> tablet  /tmp/t.png --full   # 768px, full page
 bun scripts/responsive-shot.mjs <url> desktop /tmp/d.png          # 1440px
@@ -283,10 +294,10 @@ If the change is non-trivial, run `cmux browser --surface $S errors list` and a 
 - **Page 404s in the browser but the route file exists.** Nuxt needs a beat to pick up new files; if the user just created the route, refresh after a second.
 - **`bun scripts/section-shot.mjs` says `Module not found "playwright"`.** Playwright is a _skill-local_ dep, not a project dep. Install it from inside the skill dir only — never from the repo root:
   ```bash
-  (cd $CLAUDE_SKILL_DIR && bun i)
+  (cd "${CLAUDE_SKILL_DIR:?run this from the skill's own writable checkout — CLAUDE_SKILL_DIR is unset}" && bun i)
   ```
-  `compare.sh` already runs `section-shot.mjs` from inside the skill dir via subshell, so the script picks up the skill's own `node_modules`. The skill's `bun.lock` and `package.json` are checked in.
-- **Chromium executable missing.** One-time browser download: `(cd $CLAUDE_SKILL_DIR && bunx playwright install chromium)`.
+  The `:?` guard matters: a bare `cd $CLAUDE_SKILL_DIR` with the var **unset** becomes `cd ''` (stays in the cwd) and `bun i` then mutates whatever `package.json` is there — that's how the project root has been clobbered before (see boundary note below). These skill-dep installs only make sense from a **writable** checkout where `CLAUDE_SKILL_DIR` points at the skill; they are not meant for the read-only marketplace/cache copy. `compare.sh` already runs `section-shot.mjs` from inside the skill dir via subshell, so the script picks up the skill's own `node_modules`. The skill's `bun.lock` and `package.json` are checked in.
+- **Chromium executable missing.** One-time browser download: `(cd "${CLAUDE_SKILL_DIR:?unset — run from the skill's writable checkout}" && bunx playwright install chromium)`.
 
 ## Boundary: skill deps vs project deps
 

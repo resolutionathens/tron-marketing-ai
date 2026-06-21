@@ -42,11 +42,19 @@ upload) is bundled as one script — this is exactly what each per-node subagent
 runs, given a resolved asset URL and the name/folder/resize you decided:
 
 ```bash
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=figma-to-imagekit
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/figma-export.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/figma-export.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/figma-export.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/figma-export.sh" ] || { echo "tron:$name: can't find scripts/figma-export.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 # Pure URL parse (Step 1) — fileKey + colon-form nodeId, offline:
-bash $CLAUDE_SKILL_DIR/scripts/figma-export.sh parse-url "<figma-design-url>"
+bash "$SKILL_DIR/scripts/figma-export.sh" parse-url "<figma-design-url>"
 
 # The per-node pipeline (Steps 2–4), one result row of JSON:
-bash $CLAUDE_SKILL_DIR/scripts/figma-export.sh run \
+bash "$SKILL_DIR/scripts/figma-export.sh" run \
   --url "<resolved-asset-url>" --name hero.png \
   --folder product/works/main [--resize 1280] [--quality 65-80] [--overwrite]
 ```
@@ -59,7 +67,7 @@ bash $CLAUDE_SKILL_DIR/scripts/figma-export.sh run \
 `--no-upload` to stop after optimizing (returns the local savings). It rejects
 non-PNG sources up front — for jpg/svg use the format options in the prose below.
 Collect each row into the Step 5 table. Smoke it (URL parse + the real
-resize/optimize leg, no upload) with `bash $CLAUDE_SKILL_DIR/scripts/test-figma-export.sh`.
+resize/optimize leg, no upload) with `bash "$SKILL_DIR/scripts/test-figma-export.sh"`.
 The judgment — node discovery, naming, resize target — stays with the orchestrator;
 the prose below is the reference for those decisions and the REST/MCP export paths.
 

@@ -2,7 +2,7 @@
 name: gh
 model: sonnet
 effort: medium
-description: "Interact with GitHub from the CLI using the `gh` tool — issues, pull requests, workflow runs, deployments, releases, and the raw `gh api`. Use this skill whenever the user references a GitHub issue or PR (e.g., `#42`, `owner/repo#42`, a github.com URL), asks about workflow runs / CI status / Actions, wants to look up a PR's reviews or checks, needs to comment on or transition an issue, wants the staging URL for a PR, or asks anything like 'what's the status of PR X', 'why is CI failing', 'list my open issues', 'merge that PR', 'who reviewed this', 'tail the workflow', 'find the deployment URL', or 'what changed in this release'. Also trigger when the user pastes a github.com/owner/repo/issues/N or /pull/N URL, mentions GitHub Actions, references a workflow file, or asks about anything in a repo's GitHub state."
+description: "Interact with EXISTING GitHub issues and PRs from the CLI using the `gh` tool — look up, comment, review, merge, list, and the raw `gh api`. Use this skill whenever the user references a GitHub issue or PR (e.g., `#42`, `owner/repo#42`, a github.com URL), wants to look up a PR's reviews or checks, needs to comment on / transition / merge an issue or PR, or asks anything like 'what's the status of PR X', 'list my open issues', 'merge that PR', 'who reviewed this', or 'what changed in this release'. Also trigger when the user pastes a github.com/owner/repo/issues/N or /pull/N URL. To CREATE a new PR from the current branch use tron:git-pr. For just the staging/preview URL of a branch use tron:preview-url; for CircleCI pipeline internals use tron:circleci."
 allowed-tools:
   - Bash
   - Read

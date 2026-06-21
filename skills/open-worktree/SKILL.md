@@ -28,7 +28,15 @@ Resolve the worktree and fix the two footguns (missing gitignored env files, an
 empty `node_modules`) in one deterministic call before touching cmux:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/open-worktree.sh --branch <name> [--no-switch]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=open-worktree
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/open-worktree.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/open-worktree.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/open-worktree.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/open-worktree.sh" ] || { echo "tron:$name: can't find scripts/open-worktree.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/open-worktree.sh" --branch <name> [--no-switch]
 ```
 
 It runs `wt switch <branch> --yes` (unless `--no-switch`), resolves the worktree
@@ -43,7 +51,7 @@ line on stdout:
 
 Take `worktreePath` from the result and use it as the `<absolute-path>` in the
 cmux steps below. If `nodeModulesEmpty` is true, run the project's install before
-launching dev. Smoke it with `bash $CLAUDE_SKILL_DIR/scripts/test-open-worktree.sh`.
+launching dev. Smoke it with `bash "$SKILL_DIR/scripts/test-open-worktree.sh"`.
 
 The cmux three-pane composition below stays manual — surface layout is judgment,
 not a fixed sequence (its sibling `start-ticket` keeps cmux setup in prose too).

@@ -21,16 +21,26 @@ Resolution + fetch are mechanical — run the bundled wrapper instead of hand-ro
 the redirect/extract dance:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/confluence.sh resolve <url-or-id>   # → {"ok":true,"pageId":"…","source":"raw|url|tiny"}
-bash $CLAUDE_SKILL_DIR/scripts/confluence.sh fetch   <url-or-id>   # storage body → stdout (title/version → stderr)
-bash $CLAUDE_SKILL_DIR/scripts/confluence.sh images  body.html     # referenced attachment filenames, doc order
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported into
+# the agent's Bash (e.g. under the headless worker), so fall back to the install paths —
+# never hardcode a version-pinned cache path.
+name=confluence
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/confluence.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/confluence.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/confluence.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/confluence.sh" ] || { echo "tron:$name: can't find scripts/confluence.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+
+bash "$SKILL_DIR/scripts/confluence.sh" resolve <url-or-id>   # → {"ok":true,"pageId":"…","source":"raw|url|tiny"}
+bash "$SKILL_DIR/scripts/confluence.sh" fetch   <url-or-id>   # storage body → stdout (title/version → stderr)
+bash "$SKILL_DIR/scripts/confluence.sh" images  body.html     # referenced attachment filenames, doc order
 ```
 
 `resolve` extracts the id offline from a raw id or a full `/pages/<id>/` URL and only
 follows a redirect for `/wiki/x/` tiny links. `fetch` runs the `acli` command below and
 prints the raw storage body — pipe that into **Step 3** (the conversion is still a
 judgment step; the script does not summarize). Smoke the offline surface with
-`bash $CLAUDE_SKILL_DIR/scripts/test-confluence.sh`. The same `cl_extract_page_id`
+`bash "$SKILL_DIR/scripts/test-confluence.sh"`. The same `cl_extract_page_id`
 resolver backs `tools/confluence/fetch-confluence.sh`, so the pipelines share one
 implementation. The prose below is the reference for what each step does and the
 faithful-markdown contract the conversion must honor.

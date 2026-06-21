@@ -2,7 +2,7 @@
 name: preview-url
 model: haiku
 effort: low
-description: "Given a branch (default: current) and a repo (default: cwd), find the staging/preview URL where the latest commit is deployed. Detects the deploy target from repo signals (`.circleci/config.yml`, `wrangler.{toml,jsonc}`, `vercel.json`, `netlify.toml`, `fly.toml`, GH Actions workflows) and routes to the right lookup recipe. Use this skill whenever the user asks 'where's my staging link', 'what's the preview URL for this PR', 'where did this deploy', 'has staging updated yet', 'can you grab the deploy URL', or anything that implies 'I want to look at the deployed version of this branch in a browser'. Use as the FINAL step in the canonical task lifecycle right before /agent-browser to walk the deployed feature."
+description: "Given a branch (default: current) and a repo (default: cwd), find the staging/preview URL where the latest commit is deployed. Detects the deploy target from repo signals (`.circleci/config.yml`, `wrangler.{toml,jsonc}`, `vercel.json`, `netlify.toml`, `fly.toml`, GH Actions workflows) and routes to the right lookup recipe. Use this skill whenever the user asks 'where's my staging link', 'what's the preview URL for this PR', 'where did this deploy', 'has staging updated yet', 'can you grab the deploy URL', or anything that implies 'I want to look at the deployed version of this branch in a browser'. This skill just resolves the URL — for CircleCI pipeline internals (logs, retrying jobs, config validation) use tron:circleci; for GitHub Actions runs / PR checks use tron:gh. Use as the FINAL step in the canonical task lifecycle right before /agent-browser to walk the deployed feature."
 allowed-tools:
   - Bash
   - Read
@@ -18,7 +18,15 @@ The detection + the registered-deployment lookup are mechanical — run the bund
 script first:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/preview-url.sh [--repo <path>] [--branch <branch>]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=preview-url
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/preview-url.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/preview-url.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/preview-url.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/preview-url.sh" ] || { echo "tron:$name: can't find scripts/preview-url.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/preview-url.sh" [--repo <path>] [--branch <branch>]
 ```
 
 It detects the deploy target from filesystem signals (same precedence as the table
@@ -38,7 +46,7 @@ Read the result, then act:
 - **`url":null` on a gh-deployment target** → CI is likely mid-build, or `gh` wasn't authed/in the right checkout; fall back to the recipes below.
 - **`target":"unknown"`** → ask the user where it deploys.
 
-Smoke the detection with `bash $CLAUDE_SKILL_DIR/scripts/test-preview-url.sh`. Everything
+Smoke the detection with `bash "$SKILL_DIR/scripts/test-preview-url.sh"`. Everything
 below is the reference for the URL recipes and the cases the script routes onward.
 
 ## The detection flow

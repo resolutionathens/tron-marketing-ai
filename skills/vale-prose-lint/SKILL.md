@@ -15,7 +15,16 @@ This skill delegates the lint to the **`vale-prose-runner`** subagent (runs on S
 ## What to do
 
 1. **Resolve the target:** a file/dir the user named → else `content/` if it exists → else project root.
-2. **Resolve the style-pack path.** It ships with this plugin at `$CLAUDE_SKILL_DIR/styles` (rules under `styles/Facilitron/`, vocab under `styles/config/vocabularies/Facilitron/accept.txt`). Expand `$CLAUDE_SKILL_DIR` to an absolute path so the subagent can find it.
+2. **Resolve the style-pack path.** It ships with this plugin under the skill's `styles/` dir (rules under `styles/Facilitron/`, vocab under `styles/config/vocabularies/Facilitron/accept.txt`). Resolve the skill dir robustly — `$CLAUDE_SKILL_DIR` is not always exported into Bash — and pass the **absolute** `styles/` path to the runner:
+   ```bash
+   name=vale-prose-lint
+   SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+   # fall back to the newest INSTALLED copy that actually contains styles
+   # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+   [ -e "$SKILL_DIR/styles" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/styles" ] && echo "$d"; done | sort -V | tail -1)"
+   [ -e "$SKILL_DIR/styles" ] || { echo "tron:$name: can't find styles — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+   echo "$SKILL_DIR/styles"   # → the absolute style-pack path to hand the runner
+   ```
 3. **Delegate to `vale-prose-runner`** (Task tool): "Lint `<target>` with Vale using the Facilitron style pack at `<absolute styles path>` (scaffold `.vale.ini` + symlinks if missing). Return findings grouped by file with severity counts and the top offenders." If the user wants an errors-only gate (pre-commit/PR), say so in the prompt.
 4. **Relay the runner's grouped findings.** If it reports vale isn't installed, surface `brew install vale`.
 

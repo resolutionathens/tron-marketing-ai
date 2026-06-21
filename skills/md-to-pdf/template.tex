@@ -6,8 +6,13 @@
 % headers, or fillable form-style grids).
 %
 % Usage (the tron:md-to-pdf skill does this for you):
-%   1. Copy this file, substituting @@SKILLDIR@@ with this skill's bundled dir:
-%        sed "s|@@SKILLDIR@@|$CLAUDE_SKILL_DIR|g" "$CLAUDE_SKILL_DIR/template.tex" \
+%   1. Resolve this skill's dir robustly (do NOT hardcode a version-pinned path;
+%      $CLAUDE_SKILL_DIR is not always exported into the agent's bash):
+%        name=md-to-pdf
+%        SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+%        [ -e "$SKILL_DIR/template.tex" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/template.tex" ] && echo "$d"; done | sort -V | tail -1)"
+%      then copy this file, substituting @@SKILLDIR@@ with that dir:
+%        sed "s|@@SKILLDIR@@|$SKILL_DIR|g" "$SKILL_DIR/template.tex" \
 %           > /tmp/facilitron-md-to-pdf/<slug>.tex
 %   2. Edit the eyebrow, title, and content body (search for "EDIT:" markers).
 %   3. Build:
@@ -70,6 +75,17 @@
 \definecolor{ruleclr}{HTML}{C2C6DA}      % tron-asphalt-200  table rules
 
 \usepackage[colorlinks=true,linkcolor=primary600,urlcolor=primary600]{hyperref}
+
+% --- Quotes ------------------------------------------------------------------
+% IMPORTANT: never author TeX-style ``...'' or `...' quotes here. The backtick
+% opening-quote ligature does NOT map in Archivo/Inter and prints a literal `
+% glyph. With xelatex+fontspec, the safe options are:
+%   1. type real Unicode curly quotes directly:  “ ” ‘ ’  (render from the font)
+%   2. type a straight "..." — \MakeOuterQuote below auto-converts it to a
+%      proper curly pair, so you never have to think about it.
+%   3. \enquote{...} for a nested/explicit quote.
+\usepackage{csquotes}
+\MakeOuterQuote{"}
 
 % --- Tables, lists, graphics, boxes ------------------------------------------
 \usepackage{graphicx}
@@ -152,8 +168,10 @@
 \vspace{1.1em}
 
 % EDIT: lead-in paragraph. Set inline figures in mono with \num{...}, e.g.
-% \num{5,159}. Keep it short — the PDF is a printable take-away.
-Replace this paragraph with the document's lead-in copy.
+% \num{5,159}. Keep it short — the PDF is a printable take-away. Quotes render
+% correctly whether you type "straight" or “curly” — see the Quotes note above.
+Replace this paragraph with the document's lead-in copy, e.g. a "quoted phrase"
+or a “curly-quoted” one — both come out as proper curly quotes.
 
 \sectionhd{Example: data table (longtable, zebra)}
 

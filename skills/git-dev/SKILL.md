@@ -17,7 +17,15 @@ Merge the current clean feature branch into dev, push, and return to the feature
 This whole flow is mechanical — run the bundled script instead of the steps below:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/git-dev.sh [feature-branch]   # defaults to the current branch
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=git-dev
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/git-dev.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/git-dev.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-dev.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/git-dev.sh" ] || { echo "tron:$name: can't find scripts/git-dev.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/git-dev.sh" [feature-branch]   # defaults to the current branch
 ```
 
 It validates the branch (refuses master/main/dev/staging/production), checks the
@@ -36,7 +44,7 @@ It prints one JSON line on stdout (narration on stderr):
 ```
 
 `ok:false` with `"error":"dirty-working-tree"` means commit/stash first (tron:git-commit).
-Smoke it any time with `bash $CLAUDE_SKILL_DIR/scripts/test-git-dev.sh`. The steps below
+Smoke it any time with `bash "$SKILL_DIR/scripts/test-git-dev.sh"`. The steps below
 are the explanation / manual fallback for when the script reports a conflict.
 
 ## Step 1: Validate current branch

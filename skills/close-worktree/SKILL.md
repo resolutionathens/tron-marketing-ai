@@ -21,7 +21,15 @@ the worktree and verify it's gone, delete the local branch, delete the origin br
 and is **idempotent**: any piece that's already gone counts as done, not an error.
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/close-worktree.sh <branch> [--force] [--keep-branch] [--keep-remote]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=close-worktree
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/close-worktree.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/close-worktree.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || { echo "tron:$name: can't find scripts/close-worktree.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
 ```
 
 - `--force` — force-remove a dirty worktree / force-delete an unmerged branch.
@@ -44,7 +52,7 @@ is the fallback for when you DON'T already know the branch (the user said "clean
 you need to show the list and let them pick) or when something goes wrong.
 
 Smoke it against real git any time with
-`bash $CLAUDE_SKILL_DIR/scripts/test-close-worktree.sh`.
+`bash "$SKILL_DIR/scripts/test-close-worktree.sh"`.
 
 ## Step 1: Identify worktrees to close
 

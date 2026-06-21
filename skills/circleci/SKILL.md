@@ -2,7 +2,7 @@
 name: circleci
 model: sonnet
 effort: medium
-description: "Interact with CircleCI from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, retrieve deploy URLs, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'is staging done deploying yet', 'why did CircleCI fail', 'watch the CI run on this branch'), wants to know whether a deploy finished, asks about the staging/production URL for a deployed branch, wants to validate or lint a CircleCI config, wants to test a job locally before pushing, or pastes a circleci.com/pipelines/... URL. Specifically relevant to the Facilitron `marketing-pages`, `marketing-dynamic-landing-pages`, and nuxt-layers-playground repos — they use CircleCI for their dev/staging/production deploys to S3+CloudFront. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'is the deploy done', 'config validate', 'run this job locally', 'fetch the artifact', 'CI is red', 'why is the build failing'."
+description: "Interact with CircleCI pipeline internals from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'why did CircleCI fail', 'watch the CI run on this branch'), wants to validate or lint a CircleCI config, wants to test a job locally, or pastes a circleci.com/pipelines/... URL. Specifically relevant to the Facilitron `marketing-pages`, `marketing-dynamic-landing-pages`, and nuxt-layers-playground repos — they use CircleCI for their dev/staging/production deploys to S3+CloudFront. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'config validate', 'run this job locally', 'fetch the artifact', 'CI is red', 'why is the build failing'. For just the staging/preview URL of a deployed branch, or a simple 'has it deployed yet' check, use tron:preview-url."
 allowed-tools:
   - Bash
   - Read
@@ -19,7 +19,15 @@ Every recipe below is also a subcommand of the bundled wrapper — reach for it
 first instead of reassembling `curl … | jq …` by hand:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/circleci.sh <subcommand> [flags]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=circleci
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/circleci.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/circleci.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/circleci.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/circleci.sh" ] || { echo "tron:$name: can't find scripts/circleci.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/circleci.sh" <subcommand> [flags]
 ```
 
 | Want | Command |
@@ -41,7 +49,7 @@ line per verdict (`logs`/`process`/`validate`/`local` print raw text). Exit `0`
 success / `1` logical failure / `2` usage error. For `watch`, run it with
 `run_in_background: true` + `Monitor` to stream the status ticks (it polls every
 `--interval` seconds, default 15). Smoke the offline surface (slug derivation, the
-deploy-url table, the usage contract) with `bash $CLAUDE_SKILL_DIR/scripts/test-circleci.sh`.
+deploy-url table, the usage contract) with `bash "$SKILL_DIR/scripts/test-circleci.sh"`.
 
 The prose below is the reference for what each subcommand does under the hood and
 the cases worth understanding (the run model, the deploy-URL table, troubleshooting).

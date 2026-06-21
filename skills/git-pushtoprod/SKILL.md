@@ -17,7 +17,15 @@ Merge master into staging and production branches, pushing both, then return to 
 This flow is mechanical — run the bundled script instead of the steps below:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/git-pushtoprod.sh [--no-jira] [--key <TICKET>]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=git-pushtoprod
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/git-pushtoprod.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-pushtoprod.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || { echo "tron:$name: can't find scripts/git-pushtoprod.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/git-pushtoprod.sh" [--no-jira] [--key <TICKET>]
 ```
 
 It checks the tree is clean, brings `master` current, merges master into `staging`
@@ -36,7 +44,7 @@ One JSON line on stdout (narration on stderr):
 ```
 
 `leftovers` lists the environments that did **not** ship. Smoke it with
-`bash $CLAUDE_SKILL_DIR/scripts/test-git-pushtoprod.sh`. The steps below are the
+`bash "$SKILL_DIR/scripts/test-git-pushtoprod.sh"`. The steps below are the
 explanation / manual fallback for conflict cases.
 
 > **Tier reminder:** a production deploy is a high-risk action. This script is the

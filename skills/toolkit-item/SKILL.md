@@ -215,7 +215,14 @@ Strip these from the temp file even though they live on the web page: the lead-i
 
 Build the PDF via the `tron:md-to-pdf` skill. **Default to its LaTeX path** (copy `template.tex`, author the content, run `xelatex`) — for toolkit items in particular it produces a much cleaner artifact than the pandoc-from-markdown path. Templates with fillable forms and checklists with multi-column tables should always go LaTeX; the pandoc path is only worth it for a short prose-only SOP.
 
-The pandoc fallback, if you do use it, is `bun "$CLAUDE_SKILL_DIR/build.ts" /tmp/<slug>.md` run from the `tron:md-to-pdf` skill's context (it resolves its own bundled `build.ts`).
+The pandoc fallback, if you do use it, is the `tron:md-to-pdf` skill's `build.ts` (it lives in the **md-to-pdf** skill dir, not this one). Resolve that dir robustly rather than assuming an env var:
+```bash
+m=md-to-pdf
+MDP_DIR="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$m}"
+[ -e "$MDP_DIR/build.ts" ] || MDP_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$m ~/.claude/plugins/marketplaces/*/skills/$m; do [ -e "$d/build.ts" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$MDP_DIR/build.ts" ] || { echo "tron:toolkit-item: can't find md-to-pdf/build.ts — run /plugin update" >&2; exit 1; }
+bun "$MDP_DIR/build.ts" /tmp/<slug>.md
+```
 
 Either way, output lands at `/tmp/facilitron-md-to-pdf/<slug>.pdf`. Open it (`open <pdf-path>`) and ask the user to confirm before uploading. See the `tron:md-to-pdf` skill for the full LaTeX workflow and the branded `template.tex` starter.
 

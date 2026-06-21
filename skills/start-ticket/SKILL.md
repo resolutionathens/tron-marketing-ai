@@ -19,7 +19,15 @@ The mechanical middle of this skill — classify the ref, create the branch+work
 carry over gitignored env files, transition/assign the ticket — is one script:
 
 ```bash
-bash $CLAUDE_SKILL_DIR/scripts/start-ticket.sh <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=start-ticket
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/start-ticket.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/start-ticket.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || { echo "tron:$name: can't find scripts/start-ticket.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
 ```
 
 Use it like this:
@@ -43,7 +51,7 @@ Read `worktreePath` from the result, then **continue with the judgment steps the
 does NOT do**: the cmux workspace (Step 4), the dev-server offer (Step 5), and the worker
 spawn (Step 6). Pass `--no-transition` when you only want the worktree (e.g. the ticket is
 already In Progress). Smoke the deterministic core with
-`bash $CLAUDE_SKILL_DIR/scripts/test-start-ticket.sh`.
+`bash "$SKILL_DIR/scripts/test-start-ticket.sh"`.
 
 The detailed steps below remain the reference (and the fallback when the script reports
 `ambiguous-ref`, `wt-switch-failed`, or a non-blocking transition failure).
