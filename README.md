@@ -51,6 +51,35 @@ Add the marketplace and enable the plugin in the consumer repo's `.claude/settin
 On the next session Claude Code fetches the marketplace, installs the plugin into its
 cache, and the `tron:*` skills become available.
 
+### Staying up to date
+
+Third-party marketplaces don't auto-update by default, so an installed copy can drift behind
+`master`. Two things help:
+
+- **Opt into auto-update** — add `"autoUpdate": true` to the `tron` marketplace entry so
+  Claude Code pulls the latest version at session start:
+
+  ```jsonc
+  "extraKnownMarketplaces": {
+    "tron": {
+      "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" },
+      "autoUpdate": true
+    }
+  }
+  ```
+
+- **Update notice** — even without auto-update, the plugin ships a `SessionStart` hook
+  (`hooks/check-update.sh`) that compares your installed `version` against `master` once a
+  day and prints a one-line notice when you're behind. To update manually:
+
+  ```
+  /plugin marketplace update tron
+  /plugin install tron@tron --force
+  /reload-plugins
+  ```
+
+  The check is fail-silent (never blocks startup) and network-frugal (cached daily).
+
 ### Developing the plugin (live edit loop)
 
 The github source caches the plugin, so edits don't show up until you push + update.
