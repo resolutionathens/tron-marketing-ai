@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke for open-worktree.sh + worktree-lib.sh. The cmux/wt I/O isn't exercised
+# Smoke for open-worktree.sh + worktree-lib.sh. The tmux/wt I/O isn't exercised
 # (no GUI in the sandbox), but the deterministic spine is fully testable with a
 # plain `git worktree add`: path resolution, env-file carry-over, the empty
 # node_modules flag, and the usage/error contract.

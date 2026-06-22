@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # close-worktree: deterministically tear down a ticket's worktree, branch, and
-# cmux workspace, then emit a machine-readable result line.
+# tmux session, then emit a machine-readable result line.
 #
 # This is the DETERMINISTIC core of the close-worktree skill (Phase B of the
 # determinism plan). The SKILL.md keeps the interactive narrative (picking which
@@ -23,8 +23,9 @@
 #
 # Output: exactly ONE line of JSON on stdout, e.g.
 #   {"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"worktreePath":"/…",
-#    "localBranchDeleted":true,"remoteBranchDeleted":true,"workspaceClosed":true,
-#    "leftovers":[]}
+#    "localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,
+#    "workspaceClosed":true,"leftovers":[]}
+# (`workspaceClosed` is a backwards-compatible alias of `sessionClosed`.)
 # All human-readable narration goes to stderr. ok=false iff `leftovers` is
 # non-empty (something the script was asked to remove is still present).
 
@@ -88,35 +89,36 @@ WTPATH="$(worktree_path_for_branch "$BRANCH" || true)"
 # Track anything we were asked to remove but couldn't.
 LEFTOVERS=()
 WORKTREE_REMOVED=true
-WORKSPACE_CLOSED=true
+SESSION_CLOSED=true
 LOCAL_DELETED=true
 REMOTE_DELETED=true
 
-# ---- 1. close the cmux workspace (best-effort) -----------------------------
-# Match the workspace whose title starts with the ticket key (MD-1661) or the
-# full branch. Skipped silently when cmux isn't on PATH (e.g. tmux backend or a
-# headless run) — a missing multiplexer is not a leftover.
+# ---- 1. kill the tmux session (best-effort) --------------------------------
+# Match the session whose name starts with the ticket key (MD-1661) or the full
+# branch. Sessions are created from the branch name with '.'/':' swapped for '-'
+# (those are illegal in tmux session names), so match against the sanitized form.
+# Skipped silently when tmux isn't on PATH (headless run) — a missing
+# multiplexer is not a leftover.
 TICKET_KEY="$(printf '%s' "$BRANCH" | grep -oE '^[A-Z]+-[0-9]+' || true)"
-if command -v cmux >/dev/null 2>&1; then
-  REF="$(cmux --json list-workspaces 2>/dev/null \
-    | grep -oE '"(ref|id)":"[^"]+","[^}]*"title":"[^"]*"' \
-    | grep -E "\"title\":\"(${TICKET_KEY:-$BRANCH}|${BRANCH})" \
-    | grep -oE '"(ref|id)":"[^"]+"' | head -1 | cut -d'"' -f4 || true)"
-  if [[ -n "${REF:-}" ]]; then
-    if cmux close-workspace --workspace "$REF" >/dev/null 2>&1; then
-      log "closed cmux workspace $REF"
+BRANCH_SESSION="$(printf '%s' "$BRANCH" | tr '.:' '--')"
+if command -v tmux >/dev/null 2>&1; then
+  SESSION="$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
+    | grep -E "^(${TICKET_KEY:-$BRANCH_SESSION}|${BRANCH_SESSION})" | head -1 || true)"
+  if [[ -n "${SESSION:-}" ]]; then
+    if tmux kill-session -t "$SESSION" >/dev/null 2>&1; then
+      log "killed tmux session $SESSION"
       # Give panes a beat to release file handles before we remove the dir
-      # (chaining close-workspace && worktree-remove races; see SKILL.md).
+      # (killing the session && worktree-remove races; see SKILL.md).
       sleep 2
     else
-      WORKSPACE_CLOSED=false; LEFTOVERS+=("workspace")
-      log "failed to close cmux workspace $REF"
+      SESSION_CLOSED=false; LEFTOVERS+=("session")
+      log "failed to kill tmux session $SESSION"
     fi
   else
-    log "no matching cmux workspace for ${TICKET_KEY:-$BRANCH}"
+    log "no matching tmux session for ${TICKET_KEY:-$BRANCH_SESSION}"
   fi
 else
-  log "cmux not present — skipping workspace close"
+  log "tmux not present — skipping session close"
 fi
 
 # ---- 2. remove the worktree + verify it actually went away -----------------
@@ -192,8 +194,11 @@ for i in "${!LEFTOVERS[@]}"; do
   [[ $i -gt 0 ]] && LEFT_JSON+=","
   LEFT_JSON+="\"${LEFTOVERS[$i]}\""
 done
-printf '{"ok":%s,"branch":"%s","worktreeRemoved":%s,"worktreePath":"%s","localBranchDeleted":%s,"remoteBranchDeleted":%s,"workspaceClosed":%s,"leftovers":[%s]}\n' \
-  "$OK" "$BRANCH" "$WORKTREE_REMOVED" "${WTPATH:-}" "$LOCAL_DELETED" "$REMOTE_DELETED" "$WORKSPACE_CLOSED" "$LEFT_JSON"
+# `sessionClosed` is the current field; `workspaceClosed` is kept as a
+# backwards-compatible alias (same value) for any downstream tooling that still
+# reads the cmux-era name.
+printf '{"ok":%s,"branch":"%s","worktreeRemoved":%s,"worktreePath":"%s","localBranchDeleted":%s,"remoteBranchDeleted":%s,"sessionClosed":%s,"workspaceClosed":%s,"leftovers":[%s]}\n' \
+  "$OK" "$BRANCH" "$WORKTREE_REMOVED" "${WTPATH:-}" "$LOCAL_DELETED" "$REMOTE_DELETED" "$SESSION_CLOSED" "$SESSION_CLOSED" "$LEFT_JSON"
 
 [[ "$OK" == true ]] || exit 1
 exit 0

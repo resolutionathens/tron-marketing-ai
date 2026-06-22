@@ -2,7 +2,7 @@
 name: start-ticket
 model: sonnet
 effort: medium
-description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and opening a cmux workspace with the browser on the ticket. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'."
+description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and opening a tmux session with the ticket in your default browser. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'."
 allowed-tools:
   - Bash
   - Read
@@ -11,7 +11,7 @@ allowed-tools:
 
 # Start Ticket
 
-Set up everything needed to begin work on a ticket: look it up, create a worktree, transition the ticket, and open a cmux workspace with the browser on the ticket page. Works for both **Jira tickets** (via `acli`) and **GitHub issues** (via `gh`).
+Set up everything needed to begin work on a ticket: look it up, create a worktree, transition the ticket, and open a tmux session plus the ticket page in the user's default browser. Works for both **Jira tickets** (via `acli`) and **GitHub issues** (via `gh`).
 
 ## Fast path (deterministic spine)
 
@@ -48,7 +48,7 @@ One JSON line on stdout (narration on stderr):
 ```
 
 Read `worktreePath` from the result, then **continue with the judgment steps the script
-does NOT do**: the cmux workspace (Step 4), the dev-server offer (Step 5), and the worker
+does NOT do**: the tmux session (Step 4), the dev-server offer (Step 5), and the worker
 spawn (Step 6). Pass `--no-transition` when you only want the worktree (e.g. the ticket is
 already In Progress). Smoke the deterministic core with
 `bash "$SKILL_DIR/scripts/test-start-ticket.sh"`.
@@ -178,63 +178,55 @@ GitHub issues have no formal "In Progress" status. The convention is:
 
 Skipping any of these is fine if it fails — just mention it and continue.
 
-## Step 4: Set up the cmux workspace
+## Step 4: Set up the tmux session
 
-**Skip this entire step when invoked by the `tron:ship-ticket` orchestrator.** That skill drives every stage itself, so a dedicated cmux workspace just goes unused — jump to the dev-server offer (Step 5) and omit the `Workspace:` line from the final confirmation. Only do this cmux step when `tron:start-ticket` runs on its own.
+**Skip this entire step when invoked by the `tron:ship-ticket` orchestrator.** That skill drives every stage itself, so a dedicated tmux session just goes unused — jump to the dev-server offer (Step 5) and omit the `Session:` line from the final confirmation. Only do this tmux step when `tron:start-ticket` runs on its own.
 
-Create a workspace with a two-pane layout — browser on the left showing the ticket, terminal on the right:
+Create a detached tmux session rooted in the worktree (the terminal you'll work in / spawn a worker in), and open the ticket in the user's default browser:
 
 ```
-┌──────────┬──────────┐
-│ browser  │          │
-│ (ticket) │ terminal │
-│          │          │
-└──────────┴──────────┘
+┌─────────────────────┐
+│   tmux: terminal    │   + ticket opens in your default browser
+│   (in the worktree) │
+└─────────────────────┘
 ```
 
 Run these commands in sequence:
 
-### 4a. Create and rename the workspace
+### 4a. Create the session
+
+tmux session names can't contain `.` or `:`, so sanitize the branch name first:
 
 ```bash
-cmux new-workspace
-cmux --json list-workspaces
+SESSION="$(printf '%s' '<branch-name>' | tr '.:' '--')"
+tmux new-session -d -s "$SESSION" -c "<worktree-absolute-path>"
 ```
 
-Find the new workspace ref (highest-numbered), then rename it:
+The session starts detached, with one shell already `cd`'d into the worktree. If a session with that name already exists, reuse it or pick a suffixed name.
 
-```bash
-cmux rename-workspace --workspace <ref> "<branch-name>"
-```
+### 4b. Open the ticket in the default browser
 
-### 4b. Add the browser pane with the ticket URL
-
-Use the URL you saved in Step 1.
+Use the URL you saved in Step 1 (`open` on macOS, `xdg-open` on Linux):
 
 **Jira:**
 ```bash
-cmux --json new-pane --type browser --direction left --workspace <ref> --url "https://facilitron.atlassian.net/browse/<KEY>"
+open "https://facilitron.atlassian.net/browse/<KEY>"
 ```
 
 **GitHub:**
 ```bash
-cmux --json new-pane --type browser --direction left --workspace <ref> --url "https://github.com/<SLUG>/issues/<N>"
+open "https://github.com/<SLUG>/issues/<N>"
 ```
 
-Note the terminal pane's surface ref — after the browser is added on the left, the original terminal is the right pane. `cmux --json list-panes --workspace <ref>` shows it; you'll need its surface ref for Step 6.
+### 4c. Attach (the user does this)
 
-### 4c. cd the terminal pane into the worktree
+The session is detached so the skill stays non-blocking. Tell the user to attach when ready:
 
 ```bash
-cmux send --workspace <ref> "cd <worktree-absolute-path>"
-cmux send-key --workspace <ref> Enter
+tmux attach -t "$SESSION"
 ```
 
-### 4d. Focus the terminal pane
-
-```bash
-cmux focus-pane --pane <terminal-pane-ref> --workspace <ref>
-```
+Don't attach from inside the skill — Claude runs non-interactively and attaching would block.
 
 ## Step 5: Offer to start the worktree's dev server
 
@@ -244,7 +236,7 @@ This step exists because of a real pitfall: a dev server running in the **main**
 
 Offer it by default for code/UI tickets. Skip for clearly content-only work — toolkit items whose artifact is a PDF, news posts where verification happens after deploy, config-only changes. Use judgment.
 
-Start it as a **background task of this orchestrator session** (not in the worktree pane — that pane is for the worker in Step 6) and capture the task ID so `close-worktree` can stop it later:
+Start it as a **background task of this orchestrator session** (not in the tmux session — that's for the worker in Step 6) and capture the task ID so `close-worktree` can stop it later:
 
 ```bash
 cd <worktree-absolute-path> && bun dev   # or the repo's dev command
@@ -253,27 +245,26 @@ cd <worktree-absolute-path> && bun dev   # or the repo's dev command
 
 Tell the user the dev server is running and on which URL (the dev server prints its `Local: http://localhost:PORT/` once it boots; tail the log if needed to confirm the port). If you spawn a worker in Step 6, pass this URL into its kickoff.
 
-When invoked by the `tron:ship-ticket` orchestrator, still offer this step — unlike cmux, a worktree-scoped dev server is genuinely useful during orchestrator-driven UI work.
+When invoked by the `tron:ship-ticket` orchestrator, still offer this step — unlike the tmux session, a worktree-scoped dev server is genuinely useful during orchestrator-driven UI work.
 
-## Step 6: Offer to spawn a worker agent in the worktree pane
+## Step 6: Offer to spawn a worker agent in the tmux session
 
-This is the autonomy step. Instead of leaving the terminal pane idle, launch a Claude worker *in that pane* to start the ticket while you stay the orchestrator in your own pane. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself and needs no separate worker).
+This is the autonomy step. Instead of leaving the session idle, launch a Claude worker *in its pane* to start the ticket while you stay the orchestrator in your own session. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself and needs no separate worker).
 
-The worker lands in the **right-side terminal surface** noted in Step 4b (already `cd`'d into the worktree). There are two launch variants — pick based on the work:
+The worker lands in the tmux session created in Step 4 (already `cd`'d into the worktree). All commands target the session by name (`-t "$SESSION"`). There are two launch variants — pick based on the work:
 
-### Variant A — Shared-context teams worker (validated, preferred for substantial tickets)
+### Variant A — Shared-context worker (preferred for substantial tickets)
 
-Inherits **your full conversation** and enables agent teams, so the worker knows everything you've discussed and can fan out teammates into cmux splits for research/draft/review subtasks. Best for big or multi-part work (e.g. a 2,500-word pillar page).
+Inherits **your full conversation**, so the worker knows everything you've discussed. Best for big or multi-part work (e.g. a 2,500-word pillar page).
 
 ```bash
-cmux send --workspace <ref> --surface <terminal-surface> \
-  "cmux claude-teams --resume \"$CLAUDE_CODE_SESSION_ID\" --fork-session"
-cmux send-key --workspace <ref> --surface <terminal-surface> Enter
+tmux send-keys -t "$SESSION" \
+  "claude --resume \"$CLAUDE_CODE_SESSION_ID\" --fork-session" Enter
 ```
 
-- `claude-teams` turns on agent teams + auto mode (the shim maps teammate spawns to cmux splits).
 - `--resume "$CLAUDE_CODE_SESSION_ID"` forks **this** orchestrator session, so the worker shares your context.
 - `--fork-session` gives it a new session ID — no transcript collision with your still-running session.
+- Need parallelism? The worker can fan out its own subagents normally (the Agent tool); there's no special multiplexer wiring to set up.
 - Tradeoff: it inherits your *entire* context, including anything unrelated to the ticket. If the conversation is full of unrelated work, prefer Variant B.
 
 ### Variant B — Fresh independent worker (clean slate)
@@ -281,42 +272,41 @@ cmux send-key --workspace <ref> --surface <terminal-surface> Enter
 A brand-new session with no baggage, seeded only by a written kickoff. Best for well-scoped, standalone tickets where your current context isn't relevant.
 
 ```bash
-cmux send --workspace <ref> --surface <terminal-surface> "claude --dangerously-skip-permissions"
-cmux send-key --workspace <ref> --surface <terminal-surface> Enter
+tmux send-keys -t "$SESSION" "claude --dangerously-skip-permissions" Enter
 ```
 
-`--dangerously-skip-permissions` is the same flag cmux uses to launch agents, so the worker won't stall on permission prompts.
+`--dangerously-skip-permissions` lets the worker run without stalling on permission prompts.
 
 ### Sequencing — confirm boot *before* sending the kickoff
 
 The worker needs a moment to boot. If you send the kickoff immediately it gets typed mid-launch and lost. Read the pane back first, and only send the marching orders once the input prompt (`❯`) is visible:
 
 ```bash
-cmux read-screen --workspace <ref> --surface <terminal-surface> --lines 30
+tmux capture-pane -t "$SESSION" -p | tail -30
 ```
 
-Then send the kickoff and submit it (a heredoc keeps multi-line prompts clean):
+Then send the kickoff and submit it:
 
 ```bash
-cmux send --workspace <ref> --surface <terminal-surface> "$KICKOFF"
-cmux send-key --workspace <ref> --surface <terminal-surface> Enter
+tmux send-keys -t "$SESSION" "$KICKOFF" Enter
 ```
 
-**Kickoff content — plan-first by default.** Tell the worker: which ticket it owns, to read the full ticket (`acli`/`gh`) and the relevant CLAUDE.md, to investigate, and to **STOP and present a plan for the user's approval before editing/drafting anything**. For Variant A, also tell it to fan out teammates as useful. Only skip the plan-first pause if the user explicitly asked for full-send autonomy.
+**Kickoff content — plan-first by default.** Tell the worker: which ticket it owns, to read the full ticket (`acli`/`gh`) and the relevant CLAUDE.md, to investigate, and to **STOP and present a plan for the user's approval before editing/drafting anything**. Only skip the plan-first pause if the user explicitly asked for full-send autonomy.
 
-You remain the orchestrator: re-check the worker's progress any time with `cmux read-screen`.
+You remain the orchestrator: re-check the worker's progress any time with `tmux capture-pane -t "$SESSION" -p`.
 
 ## Step 7: Confirm
 
-Keep it brief — the workspace, dev server, and worker are open and visible, so the user can see it worked. If you spawned a worker, note that it's running in its own pane and will pause for plan approval there.
+Keep it brief. Give the user the tmux session name (and `tmux attach -t <name>` to enter it), the browser URL you opened, the dev-server URL, and the worker status. If you spawned a worker, note that it's running in the session and will pause for plan approval there.
 
 **Jira example:**
 ```
 Ticket CCAL-1002: "News Post featured image edit"
 Status: In Progress
-Workspace: CCAL-1002-news-post-featured-image-width
+Session: CCAL-1002-news-post-featured-image-width (tmux attach -t CCAL-1002-news-post-featured-image-width)
+Ticket opened in your default browser.
 Dev server: http://localhost:4001 (background task <id>)
-Worker: claude-teams (shared context) running in the worktree pane — will pause for your plan approval there.
+Worker: shared-context (claude --resume --fork-session) running in the session — will pause for your plan approval there.
 When finished: wt merge or tron:close-worktree
 ```
 
@@ -324,6 +314,7 @@ When finished: wt merge or tron:close-worktree
 ```
 Issue acme-org/acme-app#185: "Improve better-auth UX and review our implementation"
 Assignee: @your-handle
-Workspace: issue-185-improve-better-auth-ux
+Session: issue-185-improve-better-auth-ux (tmux attach -t issue-185-improve-better-auth-ux)
+Ticket opened in your default browser.
 When finished: wt merge or tron:close-worktree
 ```

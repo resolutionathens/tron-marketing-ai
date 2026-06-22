@@ -108,7 +108,8 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 | Tool | Install (macOS) | Needed by |
 |---|---|---|
 | **acli** (Atlassian CLI) | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
-| **cmux** (terminal/worktree manager) | Install separately — not on Homebrew | `start-ticket`, `open-worktree`, `close-worktree`, `preview-page`, `ship-ticket` |
+| **tmux** (terminal multiplexer) | `brew install tmux` | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket` |
+| **agent-browser** (headless browser CLI) | `npm i -g agent-browser` | `preview-page` (self-verification: errors/DOM/screenshots) |
 | **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket` |
 | **bun** | `brew install oven-sh/bun/bun` | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item` |
 | **node** (Node.js) | `brew install node` | ImageKit CLI consumers + `preview-page`, `md-to-pdf` |
@@ -199,7 +200,7 @@ tron-marketing-ai/
 │   ├── content/             # content.sh + content-lib.sh — slug/check-repo helpers for the content pipelines
 │   ├── git/                 # git-promote.sh — deterministic git-dev / git-pushtoprod flow
 │   ├── ticket/              # ticket-lib.sh — shared Jira/GitHub lookup helpers (start-ticket, ship-ticket)
-│   ├── worktree/            # worktree-lib.sh — shared worktree + cmux setup/teardown helpers
+│   ├── worktree/            # worktree-lib.sh — shared worktree path/resolution helpers
 │   └── image/               # to-webp.sh — used by news-item + guide-item
 └── README.md
 ```

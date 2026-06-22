@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Headless Chromium screenshot of a page at an arbitrary viewport width.
 //
-// Exists because the cmux browser pane (macOS WKWebView) can't resize below
-// the pane width, so mobile / responsive / CLS work can't be self-verified
-// there. This reuses the same Playwright/Chromium dep as section-shot.mjs.
+// The first-class way to self-verify mobile / responsive / CLS work: it renders
+// in real Chromium at any requested width, deterministically and headlessly.
+// This reuses the same Playwright/Chromium dep as section-shot.mjs.
 //
 // Usage:
 //   node responsive-shot.mjs <url> <width|preset> <out-path> [--full]

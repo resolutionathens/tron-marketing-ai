@@ -27,7 +27,7 @@ Walk the canonical Facilitron task lifecycle by **delegating to the existing per
 8. CLEANUP      — remove worktree, prune branch              (tron:close-worktree)
 ```
 
-This orchestrator drives every stage itself, so it does **not** want a dedicated cmux workspace — there's nothing to work in it. When delegating KICKOFF, tell `tron:start-ticket` to skip its cmux workspace setup step. CLEANUP likewise has no workspace to close. The dev-server step in `tron:start-ticket`, on the other hand, is still useful — orchestrator-driven UI work needs a worktree-scoped dev server too — so leave that one in.
+This orchestrator drives every stage itself, so it does **not** want a dedicated tmux session — there's nothing to work in it. When delegating KICKOFF, tell `tron:start-ticket` to skip its tmux session setup step. CLEANUP likewise has no session to close. The dev-server step in `tron:start-ticket`, on the other hand, is still useful — orchestrator-driven UI work needs a worktree-scoped dev server too — so leave that one in.
 
 ## Step 1 — Determine current lifecycle position
 
@@ -55,7 +55,7 @@ Example:
 
 Invoke the dedicated skill for the chosen stage using the Skill tool. Do not run the stage's commands directly — the per-stage skills own their own logic, prompts, and edge cases.
 
-When delegating KICKOFF, pass `tron:start-ticket` an explicit instruction to skip its cmux workspace setup step (the dev-server step stays — orchestrator-driven UI work needs a worktree-scoped dev server) — see the note under "Lifecycle stages" above.
+When delegating KICKOFF, pass `tron:start-ticket` an explicit instruction to skip its tmux session setup step (the dev-server step stays — orchestrator-driven UI work needs a worktree-scoped dev server) — see the note under "Lifecycle stages" above.
 
 Skill mapping:
 

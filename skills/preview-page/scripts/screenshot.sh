@@ -1,47 +1,53 @@
 #!/usr/bin/env bash
-# preview-page: screenshot the current cmux browser surface with a built-in
-# blank-capture guard.
+# preview-page: screenshot a previewed page with a built-in blank-capture guard,
+# using the headless `agent-browser` CLI (its own Chromium, independent of the
+# user's default browser).
 #
-# Two distinct failure modes this wrapper handles, because they are NOT the same:
+# The one failure mode this wrapper handles:
 #
-#   1. Blank/loading paint -- the screenshot command succeeds but writes a tiny
-#      PNG because the page hasn't painted yet (common right after navigate /
-#      reload). Fix: reload + wait + retry.
-#
-#   2. Backgrounded surface -- cmux can only snapshot the *selected* tab of a
-#      pane. A surface that was closed or pushed to the background still answers
-#      `eval`/`url` (so it looks alive) but `screenshot` errors with
-#      "Failed to capture snapshot". Reloading will NEVER fix this. The surface
-#      has to be foregrounded (re-run preview.sh, which opens/selects it), or
-#      use the headless responsive-shot.mjs path, which doesn't depend on pane
-#      visibility at all and is the more reliable choice for self-verification.
+#   Blank/loading paint -- the screenshot succeeds but writes a tiny PNG because
+#   the page hasn't painted yet (common right after navigate / reload). Fix:
+#   reload + wait + retry. agent-browser drives its own headless browser, so the
+#   capture never depends on which tab the user happens to be looking at.
 #
 # Usage:
-#   screenshot.sh <out-path> [surface]
+#   screenshot.sh <out-path> [url]
 #
-#   surface defaults to the ref in /tmp/preview-page-surface (written by
+#   url defaults to the last-previewed URL in /tmp/preview-page-url (written by
 #   preview.sh). A real marketing-page capture is normally >500KB; anything
 #   under MIN_BYTES is treated as a blank/loading frame.
 #
 # Examples:
 #   screenshot.sh /tmp/home.png
-#   screenshot.sh /tmp/home.png surface:23
+#   screenshot.sh /tmp/home.png http://localhost:4001/about-facilitron
+#
+# For mobile/responsive captures at an arbitrary viewport, prefer the headless
+# scripts/responsive-shot.mjs helper instead.
 
 set -euo pipefail
 
 OUT="${1:-}"
 if [[ -z "$OUT" ]]; then
-  echo "usage: screenshot.sh <out-path> [surface]" >&2
+  echo "usage: screenshot.sh <out-path> [url]" >&2
   exit 2
 fi
 
-SURFACE="${2:-}"
-if [[ -z "$SURFACE" ]]; then
-  SURFACE=$(cat /tmp/preview-page-surface 2>/dev/null || true)
+URL="${2:-}"
+if [[ -z "$URL" ]]; then
+  URL=$(cat /tmp/preview-page-url 2>/dev/null || true)
 fi
-if [[ -z "$SURFACE" ]]; then
-  echo "no surface given and /tmp/preview-page-surface is empty; run preview.sh first" >&2
+if [[ -z "$URL" ]]; then
+  echo "no url given and /tmp/preview-page-url is empty; run preview.sh first" >&2
   exit 2
+fi
+
+if ! command -v agent-browser >/dev/null 2>&1; then
+  cat >&2 <<EOF
+agent-browser not found on PATH. For a headless capture without it, use the
+skill's Playwright helper instead:
+  (cd "\$(dirname "\$0")/.." && bun scripts/responsive-shot.mjs "$URL" desktop "$OUT" --full)
+EOF
+  exit 1
 fi
 
 MIN_BYTES=${MIN_BYTES:-400000}
@@ -49,29 +55,40 @@ MAX_TRIES=${MAX_TRIES:-4}
 
 filesize() { stat -f%z "$1" 2>/dev/null || stat -c%s "$1" 2>/dev/null || echo 0; }
 
-backgrounded_hint() {
-  cat >&2 <<EOF
-surface $SURFACE can't be captured -- it's backgrounded or closed (cmux only
-snapshots the selected tab). Two ways forward:
-  - re-run preview.sh to (re)open and select it in the browser pane, then retry, or
-  - for headless self-verification that ignores pane visibility:
-      (cd "\$(dirname "\$0")/.." && bun scripts/responsive-shot.mjs <url> desktop $OUT)
-EOF
-}
+# Navigate once. A failure here (bad URL, crashed/incompatible agent-browser
+# backend) is a REAL error, not a blank paint — surface it immediately rather
+# than looping into a misleading "still blank" message.
+set +e
+OPEN_ERR=$(agent-browser open "$URL" 2>&1 >/dev/null); OPEN_RC=$?
+set -e
+if [[ "$OPEN_RC" -ne 0 ]]; then
+  echo "agent-browser could not open $URL (exit $OPEN_RC): ${OPEN_ERR:-no error output}" >&2
+  exit 1
+fi
+agent-browser wait --load networkidle >/dev/null 2>&1 || true
 
 for try in $(seq 1 "$MAX_TRIES"); do
   # Wait for the document to finish loading and have a non-empty, non-loading title.
   for _ in $(seq 1 8); do
-    READY=$(cmux browser --surface "$SURFACE" eval "document.readyState" 2>/dev/null || echo "")
-    TITLE=$(cmux browser --surface "$SURFACE" eval "document.title" 2>/dev/null || echo "")
-    if [[ "$READY" == "complete" && -n "$TITLE" && "$TITLE" != "Loading"* ]]; then
+    READY=$(agent-browser eval "document.readyState" 2>/dev/null || echo "")
+    TITLE=$(agent-browser eval "document.title" 2>/dev/null || echo "")
+    if [[ "$READY" == *complete* && -n "$TITLE" && "$TITLE" != Loading* ]]; then
       break
     fi
     sleep 1
   done
 
   rm -f "$OUT"
-  SHOT_ERR=$(cmux browser --surface "$SURFACE" screenshot --out "$OUT" 2>&1 >/dev/null || true)
+  # Distinguish a real capture error (non-zero exit → surface it) from a blank
+  # paint (zero exit but a tiny PNG → retry). The old code swallowed both and
+  # reported every failure as "blank".
+  set +e
+  SHOT_ERR=$(agent-browser screenshot "$OUT" 2>&1 >/dev/null); SHOT_RC=$?
+  set -e
+  if [[ "$SHOT_RC" -ne 0 ]]; then
+    echo "agent-browser screenshot failed (exit $SHOT_RC): ${SHOT_ERR:-no error output}" >&2
+    exit 1
+  fi
   SIZE=$(filesize "$OUT")
 
   if [[ "$SIZE" -ge "$MIN_BYTES" ]]; then
@@ -79,16 +96,11 @@ for try in $(seq 1 "$MAX_TRIES"); do
     exit 0
   fi
 
-  # Distinguish "can't snapshot this surface" (unrecoverable here) from a blank paint.
-  if [[ "$SHOT_ERR" == *"Failed to capture snapshot"* || "$SHOT_ERR" == *"not_found"* ]]; then
-    backgrounded_hint
-    exit 1
-  fi
-
   echo "blank/small capture (${SIZE}B < ${MIN_BYTES}B) on try $try; reloading..." >&2
-  cmux browser --surface "$SURFACE" reload >/dev/null 2>&1 || true
+  agent-browser reload >/dev/null 2>&1 || true
+  agent-browser wait --load networkidle >/dev/null 2>&1 || true
   sleep 4
 done
 
-echo "still blank after ${MAX_TRIES} tries; last size $(filesize "$OUT")B. Check the dev server / surface $SURFACE." >&2
+echo "still blank after ${MAX_TRIES} tries; last size $(filesize "$OUT")B. Check the dev server / URL $URL." >&2
 exit 1

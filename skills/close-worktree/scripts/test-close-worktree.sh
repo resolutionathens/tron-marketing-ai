@@ -6,8 +6,8 @@
 #
 #   bash skills/close-worktree/scripts/test-close-worktree.sh
 #
-# No cmux/wt needed: the script skips workspace-close when cmux is absent, so
-# this exercises the pure git plumbing.
+# No tmux/wt needed: the script skips session-close when no matching tmux
+# session exists, so this exercises the pure git plumbing.
 
 set -euo pipefail
 
@@ -55,6 +55,7 @@ assert_json '"ok":true'
 assert_json '"worktreeRemoved":true'
 assert_json '"localBranchDeleted":true'
 assert_json '"remoteBranchDeleted":true'
+assert_json '"sessionClosed":true'
 assert_json '"workspaceClosed":true'
 assert_json '"leftovers":\[\]'
 pass "result line reports a clean close"

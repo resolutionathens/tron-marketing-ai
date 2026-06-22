@@ -2,12 +2,14 @@
 name: preview-page
 model: haiku
 effort: low
-description: Open a marketing-pages route in the cmux browser pane so the user can visually inspect it. Spins up the Nuxt dev server on port 4001 if it isn't running, then adds a new browser surface in the browser pane pointing at the requested URL. Use this whenever the user asks to "preview", "open in the browser", "show me the page", "check this in cmux", "load it up", "open that route", or anything similar after creating or editing a `pages/**/*.vue` file. Also trigger when they say "let's both look at it" or "pop it open" right after a page edit — that phrasing implies opening it in the cmux browser pane, not just printing the URL.
+description: Open a marketing-pages route in the user's default browser so they can visually inspect it. Spins up the Nuxt dev server on port 4001 if it isn't running, then opens the requested URL in the default browser. Use this whenever the user asks to "preview", "open in the browser", "show me the page", "load it up", "open that route", or anything similar after creating or editing a `pages/**/*.vue` file. Also trigger when they say "let's both look at it" or "pop it open" right after a page edit — that phrasing implies opening the page in the browser, not just printing the URL.
 ---
 
-# Preview Page in cmux Browser
+# Preview Page in the Default Browser
 
-Goal: get a new or edited Nuxt page in front of the user as fast as possible by opening it in the cmux browser pane, starting the dev server first if needed.
+Goal: get a new or edited Nuxt page in front of the user as fast as possible by opening it in their default browser, starting the dev server first if needed.
+
+For self-verification (errors, DOM checks, screenshots), this skill drives the headless `agent-browser` CLI and the bundled Playwright helpers — a separate, headless browser instance from the user's default browser, so checking your own work never disturbs the tab the user is looking at.
 
 **Preflight — confirm you're in the marketing-pages repo.** This skill depends on the
 marketing-pages dev script (`bun dev` → port 4001 with `.env.local`) and previews its
@@ -40,25 +42,26 @@ bash "$SKILL_DIR/scripts/preview.sh" <route-or-file>
 
 The script handles everything below. Use it directly when you already know what to preview. The rest of this document is for the cases where you don't, or when something goes wrong.
 
-The script prints two lines on success — the cmux surface ref (e.g. `surface:20`) and the URL — and writes the surface ref to `/tmp/preview-page-surface` for reuse on the next call. Repeated previews navigate the existing tab instead of stacking new ones.
+The script prints the URL on success and writes it to `/tmp/preview-page-url` so `screenshot.sh` and `agent-browser` self-checks can reuse it without re-deriving the route. It opens the page in the user's default browser (`open` on macOS).
 
 ## Self-checking your own work (token-cheap → token-expensive)
 
-The cmux browser exposes a Playwright-style API on the surface. After a preview, you can verify your own work without bothering the user. **Reach for these in order — stop at the first one that answers your question.**
+The headless `agent-browser` CLI exposes a Playwright-style API against its own Chromium instance. After a preview, point it at the previewed URL once, then verify your own work without bothering the user. **Reach for these in order — stop at the first one that answers your question.**
 
 ```bash
-S=$(cat /tmp/preview-page-surface)
+U=$(cat /tmp/preview-page-url)
+agent-browser open "$U" && agent-browser wait --load networkidle
 ```
 
-1. **`cmux browser --surface $S errors list`** — JS errors on the page. Catches build/runtime regressions immediately. Tiny output. Always run this first after a non-trivial edit.
-2. **`cmux browser --surface $S get text --selector h1`** — pull a specific element's text. Verify hero copy, button text, etc. ~100 bytes.
-3. **`cmux browser --surface $S eval "Array.from(document.querySelectorAll('h2')).map(h => h.textContent.trim()).join(' | ')"`** — arbitrary JS in the page. Best for "did all four cards render?" / "is the right number of items in this list?" Hundreds of bytes.
-4. **`cmux browser --surface $S get count --selector .role-card`** — element counts. Useful for grid integrity checks.
-5. **`cmux browser --surface $S snapshot --compact`** — accessibility-tree-ish DOM snapshot. Moderate token cost; use when you need structure, not pixels.
-6. **`bash scripts/screenshot.sh /tmp/preview.png`** then `Read` the PNG — most expensive (a long-page PNG can be 50k–200k tokens). Use only when you actually need to look at layout. This wrapper bakes in the blank-capture guard (waits for `readyState`/title, verifies the PNG isn't a blank frame, retries with a reload) and fails fast with guidance if the surface is backgrounded/closed. You _can_ call `cmux browser --surface $S screenshot --out ...` directly, but then you own the blank-frame dance yourself. Read full-resolution; don't re-screenshot if you already have one and haven't changed the page.
-7. **`bun scripts/responsive-shot.mjs <url> mobile /tmp/m.png`** (or `tablet`/`desktop`/a raw px width, `--full` for full page) — headless Chromium capture at an arbitrary viewport. This is the **only** way to see mobile/responsive layout: the cmux pane (WKWebView) can't resize below pane width, so CLS / hero-crop / breakpoint work has to be verified here. It's also more robust than the in-pane screenshot because it doesn't depend on the surface being the foreground tab. Run it from inside the skill dir (it uses the skill's own `playwright`).
+1. **`agent-browser errors`** (and **`agent-browser console`**) — page errors / console output. Catches build/runtime regressions immediately. Tiny output. Always run this first after a non-trivial edit.
+2. **`agent-browser get text h1`** — pull a specific element's text. Verify hero copy, button text, etc. ~100 bytes.
+3. **`agent-browser eval "Array.from(document.querySelectorAll('h2')).map(h => h.textContent.trim()).join(' | ')"`** — arbitrary JS in the page. Best for "did all four cards render?" / "is the right number of items in this list?" Hundreds of bytes.
+4. **`agent-browser get count .role-card`** — element counts. Useful for grid integrity checks.
+5. **`agent-browser snapshot`** — accessibility-tree DOM snapshot. Moderate token cost; use when you need structure, not pixels.
+6. **`bash scripts/screenshot.sh /tmp/preview.png`** then `Read` the PNG — most expensive (a long-page PNG can be 50k–200k tokens). Use only when you actually need to look at layout. This wrapper drives `agent-browser` and bakes in the blank-capture guard (waits for `readyState`/title, verifies the PNG isn't a blank frame, retries with a reload). You _can_ call `agent-browser screenshot ...` directly, but then you own the blank-frame dance yourself. Read full-resolution; don't re-screenshot if you already have one and haven't changed the page.
+7. **`bun scripts/responsive-shot.mjs <url> mobile /tmp/m.png`** (or `tablet`/`desktop`/a raw px width, `--full` for full page) — headless Chromium capture at an arbitrary viewport. The first-class way to see mobile/responsive layout: it renders at any width deterministically, so CLS / hero-crop / breakpoint work is verified here. Run it from inside the skill dir (it uses the skill's own `playwright`).
 
-After editing a Vue file, re-trigger HMR with: **`cmux browser --surface $S reload`**. No need to re-run `preview.sh` for the same URL.
+After editing a Vue file, re-trigger HMR in the user's browser with a manual refresh; to re-check headlessly, **`agent-browser reload`**. No need to re-run `preview.sh` for the same URL.
 
 ## Figma parity workflow (mandatory when working from a design)
 
@@ -92,11 +95,11 @@ The trade-off vs. the interactive loop: zero mid-build HITL gates, so any diverg
 ### The gate — must do, in order
 
 1. **Pull the Figma node screenshot.** `mcp__plugin_figma_figma__get_screenshot` with the section's node ID, download via curl to `/tmp/figma-<section>.png`.
-2. **Open the compare view (it captures dev for you).** `bash "$SKILL_DIR/scripts/compare.sh" <figma-png> <route> <section-index>`. The script uses headless Chromium at Figma-native 1440px viewport to clip the dev section to its bounding box, then opens a three-mode compare page: **Side** (side-by-side), **Stack** (opacity slider overlay), **Diff** (mix-blend-mode: difference). The user sees this in the browser pane.
+2. **Open the compare view (it captures dev for you).** `bash "$SKILL_DIR/scripts/compare.sh" <figma-png> <route> <section-index>`. The script uses headless Chromium at Figma-native 1440px viewport to clip the dev section to its bounding box, then opens a three-mode compare page in the user's default browser: **Side** (side-by-side), **Stack** (opacity slider overlay), **Diff** (mix-blend-mode: difference).
 
    - `<route>` is the path on the dev server (e.g. `/solutions/maintenance-teams`).
    - `<section-index>` is the 0-based position in the section locator's matches (covers `<main> section`, `section[aria-label]`, and `[class*="py-14/16/20"]`). **Don't count by hand.** Run `bash "$SKILL_DIR/scripts/compare.sh" --list <route>` first — it prints a table of `idx | height | aria-label or first heading` so you can pick the right one in one read. Re-run after page edits since adding/removing a section shifts every later index.
-   - **Why Playwright not cmux:** macOS WKWebView doesn't support `viewport.set`, so cmux screenshots are stuck at the cmux pane width (~1279px). Figma renders at 1440px. Mismatched viewports give different text wrapping and different responsive layouts — overlay/diff would be noise. Headless Chromium at 1440 matches Figma's render, so element positions overlay cleanly.
+   - **Why headless Playwright for the capture:** the dev render must match Figma's 1440px width, or text wrapping and responsive layout differ and the overlay/diff becomes noise. Headless Chromium at 1440 matches Figma's render, so element positions overlay cleanly.
 
 3. **Read BOTH PNGs into your context in the same turn.** Use `Read` on `/tmp/cmp-figma.png` and `/tmp/cmp-dev.png` back-to-back so you see them at once. Reading them in separate turns lets the first slip out of working memory.
 4. **Enumerate visual diffs against the checklist below.** Write a numbered list. Mark each item: 🔴 real fix, 🟡 trade-off / open question, 🟢 framing artifact (e.g. site header not in Figma node, asset-content delta). Pay extra attention to direction/orientation items (image-left vs image-right, list order) — these are the easiest to miss and the most embarrassing.
@@ -121,7 +124,7 @@ The trade-off vs. the interactive loop: zero mid-build HITL gates, so any diverg
    ```
    for iter in 1..6:
      - apply every 🔴 fix you identified
-     - re-run compare.sh — it re-captures dev at 1440 via Playwright and refreshes the surface
+     - re-run compare.sh — it re-captures dev at 1440 via Playwright; reload the compare tab to see it
      - Read both /tmp/cmp-figma.png and /tmp/cmp-dev.png into context this same turn
      - re-enumerate against the parity checklist with 🔴/🟡/🟢 markers
      - if only 🟡/🟢 remain → exit loop, report to the user for HITL review
@@ -144,9 +147,9 @@ The trade-off vs. the interactive loop: zero mid-build HITL gates, so any diverg
 8. **Flag asset gaps early, don't ship around them.** If a Figma image is a composed mockup we don't have as a single asset, ask the user for an export before iterating on smaller details. The wrong image dominates everything else visually.
 9. **Prefer the user's compare-view screenshots over re-pulling Figma.** When the user pastes a screenshot of the compare page, my `Read` tool sees it at a higher resolution than a re-pulled Figma `get_screenshot` (because theirs is a much larger source PNG that downsamples to a still-larger image in my view). If they give you a screenshot, USE THAT for the visual review rather than re-fetching from Figma.
 
-**cmux browser gotcha (verified):** `screenshot` only works on the surface that is the **selected tab** in its pane. Crucially, `eval`/`url`/`get` do **not** share this restriction — a backgrounded or even closed surface keeps answering them with stale-but-plausible values (`url` returns the last URL, `eval "document.readyState"` returns `complete`). So those calls succeeding is **not** proof the surface is live. The tell is `screenshot` erroring with `Failed to capture snapshot` (not a blank PNG) — that means the surface isn't foregrounded. There is **no** `tab switch` / tab-select subcommand on `cmux browser` (the menu actions under `cmux tab-action` are only rename/close); to foreground a surface, re-run `preview.sh` (it opens/selects the surface in the pane) or open a fresh one. `preview.sh` now validates a reused surface is still listed in a pane before handing it back, so a stale `/tmp/preview-page-surface` ref won't silently produce uncapturable screenshots.
+**agent-browser drives its own headless Chromium**, separate from the user's default browser, so `screenshot`, `eval`, `get`, and `reload` all work regardless of what the user is looking at. Just `agent-browser open "$U"` once (and `agent-browser wait --load networkidle`) before a batch of checks; the session persists across invocations.
 
-Because of all this, prefer `scripts/responsive-shot.mjs` (headless, ignores pane visibility entirely) for self-verification screenshots, and reserve the in-pane `screenshot.sh` for when you specifically want the user to see it live in their pane.
+For viewport-specific captures (mobile/CLS/breakpoint work), prefer `scripts/responsive-shot.mjs` — it sets an exact width deterministically and is the simplest path for responsive verification.
 
 **BaseSection prose gotcha (high-impact):** `components/base/Section.vue` defaults `prose: true`, which adds the `.prose` className from `@tailwindcss/typography`. That plugin re-introduces browser-default margins on `h1`–`h6` (e.g. `margin: 24px 0 8px` on an `h4`) and on `p` tags inside the section. Symptoms: "title top doesn't align with icon top," "items have unexpected vertical spacing between them." Pass `:prose="false"` on `BaseSection` for any section component that styles its own typography via Tailwind utilities. This was the root cause of the section-1 alignment + spacing mismatch — once `prose` was off, the `items-start` flex layout worked correctly with zero further changes.
 
@@ -154,12 +157,12 @@ Because of all this, prefer `scripts/responsive-shot.mjs` (headless, ignores pan
 
 **Verify "alignment is off" with `getBoundingClientRect`, not eyeballing.** A section's PNG asset often has its own internal whitespace, so the visible content can look mis-aligned even when the `<img>` element top is exactly where you want it. Before chasing a layout fix, run `eval` to compare `getBoundingClientRect().top` on the suspect elements. If they match, the "misalignment" is the asset's padding — note it for an asset-trim follow-up rather than refactoring the layout.
 
-**One screenshot is usually enough; only stitch when the section overflows the viewport.** The cmux browser pane captures the full viewport, which is plenty for a single section (~600–800px tall). Stitch top+bottom only when the section is taller than the viewport — otherwise you're doubling tokens for nothing.
+**One screenshot is usually enough; only stitch when the section overflows the viewport.** A single headless capture covers the full viewport, which is plenty for a single section (~600–800px tall). Stitch top+bottom only when the section is taller than the viewport — otherwise you're doubling tokens for nothing.
 
 **Never accept a blank/white screenshot.** After `reload` (or any navigation), the Nuxt page can take 3–5s to render. Symptoms of a too-early screenshot: PNG file size suspiciously small (<200KB for a marketing page) or visually all-white when Read. Guards in order of preference:
 
-1. `cmux browser --surface $S eval "document.readyState"` — wait for `"complete"`.
-2. `cmux browser --surface $S eval "document.title"` — should be the page title, not "Loading" or empty.
+1. `agent-browser eval "document.readyState"` — wait for `"complete"`.
+2. `agent-browser eval "document.title"` — should be the page title, not "Loading" or empty.
 3. Check the screenshot's file size (`ls -la /tmp/dev-*.png`) — a real marketing-page section screenshot is typically >500KB; <200KB is a strong signal of a blank/loading frame.
 4. As a last resort, `sleep 4` after reload before screenshotting (HMR is usually quicker, but a fresh navigate is slower).
 
@@ -212,7 +215,7 @@ If the only remaining items are these framing artifacts, the section is done.
 
 ## Responsive checks (375 / 1024 / 1440)
 
-`cmux browser viewport <w> <h>` is **not supported on macOS WKWebView**, which is what the cmux pane uses — you cannot resize the cmux browser pane for responsive screenshots. Use the headless helper instead:
+For responsive screenshots, use the headless helper — it renders at any exact width deterministically (`agent-browser set viewport <w> <h>` also works for live checks, but the helper is the simplest path for captures):
 
 ```bash
 # run from inside the skill dir so it uses the skill's own playwright; the :? guard
@@ -224,12 +227,12 @@ bun scripts/responsive-shot.mjs <url> desktop /tmp/d.png          # 1440px
 bun scripts/responsive-shot.mjs <url> 414     /tmp/x.png          # any raw px width
 ```
 
-This is the first-class way to self-verify mobile/CLS/hero-crop/breakpoint work (e.g. MD-1707 / MD-1749-style tickets) — it renders in real Chromium at the requested width, independent of the cmux pane. `Read` the PNG to inspect.
+This is the first-class way to self-verify mobile/CLS/hero-crop/breakpoint work (e.g. MD-1707 / MD-1749-style tickets) — it renders in real Chromium at the requested width. `Read` the PNG to inspect.
 
 Other options, in rough order of preference:
 
 - **`responsive-shot.mjs`** (above) — autonomous, no round-trip. Default to this.
-- **Ask the user to resize** the cmux browser pane and report what they see. Use when you want their eyes on something subjective rather than a PNG.
+- **Ask the user to resize** their browser window and report what they see. Use when you want their eyes on something subjective rather than a PNG.
 - **Trust the Tailwind breakpoints** if the page uses standard `md:` / `lg:` / `xl:` classes and you can see the desktop render is correct. Low cost, slightly lower confidence.
 
 ### 1. Resolve the URL
@@ -264,33 +267,33 @@ until grep -q "Local:" /tmp/preview-page-dev.log 2>/dev/null; do sleep 1; done
 
 If the log fills with errors instead (search for `error` or `Failed`), stop and surface them — don't open the browser to a broken page.
 
-### 3. Find the cmux browser pane
-
-cmux doesn't label pane types. The browser pane is the one whose surfaces have webpage-shaped titles (containing `-` separators and product names like `Confluence`, `JIRA`, `localhost`, a `.com` host, etc.) rather than shell-shaped titles (`cd `, `vim`, `~/code`, command lines).
-
-Iterate panes and pick the one with no shell-shaped surfaces. The helper script does this; do it inline only if the script breaks.
-
-### 4. Open the surface
+### 3. Open the URL in the default browser
 
 ```bash
-cmux new-surface --type browser --pane <pane-ref> --url "<full-url>"
+open "<full-url>"          # macOS; xdg-open on Linux
 ```
 
-A new browser tab opens in the browser pane. Don't focus it — the user usually wants to stay in their current pane. The new tab is auto-selected within the browser pane, which is enough.
+This opens (or focuses) the user's default browser at the page. The helper script does this and also saves the URL to `/tmp/preview-page-url`; do it inline only if the script breaks.
 
-### 5. Tell the user
+### 4. Tell the user
 
 One line, with the URL. They're about to look at it; they don't need a recap of what the page does.
 
-### 6. (Optional) Self-check before handing off
+### 5. (Optional) Self-check before handing off
 
-If the change is non-trivial, run `cmux browser --surface $S errors list` and a `get text` for the most important element before saying "preview is up." Catching a broken h1 yourself is cheaper than catching it through the user's eyes — and far cheaper than a screenshot round-trip.
+If the change is non-trivial, point `agent-browser` at the URL and run `agent-browser errors` and a `get text` for the most important element before saying "preview is up." Catching a broken h1 yourself is cheaper than catching it through the user's eyes — and far cheaper than a screenshot round-trip.
+
+```bash
+U=$(cat /tmp/preview-page-url); agent-browser open "$U" && agent-browser wait --load networkidle
+agent-browser errors
+agent-browser get text h1
+```
 
 For a brand-new or substantially-changed page, offer the automated gates once it looks right: `tron:a11y-scan` (WCAG) and `tron:brand-check` (palette / `tron-` tokens / contrast) against the same URL.
 
 ## When things go sideways
 
-- **No browser pane found.** Create one: `cmux new-pane --type browser --direction right --url "<full-url>"`. Tell the user you split a new pane because no browser pane existed.
+- **No `open`/`xdg-open` on PATH.** The script prints the URL instead; hand it to the user to open manually, or open it yourself with `agent-browser open "<full-url>"` for a headless look.
 - **Port 4001 already busy by something else.** `lsof -ti:4001` returns a PID. If the process's command isn't `nuxt`/`node`, ask the user before killing it.
 - **Dev server fails to start.** Read `/tmp/preview-page-dev.log`. Common culprits: missing `.env.local`, missing project deps (run `bun i` from the **repo root** — the project's package.json, not the skill's), Node version mismatch (the `nvm use` step needs `.nvmrc` to resolve).
 - **Page 404s in the browser but the route file exists.** Nuxt needs a beat to pick up new files; if the user just created the route, refresh after a second.
@@ -312,4 +315,4 @@ The skill manages its own `package.json`, `bun.lock`, and `node_modules` under `
 
 ## Why this exists
 
-Without the skill, every preview means: remember the dev command, remember port 4001, look up cmux pane IDs, guess at the right `cmux` subcommand. The helper script collapses all of that into one call so the loop between "I just changed a page" and "I can see the change" stays short.
+Without the skill, every preview means: remember the dev command, remember port 4001, wait for the server, then open the right URL. The helper script collapses all of that into one call so the loop between "I just changed a page" and "I can see the change" stays short.

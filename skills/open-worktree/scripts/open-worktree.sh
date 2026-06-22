@@ -3,9 +3,9 @@
 # switch to / resolve an existing worktree, carry over the gitignored env files
 # that don't follow a worktree, and flag an empty node_modules. These are the
 # two footguns from the skill's "Common gotchas" (a dev server that 500s on
-# missing env, or a silently-failed install). The cmux three-pane layout stays
+# missing env, or a silently-failed install). The tmux pane layout stays
 # in the SKILL.md prose — interactive surface composition is judgment, and its
-# sibling start-ticket.sh keeps cmux setup in prose for the same reason.
+# sibling start-ticket.sh keeps tmux setup in prose for the same reason.
 #
 # Usage:
 #   open-worktree.sh --branch <name> [--repo <path>] [--no-switch]

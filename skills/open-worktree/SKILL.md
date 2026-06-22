@@ -2,7 +2,7 @@
 name: open-worktree
 model: sonnet
 effort: low
-description: "Open a git worktree in a new cmux workspace with browser, vim, and terminal. Use this skill when the user says 'open worktree', 'open that worktree', 'set up workspace for <branch>', 'open workspace for <ticket>', or wants to start working in a worktree that already exists. Also trigger when the user says 'open it in cmux', 'set up cmux for that', or references a worktree path they want to work in."
+description: "Open a git worktree in a new tmux session with vim and a terminal, opening any associated URL in your default browser. Use this skill when the user says 'open worktree', 'open that worktree', 'set up workspace for <branch>', 'open workspace for <ticket>', or wants to start working in a worktree that already exists. Also trigger when the user says 'open it in tmux', 'set up a session for that', or references a worktree path they want to work in."
 allowed-tools:
   - Bash
   - Read
@@ -10,22 +10,24 @@ allowed-tools:
 
 # Open Worktree
 
-Open an existing git worktree in a new cmux workspace with a three-pane layout:
+Open an existing git worktree in a new tmux session with a two-pane layout, and
+open any associated URL (ticket, PR, docs) in the user's **default browser**:
 
 ```
-┌──────────┬──────────┐
-│          │   vim    │
-│ browser  ├──────────┤
-│          │ terminal │
-└──────────┴──────────┘
+┌─────────────────────┐
+│        vim          │
+├─────────────────────┤
+│      terminal       │   + any URL opens in your default browser
+└─────────────────────┘
 ```
 
-Browser on the left, vim top-right, terminal bottom-right.
+vim on top, terminal on the bottom. The browser is the user's normal default
+browser (`open <url>` on macOS), not a managed pane.
 
 ## Fast path (scripted)
 
 Resolve the worktree and fix the two footguns (missing gitignored env files, an
-empty `node_modules`) in one deterministic call before touching cmux:
+empty `node_modules`) in one deterministic call before setting up tmux:
 
 ```bash
 # Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
@@ -50,11 +52,11 @@ line on stdout:
 ```
 
 Take `worktreePath` from the result and use it as the `<absolute-path>` in the
-cmux steps below. If `nodeModulesEmpty` is true, run the project's install before
+tmux steps below. If `nodeModulesEmpty` is true, run the project's install before
 launching dev. Smoke it with `bash "$SKILL_DIR/scripts/test-open-worktree.sh"`.
 
-The cmux three-pane composition below stays manual — surface layout is judgment,
-not a fixed sequence (its sibling `start-ticket` keeps cmux setup in prose too).
+The tmux pane composition below stays manual — surface layout is judgment,
+not a fixed sequence (its sibling `start-ticket` keeps tmux setup in prose too).
 
 ## Determine the worktree path
 
@@ -78,71 +80,63 @@ wt switch <branch-name> --yes
 pwd
 ```
 
-## Set up the cmux workspace
+## Set up the tmux session
 
-Run these commands in sequence — each step depends on the previous one's output.
-
-### 1. Create the workspace
-
-```bash
-cmux new-workspace
-```
-
-This returns a line like `OK <uuid>`. You don't need the UUID — use `cmux --json list-workspaces` to find the new workspace ref (it'll be the highest-numbered one).
-
-### 2. Rename the workspace
-
-Use the branch/ticket name so it's easy to identify:
+Run these commands in sequence. Use the branch name (with any `.`/`:` swapped for
+`-`, since tmux disallows them in session names) as the session name, and the
+worktree's absolute path as `<absolute-path>`:
 
 ```bash
-cmux rename-workspace --workspace <ref> "<branch-name>"
+SESSION="$(printf '%s' '<branch-name>' | tr '.:' '--')"
 ```
 
-### 3. Add the browser pane on the left first
+### 1. Create the session with vim in the first pane
 
-The workspace starts with one terminal pane. Add the browser to its left before splitting the right side — this ensures the split only affects the right pane:
+Create a detached session rooted in the worktree, then start vim in it:
 
 ```bash
-cmux --json new-pane --type browser --direction left --workspace <ref> [--url <url>]
+tmux new-session -d -s "$SESSION" -c "<absolute-path>"
+tmux send-keys -t "$SESSION" 'vim .' Enter
 ```
 
-If the user provided a URL (e.g., a Jira ticket, PR, or docs page), pass it with `--url` so the browser opens there directly.
+If a session with that name already exists, `new-session` errors — either reuse
+it (skip creation) or pick a suffixed name.
 
-### 4. Send cd + vim to the right pane (top)
-
-The original terminal pane is now the right side. Send vim to it:
+### 2. Split a terminal pane below
 
 ```bash
-cmux send --workspace <ref> "cd <absolute-path> && vim ."
-cmux send-key --workspace <ref> Enter
+tmux split-window -v -t "$SESSION" -c "<absolute-path>"
 ```
 
-Note: the `send` command without `--surface` targets the focused surface, which is still the original terminal pane.
+The new bottom pane is a plain shell already `cd`'d into the worktree. It becomes
+the active pane after the split, so the user lands in the terminal.
 
-### 5. Split the right pane down for the terminal (bottom)
+### 3. Open any URL in the default browser
+
+If the user provided a URL (a Jira ticket, PR, or docs page), open it in their
+default browser instead of a managed pane:
 
 ```bash
-cmux --json new-split down --workspace <ref>
+open "<url>"          # macOS; use xdg-open on Linux
 ```
 
-This returns JSON with the new `surface_ref`. Send cd to that surface so it's ready in the worktree directory:
+Skip this step when there's no URL to show.
+
+### 4. Attach (the user does this)
+
+The session is detached. Tell the user to attach when ready:
 
 ```bash
-cmux send --workspace <ref> --surface <new-surface-ref> "cd <absolute-path>"
-cmux send-key --workspace <ref> --surface <new-surface-ref> Enter
+tmux attach -t "$SESSION"
 ```
 
-### 6. Focus the terminal pane
-
-Focus the bottom-right pane (the terminal) so the user lands there. Use the pane ref returned from step 5:
-
-```bash
-cmux focus-pane --pane <terminal-pane-ref> --workspace <ref>
-```
+Don't attach from inside the skill — Claude runs non-interactively and attaching
+would block. Just leave the session set up and report its name.
 
 ## Tell the user
 
-Confirm the workspace is ready with the workspace name and the layout. Keep it brief.
+Confirm the session is ready with its name, the layout (vim + terminal), the
+`tmux attach -t <name>` command, and the URL you opened (if any). Keep it brief.
 
 ## Common gotchas
 

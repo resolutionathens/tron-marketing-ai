@@ -2,7 +2,7 @@
 name: close-worktree
 model: sonnet
 effort: low
-description: "Close and clean up git worktrees and their associated cmux workspaces. Use this skill when the user says 'close worktree', 'remove worktree', 'clean up worktree', 'delete worktree', or wants to remove a worktree they're done with. Also trigger when the user says 'I'm done with this branch', 'tear down the workspace', or 'clean up finished worktrees'."
+description: "Close and clean up git worktrees and their associated tmux sessions. Use this skill when the user says 'close worktree', 'remove worktree', 'clean up worktree', 'delete worktree', or wants to remove a worktree they're done with. Also trigger when the user says 'I'm done with this branch', 'tear down the workspace', or 'clean up finished worktrees'."
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -10,13 +10,13 @@ allowed-tools:
 
 # Close Worktree
 
-Remove git worktrees that are no longer needed using `wt`, along with their cmux workspaces and optionally their branches.
+Remove git worktrees that are no longer needed using `wt`, along with their tmux sessions and optionally their branches.
 
 ## Fast path (deterministic) — when you already know the branch
 
 When you know exactly which branch to close (the common case after a merge, and the
 only case when the OS routes here), skip the interactive steps and run the bundled
-script. It does the fixed sequence as ONE command — close the cmux workspace, remove
+script. It does the fixed sequence as ONE command — kill the tmux session, remove
 the worktree and verify it's gone, delete the local branch, delete the origin branch —
 and is **idempotent**: any piece that's already gone counts as done, not an error.
 
@@ -40,8 +40,10 @@ It prints exactly one line of JSON on stdout (everything else is on stderr):
 
 ```json
 {"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"worktreePath":"/…",
- "localBranchDeleted":true,"remoteBranchDeleted":true,"workspaceClosed":true,"leftovers":[]}
+ "localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"workspaceClosed":true,"leftovers":[]}
 ```
+
+`sessionClosed` reports whether the tmux session was killed (or none existed); `workspaceClosed` is a backwards-compatible alias carrying the same value.
 
 `ok` is `false` (and exit code `1`) **iff `leftovers` is non-empty** — i.e. something it
 was asked to remove is still present (usually a dirty worktree or unmerged branch; rerun
@@ -68,7 +70,7 @@ The user will either:
 - Say "all" or "clean up" — show them the list and let them pick
 - Reference the current worktree — `wt list` marks the current one with `@`
 
-If the user is currently inside the worktree being closed, warn them that their cmux workspace will be closed and they'll need to switch.
+If the user is currently inside the worktree being closed, warn them that their tmux session will be killed and they'll need to switch.
 
 ## Step 2: For each worktree, run cleanup
 
@@ -76,24 +78,24 @@ If the user is currently inside the worktree being closed, warn them that their 
 
 If `start-ticket` spun up a `bun dev` background task for this worktree earlier in the session, stop it before removing the worktree — otherwise the running Node process keeps file handles open on a directory that's about to be deleted, which can race with `wt remove`'s async cleanup. Use `TaskStop` with the task ID that `start-ticket` captured. If you don't have the ID handy (different session, or the user started the server manually), it's fine to skip; the worktree removal will still succeed, but the user may need to kill the stale process themselves.
 
-### 2b. Close the cmux workspace (if one exists)
+### 2b. Kill the tmux session (if one exists)
 
-Find the workspace by matching the title against the branch name or ticket key:
+Find the session by matching its name against the branch name or ticket key:
 
 ```bash
-cmux --json list-workspaces
+tmux list-sessions -F '#{session_name}'
 ```
 
-Workspace titles may be the full branch name or just the ticket key (e.g., "MD-1661" for branch "MD-1661-add-logos-case-studies-testimonials"). Match flexibly — check if the workspace title starts with the ticket key portion of the branch name.
+Session names may be the full branch name or just the ticket key (e.g., "MD-1661" for branch "MD-1661-add-logos-case-studies-testimonials"), with any `.`/`:` swapped for `-` (those are illegal in tmux session names). Match flexibly — check if a session name starts with the ticket key portion of the branch name.
 
-If a matching workspace is found:
+If a matching session is found:
 ```bash
-cmux close-workspace --workspace <ref>
+tmux kill-session -t <session-name>
 ```
 
-If the user is currently in that workspace, close it anyway — cmux will move them to another workspace automatically.
+If the user is currently attached to that session, killing it detaches them; they'll need to attach to another session or start fresh.
 
-**Do not chain `cmux close-workspace` with `wt remove` in a single `&&` command.** `close-workspace` returns as soon as the workspace is unregistered, but the panes inside (vim, shells, lingering postinstall scripts) take a moment to die and release file handles on files inside the worktree directory. If `wt remove` fires while those handles are still open, its background `rm` leaves fragments behind and you end up with orphan directories on disk that `wt list` no longer knows about. Run them as separate commands and give the panes a beat.
+**Do not chain `tmux kill-session` with `wt remove` in a single `&&` command.** `kill-session` returns quickly, but the panes inside (vim, shells, lingering postinstall scripts) take a moment to die and release file handles on files inside the worktree directory. If `wt remove` fires while those handles are still open, its background `rm` leaves fragments behind and you end up with orphan directories on disk that `wt list` no longer knows about. Run them as separate commands and give the panes a beat.
 
 ### 2c. Switch away if needed
 
@@ -140,7 +142,7 @@ If a local delete fails because the branch isn't merged, mention this and ask if
 
 After cleanup, confirm what was done:
 - Worktree removed: `<branch-name>`
-- cmux workspace closed (if applicable)
+- tmux session killed (if applicable)
 - Branches deleted (if applicable)
 
 Keep it brief.

@@ -17,13 +17,13 @@
 #      its node at, so element positions overlay cleanly.
 #   2. Writes /tmp/cmp-figma.png and /tmp/cmp-dev.png.
 #   3. Starts the static server on :4002 if needed.
-#   4. (Re)opens the compare page in the cmux browser pane. The compare page
+#   4. Opens the compare page in the user's default browser. The compare page
 #      has three modes: SIDE (side-by-side), STACK (opacity slider), DIFF
 #      (mix-blend-mode: difference).
 #
-# Why Playwright instead of cmux:
-#   cmux uses macOS WKWebView, which does not support setViewportSize. We need
-#   1440px to match Figma. Playwright headless Chromium handles this cleanly.
+# Why Playwright for the capture:
+#   The dev render must be captured at Figma-native 1440px so element positions
+#   overlay cleanly. Playwright headless Chromium sets that viewport reliably.
 
 set -euo pipefail
 
@@ -66,8 +66,6 @@ FIGMA_SRC="$1"
 ROUTE="$2"
 SECTION_IDX="$3"
 COMPARE_HTML=/tmp/compare.html
-COMPARE_SURFACE_FILE=/tmp/compare-surface
-SURFACE_FILE=/tmp/preview-page-surface
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SKILL_DIR=$(dirname "$SCRIPT_DIR")
 DEV_PORT=4001
@@ -245,44 +243,16 @@ fi
 
 COMPARE_URL="http://localhost:4002/compare.html"
 
-# ---- 4. Reuse the compare surface if it exists, otherwise open new ----------
-if [[ -f "$COMPARE_SURFACE_FILE" ]]; then
-  S=$(cat "$COMPARE_SURFACE_FILE" 2>/dev/null || true)
-  if [[ -n "${S:-}" ]] && cmux browser --surface "$S" url >/dev/null 2>&1; then
-    cmux browser --surface "$S" reload >/dev/null 2>&1 || true
-    echo "$S"
-    echo "$COMPARE_URL"
-    exit 0
-  fi
-fi
-
-# ---- 5. Find browser pane (prefer the one preview.sh uses) ------------------
-BROWSER_PANE=""
-if [[ -f "$SURFACE_FILE" ]]; then
-  PREV=$(cat "$SURFACE_FILE" 2>/dev/null || true)
-  if [[ -n "${PREV:-}" ]]; then
-    BROWSER_PANE=$(cmux browser --surface "$PREV" identify 2>/dev/null | grep -oE 'pane:[0-9]+' | head -1 || true)
-  fi
-fi
-if [[ -z "$BROWSER_PANE" ]]; then
-  PANES=$(cmux list-panes | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^\*?pane:[0-9]+$/) print $i }' | sed 's/^\*//')
-  while IFS= read -r pane; do
-    [[ -z "$pane" ]] && continue
-    if cmux list-pane-surfaces --pane "$pane" 2>/dev/null \
-       | grep -Eq ' - (JIRA|GitHub|Confluence|YouTube|Google|localhost|[A-Za-z0-9-]+\.(com|io|dev|net|org|app))( |$|\[)'; then
-      BROWSER_PANE="$pane"
-      break
-    fi
-  done <<< "$PANES"
-fi
-
-if [[ -n "$BROWSER_PANE" ]]; then
-  OPEN_OUT=$(cmux new-surface --type browser --pane "$BROWSER_PANE" --url "$COMPARE_URL" --focus false)
+# ---- 4. Open the compare page in the user's default browser -----------------
+# The page reads /tmp/cmp-figma.png and /tmp/cmp-dev.png fresh on every load and
+# cache-busts its <img> srcs, so re-running compare.sh + reloading the tab shows
+# the latest capture without any tab/surface bookkeeping.
+if command -v open >/dev/null 2>&1; then
+  open "$COMPARE_URL"                       # macOS
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$COMPARE_URL" >/dev/null 2>&1 & # Linux
 else
-  OPEN_OUT=$(cmux new-pane --type browser --direction right --url "$COMPARE_URL" --focus false)
+  echo "no 'open'/'xdg-open' on PATH — open this URL manually:" >&2
 fi
 
-SURFACE=$(printf '%s\n' "$OPEN_OUT" | grep -oE 'surface:[0-9]+' | head -1)
-[[ -n "$SURFACE" ]] && printf '%s\n' "$SURFACE" > "$COMPARE_SURFACE_FILE"
-echo "${SURFACE:-?}"
 echo "$COMPARE_URL"

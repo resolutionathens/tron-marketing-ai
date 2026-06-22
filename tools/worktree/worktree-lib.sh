@@ -7,7 +7,7 @@
 # Parsing `git worktree list --porcelain` by hand is easy to get subtly wrong
 # (the branch line is `branch refs/heads/<name>`, and the first stanza is always
 # the primary checkout). These two helpers encode that once. Pure git — no wt,
-# no cmux, no network — so they run against a plain `git worktree add` in tests.
+# no tmux, no network — so they run against a plain `git worktree add` in tests.
 
 # Echo the absolute path of the worktree checked out on <branch>, or return 1.
 #   wl_worktree_path_for_branch MD-1801-x [repo] → /Users/…/worktrees/MD-1801-x
