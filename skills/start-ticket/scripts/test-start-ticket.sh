@@ -78,6 +78,46 @@ eq "$LINKED" "control-plane/web/node_modules node_modules " "links root + nested
 rm -rf "$N"
 pass "tl_link_node_modules symlinks root + nested node_modules, skips too-deep + existing"
 
+# ── default-branch detection + ff-only base freshening (real git) ────────────
+# Builds a throwaway bare origin + clone, pushes the default, advances origin
+# beyond the clone, then proves tl_freshen_default fast-forwards the local
+# default to origin's HEAD — the merge-base the next worktree must branch from.
+gitq() { git -C "$1" "${@:2}"; }
+for DEF in master main; do
+  G="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-ff-$DEF.XXXXXX")"
+  gitq "$G" init --bare -q "origin.git"
+  git clone -q "$G/origin.git" "$G/main" 2>/dev/null
+  gitq "$G/main" config user.email smoke@tron.local
+  gitq "$G/main" config user.name "tron smoke"
+  gitq "$G/main" checkout -q -B "$DEF"
+  printf 'x\n' > "$G/main/f"; gitq "$G/main" add f; gitq "$G/main" commit -q -m init
+  gitq "$G/main" push -q -u origin "$DEF"
+  # origin/HEAD so detection resolves the default without touching the network
+  gitq "$G/main" remote set-head origin "$DEF" >/dev/null 2>&1 || true
+  eq "$(tl_default_branch "$G/main")" "$DEF" "tl_default_branch resolves $DEF"
+  # advance origin one commit, then rewind the local default so it's behind
+  printf 'y\n' >> "$G/main/f"; gitq "$G/main" commit -q -am ahead
+  gitq "$G/main" push -q origin "$DEF"
+  AHEAD="$(gitq "$G/main" rev-parse HEAD)"
+  gitq "$G/main" reset -q --hard HEAD~1
+  [[ "$(gitq "$G/main" rev-parse "$DEF")" != "$AHEAD" ]] || fail "$DEF: setup should leave local behind origin"
+  OUTDEF="$(tl_freshen_default "$G/main")" || fail "$DEF: tl_freshen_default returned non-zero on a fast-forwardable base"
+  eq "$OUTDEF" "$DEF" "tl_freshen_default echoes the default branch name ($DEF)"
+  eq "$(gitq "$G/main" rev-parse "$DEF")" "$AHEAD" "tl_freshen_default fast-forwarded local $DEF to origin/$DEF"
+  rm -rf "$G"
+done
+pass "tl_default_branch + tl_freshen_default freshen the base for main AND master repos"
+
+# offline / no-origin: must NOT fail, must still report the default name
+O="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-noorigin.XXXXXX")"
+git init -q "$O"; gitq "$O" config user.email s@t.local; gitq "$O" config user.name t
+gitq "$O" checkout -q -B master; printf 'x\n' > "$O/f"; gitq "$O" add f; gitq "$O" commit -q -m init
+RC=0; OUTNO="$(tl_freshen_default "$O" 2>/dev/null)" || RC=$?
+eq "$OUTNO" "master" "tl_freshen_default still reports the default with no origin"
+[[ "$RC" -ne 0 ]] || fail "tl_freshen_default should return non-zero when there's no origin to fetch"
+rm -rf "$O"
+pass "tl_freshen_default degrades gracefully with no origin (non-fatal, names the default)"
+
 # ── orchestration script: syntax + error paths ──────────────────────────────
 bash -n "$SCRIPT" || fail "start-ticket.sh has a syntax error"
 pass "start-ticket.sh parses (bash -n)"

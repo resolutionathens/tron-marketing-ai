@@ -108,3 +108,65 @@ tl_link_node_modules() {
     # never walk a huge dependency tree (and never reach a nested node_modules).
   done < <(find "$src" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
 }
+
+# Resolve a repo's DEFAULT branch name — `main` for some repos, `master` for
+# others. Offline-safe (never contacts the remote): prefers the locally-recorded
+# origin/HEAD symbolic ref (set by `git clone`), then falls back to whichever of
+# main/master exists locally, then to the current branch. Echoes the bare name.
+tl_default_branch() {
+  local repo="$1" d=""
+  d="$(git -C "$repo" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+  d="${d#origin/}"
+  if [[ -z "$d" ]]; then
+    if   git -C "$repo" show-ref --verify --quiet refs/heads/main   2>/dev/null; then d=main
+    elif git -C "$repo" show-ref --verify --quiet refs/heads/master 2>/dev/null; then d=master
+    else d="$(git -C "$repo" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"; fi
+  fi
+  printf '%s' "$d"
+}
+
+# Best-effort, FAST-FORWARD-ONLY refresh of a repo's local default branch to
+# origin's, so a new worktree branches off origin's latest rather than a stale
+# local base (`wt switch -c` bases on the LOCAL default — verified: it does not
+# fetch first). This is the ticket's option (b): freshen the local default, then
+# let wt branch off it.
+#
+# Echoes the resolved default-branch name on stdout (always). Returns 0 when the
+# local default is now up to date with origin/<default> (freshened or already
+# current), 1 otherwise (no origin, offline/fetch failed, diverged, or a dirty
+# tree blocked the fast-forward). NEVER creates a merge commit and NEVER fails
+# fatally — starting work must not be blocked by a failed fetch. Diagnostics go
+# to stderr so stdout stays the clean branch name for capture.
+tl_freshen_default() {
+  local repo="$1" default cur
+  default="$(tl_default_branch "$repo")"
+  printf '%s' "$default"
+  [[ -z "$default" ]] && return 1
+  git -C "$repo" remote get-url origin >/dev/null 2>&1 \
+    || { echo "tl_freshen_default: no origin remote — basing on local $default" >&2; return 1; }
+  if ! git -C "$repo" fetch --quiet origin "$default" 2>/dev/null; then
+    echo "tl_freshen_default: fetch of origin/$default failed (offline?) — basing on local $default (may be stale)" >&2
+    return 1
+  fi
+  # Already current?
+  if [[ "$(git -C "$repo" rev-parse "refs/heads/$default" 2>/dev/null)" \
+        == "$(git -C "$repo" rev-parse "refs/remotes/origin/$default" 2>/dev/null)" ]]; then
+    return 0
+  fi
+  # Only move forward on a true fast-forward — never a merge commit.
+  if ! git -C "$repo" merge-base --is-ancestor \
+        "refs/heads/$default" "refs/remotes/origin/$default" 2>/dev/null; then
+    echo "tl_freshen_default: local $default diverged from origin — basing on local $default" >&2
+    return 1
+  fi
+  cur="$(git -C "$repo" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [[ "$cur" == "$default" ]]; then
+    git -C "$repo" merge --ff-only --quiet "origin/$default" 2>/dev/null && return 0
+    echo "tl_freshen_default: could not fast-forward $default (dirty tree?) — basing on local $default" >&2
+    return 1
+  fi
+  # default not checked out here: advance the ref directly (still ff-only).
+  git -C "$repo" update-ref "refs/heads/$default" "refs/remotes/origin/$default" 2>/dev/null && return 0
+  echo "tl_freshen_default: could not update $default ref — basing on local $default" >&2
+  return 1
+}

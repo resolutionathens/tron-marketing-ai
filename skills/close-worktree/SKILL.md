@@ -17,8 +17,10 @@ Remove git worktrees that are no longer needed using `wt`, along with their tmux
 When you know exactly which branch to close (the common case after a merge, and the
 only case when the OS routes here), skip the interactive steps and run the bundled
 script. It does the fixed sequence as ONE command — kill the tmux session, remove
-the worktree and verify it's gone, delete the local branch, delete the origin branch —
-and is **idempotent**: any piece that's already gone counts as done, not an error.
+the worktree and verify it's gone, delete the local branch, delete the origin branch,
+then re-sync the main checkout's default branch to `origin/<default>` (fast-forward only)
+so the next ticket doesn't branch off a stale base — and is **idempotent**: any piece
+that's already gone counts as done, not an error.
 
 ```bash
 # Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
@@ -137,6 +139,20 @@ When the branch is fully merged, `wt remove` deletes it as part of the same oper
 If a local delete fails because the branch isn't merged, mention this and ask if they want to force it (`git branch -D`). This is a safety net — they may have unmerged work.
 
 **Tip:** If the user's workflow ends with `wt merge`, the branch is already deleted as part of the merge process.
+
+## Step 2.6: Re-sync the main checkout's default branch
+
+After the worktree and branch are gone, fast-forward the main checkout's default branch
+to origin so the **next** ticket starts from an up-to-date base (cleanup that never
+freshens the default lets it drift behind origin, which makes the next `start-ticket`
+branch off a stale base). The bundled script does this automatically; when cleaning up by
+hand, in the main checkout: ensure you're on `<default>` (`main` or `master` — switch onto
+it only if the tree is clean), then `git fetch origin <default>` and `git merge --ff-only
+origin/<default>`.
+
+Strictly best-effort and **fast-forward only**: never create a merge commit, never switch
+a dirty tree, and never fail the cleanup over it — if the default diverged or the tree is
+dirty, log a notice and leave the checkout as-is.
 
 ## Step 3: Summary
 

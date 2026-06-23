@@ -54,6 +54,24 @@ if [[ -z "$BRANCH" ]]; then
 fi
 log "ref=$REF → $RTYPE $RID ${RREPO:-(current repo)} → branch $BRANCH"
 
+# ---- freshen the base so the new branch starts from origin's latest ---------
+# `wt switch -c` bases the new branch on the LOCAL default branch and does NOT
+# fetch first, so a main checkout that's behind origin makes the worker start on
+# a stale base. Fast-forward the local default to origin/<default> before wt
+# branches off it. Best-effort / non-fatal: an offline or diverged checkout falls
+# back to the current local base. Skipped when the caller pinned an explicit --base.
+BASE_FRESHENED=false
+if [[ -z "$BASE" ]]; then
+  MAIN_NOW="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')" || true
+  if [[ -n "$MAIN_NOW" ]]; then
+    if DEFBR="$(tl_freshen_default "$MAIN_NOW")"; then
+      BASE_FRESHENED=true; log "base $DEFBR fast-forwarded to origin/$DEFBR"
+    else
+      log "could not freshen base ${DEFBR:-default} — branching off the local default (may be stale)"
+    fi
+  fi
+fi
+
 # ---- create the worktree with wt -------------------------------------------
 if ! command -v wt >/dev/null 2>&1; then
   echo "{\"ok\":false,\"error\":\"wt-not-found\",\"refType\":\"$RTYPE\",\"branch\":\"$BRANCH\"}"; exit 1
@@ -115,9 +133,9 @@ for i in "${!ENV_COPIED[@]}"; do [[ $i -gt 0 ]] && env_json+=","; env_json+="\"$
 nm_json=""
 for i in "${!NM_LINKED[@]}"; do [[ $i -gt 0 ]] && nm_json+=","; nm_json+="\"${NM_LINKED[$i]}\""; done
 if [[ "$RTYPE" == jira ]]; then
-  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"transitioned":%s}\n' \
-    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$TRANSITIONED"
+  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"baseFreshened":%s,"transitioned":%s}\n' \
+    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$BASE_FRESHENED" "$TRANSITIONED"
 else
-  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"assigned":%s}\n' \
-    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$ASSIGNED"
+  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"baseFreshened":%s,"assigned":%s}\n' \
+    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$BASE_FRESHENED" "$ASSIGNED"
 fi

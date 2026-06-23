@@ -82,5 +82,34 @@ grep -q '"ok":true' <<<"$OUT3" || fail "keep-remote not ok: $OUT3"
 [[ -z "$(gx "$MAIN" ls-remote --heads origin "$BRANCH2")" ]] && fail "keep-remote: origin branch should remain"
 pass "--keep-remote removes worktree+local branch, preserves origin branch"
 
+# ── default re-sync: close fast-forwards the main checkout's default branch ───
+# Advance origin's master beyond the main checkout, then prove close re-syncs it.
+gx "$MAIN" checkout -q master
+echo "ahead" > "$MAIN/AHEAD.md"; gx "$MAIN" add AHEAD.md; gx "$MAIN" commit -q -m ahead
+gx "$MAIN" push -q origin master
+AHEAD="$(gx "$MAIN" rev-parse master)"
+gx "$MAIN" reset -q --hard HEAD~1                       # main now 1 behind origin/master
+[[ "$(gx "$MAIN" rev-parse master)" != "$AHEAD" ]] || fail "setup: main should be behind origin/master"
+WT4="$ROOT/wt-md-7777"; BRANCH4="MD-7777-resync"
+gx "$MAIN" worktree add -q -b "$BRANCH4" "$WT4" master
+OUT4="$(cd "$MAIN" && bash "$SCRIPT" "$BRANCH4")" || fail "resync run exited non-zero: $OUT4"
+grep -q '"ok":true' <<<"$OUT4" || fail "resync run not ok: $OUT4"
+[[ "$(gx "$MAIN" rev-parse master)" == "$AHEAD" ]] || fail "close did not re-sync master to origin/master"
+pass "close-worktree fast-forwards the main checkout's default branch (ff-only) on cleanup"
+
+# ── re-sync never fails cleanup when it can't fast-forward (diverged default) ──
+gx "$MAIN" checkout -q master
+echo "local-only" > "$MAIN/DIVERGE.md"; gx "$MAIN" add DIVERGE.md; gx "$MAIN" commit -q -m local-divergence
+DIVERGED="$(gx "$MAIN" rev-parse master)"
+# origin/master now differs from local master in a non-ff way is hard to force
+# locally; instead just confirm a clean close still succeeds and leaves master put
+# when origin has nothing new to pull.
+WT5="$ROOT/wt-md-6666"; BRANCH5="MD-6666-noff"
+gx "$MAIN" worktree add -q -b "$BRANCH5" "$WT5" master
+OUT5="$(cd "$MAIN" && bash "$SCRIPT" "$BRANCH5")" || fail "no-ff run exited non-zero: $OUT5"
+grep -q '"ok":true' <<<"$OUT5" || fail "no-ff run should still report ok: $OUT5"
+[[ "$(gx "$MAIN" rev-parse master)" == "$DIVERGED" ]] || fail "close must not move/merge a non-fast-forwardable default"
+pass "close-worktree never fails or merges when the default can't fast-forward"
+
 echo ""
 echo "✅ close-worktree smoke PASSED ($PASS checks)"

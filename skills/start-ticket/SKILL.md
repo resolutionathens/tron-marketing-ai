@@ -15,8 +15,8 @@ Set up everything needed to begin work on a ticket: look it up, create a worktre
 
 ## Fast path (deterministic spine)
 
-The mechanical middle of this skill — classify the ref, create the branch+worktree,
-carry over gitignored env files, transition/assign the ticket — is one script:
+The mechanical middle of this skill — classify the ref, freshen the base, create the
+branch+worktree, carry over gitignored env files, transition/assign the ticket — is one script:
 
 ```bash
 # Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
@@ -36,7 +36,10 @@ Use it like this:
    the script doesn't do it.
 2. Run the script with the ref and either `--branch <name>` (you chose the slug) or
    `--summary "<ticket title>"` (it slugifies into `<KEY>-slug` / `issue-<N>-slug`).
-3. It detects Jira-vs-GitHub, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`
+3. It detects Jira-vs-GitHub, fast-forwards the local default branch to `origin/<default>`
+   so the new branch starts from origin's latest (not a stale local base — `wt switch -c`
+   does NOT fetch first; best-effort and non-fatal, skipped when you pass `--base`), runs
+   `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`
    from the main checkout into the new worktree (the Step 2.5 pitfall — skip it and the
    dev server 500s), symlinks every `node_modules` the main checkout has (root **and**
    nested workspaces — private `@facilitron/*` deps can't reinstall from the public
@@ -45,7 +48,7 @@ Use it like this:
 One JSON line on stdout (narration on stderr):
 
 ```json
-{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules","control-plane/web/node_modules"],"transitioned":true}
+{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules","control-plane/web/node_modules"],"baseFreshened":true,"transitioned":true}
 {"ok":false,"error":"ambiguous-ref","ref":"42","hint":"use #N for a GitHub issue or PROJ-N for Jira"}
 ```
 
@@ -123,6 +126,8 @@ wt switch -c <branch-name> --yes
 ```
 
 The `-c` flag creates a new branch from the default branch. `wt` automatically places the worktree in a sibling directory based on the branch name.
+
+**Freshen the base first.** `wt switch -c` bases the new branch on the **local** default branch and does **not** fetch from origin first, so if the main checkout is behind origin the worker starts on a stale base. The script handles this for you (it fast-forwards the local default to `origin/<default>` before `wt` branches off it). When running `wt` by hand, fast-forward the default first: resolve `<default>` (`main` for some repos, `master` for others), then `git fetch origin <default>` and `git merge --ff-only origin/<default>` in the main checkout. This is best-effort and FF-only — if you're offline or the default diverged, fall back to the local base and continue; starting work must never be blocked by a failed fetch.
 
 Dependencies are handled automatically by `wt` post-create hooks. If hooks fail, mention it so the user can install deps manually. Also sanity-check `ls <worktree-path>/node_modules/ | head -1` — an empty `node_modules/` means the hook silently no-op'd and the dev server will fail with `command not found` (nuxt, vite, etc.); run the project's install command in the worktree before continuing.
 
