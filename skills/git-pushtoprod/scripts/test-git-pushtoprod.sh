@@ -75,5 +75,52 @@ grep -q '"error":"staging-conflicts"' <<<"$OUT" || fail "B: wrong error: $OUT"
 pass "staging conflict halts before production; production untouched; tree clean"
 rm -rf "$ROOT"
 
+# ── C. repo with NO staging branch promotes master → production directly ──────
+# Build an origin with master + production only (no staging), like a Cloudflare
+# Worker app whose deploy lanes are just master and production.
+setup_no_staging() {
+  local root main origin
+  root="$(mktemp -d "${TMPDIR:-/tmp}/pushtoprod-nostaging.XXXXXX")"
+  origin="$root/origin.git"; main="$root/main"
+  git init --bare -q "$origin"
+  git clone -q "$origin" "$main"
+  gx "$main" config user.email smoke@tron.local
+  gx "$main" config user.name "tron smoke"
+  gx "$main" checkout -q -B master
+  echo base > "$main/app.txt"; echo "# r" > "$main/README.md"
+  gx "$main" add -A; gx "$main" commit -q -m init; gx "$main" push -q -u origin master
+  gx "$main" checkout -q -b production master; gx "$main" push -q -u origin production
+  gx "$main" checkout -q master
+  printf '%s\n' "$main"
+}
+
+MAIN="$(setup_no_staging)"; ROOT="$(dirname "$MAIN")"
+echo "shipped feature" > "$MAIN/app.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: ship it"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-9-ship master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" --no-jira)" || fail "C: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "C: not ok: $OUT"
+grep -q '"staging":"skipped"' <<<"$OUT" || fail "C: staging should be skipped: $OUT"
+grep -q '"production":true' <<<"$OUT" || fail "C: production not true: $OUT"
+grep -q '"leftovers":\[\]' <<<"$OUT" || fail "C: skipped staging must not be a leftover: $OUT"
+grep -q "ship it" <<<"$(gx "$MAIN" log production --oneline)" || fail "C: production missing master's commit"
+[[ "$(gx "$MAIN" rev-parse --abbrev-ref HEAD)" == MD-9-ship ]] || fail "C: did not restore starting branch"
+pass "no-staging repo promotes master → production directly; staging reported skipped"
+rm -rf "$ROOT"
+
+# ── D. repo with neither staging nor production reports no-production-branch ──
+MAIN="$(setup_no_staging)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" push -q origin --delete production >/dev/null 2>&1
+gx "$MAIN" branch -q -D production >/dev/null 2>&1 || true
+gx "$MAIN" checkout -q -b MD-11-ship master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" --no-jira)" && fail "D: expected non-zero exit, got: $OUT"
+echo "  → $OUT"
+grep -q '"error":"no-production-branch"' <<<"$OUT" || fail "D: wrong error: $OUT"
+# staging must read "skipped" (no staging branch) even on this failure path, not false.
+grep -q '"staging":"skipped"' <<<"$OUT" || fail "D: staging should be skipped, not false: $OUT"
+pass "repo with no production branch is rejected cleanly (staging reported skipped)"
+rm -rf "$ROOT"
+
 echo ""
 echo "✅ git-pushtoprod smoke PASSED ($PASS checks)"

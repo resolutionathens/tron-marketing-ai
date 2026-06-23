@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
-# git-pushtoprod: merge master into `staging` and `production`, push both, then
+# git-pushtoprod: promote master through the repo's deploy branches, push, then
 # transition the ticket to Done. The DETERMINISTIC core of tron:git-pushtoprod
-# (Phase B). Works from a worktree or a regular checkout. Stops at the FIRST
-# failed/conflicted environment and reports which ones made it (master→staging
-# is attempted before master→production; production is never touched if staging
-# fails). package*.json conflicts resolve to --ours; any other conflict aborts.
+# (Phase B). Works from a worktree or a regular checkout. Promotes master→staging
+# (only if the repo HAS a staging branch) then master→production; production is
+# required. Stops at the FIRST failed/conflicted environment (production is never
+# touched if staging fails), so a partial promotion is impossible to miss.
+# package*.json conflicts resolve to --ours; any other conflict aborts.
 #
 # Usage:
 #   git-pushtoprod.sh [--no-jira] [--key <TICKET>]
 #     --no-jira     skip the Jira transition (e.g. GitHub-issue work, or tests)
 #     --key <KEY>   override the ticket key (default: parsed from the branch)
 #
-# Output: one JSON line on stdout (narration on stderr). Example:
+# Output: one JSON line on stdout (narration on stderr). `staging` is true/false
+# when the repo has a staging branch, or "skipped" when it has none. Examples:
 #   {"ok":true,"staging":true,"production":true,"jira":"MD-1801:Done","leftovers":[]}
+#   {"ok":true,"staging":"skipped","production":true,"jira":"MD-1801:Done","leftovers":[]}
 set -euo pipefail
 
 log() { echo "git-pushtoprod: $*" >&2; }
@@ -55,15 +58,36 @@ git -C "$MAIN" pull --ff-only >/dev/null 2>&1 || git -C "$MAIN" pull >/dev/null 
 
 STAGING_OK=false; PROD_OK=false; ERR=""; CONFLICTS=""
 
-log "merging master → staging"
-RES="$(gp_merge_into "$MAIN" staging master)" || true
-case "$RES" in
-  ok|ok:*) STAGING_OK=true; log "staging updated" ;;
-  conflict:*) ERR="staging-conflicts"; CONFLICTS="${RES#conflict:}" ;;
-  *) ERR="staging-${RES#error:}" ;;
-esac
+# Promotion targets vary by repo. `staging` is OPTIONAL: a repo with only
+# master+production (e.g. a Cloudflare Worker app with no staging lane) promotes
+# master→production directly. `production` is REQUIRED — without it there is
+# nothing to push to and the skill does not apply.
+HAS_STAGING=false; gp_has_branch "$MAIN" staging && HAS_STAGING=true
+# Staging JSON value, decided once up front so EVERY exit path reports it
+# consistently: true/false when the repo has a staging branch, "skipped" when not.
+if $HAS_STAGING; then STAGING_JSON="$STAGING_OK"; else STAGING_JSON='"skipped"'; fi
+if ! gp_has_branch "$MAIN" production; then
+  restore
+  printf '{"ok":false,"error":"no-production-branch","staging":%s,"production":false}\n' "$STAGING_JSON"; exit 1
+fi
 
-if $STAGING_OK; then
+# "staging satisfied" = it shipped OR the repo has no staging branch. Production
+# is gated on it, preserving the invariant that a staging failure never lets a
+# half-promoted change reach production.
+STAGING_DONE=true
+if $HAS_STAGING; then
+  log "merging master → staging"
+  RES="$(gp_merge_into "$MAIN" staging master)" || true
+  case "$RES" in
+    ok|ok:*) STAGING_OK=true; log "staging updated" ;;
+    conflict:*) ERR="staging-conflicts"; CONFLICTS="${RES#conflict:}"; STAGING_DONE=false ;;
+    *) ERR="staging-${RES#error:}"; STAGING_DONE=false ;;
+  esac
+else
+  log "no staging branch — promoting master → production directly"
+fi
+
+if $STAGING_DONE; then
   log "merging master → production"
   RES="$(gp_merge_into "$MAIN" production master)" || true
   case "$RES" in
@@ -72,6 +96,10 @@ if $STAGING_OK; then
     *) ERR="production-${RES#error:}" ;;
   esac
 fi
+
+# JSON value for the staging field: true/false when the repo has a staging
+# branch, "skipped" when it has none (so callers can tell "n/a" from "failed").
+if $HAS_STAGING; then STAGING_JSON="$STAGING_OK"; else STAGING_JSON='"skipped"'; fi
 
 restore
 
@@ -89,14 +117,16 @@ if [[ -n "$KEY" ]]; then
   fi
 fi
 
-# Build leftovers = environments that did NOT ship.
+# Build leftovers = environments that did NOT ship. A skipped (nonexistent)
+# staging branch is not a leftover — there was nothing to promote.
 LEFT=""
-$STAGING_OK || LEFT="\"staging\""
+if $HAS_STAGING && ! $STAGING_OK; then LEFT="\"staging\""; fi
 $PROD_OK || LEFT="${LEFT:+$LEFT,}\"production\""
 
-OK=true; { $STAGING_OK && $PROD_OK; } || OK=false
+# Success = production shipped AND staging is satisfied (shipped or n/a).
+OK=true; { $PROD_OK && $STAGING_DONE; } || OK=false
 if $OK; then
-  printf '{"ok":true,"staging":true,"production":true,"jira":%s,"leftovers":[]}\n' "$JIRA_JSON"
+  printf '{"ok":true,"staging":%s,"production":true,"jira":%s,"leftovers":[]}\n' "$STAGING_JSON" "$JIRA_JSON"
   exit 0
 else
   CJSON=""
@@ -105,6 +135,6 @@ else
     for i in "${!parts[@]}"; do [[ $i -gt 0 ]] && CJSON+=","; CJSON+="\"${parts[$i]}\""; done
   fi
   printf '{"ok":false,"staging":%s,"production":%s,"error":"%s","conflicts":[%s],"jira":%s,"leftovers":[%s]}\n' \
-    "$STAGING_OK" "$PROD_OK" "$ERR" "$CJSON" "$JIRA_JSON" "$LEFT"
+    "$STAGING_JSON" "$PROD_OK" "$ERR" "$CJSON" "$JIRA_JSON" "$LEFT"
   exit 1
 fi

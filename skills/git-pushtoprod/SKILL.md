@@ -2,7 +2,7 @@
 name: git-pushtoprod
 model: sonnet
 effort: low
-description: "Merge master into staging and production branches, pushing both. Use this skill when the user says 'push to prod', 'deploy to production', 'push to staging and production', 'ship to prod', or anything that implies they want master deployed to the staging and production branches."
+description: "Promote master to production — merging through staging first when the repo has a staging branch, otherwise master→production directly. Use this skill when the user says 'push to prod', 'deploy to production', 'push to staging and production', 'ship to prod', or anything that implies they want master deployed to the production (and staging) branches."
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -10,7 +10,7 @@ allowed-tools:
 
 # Deploy to Production Assistant
 
-Merge master into staging and production branches, pushing both, then return to the original branch. Works from both regular checkouts and worktrees.
+Promote master to production — through `staging` first when the repo has one, otherwise straight to `production` — pushing each, then return to the original branch. Works from both regular checkouts and worktrees.
 
 ## Fast path (deterministic)
 
@@ -29,17 +29,22 @@ bash "$SKILL_DIR/scripts/git-pushtoprod.sh" [--no-jira] [--key <TICKET>]
 ```
 
 It checks the tree is clean, brings `master` current, merges master into `staging`
-then `production` (pushing each), and transitions the ticket to **Done**. It stops at
-the **first** failed/conflicted environment — `production` is never touched if
-`staging` fails — so a partial deploy is impossible to miss. `package.json`/
-`package-lock.json` conflicts resolve to `--ours`; any other conflict aborts that
-environment and is reported. The Jira key is parsed from the branch unless you pass
-`--key`; `--no-jira` skips the transition (e.g. GitHub-issue work).
+(only if the repo HAS a staging branch) then `production` (pushing each), and
+transitions the ticket to **Done**. `staging` is optional — a repo with only
+master+production promotes straight to production; `production` is required (a repo
+without it is rejected with `no-production-branch`). It stops at the **first**
+failed/conflicted environment — `production` is never touched if `staging` fails —
+so a partial deploy is impossible to miss. `package.json`/`package-lock.json`
+conflicts resolve to `--ours`; any other conflict aborts that environment and is
+reported. The Jira key is parsed from the branch unless you pass `--key`;
+`--no-jira` skips the transition (e.g. GitHub-issue work).
 
-One JSON line on stdout (narration on stderr):
+One JSON line on stdout (narration on stderr). The `staging` field is `true`/`false`
+when the repo has a staging branch, or `"skipped"` when it has none:
 
 ```json
 {"ok":true,"staging":true,"production":true,"jira":"MD-1801:Done","leftovers":[]}
+{"ok":true,"staging":"skipped","production":true,"jira":"MD-1801:Done","leftovers":[]}
 {"ok":false,"staging":false,"production":false,"error":"staging-conflicts","conflicts":["src/a.ts"],"jira":null,"leftovers":["staging","production"]}
 ```
 
@@ -86,7 +91,11 @@ git pull
 
 If the pull fails, report the error and stop.
 
-## Step 5: Merge master into staging
+## Step 5: Merge master into staging (only if a staging branch exists)
+
+Skip this step entirely if the repo has no `staging` branch (check with
+`git [-C "$MAIN_REPO"] show-ref --verify --quiet refs/heads/staging || git [-C "$MAIN_REPO"] show-ref --verify --quiet refs/remotes/origin/staging`).
+A repo with only master+production promotes straight to production in Step 6.
 
 ```bash
 git [-C "$MAIN_REPO"] checkout staging
@@ -145,7 +154,7 @@ If the transition fails (wrong status name, already done, etc.), mention it but 
 ## Step 9: Report
 
 Tell the user:
-- Master was merged into staging and pushed
+- Master was merged into staging and pushed (or note staging was skipped — no staging branch)
 - Master was merged into production and pushed
 - They're back on their original branch (or still in their worktree)
 
