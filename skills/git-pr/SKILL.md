@@ -94,9 +94,30 @@ EOF
 
 Target `master` by default unless the user specifies a different base branch.
 
-## Step 8: Report
+## Step 8: Request a Copilot code review (best-effort)
 
-Show the PR URL returned by `gh pr create`.
+Right after the PR is created, request a **GitHub Copilot code review** on it. The point is to get an automated reviewer in the loop on every agent-opened PR: Copilot's findings land alongside the human's, so a parked worker can start addressing them immediately.
+
+This step is **best-effort and must never fail the lifecycle.** The PR is already open by the time this runs — if the request errors for any reason (Copilot review not enabled for the repo/org, the bot is not assignable, an older `gh`), log a one-line notice and continue. Do **not** hard-fail or roll anything back.
+
+**Mechanism (verified against `gh` 2.94.0, the GitHub-documented path):** use the `gh` CLI's built-in `@copilot` reviewer alias. `gh` resolves `@copilot` to the Copilot reviewer bot itself (no GraphQL node-id lookup or REST `requested_reviewers` plumbing to maintain), and `gh pr edit --help` documents the alias directly: *"Use `@copilot` to request review from Copilot."*
+
+```bash
+# Replace "<N>" with the PR number or URL returned by `gh pr create` in Step 7.
+# Keep it quoted — an unquoted <N> is parsed by the shell as a stdin redirection.
+gh pr edit "<N>" --add-reviewer "@copilot" \
+  || echo "notice: could not request a Copilot review (Copilot code review may not be enabled for this repo/org, or this gh is too old) — continuing; the PR is already open."
+```
+
+**Prerequisite — Copilot code review must be enabled for the repo/org.** It is a paid Copilot feature (Copilot Pro/Business/Enterprise with code review turned on). Where it is enabled, a Copilot review is requested and appears in the PR's reviewers. Where it is **not** enabled, the command exits non-zero, the `||` branch logs the notice above, and the step is a clean no-op — the PR still opens and the worker still parks for human review.
+
+**Scope: request once, at PR open only.** Do not re-request a Copilot review on later pushes to the same branch — a single request at open is the entire scope, which avoids review-comment spam. Copilot re-reviews new commits on its own per the repo's settings; this skill never re-triggers it.
+
+> Inherited by the orchestrator: `tron:ship-ticket` (and any other whole-lifecycle driver) reaches PR open by delegating to this skill, so the Copilot request flows through automatically — no separate change in those skills.
+
+## Step 9: Report
+
+Show the PR URL returned by `gh pr create`. Note whether the Copilot review was requested or the step was a logged no-op.
 
 ## Next steps
 
