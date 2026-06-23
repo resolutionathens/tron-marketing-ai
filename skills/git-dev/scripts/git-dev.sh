@@ -7,7 +7,14 @@
 # and is handed back for human judgment.
 #
 # Usage:
-#   git-dev.sh [feature-branch]   # defaults to the current branch
+#   git-dev.sh [feature-branch] [--worktree <abs-path>]
+#     feature-branch     defaults to the branch checked out in the worktree
+#     --worktree <path>  resolve the source branch + dirty-check from this path
+#                        instead of $PWD. The worktree-integrated shell resets
+#                        $PWD to the MAIN checkout after every Bash call, so a wt
+#                        caller (tron-os) must pass the worktree path explicitly
+#                        or this script would read the main checkout's branch
+#                        (often master → on-protected-branch) and stray files.
 #
 # Output: one JSON line on stdout (narration on stderr). Examples:
 #   {"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"depsResolved":[]}
@@ -23,17 +30,39 @@ LIB="${ROOT:+$ROOT/tools/git/git-promote.sh}"
 # shellcheck source=/dev/null
 source "$LIB"
 
-MAIN="$(gp_main_repo)" || { echo '{"ok":false,"error":"not a git repo"}'; exit 1; }
+# ---- parse args: optional positional branch + --worktree <abs-path> ---------
+BRANCH=""; WT=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --worktree)
+      [[ -z "${2:-}" ]] && { echo '{"ok":false,"error":"missing-worktree-value"}'; exit 2; }
+      WT="$2"; shift 2; continue ;;
+    -*) echo "{\"ok\":false,\"error\":\"unknown-flag\",\"flag\":\"$1\"}"; exit 2 ;;
+    *) if [[ -z "$BRANCH" ]]; then BRANCH="$1"; else echo "{\"ok\":false,\"error\":\"unexpected-arg\",\"arg\":\"$1\"}"; exit 2; fi ;;
+  esac
+  shift
+done
+# The worktree we promote FROM: an explicit --worktree, else the current dir.
+WT="${WT:-$(pwd)}"
 
-BRANCH="${1:-$(git rev-parse --abbrev-ref HEAD)}"
+MAIN="$(git -C "$WT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  && MAIN="${MAIN%/.git}" || { echo '{"ok":false,"error":"not a git repo"}'; exit 1; }
+
+# Branch + dirty-check are worktree-scoped — read them from $WT, never $PWD
+# (which the wt-integrated shell resets to MAIN after every Bash call).
+[[ -z "$BRANCH" ]] && BRANCH="$(git -C "$WT" branch --show-current)"
 case "$BRANCH" in
-  master|main|dev|production|staging|HEAD) emit_err "on-protected-branch" ;;
+  master|main|dev|production|staging|HEAD|"") emit_err "on-protected-branch" ;;
 esac
 
 # Working tree must be clean — commit or stash first (tron:git-commit).
-if [[ -n "$(gp_dirty "$(pwd)")" ]]; then emit_err "dirty-working-tree" ; fi
+if [[ -n "$(gp_dirty "$WT")" ]]; then emit_err "dirty-working-tree" ; fi
 
-IN_WT=false; gp_in_worktree "$MAIN" && IN_WT=true
+# Friendly guard: a direct-ship repo (tron-os, tron-marketing-ai) has no `dev`
+# branch, so gp_merge_into would fail with the opaque error:checkout-dev.
+if ! gp_has_branch "$MAIN" dev; then emit_err "no-dev-branch"; fi
+
+IN_WT=false; gp_in_worktree "$MAIN" "$WT" && IN_WT=true
 
 log "merging $BRANCH → dev (main=$MAIN, worktree=$IN_WT)"
 RES="$(gp_merge_into "$MAIN" dev "$BRANCH")" || true

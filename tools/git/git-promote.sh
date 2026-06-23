@@ -6,10 +6,20 @@
 #
 # Every function operates on the MAIN checkout (resolved via --git-common-dir)
 # so the skills work identically from a worktree or a regular checkout. The one
-# piece of conflict "judgment" we encode is the project rule that package.json /
-# package-lock.json are owned by the long-lived branches (dev/staging/prod) and
+# piece of conflict "judgment" we encode is the project rule that dependency
+# manifests/lockfiles are owned by the long-lived branches (dev/staging/prod) and
 # never updated by an incoming merge — those resolve to --ours automatically;
 # ANY other conflict aborts and is handed back to the agent/human.
+
+# Lockfiles/manifests owned by the long-lived branch — a conflict on any of these
+# resolves to --ours (keep the target branch's copy). List-driven so a repo that
+# uses yarn/pnpm can extend it (add yarn.lock / pnpm-lock.yaml here).
+GP_DEP_FILES=(package.json package-lock.json bun.lock bun.lockb)
+gp_is_dep_file() {
+  local f="$1" d
+  for d in "${GP_DEP_FILES[@]}"; do [[ "$f" == "$d" ]] && return 0; done
+  return 1
+}
 
 # Resolve the primary checkout (strip trailing /.git from the common dir).
 gp_main_repo() {
@@ -18,16 +28,27 @@ gp_main_repo() {
   printf '%s\n' "${common%/.git}"
 }
 
-# True when the current checkout is a linked worktree (not the primary).
+# True when <path> (default: $PWD) is a linked worktree, not the primary checkout.
+#   gp_in_worktree <main> [path]
 gp_in_worktree() {
-  local main="$1" top
-  top="$(git rev-parse --show-toplevel 2>/dev/null)" || return 1
+  local main="$1" path="${2:-$PWD}" top
+  top="$(git -C "$path" rev-parse --show-toplevel 2>/dev/null)" || return 1
   [[ "$top" != "$main" ]]
 }
 
 # Echo the dirty/porcelain lines if the working tree has uncommitted changes;
 # empty output (return 0) means clean.
 gp_dirty() { git -C "$1" status --porcelain; }
+
+# True when <branch> exists on the main checkout, either as a local branch or a
+# remote-tracking ref on origin. Used to give a friendly message before trying to
+# promote into a branch the repo doesn't have (e.g. `dev` in a direct-ship repo).
+gp_has_branch() {
+  local main="$1" branch="$2"
+  git -C "$main" show-ref --verify --quiet "refs/heads/$branch" && return 0
+  git -C "$main" show-ref --verify --quiet "refs/remotes/origin/$branch" && return 0
+  return 1
+}
 
 # Merge <source> into <target> on the main checkout, pushing on success.
 #   gp_merge_into <main_repo> <target> <source>
@@ -48,14 +69,15 @@ gp_merge_into() {
   fi
 
   # Merge stopped on conflict. Inspect the unmerged set.
-  local unmerged resolved="" other=""
+  local unmerged resolved="" other="" resolved_arr=()
   unmerged="$(git -C "$main" diff --name-only --diff-filter=U)"
   while IFS= read -r f; do
     [[ -z "$f" ]] && continue
-    case "$f" in
-      package.json|package-lock.json) resolved+="${resolved:+,}$f" ;;
-      *) other+="${other:+,}$f" ;;
-    esac
+    if gp_is_dep_file "$f"; then
+      resolved+="${resolved:+,}$f"; resolved_arr+=("$f")
+    else
+      other+="${other:+,}$f"
+    fi
   done <<< "$unmerged"
 
   if [[ -n "$other" ]]; then
@@ -64,9 +86,10 @@ gp_merge_into() {
   fi
 
   # Only the dependency files conflicted — keep the target branch's copies.
-  # shellcheck disable=SC2086
-  git -C "$main" checkout --ours package.json package-lock.json >/dev/null 2>&1 || true
-  git -C "$main" add package.json package-lock.json >/dev/null 2>&1 || true
+  # Touch just the files that actually conflicted (a repo may not carry every
+  # lockfile in GP_DEP_FILES).
+  git -C "$main" checkout --ours "${resolved_arr[@]}" >/dev/null 2>&1 || true
+  git -C "$main" add "${resolved_arr[@]}" >/dev/null 2>&1 || true
   git -C "$main" commit --no-edit >/dev/null 2>&1 || { echo "error:commit-$target"; return 1; }
   git -C "$main" push >/dev/null 2>&1 || { echo "error:push-$target"; return 1; }
   echo "ok:$resolved"; return 0

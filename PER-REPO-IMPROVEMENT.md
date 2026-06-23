@@ -10,6 +10,11 @@ git/worktree skills**, not the OS, so they're recorded here for a future ticket.
 
 _Last updated: 2026-06-23 (from the self-maintenance reviewer's "4 rules + 5 fixes" plan)._
 
+> **Status (2026-06-23): all four plugin improvements below are SHIPPED.** Items 1–4 are
+> implemented in `git-dev.sh` / `git-promote.sh` / `ticket-lib.sh` / `start-ticket.sh` and
+> covered by the smoke tests (`test-git-dev.sh`, `test-start-ticket.sh`). Plugin version bumped
+> to 0.14.0. The "Open question" at the bottom remains deferred by the owner.
+
 ---
 
 ## Convention matrix (the source of the per-repo differences)
@@ -47,7 +52,7 @@ This is encoded in `tron-os` as two derived predicates over `promotionBranches`:
 
 ## Plugin improvements to make
 
-### 1. `tron:git-dev` (and the promote path): accept an explicit `--worktree <abs-path>`; derive branch + dirty-check from it, not `pwd`
+### 1. ✅ `tron:git-dev` (and the promote path): accept an explicit `--worktree <abs-path>`; derive branch + dirty-check from it, not `pwd`
 
 **Where:** `skills/git-dev/scripts/git-dev.sh` (and, by extension, `tools/git/git-promote.sh`).
 
@@ -74,7 +79,7 @@ this. `git-commit` / `git-pr` are SKILL.md-only (no bundled script) but their in
 should likewise prefer `git -C <worktree>` and never assume `pwd` persists between Bash calls.
 (`tron-os` can then pass the worktree path it already knows deterministically.)
 
-### 2. `tron:start-ticket` worktree hook: symlink nested `node_modules`, not just the root
+### 2. ✅ `tron:start-ticket` worktree hook: symlink nested `node_modules`, not just the root
 
 **Where:** `skills/start-ticket/scripts/start-ticket.sh` (the post-`worktree add` step) — and
 whatever `wt`/hook it relies on for dependency linking.
@@ -93,7 +98,7 @@ Reference implementation already shipped on the OS side: `tron-os` `lib/worktree
 (`nodeModuleRelPaths` + `linkNodeModules`, bounded depth 3) — mirror its behavior here for the
 ticketed path.
 
-### 3. `git-promote.sh`: also auto-resolve `bun.lock` conflicts (not only `package*.json`)
+### 3. ✅ `git-promote.sh`: also auto-resolve `bun.lock` conflicts (not only `package*.json`)
 
 **Where:** `tools/git/git-promote.sh` (the conflict-classification loop, ~lines 54–69).
 
@@ -115,7 +120,7 @@ esac
 …and include them in the `checkout --ours` / `add` lines. Keep it list-driven so a repo that
 uses yarn/pnpm can extend it later.
 
-### 4. (Minor) Friendlier message when git-dev is run on a no-dev-branch repo
+### 4. ✅ (Minor) Friendlier message when git-dev is run on a no-dev-branch repo
 
 **Where:** `skills/git-dev/scripts/git-dev.sh` (`gp_merge_into` → `error:checkout-dev`).
 

@@ -38,12 +38,14 @@ Use it like this:
    `--summary "<ticket title>"` (it slugifies into `<KEY>-slug` / `issue-<N>-slug`).
 3. It detects Jira-vs-GitHub, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`
    from the main checkout into the new worktree (the Step 2.5 pitfall — skip it and the
-   dev server 500s), and transitions Jira → *In Progress* / assigns the GitHub issue.
+   dev server 500s), symlinks every `node_modules` the main checkout has (root **and**
+   nested workspaces — private `@facilitron/*` deps can't reinstall from the public
+   registry), and transitions Jira → *In Progress* / assigns the GitHub issue.
 
 One JSON line on stdout (narration on stderr):
 
 ```json
-{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"transitioned":true}
+{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules","control-plane/web/node_modules"],"transitioned":true}
 {"ok":false,"error":"ambiguous-ref","ref":"42","hint":"use #N for a GitHub issue or PROJ-N for Jira"}
 ```
 

@@ -4,6 +4,9 @@
 #   A. clean merge from inside a worktree → dev advances, ok:true
 #   B. package.json-only conflict → --ours keeps dev's copy, ok:true
 #   C. a non-package conflict → merge aborts, dev untouched, ok:false
+#   D. bun.lock-only conflict → --ours keeps dev's copy, ok:true
+#   E. --worktree <path> resolves branch/dirty from the path, not $PWD
+#   F. a repo with no dev branch → friendly no-dev-branch error
 #
 #   bash skills/git-dev/scripts/test-git-dev.sh
 set -euo pipefail
@@ -84,6 +87,59 @@ grep -q '"conflicts":\["app.txt"\]' <<<"$OUT" || fail "C: app.txt not reported a
 [[ -z "$(gx "$MAIN" status --porcelain)" ]] || fail "C: merge not cleanly aborted (dirty tree left)"
 pass "non-package conflict aborts cleanly, dev tip unchanged"
 rm -rf "$ROOT"
+
+# ── D. bun.lock-only conflict resolves to dev's copy ─────────────────────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" checkout -q dev; echo "bun-dev" > "$MAIN/bun.lock"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "chore: dev bun.lock"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-4-bun master; echo "bun-feat" > "$MAIN/bun.lock"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "chore: feature bun.lock"
+gx "$MAIN" checkout -q master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-4-bun)" || fail "D: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "D: not ok: $OUT"
+grep -q '"depsResolved":\["bun.lock"\]' <<<"$OUT" || fail "D: bun.lock not reported resolved: $OUT"
+[[ "$(gx "$MAIN" show dev:bun.lock)" == "bun-dev" ]] || fail "D: dev's bun.lock was overwritten"
+pass "bun.lock-only conflict resolves --ours (dev keeps its copy)"
+rm -rf "$ROOT"
+
+# ── E. --worktree resolves branch/dirty from the path, not $PWD ───────────────
+# Run the script from the MAIN checkout (which is on master) but point it at the
+# worktree via --worktree — it must promote the worktree's feature branch, not
+# master. This is the wt-integrated-shell scenario the flag exists for.
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" checkout -q -b MD-5-wtflag master
+echo wtflag > "$MAIN/wtflag.txt"; gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: wtflag.txt"
+gx "$MAIN" checkout -q master
+gx "$MAIN" worktree add -q "$ROOT/wt" MD-5-wtflag
+# cwd is MAIN (on master); without --worktree this would error on-protected-branch.
+OUT="$(cd "$MAIN" && bash "$SCRIPT" --worktree "$ROOT/wt")" || fail "E: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "E: not ok: $OUT"
+grep -q '"branch":"MD-5-wtflag"' <<<"$OUT" || fail "E: wrong branch resolved (should read worktree, not pwd): $OUT"
+grep -q '"worktree":true' <<<"$OUT" || fail "E: should detect worktree from --worktree path: $OUT"
+grep -q "wtflag.txt" <<<"$(gx "$MAIN" log dev --oneline)" || fail "E: dev missing the worktree's feature commit"
+pass "--worktree resolves branch + dirty-check from the path, not pwd"
+rm -rf "$ROOT"
+
+# ── F. a repo with no dev branch → friendly no-dev-branch error ───────────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" branch -q -D dev                       # drop local dev
+gx "$MAIN" push -q origin --delete dev >/dev/null 2>&1 || true   # and the remote tracking ref
+gx "$MAIN" remote prune origin >/dev/null 2>&1 || true
+gx "$MAIN" checkout -q -b MD-6-nodev master
+echo nodev > "$MAIN/nodev.txt"; gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: nodev.txt"
+OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-6-nodev)" && fail "F: expected non-zero exit, got ok: $OUT"
+echo "  → $OUT"
+grep -q '"error":"no-dev-branch"' <<<"$OUT" || fail "F: should report no-dev-branch: $OUT"
+pass "no dev branch → friendly no-dev-branch error (not opaque checkout-dev)"
+rm -rf "$ROOT"
+
+# ── G. --worktree with no value → clean JSON error, no shift-count crash ──────
+OUT="$(bash "$SCRIPT" --worktree 2>/dev/null)" && fail "G: expected non-zero exit: $OUT"
+echo "  → $OUT"
+grep -q '"error":"missing-worktree-value"' <<<"$OUT" || fail "G: should report missing-worktree-value: $OUT"
+pass "--worktree with no value errors cleanly (no set -e shift-count crash)"
 
 echo ""
 echo "✅ git-dev smoke PASSED ($PASS checks)"

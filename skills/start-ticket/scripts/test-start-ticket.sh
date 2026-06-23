@@ -60,6 +60,24 @@ eq "$(cat "$T/wt/.env.local")" "old" "existing .env.local must not be clobbered"
 rm -rf "$T"
 pass "tl_copy_env_files carries .env*/.dev.vars*, skips non-secrets, never clobbers"
 
+# ── node_modules symlinks (root + nested workspaces) ─────────────────────────
+N="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-nm.XXXXXX")"
+mkdir -p "$N/main/node_modules/dep"                       # root deps
+mkdir -p "$N/main/control-plane/web/node_modules/pkg"     # nested workspace deps
+mkdir -p "$N/main/node_modules/.bin"
+mkdir -p "$N/main/deep/a/b/node_modules"                  # depth 4 — out of bounds, must be skipped
+mkdir -p "$N/wt/control-plane/web"                        # mirror dir tree (no deps yet)
+mkdir -p "$N/wt/already/node_modules"                     # pre-existing — must NOT be clobbered
+LINKED="$(tl_link_node_modules "$N/main" "$N/wt" | sort | tr '\n' ' ')"
+eq "$LINKED" "control-plane/web/node_modules node_modules " "links root + nested, skips too-deep"
+[[ -L "$N/wt/node_modules" ]] || fail "nm: root node_modules not symlinked"
+[[ -d "$N/wt/node_modules/dep" ]] || fail "nm: root symlink doesn't resolve to deps"
+[[ -L "$N/wt/control-plane/web/node_modules" ]] || fail "nm: nested node_modules not symlinked"
+[[ -d "$N/wt/control-plane/web/node_modules/pkg" ]] || fail "nm: nested symlink doesn't resolve"
+[[ ! -L "$N/wt/already/node_modules" ]] || fail "nm: pre-existing node_modules must not be clobbered"
+rm -rf "$N"
+pass "tl_link_node_modules symlinks root + nested node_modules, skips too-deep + existing"
+
 # ── orchestration script: syntax + error paths ──────────────────────────────
 bash -n "$SCRIPT" || fail "start-ticket.sh has a syntax error"
 pass "start-ticket.sh parses (bash -n)"

@@ -25,16 +25,25 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
 [ -e "$SKILL_DIR/scripts/git-dev.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-dev.sh" ] && echo "$d"; done | sort -V | tail -1)"
 [ -e "$SKILL_DIR/scripts/git-dev.sh" ] || { echo "tron:$name: can't find scripts/git-dev.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
-bash "$SKILL_DIR/scripts/git-dev.sh" [feature-branch]   # defaults to the current branch
+bash "$SKILL_DIR/scripts/git-dev.sh" [feature-branch] [--worktree <abs-path>]
+#   feature-branch    defaults to the branch checked out in the worktree
+#   --worktree <path> resolve the source branch + dirty-check from this path, not $PWD
 ```
 
 It validates the branch (refuses master/main/dev/staging/production), checks the
 working tree is clean, detects worktree-vs-checkout, merges the feature into `dev`,
-pushes, and restores your starting state. The **only** conflict it resolves is
-`package.json`/`package-lock.json` (→ `--ours`, per the project rule that the
-long-lived branches own their dependency state); **any other conflict aborts the
-merge cleanly and is handed back to you** — read the conflicting files, resolve with
-the user, and don't re-run blindly.
+pushes, and restores your starting state. The **only** conflicts it resolves are the
+dependency manifests/lockfiles — `package.json`, `package-lock.json`, `bun.lock`,
+`bun.lockb` (→ `--ours`, per the project rule that the long-lived branches own their
+dependency state); **any other conflict aborts the merge cleanly and is handed back
+to you** — read the conflicting files, resolve with the user, and don't re-run blindly.
+
+**`--worktree`**: branch detection and the clean/dirty check are read from this path
+(default `$PWD`). Pass it when calling from a worktree-integrated shell, where `$PWD`
+is reset to the **main** checkout after every Bash call — without it the script reads
+the main checkout's branch (often `master` → `on-protected-branch`) or its stray files
+(→ `dirty-working-tree`). The merge target (`dev`) is always resolved on the main
+checkout via `--git-common-dir`, so only the source/worktree side needs this.
 
 It prints one JSON line on stdout (narration on stderr):
 
@@ -44,8 +53,11 @@ It prints one JSON line on stdout (narration on stderr):
 ```
 
 `ok:false` with `"error":"dirty-working-tree"` means commit/stash first (tron:git-commit).
-Smoke it any time with `bash "$SKILL_DIR/scripts/test-git-dev.sh"`. The steps below
-are the explanation / manual fallback for when the script reports a conflict.
+`"error":"no-dev-branch"` means this repo ships straight to its default branch (it has
+no `dev` branch — e.g. `tron-os`, `tron-marketing-ai`); don't promote to dev, open a PR
+with **tron:git-pr** instead. Smoke it any time with
+`bash "$SKILL_DIR/scripts/test-git-dev.sh"`. The steps below are the explanation /
+manual fallback for when the script reports a conflict.
 
 ## Step 1: Validate current branch
 

@@ -84,3 +84,27 @@ tl_copy_env_files() {
   done
   shopt -u nullglob dotglob
 }
+
+# Symlink EVERY node_modules the source checkout has (root + nested workspaces)
+# into a fresh worktree at the same relative path. Fresh ticket worktrees can't
+# install private packages (@facilitron/* 404 on the public registry), so deps
+# must be linked from the main checkout — and a root-only link strands nested
+# workspaces (e.g. control-plane/web/node_modules), flooding the worker with LSP
+# errors and test failures. Scans for node_modules up to 3 levels deep, skipping
+# any nested inside another node_modules. Best-effort: a link failure is skipped,
+# never fatal. Echoes each linked relative path (one per line). Mirrors tron-os
+# lib/worktree.ts (nodeModuleRelPaths + linkNodeModules, bounded depth 3).
+tl_link_node_modules() {
+  local src="$1" dst="$2" nm rel target
+  [[ -d "$src" && -d "$dst" ]] || return 0
+  while IFS= read -r nm; do
+    [[ -z "$nm" ]] && continue
+    rel="${nm#"$src"/}"
+    target="$dst/$rel"
+    [[ -e "$target" || -L "$target" ]] && continue   # don't clobber existing deps
+    mkdir -p "$(dirname "$target")" 2>/dev/null || continue
+    if ln -s "$nm" "$target" 2>/dev/null; then printf '%s\n' "$rel"; fi
+    # -prune stops find from descending INTO each node_modules it matches, so we
+    # never walk a huge dependency tree (and never reach a nested node_modules).
+  done < <(find "$src" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
+}

@@ -78,11 +78,15 @@ worktree_path_for_branch() {
 WTPATH="$(worktree_path_for_branch "$BRANCH" || true)"
 MAIN_CHECKOUT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
 
-# ---- carry over gitignored env/secret files ---------------------------------
-ENV_COPIED=()
+# ---- carry over gitignored env/secret files + symlink node_modules ----------
+ENV_COPIED=(); NM_LINKED=()
 if [[ -n "$WTPATH" && -n "$MAIN_CHECKOUT" && "$WTPATH" != "$MAIN_CHECKOUT" ]]; then
   while IFS= read -r n; do [[ -n "$n" ]] && ENV_COPIED+=("$n"); done < <(tl_copy_env_files "$MAIN_CHECKOUT" "$WTPATH")
   [[ ${#ENV_COPIED[@]} -gt 0 ]] && log "carried env files: ${ENV_COPIED[*]}"
+  # Link every node_modules (root + nested workspaces) — private @facilitron/*
+  # deps can't be reinstalled from the public registry. Best-effort, non-fatal.
+  while IFS= read -r n; do [[ -n "$n" ]] && NM_LINKED+=("$n"); done < <(tl_link_node_modules "$MAIN_CHECKOUT" "$WTPATH")
+  [[ ${#NM_LINKED[@]} -gt 0 ]] && log "linked node_modules: ${NM_LINKED[*]}"
 fi
 
 # ---- transition (Jira) / assign (GitHub) ------------------------------------
@@ -108,10 +112,12 @@ fi
 # ---- emit the result line ---------------------------------------------------
 env_json=""
 for i in "${!ENV_COPIED[@]}"; do [[ $i -gt 0 ]] && env_json+=","; env_json+="\"${ENV_COPIED[$i]}\""; done
+nm_json=""
+for i in "${!NM_LINKED[@]}"; do [[ $i -gt 0 ]] && nm_json+=","; nm_json+="\"${NM_LINKED[$i]}\""; done
 if [[ "$RTYPE" == jira ]]; then
-  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"transitioned":%s}\n' \
-    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$TRANSITIONED"
+  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"transitioned":%s}\n' \
+    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$TRANSITIONED"
 else
-  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"assigned":%s}\n' \
-    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$ASSIGNED"
+  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"assigned":%s}\n' \
+    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$ASSIGNED"
 fi
