@@ -237,7 +237,7 @@ node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs
   --folder toolkit/downloads
 ```
 
-If you see `IMAGEKIT_PRIVATE_KEY environment variable is not set`, the user's 1Password agent isn't running. Tell them to start 1Password, then retry — don't try to source other env files.
+If you see a broker auth error or `cloudflared` is unavailable, the Cloudflare Access session may have expired. Tell them to run `cloudflared access login https://secrets.facilitron.work` and retry.
 
 The `download:` front-matter field stores just the filename — the slug page builds the full URL via `https://ik.imagekit.io/facilitron/toolkit/downloads/<filename>`.
 

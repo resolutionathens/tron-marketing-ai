@@ -46,7 +46,7 @@ but its core is **page composition**, not markdown authoring.
 
 ## Environment
 
-`JIRA_API_TOKEN` and `IMAGEKIT_PRIVATE_KEY` live in `~/.env` (1Password) and are
+`JIRA_API_TOKEN` lives in `~/.env` (1Password) and is
 usually autosourced. If a command 401s or a token is unset, source them in the *same*
 Bash call: `set -a; source ~/.env; set +a`.
 

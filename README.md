@@ -147,10 +147,10 @@ every skill that uploads media (`news-item`, `guide-item`, `toolkit-item`,
 `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs`, so it
 resolves from any skill regardless of cwd.
 
-Its `node_modules` is **not** committed (keeps the repo lean); the script **lazy-installs**
-its one dependency (`@imagekit/nodejs`) next to itself on first run — so it needs `node` +
-`npm` and a network connection the first time, then runs offline after. Requires the
-`IMAGEKIT_PRIVATE_KEY` env var (auto-loaded from `~/.env` if present).
+It authenticates through the **org-secret broker** at `secrets.facilitron.work`
+using a short-lived Cloudflare Access token (no local `IMAGEKIT_PRIVATE_KEY`
+needed). This is transparent to any skill that invokes it — the CLI fetches
+the token on each call.
 
 ### MCP servers
 
@@ -168,7 +168,6 @@ your shell or add them to your `marketing-pages/.env.local`.
 |---|---|
 | `ATLASSIAN_EMAIL` | Confluence REST basic auth (attachment downloads); falls back to `git config user.email` |
 | `JIRA_API_TOKEN` | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`) |
-| `IMAGEKIT_PRIVATE_KEY` | all ImageKit uploads |
 | `CONFLUENCE_CLOUD_ID` | *(optional)* override the Confluence cloud ID — defaults to Facilitron's instance |
 | `CONFLUENCE_BASE` | *(optional)* override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 
