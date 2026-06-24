@@ -103,7 +103,7 @@ gh pr comment <N> --body "..."
 # Lifecycle
 gh pr ready <N>                             # mark draft as ready
 gh pr edit <N> --add-reviewer "user1,user2"
-gh pr merge <N> --squash --delete-branch    # squash-merge + cleanup
+gh pr merge <N> --squash --delete-branch    # squash-merge + cleanup (NOT worktree-safe — see Merging)
 gh pr merge <N> --merge                     # merge commit
 gh pr merge <N> --rebase                    # rebase
 gh pr close <N>
@@ -278,6 +278,49 @@ gh api repos/:owner/:repo --jq '{merge: .allow_merge_commit, squash: .allow_squa
 ```
 
 Before merging, check the repo's allowed merge methods — `gh pr merge --squash` will fail on a repo that disables squash.
+
+## Merging a PR (worktree-safe)
+
+Default to the **server-side API merge**. It merges the PR on GitHub and does **no local git
+operations**, so it returns clean JSON and never touches a checkout. Use it everywhere — it is the
+only path that is safe from a git worktree, and it is identical to `gh pr merge`'s result on a
+regular checkout.
+
+```bash
+# 1. Merge server-side (squash; swap merge_method for merge|rebase to match the repo's allowed methods)
+gh api -X PUT repos/:owner/:repo/pulls/<N>/merge -f merge_method=squash
+
+# 2. Delete the remote branch server-side (replaces `--delete-branch`; also no local op)
+gh api -X DELETE repos/:owner/:repo/git/refs/heads/<branch>
+```
+
+`:owner` and `:repo` are filled in automatically by `gh` from the current repo; to target a
+different repo, pass `--repo owner/repo`. The head branch name is
+`$(gh pr view <N> --json headRefName --jq .headRefName)`.
+
+### Why not bare `gh pr merge` from a worktree
+
+`gh pr merge <N> --squash --delete-branch` does two things: (1) merges the PR server-side, which
+succeeds, then (2) runs **local** cleanup — `git checkout <default>` + a local branch delete. Step 2
+fails inside a git worktree because the default branch (main/master) is already checked out by the
+main worktree:
+
+```
+fatal: '<default>' is already checked out at <path>
+```
+
+`gh` surfaces that as a loud error **after the merge already landed**, so the worker has to re-query
+the PR to confirm it actually merged. The merge always succeeded; the error is a false alarm from
+the local-checkout half. Because workers run the lifecycle from worktrees, this fires on every merge.
+
+- **From a worktree (the common case for lifecycle workers): use the API merge above.** No local
+  ops, no false-alarm error, no re-verify step.
+- **`gh pr merge` is fine for an interactive merge from a regular (non-worktree) checkout.** If you
+  do hit the `already checked out` error from a worktree, treat it as benign and confirm state with
+  `gh pr view <N> --json state` (expect `"MERGED"`).
+
+This mirrors the worktree-awareness already baked into `git-dev.sh` / `git-pushtoprod.sh`, applied
+to the single-promotion-branch `gh pr merge` path.
 
 ## When something goes wrong
 
