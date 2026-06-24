@@ -3,35 +3,66 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
-// Lazy-install our one dependency on first run. The CLI is vendored in the
-// plugin but its node_modules is not committed (keeps the repo lean), so the
-// first invocation installs @imagekit/nodejs next to this script. Needs npm +
-// network once; subsequent runs find node_modules and skip straight through.
-const __dir = path.dirname(fileURLToPath(import.meta.url));
-if (!fs.existsSync(path.join(__dir, 'node_modules', '@imagekit', 'nodejs'))) {
-  console.error('imagekit: installing dependencies (first run, one time)…');
-  execSync('npm install --silent --no-audit --no-fund', { cwd: __dir, stdio: ['ignore', 'ignore', 'inherit'] });
-}
-const { default: ImageKit } = await import('@imagekit/nodejs');
-
-// Auto-load IMAGEKIT_PRIVATE_KEY from ~/.env if not already set
-if (!process.env.IMAGEKIT_PRIVATE_KEY) {
-  const envPath = path.join(process.env.HOME, '.env');
-  if (fs.existsSync(envPath)) {
-    const match = fs.readFileSync(envPath, 'utf-8').match(/^IMAGEKIT_PRIVATE_KEY=(.+)$/m);
-    if (match) process.env.IMAGEKIT_PRIVATE_KEY = match[1];
-  }
-}
+const BROKER_BASE = 'https://secrets.facilitron.work/imagekit/api/v1';
 
 const [,, command, ...rest] = process.argv;
 
-function getClient() {
-  if (!process.env.IMAGEKIT_PRIVATE_KEY) {
-    die('IMAGEKIT_PRIVATE_KEY environment variable is not set. Set it or add it to ~/.env');
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+function getToken() {
+  const result = spawnSync(
+    'cloudflared', ['access', 'token', '--app=https://secrets.facilitron.work'],
+    { encoding: 'utf-8', timeout: 15000 }
+  );
+  if (result.status !== 0 || !result.stdout) {
+    die('Failed to get Cloudflare Access token. Is cloudflared installed and authenticated?');
   }
-  return new ImageKit({ privateKey: process.env.IMAGEKIT_PRIVATE_KEY });
+  return result.stdout.trim();
+}
+
+function broker() {
+  const token = getToken();
+  return {
+    async get(url, params = {}) {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v !== undefined && v !== null) qs.set(k, String(v));
+      }
+      const full = qs.toString() ? `${url}?${qs}` : url;
+      const res = await fetch(full, { headers: { 'CF-Access-Token': token } });
+      return handleResponse(res, 'GET');
+    },
+    async post(url, body, isFormData = false) {
+      const headers = { 'CF-Access-Token': token };
+      if (!isFormData) headers['Content-Type'] = 'application/json';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: isFormData ? body : JSON.stringify(body),
+      });
+      return handleResponse(res, 'POST');
+    },
+    async delete(url, body) {
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: { 'CF-Access-Token': token, 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return handleResponse(res, 'DELETE');
+    },
+  };
+}
+
+async function handleResponse(res, method) {
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = `Broker error (${res.status})`;
+    try { const j = JSON.parse(text); msg = j.message || j.error || msg; } catch {}
+    die(msg);
+  }
+  try { return JSON.parse(text); } catch { return text; }
 }
 
 function parseFlags(args) {
@@ -58,163 +89,225 @@ function die(msg) {
   process.exit(1);
 }
 
+// ── Commands ───────────────────────────────────────────────────────────────
+
+async function cmdUpload(flags, positional) {
+  const filePath = positional[0];
+  if (!filePath) die('Usage: upload <file-path> [--name <name>] [--folder <path>] [--tags <t1,t2>]');
+  if (!fs.existsSync(filePath)) die(`File not found: ${filePath}`);
+
+  const fd = new (await import('node:buffer')).File(
+    [fs.readFileSync(filePath)], flags.name || path.basename(filePath)
+  );
+  const form = new FormData();
+  form.append('file', fd);
+  form.append('fileName', flags.name || path.basename(filePath));
+  if (flags.folder) form.append('folder', flags.folder);
+  if (flags.tags) form.append('tags', flags.tags);
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/upload`, form, true);
+  out(res);
+}
+
+async function cmdList(flags) {
+  const params = {};
+  if (flags.path) params.path = flags.path;
+  if (flags.type) params.type = flags.type;
+  if (flags.limit) params.limit = parseInt(flags.limit);
+  if (flags.skip) params.skip = parseInt(flags.skip);
+  if (flags.sort) params.sort = flags.sort;
+  if (flags.order) params.order = flags.order;
+  if (flags.tags) params.tags = flags.tags;
+  if (flags.name) params.searchQuery = `name:"${flags.name}"`;
+
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/files`, params);
+  out(res);
+}
+
+async function cmdSearch(flags, positional) {
+  const query = positional[0];
+  if (!query) die('Usage: search <query> [--limit <n>]');
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/files`, { searchQuery: `name:"${query}"`, ...(flags.limit ? { limit: parseInt(flags.limit) } : {}) });
+  out(res);
+}
+
+async function cmdGet(flags, positional) {
+  const fileId = positional[0];
+  if (!fileId) die('Usage: get <fileId>');
+
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/files/${fileId}/details`);
+  out(res);
+}
+
+async function cmdMetadata(flags, positional) {
+  const fileId = positional[0];
+  if (!fileId) die('Usage: metadata <fileId>');
+
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/files/${fileId}/details`);
+  out(res);
+}
+
+async function cmdDelete(flags, positional) {
+  const fileId = positional[0];
+  if (!fileId) die('Usage: delete <fileId>');
+
+  const b = broker();
+  await b.delete(`${BROKER_BASE}/files/${fileId}`);
+  console.log(`Deleted ${fileId}`);
+}
+
+async function cmdBulkDelete(flags, positional) {
+  if (positional.length === 0) die('Usage: bulk-delete <fileId1> <fileId2> [...]');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/batch/deleteByFileIds`, { fileIds: positional });
+  out(res);
+}
+
+async function cmdCopy(flags, positional) {
+  const [sourceFilePath, destinationPath] = positional;
+  if (!sourceFilePath || !destinationPath) die('Usage: copy <sourceFilePath> <destinationPath>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/copy`, { sourceFilePath, destinationPath });
+  out(res);
+}
+
+async function cmdMove(flags, positional) {
+  const [sourceFilePath, destinationPath] = positional;
+  if (!sourceFilePath || !destinationPath) die('Usage: move <sourceFilePath> <destinationPath>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/move`, { sourceFilePath, destinationPath });
+  out(res);
+}
+
+async function cmdRename(flags, positional) {
+  const [filePath, newFileName] = positional;
+  if (!filePath || !newFileName) die('Usage: rename <filePath> <newName> [--purge]');
+  const params = { filePath, newFileName };
+  if (flags.purge) params.purgeCache = true;
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/rename`, params);
+  out(res);
+}
+
+async function cmdCreateFolder(flags, positional) {
+  const [folderName, parentFolderPath] = positional;
+  if (!folderName || !parentFolderPath) die('Usage: create-folder <folderName> <parentPath>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/folders`, { folderName, parentFolderPath });
+  out(res);
+}
+
+async function cmdDeleteFolder(flags, positional) {
+  const folderPath = positional[0];
+  if (!folderPath) die('Usage: delete-folder <folderPath>');
+
+  const b = broker();
+  const res = await b.delete(`${BROKER_BASE}/folders/${encodeURIComponent(folderPath)}`);
+  out(res);
+}
+
+async function cmdCopyFolder(flags, positional) {
+  const [sourceFolderPath, destinationPath] = positional;
+  if (!sourceFolderPath || !destinationPath) die('Usage: copy-folder <sourcePath> <destinationPath>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/folders/copy`, { sourceFolderPath, destinationPath });
+  out(res);
+}
+
+async function cmdMoveFolder(flags, positional) {
+  const [sourceFolderPath, destinationPath] = positional;
+  if (!sourceFolderPath || !destinationPath) die('Usage: move-folder <sourcePath> <destinationPath>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/folders/move`, { sourceFolderPath, destinationPath });
+  out(res);
+}
+
+async function cmdUsage(flags) {
+  const now = new Date();
+  const startDate = flags.start || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const endDate = flags.end || now.toISOString().split('T')[0];
+  const qs = new URLSearchParams({ startDate, endDate });
+
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/account/usage?${qs}`);
+  out(res);
+}
+
+async function cmdAddTags(flags, positional) {
+  const tags = positional[0]?.split(',');
+  const fileIds = positional.slice(1);
+  if (!tags || fileIds.length === 0) die('Usage: add-tags <tag1,tag2> <fileId1> [fileId2...]');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/addTags`, { tags, fileIds });
+  out(res);
+}
+
+async function cmdRemoveTags(flags, positional) {
+  const tags = positional[0]?.split(',');
+  const fileIds = positional.slice(1);
+  if (!tags || fileIds.length === 0) die('Usage: remove-tags <tag1,tag2> <fileId1> [fileId2...]');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/removeTags`, { tags, fileIds });
+  out(res);
+}
+
+async function cmdPurge(flags, positional) {
+  const url = positional[0];
+  if (!url) die('Usage: purge <url>');
+
+  const b = broker();
+  const res = await b.post(`${BROKER_BASE}/files/purge`, { url });
+  out(res);
+}
+
+async function cmdPurgeStatus(flags, positional) {
+  const requestId = positional[0];
+  if (!requestId) die('Usage: purge-status <requestId>');
+
+  const b = broker();
+  const res = await b.get(`${BROKER_BASE}/files/purge/${requestId}`);
+  out(res);
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────
+
 try {
   const { flags, positional } = parseFlags(rest);
 
   switch (command) {
-    case 'upload': {
-      const filePath = positional[0];
-      if (!filePath) die('Usage: upload <file-path> [--name <name>] [--folder <path>] [--tags <t1,t2>]');
-      if (!fs.existsSync(filePath)) die(`File not found: ${filePath}`);
-      const params = {
-        file: fs.createReadStream(filePath),
-        fileName: flags.name || path.basename(filePath),
-      };
-      if (flags.folder) params.folder = flags.folder;
-      if (flags.tags) params.tags = flags.tags.split(',');
-      out(await getClient().files.upload(params));
-      break;
-    }
-
-    case 'list': {
-      const params = {};
-      if (flags.path) params.path = flags.path;
-      if (flags.type) params.type = flags.type;
-      if (flags.limit) params.limit = parseInt(flags.limit);
-      if (flags.skip) params.skip = parseInt(flags.skip);
-      if (flags.sort) params.sort = flags.sort;
-      if (flags.order) params.order = flags.order;
-      if (flags.tags) params.tags = flags.tags.split(',');
-      if (flags.name) params.searchQuery = `name="${flags.name}"`;
-      out(await getClient().assets.list(params));
-      break;
-    }
-
-    case 'search': {
-      const query = positional[0];
-      if (!query) die('Usage: search <query> [--limit <n>]');
-      const params = { searchQuery: `name="${query}"` };
-      if (flags.limit) params.limit = parseInt(flags.limit);
-      out(await getClient().assets.list(params));
-      break;
-    }
-
-    case 'get': {
-      const fileId = positional[0];
-      if (!fileId) die('Usage: get <fileId>');
-      out(await getClient().files.get(fileId));
-      break;
-    }
-
-    case 'metadata': {
-      const fileId = positional[0];
-      if (!fileId) die('Usage: metadata <fileId>');
-      out(await getClient().files.metadata.get(fileId));
-      break;
-    }
-
-    case 'delete': {
-      const fileId = positional[0];
-      if (!fileId) die('Usage: delete <fileId>');
-      await getClient().files.delete(fileId);
-      console.log(`Deleted ${fileId}`);
-      break;
-    }
-
-    case 'bulk-delete': {
-      if (positional.length === 0) die('Usage: bulk-delete <fileId1> <fileId2> [...]');
-      out(await getClient().files.bulk.delete({ fileIds: positional }));
-      break;
-    }
-
-    case 'copy': {
-      const [sourceFilePath, destinationPath] = positional;
-      if (!sourceFilePath || !destinationPath) die('Usage: copy <sourceFilePath> <destinationPath>');
-      out(await getClient().files.copy({ sourceFilePath, destinationPath }));
-      break;
-    }
-
-    case 'move': {
-      const [sourceFilePath, destinationPath] = positional;
-      if (!sourceFilePath || !destinationPath) die('Usage: move <sourceFilePath> <destinationPath>');
-      out(await getClient().files.move({ sourceFilePath, destinationPath }));
-      break;
-    }
-
-    case 'rename': {
-      const [filePath, newFileName] = positional;
-      if (!filePath || !newFileName) die('Usage: rename <filePath> <newName> [--purge]');
-      const params = { filePath, newFileName };
-      if (flags.purge) params.purgeCache = true;
-      out(await getClient().files.rename(params));
-      break;
-    }
-
-    case 'create-folder': {
-      const [folderName, parentFolderPath] = positional;
-      if (!folderName || !parentFolderPath) die('Usage: create-folder <folderName> <parentPath>');
-      out(await getClient().folders.create({ folderName, parentFolderPath }));
-      break;
-    }
-
-    case 'delete-folder': {
-      const folderPath = positional[0];
-      if (!folderPath) die('Usage: delete-folder <folderPath>');
-      out(await getClient().folders.delete({ folderPath }));
-      break;
-    }
-
-    case 'copy-folder': {
-      const [sourceFolderPath, destinationPath] = positional;
-      if (!sourceFolderPath || !destinationPath) die('Usage: copy-folder <sourcePath> <destinationPath>');
-      out(await getClient().folders.copy({ sourceFolderPath, destinationPath }));
-      break;
-    }
-
-    case 'move-folder': {
-      const [sourceFolderPath, destinationPath] = positional;
-      if (!sourceFolderPath || !destinationPath) die('Usage: move-folder <sourcePath> <destinationPath>');
-      out(await getClient().folders.move({ sourceFolderPath, destinationPath }));
-      break;
-    }
-
-    case 'usage': {
-      const now = new Date();
-      const startDate = flags.start || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      const endDate = flags.end || now.toISOString().split('T')[0];
-      out(await getClient().accounts.usage.get({ startDate, endDate }));
-      break;
-    }
-
-    case 'add-tags': {
-      const tags = positional[0]?.split(',');
-      const fileIds = positional.slice(1);
-      if (!tags || fileIds.length === 0) die('Usage: add-tags <tag1,tag2> <fileId1> [fileId2...]');
-      out(await getClient().files.bulk.addTags({ tags, fileIds }));
-      break;
-    }
-
-    case 'remove-tags': {
-      const tags = positional[0]?.split(',');
-      const fileIds = positional.slice(1);
-      if (!tags || fileIds.length === 0) die('Usage: remove-tags <tag1,tag2> <fileId1> [fileId2...]');
-      out(await getClient().files.bulk.removeTags({ tags, fileIds }));
-      break;
-    }
-
-    case 'purge': {
-      const url = positional[0];
-      if (!url) die('Usage: purge <url>');
-      out(await getClient().cache.invalidation.create({ url }));
-      break;
-    }
-
-    case 'purge-status': {
-      const requestId = positional[0];
-      if (!requestId) die('Usage: purge-status <requestId>');
-      out(await getClient().cache.invalidation.get(requestId));
-      break;
-    }
+    case 'upload':      await cmdUpload(flags, positional); break;
+    case 'list':        await cmdList(flags); break;
+    case 'search':      await cmdSearch(flags, positional); break;
+    case 'get':         await cmdGet(flags, positional); break;
+    case 'metadata':    await cmdMetadata(flags, positional); break;
+    case 'delete':      await cmdDelete(flags, positional); break;
+    case 'bulk-delete': await cmdBulkDelete(flags, positional); break;
+    case 'copy':        await cmdCopy(flags, positional); break;
+    case 'move':        await cmdMove(flags, positional); break;
+    case 'rename':      await cmdRename(flags, positional); break;
+    case 'create-folder':   await cmdCreateFolder(flags, positional); break;
+    case 'delete-folder':   await cmdDeleteFolder(flags, positional); break;
+    case 'copy-folder':     await cmdCopyFolder(flags, positional); break;
+    case 'move-folder':     await cmdMoveFolder(flags, positional); break;
+    case 'usage':       await cmdUsage(flags); break;
+    case 'add-tags':    await cmdAddTags(flags, positional); break;
+    case 'remove-tags': await cmdRemoveTags(flags, positional); break;
+    case 'purge':       await cmdPurge(flags, positional); break;
+    case 'purge-status': await cmdPurgeStatus(flags, positional); break;
 
     default:
       console.log(`ImageKit CLI - Available commands:
