@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 
 const BROKER_BASE = 'https://secrets.facilitron.work/imagekit/api/v1';
+const BROKER_UPLOAD = 'https://secrets.facilitron.work/imagekit/upload/api/v1';
 
 const [,, command, ...rest] = process.argv;
 
@@ -97,7 +96,7 @@ async function cmdUpload(flags, positional) {
   if (!fs.existsSync(filePath)) die(`File not found: ${filePath}`);
 
   const fd = new (await import('node:buffer')).File(
-    [fs.readFileSync(filePath)], flags.name || path.basename(filePath)
+    [await fs.promises.readFile(filePath)], flags.name || filePath.split('/').pop()
   );
   const form = new FormData();
   form.append('file', fd);
@@ -106,7 +105,7 @@ async function cmdUpload(flags, positional) {
   if (flags.tags) form.append('tags', flags.tags);
 
   const b = broker();
-  const res = await b.post(`${BROKER_BASE}/files/upload`, form, true);
+  const res = await b.post(`${BROKER_UPLOAD}/files/upload`, form, true);
   out(res);
 }
 
@@ -148,7 +147,7 @@ async function cmdMetadata(flags, positional) {
   if (!fileId) die('Usage: metadata <fileId>');
 
   const b = broker();
-  const res = await b.get(`${BROKER_BASE}/files/${fileId}/details`);
+  const res = await b.get(`${BROKER_BASE}/files/${fileId}/metadata`);
   out(res);
 }
 
