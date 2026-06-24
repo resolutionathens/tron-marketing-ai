@@ -11,9 +11,9 @@ Export design assets from Figma, optimize them with pngquant, and upload to Imag
 
 ## Requirements
 
-- `IMAGEKIT_PRIVATE_KEY` environment variable
+- `cloudflared` installed (for broker auth via Cloudflare Access tokens)
 - `pngquant` installed locally
-- ImageKit CLI — bundled in the plugin at `tools/imagekit/imagekit.mjs` (invoked below; lazy-installs its dep on first run)
+- ImageKit CLI — bundled in the plugin at `tools/imagekit/imagekit.mjs` (invoked below)
 - **Either**: Figma MCP plugin enabled in this session (primary path — no token needed), **or** `FIGMA_ACCESS_TOKEN` env var with `file_content:read` scope (REST fallback for headless/CI runs).
 
 ## Subagents & model tiers
