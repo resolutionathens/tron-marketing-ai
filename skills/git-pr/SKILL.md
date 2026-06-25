@@ -115,7 +115,37 @@ gh pr edit "<N>" --add-reviewer "@copilot" \
 
 > Inherited by the orchestrator: `tron:ship-ticket` (and any other whole-lifecycle driver) reaches PR open by delegating to this skill, so the Copilot request flows through automatically — no separate change in those skills.
 
-## Step 9: Report
+## Step 9: Post a retro comment
+
+Right after the PR is open, post a **retro comment** on it. The `<!-- tron-retro -->` marker on line 1 is required — the OS reviewer uses it to identify worker retros and distinguish them from human review feedback.
+
+```bash
+gh pr comment "<N>" --body "$(cat <<'EOF'
+<!-- tron-retro -->
+### Retro
+
+**What went well:** <which tron:* skills or tools helped, or "straightforward">
+
+**Friction / surprises:** <anything that slowed you down — wrong docs, flaky steps, missing tooling; "none" if smooth>
+
+**Follow-up (filed):** <Jira keys filed proactively during this run, e.g. MD-1234; "none" if nothing filed>
+
+**Out of scope / not filed:**
+FOLLOW-UP: <concise description of out-of-scope work not yet a ticket — one item per line>
+EOF
+)"
+```
+
+**`FOLLOW-UP:` marker discipline:**
+- Each `FOLLOW-UP:` line is a signal to the OS harvester to convert this item into a prefixed Jira ticket. Write one per line, after the `**Out of scope / not filed:**` heading.
+- Use it **only** for work this PR did NOT do. Never mark something that is already in the diff.
+- If there is nothing out of scope, write `FOLLOW-UP: none` (or omit the block entirely).
+
+**Other comment markers:**
+- `<!-- tron-retro -->` goes in this retro comment only — never in commit messages, PR titles, or PR bodies.
+- For any other status, progress, or promotion comment you post on this PR, end the comment body with `<!-- tron-note -->` instead. This keeps your own notes out of the human reviewer's feedback relay.
+
+## Step 10: Report
 
 Show the PR URL returned by `gh pr create`. Note whether the Copilot review was requested or the step was a logged no-op.
 

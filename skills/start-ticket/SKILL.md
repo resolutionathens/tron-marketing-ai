@@ -298,7 +298,17 @@ Then send the kickoff and submit it:
 tmux send-keys -t "$SESSION" "$KICKOFF" Enter
 ```
 
-**Kickoff content — plan-first by default.** Tell the worker: which ticket it owns, to read the full ticket (`acli`/`gh`) and the relevant CLAUDE.md, to investigate, and to **STOP and present a plan for the user's approval before editing/drafting anything**. Only skip the plan-first pause if the user explicitly asked for full-send autonomy.
+**Kickoff content — plan-first by default.** Tell the worker:
+
+- **Which ticket it owns** — the key/ref and a one-line summary
+- To read the full ticket (`acli`/`gh`) and the relevant CLAUDE.md before touching anything
+- To investigate and then **STOP and present a plan for the user's approval before editing or drafting anything** — skip this pause only if the user asked for full-send autonomy
+
+Also include these standing instructions in every kickoff:
+
+**Out-of-scope follow-up work:** if the worker discovers work that falls outside this ticket's scope (an unrelated bug, a deferred refactor, a TODO it's intentionally leaving), it must **not** fold it in (scope creep) and must **not** just drop a comment (evaporates). Instead, the moment it finds the out-of-scope work it should file a new Jira ticket using `tron:jira`. Rules: (a) derive the ticket summary prefix from the target repo — SCOUT → tron-os, TRON-PLUGIN → tron-marketing-ai, SUPPORT → facilitron-support, PAGES → marketing-pages, LLLP → marketing-dynamic-landing-pages, MABE → mabe-nuxt, UI → facilitron-ui — never guess; (b) dedup first (`acli jira workitem search` for matching open tickets); (c) label `auto-followup` and link back to the originating ticket; (d) cap at 3 per run.
+
+**Marker discipline:** when the PR is open the worker should post a retro comment using `tron:git-pr`'s built-in retro step (Step 9). The retro format uses `<!-- tron-retro -->` as its first line, followed by a `### Retro` heading. Any out-of-scope work **not** already filed as a Jira ticket goes in the retro as a `FOLLOW-UP:` line (one per line) — the OS harvests these into tickets as a safety net. For any other status or progress comment posted on the PR, end the comment body with `<!-- tron-note -->` so the OS can distinguish worker notes from human review feedback.
 
 You remain the orchestrator: re-check the worker's progress any time with `tmux capture-pane -t "$SESSION" -p`.
 
