@@ -86,12 +86,58 @@ open -a Preview "$OUT"   # macOS — avoids Photoshop hijacking PNGs
 
 **Step 3 — Report the result.** Tell the user the output path and roughly what was generated.
 
+## Generating a toolkit or guide card from ImageKit references
+
+When no local reference images are available — e.g. generating a card to match the existing
+toolkit or guides index — download 3 recent cards live from ImageKit first, **read them to
+infer the visual style**, then craft the subject prompt from what you see before calling the
+script. Never hardcode filenames; the set grows over time.
+
+```bash
+set -a; source ~/.env; set +a
+IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
+mkdir -p /tmp/card-refs
+
+# Download 3 recent cards as style references (toolkit folder; use "guides" for guide cards)
+node "$IK" list --path toolkit --limit 3 | \
+  python3 -c "
+import sys, json
+for f in json.load(sys.stdin):
+    print(f['url'].split('?')[0], f['name'])
+" | while read -r url name; do
+    curl -sf -o "/tmp/card-refs/$name" "$url"
+  done
+```
+
+**After downloading, read each reference image and infer the subject prompt before calling
+the script.** The right prompt depends entirely on what the references look like:
+
+- **Abstract backgrounds** (geometric shapes, fluid waves, glows, gradients — no literal
+  objects or text): describe a *new abstract variation* using the same palette and motif
+  language. Example: `"purely abstract geometric background, no text or literal objects,
+  same deep navy/indigo palette with blue/purple/cyan fluid shapes, new composition"`.
+- **Editorial/flat illustrations** (icons, isometric scenes, characters): describe a new
+  scene in the same illustration style and palette, subject loosely tied to the toolkit topic.
+- **Photographs**: describe a new photograph — same lighting, mood, environment — distinct scene.
+
+Never pass the toolkit item's topic as the literal subject when the references are abstract.
+`"Emergency preparedness checklist"` makes the model draw a clipboard; `"abstract composition
+with the same geometric motifs and navy/cyan palette"` produces a background card.
+
+```bash
+# Toolkit cards are 1600×901 (landscape) — generate at 1536×1024 to match the aspect ratio.
+GENIMG_SIZE=1536x1024 bash "$SKILL_DIR/scripts/gen-image.sh" \
+  /tmp/card-refs \
+  "<subject prompt inferred from reading the references above>" \
+  /tmp/card-<slug>.png
+```
+
 ## Notes
 
 - **Three paths in priority order:**
   1. `image_gen.py` CLI — requires `OPENAI_API_KEY` in `~/.env`. Calls gpt-image-2 directly, most faithful style transfer.
-  2. **OpenRouter** (active default) — requires `OPENROUTER_API_KEY` in `~/.env`. Calls `google/gemini-2.5-flash-image` by default; override with `GENIMG_MODEL=<model-id>`. Deterministic, no agent loop. Full model list: `openrouter.ai/collections/image-models`.
+  2. **OpenRouter** (active default) — requires `OPENROUTER_API_KEY` in `~/.env`. Calls `google/gemini-2.5-flash-image` by default; override with `GENIMG_MODEL=<model-id>`. When reference images are provided, uses the chat completions endpoint (multimodal) so Gemini actually receives the refs. Deterministic, no agent loop. Full model list: `openrouter.ai/collections/image-models`.
   3. `codex exec` fallback — uses codex's ChatGPT auth, no API key needed, but headless artifact landing is unreliable (openai/codex #28102/#19133/#23015). Only reached if neither API key is present.
-- Default size `1024x1024`, quality `high` (override via `GENIMG_SIZE` / `GENIMG_QUALITY`).
+- Default size `1024x1024`, quality `high` (override via `GENIMG_SIZE` / `GENIMG_QUALITY`). Toolkit cards should use `GENIMG_SIZE=1536x1024` (landscape, matching existing 1600×901 cards).
 - **Next step:** generated PNGs are large — before shipping one to the web or CDN, run
   `tron:optimize-images` to compress (and convert to WebP) it.

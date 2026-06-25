@@ -69,9 +69,9 @@ _existing_ index cards so the new one matches the set's palette, framing, and sc
 the set grows over time and descriptive-named folders (toolkit) have no predictable pattern.
 
 ```bash
-# 1. Download up to 4 existing cards from ImageKit as style references
+# 1. Download 3 recent existing cards from ImageKit as style references
 mkdir -p /tmp/card-refs
-node "$IK" list --path <index-folder> --limit 4 | \
+node "$IK" list --path <index-folder> --limit 3 | \
   python3 -c "
 import sys, json
 for f in json.load(sys.stdin):
@@ -95,12 +95,19 @@ print(f'{max(nums)+1:02d}' if nums else '01')
 ```
 
 Then invoke `tron:gen-image` with `/tmp/card-refs` as the reference set and a prompt
-describing this item's subject (e.g. "flat editorial illustration of a preventive-
-maintenance calendar, school-facility theme"). Convert the result to webp and upload:
+describing this item's subject. Toolkit cards are landscape (1600×901); set `GENIMG_SIZE`
+to `1536x1024` so the generated image matches that aspect ratio before the webp conversion.
+The prompt must explicitly say "similar but visually distinct from the reference images —
+do not copy the specific scene; create a new composition with the same illustration style,
+palette, and mood."
 
 ```bash
 # guides:  output name = guide-$NEXT.webp, folder = guides
 # toolkit: output name = <slug>.webp,       folder = toolkit
+#
+# For toolkit cards, invoke gen-image with the landscape size:
+#   GENIMG_SIZE=1536x1024 tron:gen-image /tmp/card-refs "<subject prompt>"
+# The skill resolves GENIMG_SIZE and passes it through to the image API.
 "$TOWEBP" <generated.png> "/tmp/<output-name>.webp"
 node "$IK" upload "/tmp/<output-name>.webp" --name <output-name>.webp --folder <index-folder>
 ```

@@ -72,7 +72,7 @@ fi
 log "using ${#refs[@]} reference image(s)."
 
 # --- 2. Build the prompt: subject mandatory, medium pinned from the references -----------
-medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration — do NOT switch media), lighting, color treatment, contrast, composition, and texture. Do NOT copy their specific subjects or scenes."
+medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration vs abstract graphic — do NOT switch media), lighting, color treatment, contrast, composition, and texture. Do NOT copy their specific subjects or scenes. If the references are abstract, produce a purely abstract composition: no text, no literal objects, no clipboards, no labels."
 if [ -n "$SUBJECT" ]; then
   subj_line="Create a NEW image whose primary, mandatory subject is: ${SUBJECT}."
 else
@@ -121,39 +121,51 @@ elif [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1 && comm
 
   # Build payload + call API + decode response — all in one Python script so shell quoting
   # never touches the prompt text or base64 blobs.
-  export OR_MODEL OR_PROMPT OR_OUTPUT OR_KEY OR_REFS_JSON
+  export OR_MODEL OR_PROMPT OR_OUTPUT OR_KEY OR_REFS_JSON OR_SIZE
   OR_REFS_JSON="$(IFS=','; echo "${refs[*]}")"
   OR_PROMPT="$prompt"
   OR_OUTPUT="$OUTPUT"
   OR_KEY="$OPENROUTER_API_KEY"
+  OR_SIZE="$SIZE"
 
   python3 <<'PYEOF' || { log "ERROR: OpenRouter request failed."; exit 1; }
 import os, sys, base64, json, mimetypes, urllib.request, urllib.error
 
-model    = os.environ.get('OR_MODEL', 'google/gemini-2.5-flash-image')
-prompt   = os.environ['OR_PROMPT']
-out_path = os.environ['OR_OUTPUT']
-api_key  = os.environ['OR_KEY']
+model     = os.environ.get('OR_MODEL', 'google/gemini-2.5-flash-image')
+prompt    = os.environ['OR_PROMPT']
+out_path  = os.environ['OR_OUTPUT']
+api_key   = os.environ['OR_KEY']
+size      = os.environ.get('OR_SIZE', '1024x1024')
 ref_paths = [p.strip() for p in os.environ['OR_REFS_JSON'].split(',') if p.strip()][:3]
 
-refs = []
-for p in ref_paths:
+def b64_part(p):
     mime = mimetypes.guess_type(p)[0] or 'image/png'
     b64  = base64.b64encode(open(p, 'rb').read()).decode()
-    refs.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}}
 
-body = {"model": model, "prompt": prompt}
-if refs:
-    body["input_references"] = refs
+if ref_paths:
+    # Gemini multimodal: refs + prompt via chat completions. The /images endpoint does not
+    # accept reference images for this model — only chat completions with multimodal content
+    # actually delivers them to the model.
+    content = [b64_part(p) for p in ref_paths]
+    content.append({"type": "text", "text": prompt})
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": content}],
+    }
+    endpoint = "https://openrouter.ai/api/v1/chat/completions"
+else:
+    body = {"model": model, "prompt": prompt, "size": size}
+    endpoint = "https://openrouter.ai/api/v1/images/generations"
 
 req = urllib.request.Request(
-    "https://openrouter.ai/api/v1/images",
+    endpoint,
     data=json.dumps(body).encode(),
     headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     method="POST",
 )
 try:
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=180) as resp:
         d = json.loads(resp.read())
 except urllib.error.HTTPError as e:
     err = e.read().decode()
@@ -164,9 +176,36 @@ if 'error' in d:
     print(f"gen-image: OpenRouter error: {d['error']}", file=sys.stderr)
     sys.exit(1)
 
-b64 = d.get('data', [{}])[0].get('b64_json', '')
+# Extract base64 image — handle chat completions (content parts or message.images),
+# and images endpoint (data[].b64_json) response shapes.
+b64 = ''
+if 'choices' in d:
+    for choice in d.get('choices', []):
+        msg = choice.get('message', {})
+        # OpenRouter surfaces Gemini-generated images in message.images, not message.content
+        for img in msg.get('images', []):
+            url = img.get('image_url', {}).get('url', '')
+            if url.startswith('data:'):
+                b64 = url.split(',', 1)[1]
+                break
+        if b64:
+            break
+        # Fallback: some models embed the image in content parts
+        parts = msg.get('content', [])
+        if isinstance(parts, list):
+            for part in parts:
+                if isinstance(part, dict) and part.get('type') == 'image_url':
+                    url = part['image_url'].get('url', '')
+                    if url.startswith('data:'):
+                        b64 = url.split(',', 1)[1]
+                        break
+        if b64:
+            break
+else:
+    b64 = d.get('data', [{}])[0].get('b64_json', '')
+
 if not b64:
-    print(f"gen-image: OpenRouter returned no b64_json. Response: {json.dumps(d)[:300]}", file=sys.stderr)
+    print(f"gen-image: no image in response. Full response:\n{json.dumps(d)[:800]}", file=sys.stderr)
     sys.exit(1)
 
 open(out_path, 'wb').write(base64.b64decode(b64))
