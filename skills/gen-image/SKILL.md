@@ -9,7 +9,7 @@ allowed-tools:
 
 # gen-image
 
-Generates a new image that matches the visual style of reference images. Prefers the deterministic `image_gen.py` CLI when an OpenAI key is available, and falls back to `codex exec` with the built-in `image_gen` tool (no `OPENAI_API_KEY` needed — uses codex's own auth). See "Why two paths" below for the reliability tradeoff.
+Generates a new image that matches the visual style of reference images. Uses three paths in priority order: the `image_gen.py` CLI (needs `OPENAI_API_KEY`), the OpenRouter image API (needs `OPENROUTER_API_KEY` — the active default), or `codex exec` with the built-in `image_gen` tool as a last-resort fallback.
 
 ## Args
 
@@ -88,16 +88,10 @@ open -a Preview "$OUT"   # macOS — avoids Photoshop hijacking PNGs
 
 ## Notes
 
-- **Why two paths:** generating through codex's agent loop (`codex exec` + built-in
-  `image_gen`) is unreliable headless — the model narrates a tool call but the artifact often
-  never lands in `$CODEX_HOME/generated_images/` (known issues openai/codex #28102, #19133,
-  #23015). The `image_gen.py` CLI bypasses the loop and is deterministic, so it's preferred
-  whenever a key is present.
-- codex's ChatGPT session token can be revoked while `codex login status` still reports
-  "logged in" — that's why the fallback relies on an actual round-trip, not the status string.
-- The fallback passes `-c features.image_generation=true` so `codex exec` actually offers the
-  tool, and copies out **only** an image newer than that run (never a stale one).
+- **Three paths in priority order:**
+  1. `image_gen.py` CLI — requires `OPENAI_API_KEY` in `~/.env`. Calls gpt-image-2 directly, most faithful style transfer.
+  2. **OpenRouter** (active default) — requires `OPENROUTER_API_KEY` in `~/.env`. Calls `google/gemini-2.5-flash-image` by default; override with `GENIMG_MODEL=<model-id>`. Deterministic, no agent loop. Full model list: `openrouter.ai/collections/image-models`.
+  3. `codex exec` fallback — uses codex's ChatGPT auth, no API key needed, but headless artifact landing is unreliable (openai/codex #28102/#19133/#23015). Only reached if neither API key is present.
 - Default size `1024x1024`, quality `high` (override via `GENIMG_SIZE` / `GENIMG_QUALITY`).
-  `gpt-image-2` does not support transparent backgrounds. Typical time: 30–90 seconds.
 - **Next step:** generated PNGs are large — before shipping one to the web or CDN, run
   `tron:optimize-images` to compress (and convert to WebP) it.

@@ -42,11 +42,14 @@ mkdir -p "$(dirname "$OUTPUT")"
 OUTDIR="$(cd "$(dirname "$OUTPUT")" && pwd)"
 OUTPUT="$OUTDIR/$(basename "$OUTPUT")"
 
-# Pull OPENAI_API_KEY from ~/.env if not already in the environment (the user's convention:
-# ~/.env is a plain dotenv of global secrets). Only grab that one key; don't source blindly.
+# Pull API keys from ~/.env if not already in the environment.
 if [ -z "${OPENAI_API_KEY:-}" ] && [ -f "$HOME/.env" ]; then
-  _k="$(grep -E '^[[:space:]]*OPENAI_API_KEY=' "$HOME/.env" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*OPENAI_API_KEY=//; s/^["'\'']//; s/["'\'']$//')"
+  _k="$(grep -E '^[[:space:]]*OPENAI_API_KEY=' "$HOME/.env" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*OPENAI_API_KEY=//; s/^["'\'']//; s/["'\'']$//' || true)"
   [ -n "${_k:-}" ] && export OPENAI_API_KEY="$_k"
+fi
+if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -f "$HOME/.env" ]; then
+  _k="$(grep -E '^[[:space:]]*OPENROUTER_API_KEY=' "$HOME/.env" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*OPENROUTER_API_KEY=//; s/^["'\'']//; s/["'\'']$//' || true)"
+  [ -n "${_k:-}" ] && export OPENROUTER_API_KEY="$_k"
 fi
 
 CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
@@ -110,12 +113,74 @@ if [ -n "${OPENAI_API_KEY:-}" ] && [ -f "$IMAGE_GEN" ] && [ -n "$PY" ]; then
   fi
 
 # ========================================================================================
-# PATH B — fallback: built-in tool via codex exec (the known-unreliable path).
+# PATH B — OpenRouter image API (deterministic, no OPENAI_API_KEY needed).
+# ========================================================================================
+elif [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  OR_MODEL="${GENIMG_MODEL:-google/gemini-2.5-flash-image}"
+  log "generating via OpenRouter ($OR_MODEL)…"
+
+  # Build payload + call API + decode response — all in one Python script so shell quoting
+  # never touches the prompt text or base64 blobs.
+  export OR_MODEL OR_PROMPT OR_OUTPUT OR_KEY OR_REFS_JSON
+  OR_REFS_JSON="$(IFS=','; echo "${refs[*]}")"
+  OR_PROMPT="$prompt"
+  OR_OUTPUT="$OUTPUT"
+  OR_KEY="$OPENROUTER_API_KEY"
+
+  python3 <<'PYEOF' || { log "ERROR: OpenRouter request failed."; exit 1; }
+import os, sys, base64, json, mimetypes, urllib.request, urllib.error
+
+model    = os.environ.get('OR_MODEL', 'google/gemini-2.5-flash-image')
+prompt   = os.environ['OR_PROMPT']
+out_path = os.environ['OR_OUTPUT']
+api_key  = os.environ['OR_KEY']
+ref_paths = [p.strip() for p in os.environ['OR_REFS_JSON'].split(',') if p.strip()][:3]
+
+refs = []
+for p in ref_paths:
+    mime = mimetypes.guess_type(p)[0] or 'image/png'
+    b64  = base64.b64encode(open(p, 'rb').read()).decode()
+    refs.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}})
+
+body = {"model": model, "prompt": prompt}
+if refs:
+    body["input_references"] = refs
+
+req = urllib.request.Request(
+    "https://openrouter.ai/api/v1/images",
+    data=json.dumps(body).encode(),
+    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+    method="POST",
+)
+try:
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        d = json.loads(resp.read())
+except urllib.error.HTTPError as e:
+    err = e.read().decode()
+    print(f"gen-image: OpenRouter HTTP {e.code}: {err}", file=sys.stderr)
+    sys.exit(1)
+
+if 'error' in d:
+    print(f"gen-image: OpenRouter error: {d['error']}", file=sys.stderr)
+    sys.exit(1)
+
+b64 = d.get('data', [{}])[0].get('b64_json', '')
+if not b64:
+    print(f"gen-image: OpenRouter returned no b64_json. Response: {json.dumps(d)[:300]}", file=sys.stderr)
+    sys.exit(1)
+
+open(out_path, 'wb').write(base64.b64decode(b64))
+print(f"gen-image: wrote {out_path} ({os.path.getsize(out_path):,} bytes)", file=sys.stderr)
+PYEOF
+  log "OpenRouter generation done."
+
+# ========================================================================================
+# PATH C — fallback: built-in tool via codex exec (the known-unreliable path).
 # ========================================================================================
 else
-  if [ -z "${OPENAI_API_KEY:-}" ]; then
-    log "no OPENAI_API_KEY — falling back to the codex built-in tool (less reliable headless)."
-    log "  tip: add OPENAI_API_KEY to ~/.env for the deterministic CLI path."
+  if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
+    log "no OPENAI_API_KEY or OPENROUTER_API_KEY — falling back to the codex built-in tool (less reliable headless)."
+    log "  tip: add OPENROUTER_API_KEY to ~/.env for the deterministic OpenRouter path."
   fi
 
   # Preflight codex auth with a REAL round-trip (login status can lie about a revoked token).
@@ -163,6 +228,7 @@ EOF
 gen-image: ERROR — the codex built-in image_gen tool produced NO new image this run.
   This is a known headless limitation of codex (openai/codex #28102/#19133/#23015), not a
   prompt problem. Refusing to ship a stale image. To make this reliable:
+    • add OPENROUTER_API_KEY to ~/.env (unlocks the deterministic OpenRouter path), or
     • add OPENAI_API_KEY to ~/.env (unlocks the deterministic image_gen.py CLI path), or
     • run the generation interactively where the built-in tool is dependable.
 EOF
