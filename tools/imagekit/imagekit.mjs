@@ -100,9 +100,15 @@ async function cmdUpload(flags, positional) {
   );
   const form = new FormData();
   form.append('file', fd);
-  form.append('fileName', flags.name || path.basename(filePath));
+  form.append('fileName', flags.name || filePath.split('/').pop());
   if (flags.folder) form.append('folder', flags.folder);
   if (flags.tags) form.append('tags', flags.tags);
+
+  // Always keep exact filenames and overwrite existing files — without these
+  // ImageKit appends a random suffix (e.g. file_aB3xK.pdf) by default, which
+  // breaks the exact-filename lookups the content skills rely on.
+  form.append('useUniqueFileName', 'false');
+  form.append('overwriteFile', 'true');
 
   const b = broker();
   const res = await b.post(`${BROKER_UPLOAD}/files/upload`, form, true);

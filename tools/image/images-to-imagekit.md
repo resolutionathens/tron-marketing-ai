@@ -33,8 +33,9 @@ and encoded the same way.
 
 ## Upload to ImageKit
 
-The ImageKit CLI (bundled at `tools/imagekit/`) keeps filenames exactly as given when you
-pass `--name` — no random suffix — so the uploaded paths are predictable:
+The ImageKit CLI (bundled at `tools/imagekit/`) always passes `useUniqueFileName: false` and
+`overwriteFile: true` on every upload, so filenames keep exactly what `--name` specifies with
+no random suffix appended:
 
 ```bash
 set -a; source ~/.env; set +a
@@ -43,8 +44,8 @@ IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
 node "$IK" upload "<out>/<name>.webp" --name <name>.webp --folder <destination-folder>
 ```
 
-Always pass `--name`. Without it, older CLI behavior could append a `_aB3xK`-style suffix
-and break the exact-filename lookup the slug pages rely on.
+Always pass `--name`. Without it the uploaded asset uses the source filename, which is still
+kept exact (no suffix) but may not match what the page template expects.
 
 ## Verify names landed clean
 
@@ -54,10 +55,9 @@ After uploading, confirm the names are exactly what the page will request:
 node "$IK" list --path <destination-folder>
 ```
 
-If any file picked up a random suffix anyway, `bulk-delete` the bad ones and re-upload
-passing `--name <name>.webp` explicitly. A `.png`-vs-`.webp` or suffix mismatch between the
-uploaded asset and the front-matter / `src` value renders as a broken image, so fix the
-asset rather than editing the reference to match a wrong upload.
+A `.png`-vs-`.webp` or suffix mismatch between the uploaded asset and the front-matter / `src`
+value renders as a broken image, so fix the asset rather than editing the reference to match
+a wrong upload.
 
 ## Generate an index/card thumbnail from references
 

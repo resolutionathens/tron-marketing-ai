@@ -199,14 +199,14 @@ done
 
 ### 4. Upload to ImageKit
 
-Upload using the ImageKit CLI. When `--name` is specified, the file will NOT get a random suffix appended.
+Upload using the ImageKit CLI. The CLI now automatically passes `useUniqueFileName: false`
+and `overwriteFile: true`, so the uploaded filename matches `--name` exactly with no random
+suffix appended.
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload /tmp/optimized/filename.png \
   --folder product/works/main --name filename.png
 ```
-
-Use `--overwriteFile true` to replace an existing file at the same path.
 
 ### 5. Verify and report
 
