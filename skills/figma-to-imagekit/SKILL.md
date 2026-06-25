@@ -27,7 +27,7 @@ subagent per node.** The split:
   and decide each image's final name, resize target, and ImageKit folder. Naming and
   node discovery are judgment, and the MCP plugin lives in this session.
 - **Haiku subagent per node (no MCP needed):** given `{ asset-URL, out-name,
-  resize-target, imagekit-folder }`, run download → `sips` resize → `pngquant` →
+resize-target, imagekit-folder }`, run download → `sips` resize → `pngquant` →
   ImageKit upload, and return its row for the Step 5 table. This leg is pure Bash
   (curl / sips / pngquant / CLI), independent per node, so the verbose pngquant and
   curl output stays out of the orchestrator's context.
@@ -60,7 +60,16 @@ bash "$SKILL_DIR/scripts/figma-export.sh" run \
 ```
 
 ```json
-{"ok":true,"name":"hero.png","original":5359283,"optimized":155937,"savings":"97%","path":"product/works/main/hero.png","url":"https://ik…","uploaded":true}
+{
+  "ok": true,
+  "name": "hero.png",
+  "original": 5359283,
+  "optimized": 155937,
+  "savings": "97%",
+  "path": "product/works/main/hero.png",
+  "url": "https://ik…",
+  "uploaded": true
+}
 ```
 
 `run` accepts `--file <path>` instead of `--url` (already-downloaded source) and
@@ -90,7 +99,8 @@ Use the Figma MCP `get_design_context` or `get_metadata` tools to find image nod
 When you call `mcp__plugin_figma_figma__get_design_context` on a node that contains images, the response declares the image assets as constants pointing at MCP-hosted URLs:
 
 ```js
-const imgHero = "https://www.figma.com/api/mcp/asset/741f7c3e-b536-4487-b69c-e14282a0d350";
+const imgHero =
+  "https://www.figma.com/api/mcp/asset/741f7c3e-b536-4487-b69c-e14282a0d350";
 ```
 
 These URLs return raw PNG bytes (4096×4096 at full quality) with `Content-Type: image/png`, no auth header required. They're short-lived (~7 days) but that's fine for a one-shot export. Download with curl:
@@ -100,7 +110,7 @@ curl -s -o /tmp/hero-raw.png "https://www.figma.com/api/mcp/asset/<uuid>"
 file /tmp/hero-raw.png   # confirm: PNG image data, NNNN x NNNN
 ```
 
-If the node is a *frame* (not the image asset itself), call `get_design_context` on the frame and pick the right `img*` constant from the returned code — usually there's only one image per frame, and naming hints (`imgHero`, `imgPlaceholderImage560X490`) help when there are several.
+If the node is a _frame_ (not the image asset itself), call `get_design_context` on the frame and pick the right `img*` constant from the returned code — usually there's only one image per frame, and naming hints (`imgHero`, `imgPlaceholderImage560X490`) help when there are several.
 
 Raw MCP exports are typically 4096×4096 / 10–15 MB. Resize before pngquant — see step 3.
 
@@ -119,6 +129,7 @@ curl -s -H "X-Figma-Token: $FIGMA_ACCESS_TOKEN" \
 ```
 
 Response returns temporary S3 URLs:
+
 ```json
 {
   "err": null,
@@ -129,6 +140,7 @@ Response returns temporary S3 URLs:
 ```
 
 **Batch export pattern** (export + download in one step):
+
 ```bash
 RESPONSE=$(curl -s -H "X-Figma-Token: $FIGMA_ACCESS_TOKEN" \
   "https://api.figma.com/v1/images/FILE_KEY?ids=NODE_ID&format=png&scale=2")
@@ -137,6 +149,7 @@ curl -s -o /tmp/output.png "$URL"
 ```
 
 **To find image nodes inside a section via REST:**
+
 ```bash
 curl -s -H "X-Figma-Token: $FIGMA_ACCESS_TOKEN" \
   "https://api.figma.com/v1/files/FILE_KEY/nodes?ids=NODE_ID&depth=4" \
@@ -169,6 +182,7 @@ pngquant --quality=65-80 --speed 1 --strip --output /tmp/optimized/filename.png 
 Pick the resize target by display size: 1280px for 2x retina at 640px display, 1600px for hero-sized images. A 14 MB raw export typically lands at ~350 KB after this pipeline.
 
 For multiple files:
+
 ```bash
 for f in /tmp/works-*.png; do
   base=$(basename "$f")
@@ -194,13 +208,14 @@ Use `--overwriteFile true` to replace an existing file at the same path.
 
 After uploading, show a summary:
 
-| Image | Figma Node | Original | Optimized | Savings | ImageKit Path |
-|-------|-----------|----------|-----------|---------|---------------|
-| hero.png | 3001:8863 | 126 KB | 32 KB | 75% | product/works/main/hero.png |
+| Image    | Figma Node | Original | Optimized | Savings | ImageKit Path               |
+| -------- | ---------- | -------- | --------- | ------- | --------------------------- |
+| hero.png | 3001:8863  | 126 KB   | 32 KB     | 75%     | product/works/main/hero.png |
 
 ## Format options
 
 The Figma export API supports these formats via the `format` parameter:
+
 - `png` (default, best for UI mockups and illustrations)
 - `jpg` (smaller for photos, no transparency)
 - `svg` (vector, good for icons and logos)
@@ -211,6 +226,7 @@ Scale options: `scale=1` (1x), `scale=2` (2x retina, recommended), `scale=4` (4x
 ## Cleanup
 
 After uploading, delete any accidentally-suffixed duplicates:
+
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" list --path product/works/main --limit 30
 node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" bulk-delete ID1 ID2 ID3
@@ -221,6 +237,7 @@ node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs
 All uploaded images are available at: `https://ik.imagekit.io/facilitron/`
 
 In Nuxt components using the ImageKit provider, use the path portion only:
+
 ```vue
 <SectionFeatureShowcase image="product/works/main/feature-asset-tracking.png" />
 ```

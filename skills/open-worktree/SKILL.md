@@ -61,21 +61,25 @@ not a fixed sequence (its sibling `start-ticket` keeps tmux setup in prose too).
 ## Determine the worktree path
 
 The user will either:
+
 - Provide an explicit branch name — use `wt switch <branch>` to switch to it and get the path
 - Say they want the current one — use `wt list` to identify it (marked with `@`)
 - Have just created one via the tron:start-ticket skill — use that branch name
 
 First, check available worktrees:
+
 ```bash
 wt list
 ```
 
 If the user specifies a branch, switch to it to get the correct path. Always pass `--yes` because Claude Code runs in a non-interactive environment and `wt` will prompt for hook approvals otherwise:
+
 ```bash
 wt switch <branch-name> --yes
 ```
 
 `wt` will output the worktree path. If you need the absolute path:
+
 ```bash
 pwd
 ```
@@ -140,7 +144,7 @@ Confirm the session is ready with its name, the layout (vim + terminal), the
 
 ## Common gotchas
 
-Worktrees inherit *tracked* files only. Two things that often bite when reopening one:
+Worktrees inherit _tracked_ files only. Two things that often bite when reopening one:
 
 - **Gitignored env files don't follow worktrees.** `.env`, `.dev.vars`, `.env.local`, etc. live only in the original checkout. If the user reports the dev server returning 500s like "X is required" or "config invalid", check the worktree root and copy any missing env files from the main checkout (found via `git worktree list`, whose first entry is the primary checkout):
   ```bash
@@ -153,11 +157,13 @@ Worktrees inherit *tracked* files only. Two things that often bite when reopenin
 ## Quick tip
 
 To see all worktrees and their status at any time:
+
 ```bash
 wt list
 ```
 
 To quickly switch between worktrees:
+
 ```bash
 wt switch <branch-name>
 ```

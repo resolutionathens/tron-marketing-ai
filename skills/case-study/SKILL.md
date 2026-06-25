@@ -18,16 +18,19 @@ Turn raw inputs into a publish-ready **case study** in Facilitron's house struct
 the source facts. Git-free: it writes a markdown draft and routes publishing to the right skill.
 
 ## When to use
+
 - Writing a customer/district success story (the MCR "Case Studies" initiative).
 - You have interview notes, metrics, or a brief and need a structured narrative.
 
 ## Inputs (gather what exists)
+
 - **Jira ticket** — `acli jira workitem view <KEY> --json` for scope, links, due date.
 - **Confluence brief / interview notes** — pull with `tron:confluence`.
 - **Metrics** — booking volume, revenue, hours saved, utilization, time-to-launch. These are the spine.
 
 ### Secure the spine before drafting
-The Results section *is* the case study — a draft with an all-`TODO` Results block is a skeleton, not
+
+The Results section _is_ the case study — a draft with an all-`TODO` Results block is a skeleton, not
 a usable draft. So **before writing**, check whether the inputs already carry 3–4 quantified outcomes
 and a named pull-quote. If they don't (MCR tickets usually don't — most are thin editorial tasks),
 **ask for them first** with **AskUserQuestion**: the 3–4 headline metrics and the attributable
@@ -35,6 +38,7 @@ customer quote (speaker + title). Only fall back to `> TODO:` for a metric the u
 have yet — never open with an empty Results block when one question would fill it.
 
 ## Structure (Facilitron case study)
+
 1. **Header** — district/customer, region, size; one-line outcome.
 2. **Challenge** — the situation before Facilitron (manual scheduling, lost revenue, no visibility).
 3. **Solution** — what they adopted (Works, Tickets, Streaming…) and how.
@@ -42,12 +46,14 @@ have yet — never open with an empty Results block when one question would fill
 5. **Looking ahead** — short forward-looking close + CTA.
 
 ## Drafting rules
+
 - Marketing voice: **no em dashes**, plain confident prose, no hype.
 - Lead with the outcome; back every claim with a metric or a quote.
 - If a key metric or quote is missing, flag it with `> TODO:` rather than inventing it. Use
   **AskUserQuestion** for the few facts that change the story.
 
 ## Output + handoff
+
 Write to a draft path (default `/tmp/content/<slug>-case-study.md`) with front matter stub:
 
 ```markdown
@@ -60,6 +66,7 @@ metrics: ["60% less admin time", "$X recovered", "N facilities"]
 ```
 
 Then offer the handoff:
+
 - Publish to the web → `tron:guide-item` (long-form) or `tron:news-item` (article). These need a
   git user; the draft is the input.
 - Downloadable PDF → `tron:md-to-pdf`.

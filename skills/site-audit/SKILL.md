@@ -22,6 +22,7 @@ This skill delegates the audit to the **`unlighthouse-runner`** subagent (runs o
 3. **Relay the runner's summary.**
 
 ## Notes
+
 - The runner runs the bundled `scripts/site-audit.sh`, which always uses the headless `unlighthouse-ci` binary (`--build-static --reporter csvExpanded`) with real scoping flags (`--include-urls` regex for a section, `--urls` for a single page) and parses the CSV — never the interactive UI, never the non-existent `--urls-pattern`.
 - First run is slow (downloads Chromium).
 - unlighthouse's a11y score is a sanity check only — use `tron:a11y-scan` (axe/pa11y) for authoritative WCAG. Remind the user to gitignore `.unlighthouse/`.

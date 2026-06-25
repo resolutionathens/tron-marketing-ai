@@ -49,11 +49,13 @@ Read relevant changed files if needed to understand the purpose of the changes.
 ## Step 5: Generate PR title and body
 
 **Title:**
+
 - Under 70 characters
 - Conventional commit format: `type(scope): description`
 - Example: `feat: add responsive navigation menu`
 
 **Types:**
+
 - `feat` - New feature, component, or functionality
 - `fix` - Bug fix or error correction
 - `docs` - Documentation changes
@@ -65,6 +67,7 @@ Read relevant changed files if needed to understand the purpose of the changes.
 Ensure the title accurately reflects the nature of the changes — "add" means a wholly new feature, "update" means an enhancement, "fix" means a bug fix.
 
 **Body:**
+
 ```
 ## Summary
 - bullet point 1
@@ -100,7 +103,7 @@ Right after the PR is created, request a **GitHub Copilot code review** on it. T
 
 This step is **best-effort and must never fail the lifecycle.** The PR is already open by the time this runs — if the request errors for any reason (Copilot review not enabled for the repo/org, the bot is not assignable, an older `gh`), log a one-line notice and continue. Do **not** hard-fail or roll anything back.
 
-**Mechanism (verified against `gh` 2.94.0, the GitHub-documented path):** use the `gh` CLI's built-in `@copilot` reviewer alias. `gh` resolves `@copilot` to the Copilot reviewer bot itself (no GraphQL node-id lookup or REST `requested_reviewers` plumbing to maintain), and `gh pr edit --help` documents the alias directly: *"Use `@copilot` to request review from Copilot."*
+**Mechanism (verified against `gh` 2.94.0, the GitHub-documented path):** use the `gh` CLI's built-in `@copilot` reviewer alias. `gh` resolves `@copilot` to the Copilot reviewer bot itself (no GraphQL node-id lookup or REST `requested_reviewers` plumbing to maintain), and `gh pr edit --help` documents the alias directly: _"Use `@copilot` to request review from Copilot."_
 
 ```bash
 # Replace "<N>" with the PR number or URL returned by `gh pr create` in Step 7.
@@ -137,11 +140,13 @@ EOF
 ```
 
 **`FOLLOW-UP:` marker discipline:**
+
 - Each `FOLLOW-UP:` line is a signal to the OS harvester to convert this item into a prefixed Jira ticket. Write one per line, after the `**Out of scope / not filed:**` heading.
 - Use it **only** for work this PR did NOT do. Never mark something that is already in the diff.
 - If there is nothing out of scope, write `FOLLOW-UP: none` (or omit the block entirely).
 
 **Other comment markers:**
+
 - `<!-- tron-retro -->` goes in this retro comment only — never in commit messages, PR titles, or PR bodies.
 - For any other status, progress, or promotion comment you post on this PR, end the comment body with `<!-- tron-note -->` instead. This keeps your own notes out of the human reviewer's feedback relay.
 
@@ -152,6 +157,7 @@ Show the PR URL returned by `gh pr create`. Note whether the Copilot review was 
 ## Next steps
 
 After the PR is merged, remind the user:
+
 - **Deploy:** Use **tron:git-pushtoprod** to merge master into staging and production
 - **Update the ticket:** offer **tron:jira-comment** to post a short progress note with the PR link
 - **Clean up worktree** (if working in one): use `wt remove` or the **tron:close-worktree** skill

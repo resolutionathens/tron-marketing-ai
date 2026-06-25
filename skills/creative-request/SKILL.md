@@ -20,14 +20,14 @@ Turn a raw MCR creative/design ticket into a **review-ready design brief and ass
 can act on, without losing the thread between the Jira ticket, the brief, and the final asset.
 
 This skill is **git-free**: it reads Jira/Confluence/Figma and writes a brief. It does not create
-branches, commit, or open PRs. When it's time to *produce* the asset, it routes to
+branches, commit, or open PRs. When it's time to _produce_ the asset, it routes to
 `tron:figma-to-imagekit` (export from Figma → ImageKit CDN) or `tron:gen-image` (net-new image).
 
 ## When to use
 
 - Starting any MCR **Design Request**, swag/merch item, event collateral/signage piece, Figma
   product page, or onesheet.
-- You have a ticket key (e.g. `MCR-296`) or a pasted ticket and need to know *exactly* what to make.
+- You have a ticket key (e.g. `MCR-296`) or a pasted ticket and need to know _exactly_ what to make.
 
 ## When NOT to use
 
@@ -53,6 +53,7 @@ and any links. Note which **Marketing Theme / Initiative** it rolls up to (Brand
 ### 2. Resolve the brief source
 
 Creative tickets usually point at one of:
+
 - **A Confluence brief** — pull it with `tron:confluence` (or the plugin's
   `tools/confluence/fetch-confluence.sh`).
 - **A Figma file/frame** — read it with the Figma MCP (`get_design_context`, `get_metadata`,
@@ -64,12 +65,12 @@ Creative tickets usually point at one of:
 
 Pin down, for the specific deliverable type:
 
-| Deliverable | Spec to lock |
-|---|---|
-| Swag / merch (hat, tee, tote, pin, towel, sticker…) | print method (embroidery/screen/DTG), garment/item color, logo lockup + 1-color vs full-color, placement + physical size, Pantone/brand colors, vendor template if any |
-| Event signage/collateral (poster, banner, backdrop, popup, napkin, menu…) | finished dimensions + bleed, orientation, resolution (print = 300dpi), CMYK vs RGB, mount/finish, event branding (FU6, White Lotus) |
-| Figma product page / web UI | target route, breakpoints, design-system components + `tron-` Tailwind tokens, image export targets |
-| Onesheet / PDF | page size (US Letter), print vs screen, brand template, export via `tron:md-to-pdf` |
+| Deliverable                                                               | Spec to lock                                                                                                                                                           |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Swag / merch (hat, tee, tote, pin, towel, sticker…)                       | print method (embroidery/screen/DTG), garment/item color, logo lockup + 1-color vs full-color, placement + physical size, Pantone/brand colors, vendor template if any |
+| Event signage/collateral (poster, banner, backdrop, popup, napkin, menu…) | finished dimensions + bleed, orientation, resolution (print = 300dpi), CMYK vs RGB, mount/finish, event branding (FU6, White Lotus)                                    |
+| Figma product page / web UI                                               | target route, breakpoints, design-system components + `tron-` Tailwind tokens, image export targets                                                                    |
+| Onesheet / PDF                                                            | page size (US Letter), print vs screen, brand template, export via `tron:md-to-pdf`                                                                                    |
 
 Always capture: **deadline** (ticket due date / event date), **approver**, and **where the final
 asset lands** (ImageKit folder, marketing-pages route, or print vendor).
@@ -86,14 +87,16 @@ Write a `brief.md` (default to `/tmp/creative/<KEY>-brief.md`, or a path the use
 
 ```markdown
 # <KEY> — <deliverable> creative brief
+
 - **Rolls up to:** <Theme / Initiative / Epic>
 - **Deliverable:** <type, qty, finished spec>
 - **Brand:** <palette / tron- tokens / logo lockup / event branding>
 - **Specs:** <dimensions, bleed, resolution, color space, print method>
-- **Deadline:** <date>  •  **Approver:** <name>  •  **Lands at:** <ImageKit folder / route / vendor>
+- **Deadline:** <date> • **Approver:** <name> • **Lands at:** <ImageKit folder / route / vendor>
 - **Source brief:** <Confluence/Figma link>
 
 ## Checklist
+
 - [ ] Design drafted (Figma / source)
 - [ ] Brand check (tron:brand-check) — palette, type, logo, contrast
 - [ ] Internal review / approval (<approver>)

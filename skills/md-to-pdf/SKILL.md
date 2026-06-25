@@ -15,7 +15,7 @@ This skill ships its LaTeX template, brand fonts, logo, and a pandoc build scrip
 $SKILL_DIR/   # template.tex, fonts/, facilitron-logo.png, build.ts
 ```
 
-**Resolve `$SKILL_DIR` robustly first.** `$CLAUDE_SKILL_DIR` is *not* always exported into the agent's Bash environment (e.g. under the headless worker), and the plugin's cache path is version-pinned — so never hardcode a path like `…/cache/tron/tron/0.8.0/skills/md-to-pdf`. Compute it once and reuse it in every command below:
+**Resolve `$SKILL_DIR` robustly first.** `$CLAUDE_SKILL_DIR` is _not_ always exported into the agent's Bash environment (e.g. under the headless worker), and the plugin's cache path is version-pinned — so never hardcode a path like `…/cache/tron/tron/0.8.0/skills/md-to-pdf`. Compute it once and reuse it in every command below:
 
 ```bash
 name=md-to-pdf
@@ -26,7 +26,7 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 [ -e "$SKILL_DIR/template.tex" ] || { echo "tron:$name: can't find template.tex — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 ```
 
-This prefers the env hint, then the newest *installed copy that actually contains the asset* (so a stale mirror missing it is skipped, and same-version ties go to the marketplace copy) — and survives a plugin version bump. `build.ts` additionally resolves its own assets relative to itself (`import.meta.url`), so once you invoke it through `$SKILL_DIR` it needs no env var at all.
+This prefers the env hint, then the newest _installed copy that actually contains the asset_ (so a stale mirror missing it is skipped, and same-version ties go to the marketplace copy) — and survives a plugin version bump. `build.ts` additionally resolves its own assets relative to itself (`import.meta.url`), so once you invoke it through `$SKILL_DIR` it needs no env var at all.
 
 ## Two paths — default to LaTeX
 
@@ -50,7 +50,7 @@ xelatex -interaction=nonstopmode -output-directory=/tmp/facilitron-md-to-pdf /tm
 
 Edit the `EDIT:` markers for your content. The template uses `\graphicspath` to keep `\includegraphics{facilitron-logo.png}` resolving even when copied to `/tmp`, and references the vendored brand fonts in `fonts/` via the `@@SKILLDIR@@` token (substituted with `$SKILL_DIR` by the `sed` above), so it works with no further setup or system font install. **Run `xelatex` twice** if hyperref complains about needing a rerun for outlines.
 
-> **Quotes:** the template wires up `csquotes` with `\MakeOuterQuote{"}`, so author body text with either real Unicode curly quotes (`“ ”`) or plain straight quotes (`"..."`) — both render as proper curly quotes in Archivo. **Never** use TeX-style ``` ``...'' ``` — the backtick opening-quote ligature doesn't map in the brand font and prints a literal `` ` `` glyph.
+> **Quotes:** the template wires up `csquotes` with `\MakeOuterQuote{"}`, so author body text with either real Unicode curly quotes (`“ ”`) or plain straight quotes (`"..."`) — both render as proper curly quotes in Archivo. **Never** use TeX-style ` ``...'' ` — the backtick opening-quote ligature doesn't map in the brand font and prints a literal `` ` `` glyph.
 
 **Requirements:** `xelatex` (BasicTeX or MacTeX). The brand fonts are bundled — no system font install needed. See the plugin README's Dependencies section.
 
@@ -126,7 +126,7 @@ Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/faci
 
 ## What goes into the PDF
 
-It's the caller's job to decide what the PDF should *contain*. For toolkit items in particular, the PDF is the printable take-away (the procedure or checklist body), not a clone of the SEO-rich web page. Strip the lead-in copy, "What is …?" framing, Compliance/Version-Control sections, and `::faq` blocks before building. The `tron:toolkit-item` skill walks through this in detail.
+It's the caller's job to decide what the PDF should _contain_. For toolkit items in particular, the PDF is the printable take-away (the procedure or checklist body), not a clone of the SEO-rich web page. Strip the lead-in copy, "What is …?" framing, Compliance/Version-Control sections, and `::faq` blocks before building. The `tron:toolkit-item` skill walks through this in detail.
 
 ## When to update the logo
 

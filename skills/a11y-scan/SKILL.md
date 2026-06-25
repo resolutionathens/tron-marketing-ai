@@ -18,6 +18,7 @@ This skill delegates the scan to the **`a11y-scan-runner`** subagent (runs on Ha
 3. **Relay the runner's report.** If it says axe/pa11y aren't installed, surface `npm install -g pa11y pa11y-ci @axe-core/cli`.
 
 ## Notes
+
 - Pair axe (accuracy) + pa11y-ci (breadth) for important pages.
 - Always keep the runner's "automated scanning catches ~30–40% of WCAG issues" caveat — a clean scan ≠ compliant. Keyboard nav, screen-reader, cognitive load, and link-text-in-context still need manual review.
 - For an ongoing audit (Taras Confluence pages), scan the corresponding live URL and link findings to specific WCAG criteria for the log.

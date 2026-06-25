@@ -60,6 +60,7 @@ gh issue edit <N> --milestone "v1.2"
 ```
 
 GitHub has no formal "In Progress" status like Jira. Conventions vary by repo — common patterns are:
+
 - An `in-progress` (or similar) label
 - An "In Progress" column on a GitHub Project (use `gh project item-edit` if you go this route)
 - Just assigning yourself, no label
@@ -184,13 +185,13 @@ gh api "repos/:owner/:repo/deployments/$DEPLOY_ID/statuses" --jq '.[0] | {state,
 
 ### Deploy-target → source-of-truth lookup
 
-| Project deploys via…                                  | GitHub deployments? | Real source of truth                                                          |
-|-------------------------------------------------------|--------------------|-------------------------------------------------------------------------------|
-| **Cloudflare Pages** (`wrangler pages deploy`)        | ✅ Yes (`environment: "Preview"` / `"Production"`) | `gh api .../deployments` + `wrangler pages deployment list --project-name=<name>` |
-| **Cloudflare Workers** (`wrangler deploy` via `cloudflare/wrangler-action`) | ❌ **No** — the action does NOT register a GitHub deployment | `wrangler deployments list` (in the project dir) + `gh run view <run-id> --log` |
-| **Vercel/Netlify** (via their GH App)                 | ✅ Yes              | `gh api .../deployments` directly                                              |
-| **CircleCI**                                          | ⚠ Depends on the orb — often NO | `circleci runs` / workflow output (see `/circleci`)                            |
-| **Plain `gh workflow` actions deploying to anywhere** | ❌ Unless the workflow explicitly calls `actions/github-script` to create one | `gh run view <run-id> --log` and grep for the URL                              |
+| Project deploys via…                                                        | GitHub deployments?                                                           | Real source of truth                                                              |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **Cloudflare Pages** (`wrangler pages deploy`)                              | ✅ Yes (`environment: "Preview"` / `"Production"`)                            | `gh api .../deployments` + `wrangler pages deployment list --project-name=<name>` |
+| **Cloudflare Workers** (`wrangler deploy` via `cloudflare/wrangler-action`) | ❌ **No** — the action does NOT register a GitHub deployment                  | `wrangler deployments list` (in the project dir) + `gh run view <run-id> --log`   |
+| **Vercel/Netlify** (via their GH App)                                       | ✅ Yes                                                                        | `gh api .../deployments` directly                                                 |
+| **CircleCI**                                                                | ⚠ Depends on the orb — often NO                                               | `circleci runs` / workflow output (see `/circleci`)                               |
+| **Plain `gh workflow` actions deploying to anywhere**                       | ❌ Unless the workflow explicitly calls `actions/github-script` to create one | `gh run view <run-id> --log` and grep for the URL                                 |
 
 **For any repo that deploys Workers via `wrangler-action`**, ignore `gh api .../deployments` (you'll see only `github-pages` stubs from a vestigial pages workflow) and go straight to:
 
@@ -324,18 +325,19 @@ to the single-promotion-branch `gh pr merge` path.
 
 ## When something goes wrong
 
-| Symptom                                                    | Fix                                                                   |
-|------------------------------------------------------------|-----------------------------------------------------------------------|
-| `HTTP 403: Resource not accessible by personal access token` | The token is missing a scope. `gh auth refresh -s <scope>`.            |
-| `HTTP 404` on a private repo                               | The token doesn't have access. Confirm `gh auth status` shows the right account; `gh auth switch` if needed. |
-| `no commits in common`                                     | The PR's base branch was force-pushed or rewritten. Don't merge; investigate. |
-| `Required status check failing`                            | `gh pr checks <N> --watch` to see which one; `gh run view <run-id> --log-failed` to read the failure. |
-| `gh api` returns truncated body                            | The response is large. Use `--paginate` for list endpoints; for single-resource truncation, switch to GraphQL. |
-| Wrong account for a personal repo                          | `gh auth switch` or pass `--hostname github.com` to disambiguate.     |
+| Symptom                                                      | Fix                                                                                                            |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `HTTP 403: Resource not accessible by personal access token` | The token is missing a scope. `gh auth refresh -s <scope>`.                                                    |
+| `HTTP 404` on a private repo                                 | The token doesn't have access. Confirm `gh auth status` shows the right account; `gh auth switch` if needed.   |
+| `no commits in common`                                       | The PR's base branch was force-pushed or rewritten. Don't merge; investigate.                                  |
+| `Required status check failing`                              | `gh pr checks <N> --watch` to see which one; `gh run view <run-id> --log-failed` to read the failure.          |
+| `gh api` returns truncated body                              | The response is large. Use `--paginate` for list endpoints; for single-resource truncation, switch to GraphQL. |
+| Wrong account for a personal repo                            | `gh auth switch` or pass `--hostname github.com` to disambiguate.                                              |
 
 ## Common harness recipes
 
 ### "What's the latest open issue here?"
+
 ```bash
 gh issue list --state open --limit 1 \
   --json number,title,author,createdAt,body \
@@ -343,6 +345,7 @@ gh issue list --state open --limit 1 \
 ```
 
 ### "All my open issues across every repo"
+
 ```bash
 gh search issues --author=@me --state=open \
   --json number,title,repository,updatedAt \
@@ -350,6 +353,7 @@ gh search issues --author=@me --state=open \
 ```
 
 ### "Status of my open PRs (across all repos)"
+
 ```bash
 gh search prs --author=@me --state=open \
   --json number,title,repository,isDraft,url \
@@ -361,6 +365,7 @@ gh pr view <N> --repo <owner/repo> \
 ```
 
 ### "Find the staging URL for the PR on the current branch"
+
 ```bash
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
@@ -376,22 +381,26 @@ unset CLOUDFLARE_API_TOKEN && npx wrangler deployments list   # in the project d
 ```
 
 ### "Watch CI on the current PR and exit when done"
+
 ```bash
 gh pr checks --watch
 ```
 
 ### "Tail the failing job from the latest run on this branch"
+
 ```bash
 RUN="$(gh run list --branch "$(git rev-parse --abbrev-ref HEAD)" --limit 1 --json databaseId --jq '.[0].databaseId')"
 gh run view "$RUN" --log-failed
 ```
 
 ### "A deploy just failed — retry only the failed jobs"
+
 ```bash
 gh run rerun <run-id> --failed
 ```
 
 ### "Bulk-close stale issues older than 6 months with no activity"
+
 ```bash
 gh issue list --state open --search "updated:<2025-11-22" --json number --jq '.[].number' \
   | xargs -I{} gh issue close {} --comment "Closing as stale. Reopen if still relevant."

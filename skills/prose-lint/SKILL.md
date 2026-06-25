@@ -29,6 +29,7 @@ This skill delegates the lint to the **`vale-prose-runner`** subagent (runs on S
 4. **Relay the runner's grouped findings.** If it reports vale isn't installed, surface `brew install vale`.
 
 ## Notes
+
 - The Facilitron style pack is bundled with the plugin (`styles/Facilitron/` rules + `styles/config/vocabularies/Facilitron/accept.txt` vocab) — shared across repos. To accept a false-positive term, append it to `accept.txt` and the change ships with the next plugin release.
 - The runner handles project scaffolding (symlinks, `.vale.ini`, `vale sync`) — `.vale.ini` is committed; `.vale/styles/` is gitignored.
 - Good final pass before `tron:news-item` / `tron:guide-item` / `tron:case-study` / `tron:press-release` open their PR.

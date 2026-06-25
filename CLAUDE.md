@@ -2,7 +2,7 @@
 
 This repo **is a Claude Code plugin**, not an app. There's nothing to build or serve — the
 deliverable is the instruction layer itself: `skills/*/SKILL.md`, `agents/*.md`, the bundled
-`tools/`, and `hooks/`. Editing those files *is* the work. See [README.md](README.md) for the
+`tools/`, and `hooks/`. Editing those files _is_ the work. See [README.md](README.md) for the
 consumer-facing install/dependency docs; this file is for editing the plugin.
 
 ## Layout
@@ -21,11 +21,11 @@ the trigger phrases, so keep it dense and example-heavy.
 
 ### Model + effort routing (deliberate — match the tier to the work)
 
-| Tier | Use for | Examples |
-|---|---|---|
-| `haiku` / `low` | Pure orchestration — resolve a target, shell out, hand off. No judgment. | `jira`, `confluence`, all 5 audit skills (the *agent* does any heavier work) |
-| `sonnet` / `low`–`medium` | Most skills: light judgment, drafting, git flows, board ops. | `git-commit`, `seo-audit`, `board-triage`, `figma-to-imagekit` |
-| `opus` / `high` | Long-form generation and critique where quality dominates cost. | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `press-release`, `brainstorm`, `grill` |
+| Tier                      | Use for                                                                  | Examples                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `haiku` / `low`           | Pure orchestration — resolve a target, shell out, hand off. No judgment. | `jira`, `confluence`, all 5 audit skills (the _agent_ does any heavier work)                    |
+| `sonnet` / `low`–`medium` | Most skills: light judgment, drafting, git flows, board ops.             | `git-commit`, `seo-audit`, `board-triage`, `figma-to-imagekit`                                  |
+| `opus` / `high`           | Long-form generation and critique where quality dominates cost.          | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `press-release`, `brainstorm`, `grill` |
 
 When you add or edit a skill, pick the cheapest tier that does the job. An orchestration-only
 skill set to `sonnet` is a routing bug (this is what was wrong with `a11y-scan`). If a skill says
@@ -42,7 +42,7 @@ the script is the source of truth.
 
 - **A skill's own bundled files** resolve through the robust resolver block (copied verbatim into
   each script-backed skill). It prefers `$CLAUDE_SKILL_DIR`, falls back to
-  `$CLAUDE_PLUGIN_ROOT/skills/<name>`, then to the newest *installed* copy that actually contains
+  `$CLAUDE_PLUGIN_ROOT/skills/<name>`, then to the newest _installed_ copy that actually contains
   the script. This boilerplate is **intentional** (`$CLAUDE_SKILL_DIR` isn't always exported under
   the headless worker) — do not "DRY it up" into a sourced helper; sourcing has the same
   chicken-and-egg path problem it exists to solve.

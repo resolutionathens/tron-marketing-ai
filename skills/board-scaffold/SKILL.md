@@ -18,12 +18,13 @@ every hat, tee, and banner. Git-free (it writes Jira issues) — **previews and 
 bulk-creates silently.
 
 ## Templates
-| Template | Sub-tasks |
-|---|---|
+
+| Template                                              | Sub-tasks                                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------- |
 | **creative-production** (default for swag/collateral) | Design · Design Approval · Order Logistics · Final Approval · Ordered · Delivered |
-| **print-collateral** | Design · Design Approval · Print Proof · Printed · Delivered |
-| **web-page** | Content · Design · Build · SEO review · QA · Publish |
-| **custom** | you provide the list |
+| **print-collateral**                                  | Design · Design Approval · Print Proof · Printed · Delivered                      |
+| **web-page**                                          | Content · Design · Build · SEO review · QA · Publish                              |
+| **custom**                                            | you provide the list                                                              |
 
 The board already follows the creative-production pattern — the **live MCR chain is six steps**: the
 swag tickets carry a **Final Approval** gate between Order Logistics and Ordered (verified on the
@@ -33,20 +34,24 @@ in practice ("Order Pins" vs "Totes Ordered", "Totebag Design" vs "Sticker Desig
 clean `<Item> <Step>` convention, but if the surrounding tickets use a different label, follow them.
 
 ## Flow
+
 1. **Resolve the parent:** `acli jira workitem view <PARENT> --json` — confirm project, item name,
    issue type (sub-tasks attach to a Story/Task/Epic per the project config).
 2. **Pick the template** (default creative-production) and the item label (e.g. "Beach Towel").
 3. **Preview** the exact sub-tasks to be created (titles, parent, assignee, any due dates) and get a
    single confirmation via **AskUserQuestion**.
 4. **Create** on confirmation:
+
 ```bash
 acli jira workitem create --project MCR --type Sub-task --parent <PARENT> \
   --summary "<Item> Design" [--assignee <id>] [--json]
 # ...one per template step
 ```
+
 5. **Report** the created keys as a checklist; offer to set the parent's links/priority.
 
 ## Rules
+
 - Never create without the explicit preview-and-confirm step. Creating Jira issues is outward-facing.
 - Match the project's real issue-type + field config (Sub-task requires a parent; check it exists).
 - Keep naming consistent with the board's convention (`<Item> <Step>`).
@@ -54,4 +59,5 @@ acli jira workitem create --project MCR --type Sub-task --parent <PARENT> \
 End with the list of created sub-task keys and the parent they hang under.
 
 ## Next step
+
 Once the chain exists, point the user at `tron:start-ticket <KEY>` to pick up the first sub-task (branch + worktree + In Progress transition in one move).

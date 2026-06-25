@@ -59,15 +59,15 @@ When delegating KICKOFF, pass `tron:start-ticket` an explicit instruction to ski
 
 Skill mapping:
 
-| Stage         | Skill name           |
-|---------------|----------------------|
-| INTAKE        | tron:jira            |
-| KICKOFF       | tron:start-ticket    |
-| COMMIT        | tron:git-commit      |
-| PROMOTE-DEV   | tron:git-dev         |
-| REVIEW        | tron:git-pr          |
-| PROMOTE-PROD  | tron:git-pushtoprod  |
-| CLEANUP       | tron:close-worktree  |
+| Stage        | Skill name          |
+| ------------ | ------------------- |
+| INTAKE       | tron:jira           |
+| KICKOFF      | tron:start-ticket   |
+| COMMIT       | tron:git-commit     |
+| PROMOTE-DEV  | tron:git-dev        |
+| REVIEW       | tron:git-pr         |
+| PROMOTE-PROD | tron:git-pushtoprod |
+| CLEANUP      | tron:close-worktree |
 
 After REVIEW or PROMOTE-PROD, optionally offer `tron:jira-comment` to post a short progress note (PR opened / shipped to prod) on the ticket.
 

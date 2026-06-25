@@ -37,12 +37,14 @@ Look at every modified, added, and deleted file. Understand what each change doe
 **Group by logical concern, not by file type or directory.** A component and its types file that serve the same feature belong in one commit. A config change and a component change that are unrelated belong in separate commits.
 
 Examples of good grouping:
+
 - A blog post `.md` file + its front matter image → one commit
 - A new component + its types + the page that uses it → one commit (they serve one feature)
 - A typo fix in a README + a dependency bump in package.json → two commits (unrelated)
 - A nav refactor touching 8 files → one commit (one concern, many files is fine)
 
 **When to split vs keep together:**
+
 - Split when changes serve genuinely different purposes — a bug fix mixed with a feature addition, content updates alongside tooling changes, etc.
 - Keep together when multiple files serve one purpose — even if they span directories. A rename touching 15 files is one commit. A feature touching a component, its composable, and a page is one commit.
 - When in doubt, fewer commits is better than too many. Over-splitting creates noise.
@@ -61,6 +63,7 @@ type(scope): description
 ```
 
 **Types:**
+
 - `feat` - New feature, component, or functionality
 - `fix` - Bug fix or error correction
 - `docs` - Documentation changes
@@ -72,6 +75,7 @@ type(scope): description
 Ensure each message accurately reflects the nature of its changes — "add" means a wholly new feature, "update" means an enhancement to an existing feature, "fix" means a bug fix.
 
 Rules:
+
 - Subject line under 70 characters
 - Focus on "why" not "what" (the code shows "what")
 - Use bullet points for multi-line descriptions
@@ -80,12 +84,14 @@ Rules:
 ## Step 4: Present plan for approval
 
 Use `AskUserQuestion` to show the full commit plan. For each proposed commit, show:
+
 - The commit message
 - The files included
 
 If there's only one commit, just show the message.
 
 The user can:
+
 - Approve the plan as-is
 - Edit messages, regroup files, merge groups, or split further
 - Provide replacement text via the free-text option
@@ -120,6 +126,7 @@ Run `git push` once after all commits are made.
 ## Step 7: Report
 
 Show a summary of all commits made:
+
 - Each commit hash and message (`git log --oneline -N` where N is the number of commits)
 - Push result
 - Brief confirmation

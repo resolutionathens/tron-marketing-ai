@@ -39,6 +39,7 @@ acli jira workitem search --jql '<JQL query>'
 ```
 
 Common JQL patterns:
+
 - `project = MD AND status = "In Progress"` — active work
 - `assignee = currentUser() AND status != Done` — my open tickets
 - `text ~ "search term"` — full-text search
@@ -80,7 +81,7 @@ acli jira workitem create \
 acli jira workitem edit --key MD-1234 --description-file /tmp/desc.adf.json --yes
 ```
 
-The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support). It handles: headings, **bold**, *italic*, `inline code`, fenced code blocks, bullet/numbered lists, links, blockquotes, horizontal rules. Tables and images aren't supported — if you need them, edit in the UI afterwards.
+The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support). It handles: headings, **bold**, _italic_, `inline code`, fenced code blocks, bullet/numbered lists, links, blockquotes, horizontal rules. Tables and images aren't supported — if you need them, edit in the UI afterwards.
 
 **Rule:** any time the ticket description is more than a line or two, or uses any markdown formatting, go through the helper. Never pass markdown directly via `-d`/`--description`.
 
@@ -97,10 +98,12 @@ The helper uses the `markdown-to-adf` npm package with the `story` preset (full 
 Running `acli` is cheap; the question is what comes back and what you do with it. Default to **inline** — most Jira work doesn't benefit from a subagent.
 
 **Delegate (Haiku/Sonnet) only when:**
+
 - **Batch triage** — a `search` returns many tickets and you need them ranked, filtered, or grouped. Fan out the triage so the raw JSON for 20+ tickets never lands in the main context.
 - **Inform-only on a noisy ticket** — `--fields '*all'` pulls a wall of metadata but the user just wants status + description. A subagent can distill and return the few useful fields.
 
 **Never delegate when:**
+
 - It's a **single-field lookup** (status, assignee) — the payload is tiny and subagent overhead dominates.
-- The main thread is **reading the ticket to act on it** (e.g. `tron:start-ticket`, `tron:news-item` consuming the ticket) — you need those fields *in* the main context, and a summarizing subagent strips exactly what you came for.
+- The main thread is **reading the ticket to act on it** (e.g. `tron:start-ticket`, `tron:news-item` consuming the ticket) — you need those fields _in_ the main context, and a summarizing subagent strips exactly what you came for.
 - It's a **write** (comment, transition, assign) — fast, stateful, and the user should see it happen in the main thread.

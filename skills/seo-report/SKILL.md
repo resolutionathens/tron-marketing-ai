@@ -32,11 +32,13 @@ rental-intent analysis, category breakdowns, high-impression queries):
   `sc-domain:facilitron.com`; periods `2w` / `1m` / `3m` / `6m`.
 
 ## 1. Get the report
+
 Ask which the user has. If they don't have one yet: non-technical → send them to seo.facilitron.work;
 engineer → run `/tron-report`. Then load the markdown (a pasted block, or a saved path) — that's the
 input for everything below.
 
 ## 2. Work with it
+
 - **Leadership summary** — condense to headline + the few things that matter, framed per the analyzer's
   c-suite guide (`/guide` / `docs/csuite-report-guide.md`). Always keep the **period comparison** the
   report carries; a summary without the delta is noise. Prose, no em dashes.
@@ -47,15 +49,18 @@ input for everything below.
   - File the work as Jira tasks via the manager's `tron:board-scaffold`, or note status with `tron:jira-comment`.
 
 ## 3. Optional GA4 context
+
 For traffic/conversion context the GSC report doesn't cover, use the **analytics MCP** (`run_report`,
 `run_realtime_report`) — sessions, engaged sessions, conversions, and landing-page/district
 segmentation (cf. MCR-335 district-level tracking). Keep this supplementary; GSC is the report's core.
 
 ## Rules
+
 - Don't reproduce what the analyzer already computes — get its output, don't rebuild it.
 - Don't fabricate numbers. Quote the report; if a section is missing, say so.
 - Preserve the period-over-period comparison in anything you hand off.
 
 ## Output
+
 A shareable summary (markdown, default `/tmp/seo/seo-report-<period>.md`) plus whichever deliverable was
 asked for, and a short list of the follow-up tasks the data warrants.

@@ -30,7 +30,8 @@ CSV="$(bash "$SKILL_DIR/scripts/site-audit.sh" "<target-url>" [--page|--full] [-
 ```
 
 **Scope modes (the script picks real `unlighthouse-ci` flags for you):**
-- *default (section)* — a target with a path audits only that section (regex-anchored
+
+- _default (section)_ — a target with a path audits only that section (regex-anchored
   `--include-urls`). A bare origin with no path audits the whole site.
 - `--page` — audit exactly that one URL, crawler disabled (`--urls`). Fully bounded, fastest.
 - `--full` — force a full-origin crawl even with a path. This is the only unbounded mode;
@@ -43,6 +44,7 @@ own — if you're unsure whether they want the section or the whole site, run th
 First run downloads Chromium (a few hundred MB) — expect a slow first pass.
 
 ## Parse & return
+
 Read the CSV path the script printed (its `ci-result.csv`). Columns: Performance, SEO,
 Accessibility, Best Practices (0–100), plus per-page LCP/CLS/TBT.
 Return: the lowest-scoring pages and the **biggest-impact opportunities grouped** (e.g.

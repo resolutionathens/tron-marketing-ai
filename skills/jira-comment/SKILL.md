@@ -69,5 +69,5 @@ If the body contains a single quote, swap the outer quoting to double quotes and
 - **Echoing the commit message.** The ticket already links to the PR; the comment shouldn't read like `feat(hero): add cover mode...`. Strip the prefix and rewrite in prose.
 - **Listing every change as bullets.** If you find yourself writing `- did X` `- did Y`, collapse them into a sentence: "We did X and Y."
 - **Em dashes anywhere.** Even one. Scan before posting.
-- **Restating the ticket.** If the ticket is "Add cover mode to hero," don't comment "Added cover mode to the hero." Tell them what's *new* since they filed it — that it's working, where to see it, anything they should know.
+- **Restating the ticket.** If the ticket is "Add cover mode to hero," don't comment "Added cover mode to the hero." Tell them what's _new_ since they filed it — that it's working, where to see it, anything they should know.
 - **Multi-paragraph essays.** If the update genuinely needs that much explanation, it probably wants a meeting or a Confluence page, not a Jira comment.

@@ -13,7 +13,7 @@ Fetch Confluence page content. **Always use `acli`** — it carries working auth
 
 **Requires:** `acli` (the Atlassian CLI, already authenticated against facilitron.atlassian.net).
 
-> Prefer `acli` here: it carries its own login, so there's no `ATLASSIAN_EMAIL`/`JIRA_API_TOKEN` setup and no basic-auth gotchas. The `curl` + `JIRA_API_TOKEN` REST path still works (it's what `tron:news-item` and `tron:guide-item` use to download image attachments through the `api.atlassian.com` gateway), but for simply *reading* a page `acli` is less fuss — reach for the token path only when you specifically need attachment bytes.
+> Prefer `acli` here: it carries its own login, so there's no `ATLASSIAN_EMAIL`/`JIRA_API_TOKEN` setup and no basic-auth gotchas. The `curl` + `JIRA_API_TOKEN` REST path still works (it's what `tron:news-item` and `tron:guide-item` use to download image attachments through the `api.atlassian.com` gateway), but for simply _reading_ a page `acli` is less fuss — reach for the token path only when you specifically need attachment bytes.
 
 ## Fast path (scripted)
 
@@ -50,9 +50,11 @@ faithful-markdown contract the conversion must honor.
 The user may provide:
 
 - **A tiny link** like `https://facilitron.atlassian.net/wiki/x/DYCR5Q` — resolve it by following the redirect:
+
   ```bash
   curl -sIL "https://facilitron.atlassian.net/wiki/x/DYCR5Q" | grep -i "location:"
   ```
+
   The final redirect contains the page ID in the URL path (e.g., `/pages/3851517965`). Extract the numeric ID.
 
 - **A full page URL** like `https://facilitron.atlassian.net/wiki/spaces/kimji/pages/3851517965/Page+Title` — extract the numeric ID from the path.

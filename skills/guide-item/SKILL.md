@@ -18,7 +18,7 @@ from the site's section/display components, plus a manual entry in the guides in
 The route is just the filename: `pages/resources/guides/preventive-maintenance-strategy.vue`
 serves at `/resources/guides/preventive-maintenance-strategy`.
 
-So this pipeline shares the *intake and image* stages with `tron:news-item`,
+So this pipeline shares the _intake and image_ stages with `tron:news-item`,
 but its core is **page composition**, not markdown authoring.
 
 ## What gets produced
@@ -47,7 +47,7 @@ but its core is **page composition**, not markdown authoring.
 ## Environment
 
 `JIRA_API_TOKEN` lives in `~/.env` (1Password) and is
-usually autosourced. If a command 401s or a token is unset, source them in the *same*
+usually autosourced. If a command 401s or a token is unset, source them in the _same_
 Bash call: `set -a; source ~/.env; set +a`.
 
 ---
@@ -169,7 +169,7 @@ URL. The OG image IS a full URL in `useDynamicMeta` (Stage 3).
 The guides index cards share one consistent illustration style (and the toolkit index
 cards use a very similar one). Don't hand-pick a random image — **generate the card with
 the `tron:gen-image` skill** (codex `image_gen`, set up on this machine) seeded with the
-*existing* guide cards so the new one matches the set's palette, framing, and scale.
+_existing_ guide cards so the new one matches the set's palette, framing, and scale.
 
 ```bash
 # 1. Find the existing cards + the next free number
@@ -254,19 +254,19 @@ sections, pull quote, and dark section flex to the content.
 
 ### Component palette (only what guides use)
 
-| Component | Key props | Notes |
-|---|---|---|
-| `SectionHeroProduct` | `eyebrow`*, `title`*, `description`, `ctaText`, `ctaLink`, `ctaVariant` (`primary-alt`\|`primary`\|`secondary`\|`tertiary`\|`inverse`), `backgroundColor`*, `backgroundImage`, `heroImage`, `heroImageAlt` | Full-bleed hero. Use `background-color="bg-tron-primary-600"` + `:background-image="IMAGEKIT_BG_GRID"`. `heroImage` is a provider path string (component renders it). |
-| `NavPillarSubnav` | `links`* (`[{id, label}]`), `ariaLabel` | Sticky TOC; each `id` must match a `BaseSection id`. |
-| `SectionIntro` | `headline`*, `eyebrow`, `description`, `headlineTag` (`h1`\|`h2`\|`h3`, default `h2`), `headlineStyle` (`h1`…`h4`), `textAlign` (default `center`) | Section header. Guides always use `headline-tag="h2" headline-style="h1"`. Has a `#description` slot for rich content. |
-| `DisplayFeatureCard` | `variant` (`default`\|`product`\|`alternative`\|`compact`\|`callout`), `icon` (lucide name), `title`, `description`, `accentColor`, `titleTag` | Workhorse card. `callout` = highlighted takeaway block (default slot for prose); `alternative` = light-blue grid card; `compact` = inline row (used in timelines/insets); `product` = large brand card with `eyebrow`/`ctaText`/`ctaLink`. |
-| `DisplayIconHeading` | `icon`*, `title`*, `tag` (default `h3`) | Icon-badge + heading row. Optional sugar for the inline icon+`h3` pattern. |
-| `SectionQuoteSimple` | `quote`*, `quotee`*, `position`, `location`, `backgroundColor`, `borderBottom` (default `true`), `image`, `imageAlt` | Pull quote. Use the `section/` one, NOT `content/QuoteSimple.vue`. |
-| `SectionAccordion` | `items`* (`[{question, answer}]`), `name` | FAQ; native `<details>`. Feed it `faqItems`. |
-| `SectionCtaProduct` | `title`*, `ctaText`*, `ctaLink`, `description`, `variant` (`dark`\|`dark-split`\|`dark-image`\|`blue`), `backgroundColor`* | A componentized CTA — an alternative to the raw mid-page CTA `<section>`. `title` is `v-html` — no untrusted input. |
-| `BaseSection` | `padding` (default `py-12`), `class`, `prose` (default `true`), `grid`, `columns`, `gap` | Section wrapper with prose styling. Standard content padding is `py-16 px-4`; first section `pt-16 px-4`. |
-| `BaseButton` | `variant` (`primary`\|`secondary`\|`tertiary`\|`inverse`\|`primary-alt`), `size` (`sm`\|`md`\|`lg`\|`xl`), `link`, `target` | Pill button. `iconOnly` requires an `aria-label`. |
-| `BaseEyebrow` | `color` (`primary`\|`primary-light`\|`secondary`\|`secondary-light`\|`accent`), `textAlign` | Standalone uppercase label (usually you get this via `SectionIntro`'s `eyebrow`). |
+| Component            | Key props                                                                                                                                                                                                   | Notes                                                                                                                                                                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SectionHeroProduct` | `eyebrow`_, `title`_, `description`, `ctaText`, `ctaLink`, `ctaVariant` (`primary-alt`\|`primary`\|`secondary`\|`tertiary`\|`inverse`), `backgroundColor`\*, `backgroundImage`, `heroImage`, `heroImageAlt` | Full-bleed hero. Use `background-color="bg-tron-primary-600"` + `:background-image="IMAGEKIT_BG_GRID"`. `heroImage` is a provider path string (component renders it).                                                                      |
+| `NavPillarSubnav`    | `links`\* (`[{id, label}]`), `ariaLabel`                                                                                                                                                                    | Sticky TOC; each `id` must match a `BaseSection id`.                                                                                                                                                                                       |
+| `SectionIntro`       | `headline`\*, `eyebrow`, `description`, `headlineTag` (`h1`\|`h2`\|`h3`, default `h2`), `headlineStyle` (`h1`…`h4`), `textAlign` (default `center`)                                                         | Section header. Guides always use `headline-tag="h2" headline-style="h1"`. Has a `#description` slot for rich content.                                                                                                                     |
+| `DisplayFeatureCard` | `variant` (`default`\|`product`\|`alternative`\|`compact`\|`callout`), `icon` (lucide name), `title`, `description`, `accentColor`, `titleTag`                                                              | Workhorse card. `callout` = highlighted takeaway block (default slot for prose); `alternative` = light-blue grid card; `compact` = inline row (used in timelines/insets); `product` = large brand card with `eyebrow`/`ctaText`/`ctaLink`. |
+| `DisplayIconHeading` | `icon`_, `title`_, `tag` (default `h3`)                                                                                                                                                                     | Icon-badge + heading row. Optional sugar for the inline icon+`h3` pattern.                                                                                                                                                                 |
+| `SectionQuoteSimple` | `quote`_, `quotee`_, `position`, `location`, `backgroundColor`, `borderBottom` (default `true`), `image`, `imageAlt`                                                                                        | Pull quote. Use the `section/` one, NOT `content/QuoteSimple.vue`.                                                                                                                                                                         |
+| `SectionAccordion`   | `items`\* (`[{question, answer}]`), `name`                                                                                                                                                                  | FAQ; native `<details>`. Feed it `faqItems`.                                                                                                                                                                                               |
+| `SectionCtaProduct`  | `title`_, `ctaText`_, `ctaLink`, `description`, `variant` (`dark`\|`dark-split`\|`dark-image`\|`blue`), `backgroundColor`\*                                                                                 | A componentized CTA — an alternative to the raw mid-page CTA `<section>`. `title` is `v-html` — no untrusted input.                                                                                                                        |
+| `BaseSection`        | `padding` (default `py-12`), `class`, `prose` (default `true`), `grid`, `columns`, `gap`                                                                                                                    | Section wrapper with prose styling. Standard content padding is `py-16 px-4`; first section `pt-16 px-4`.                                                                                                                                  |
+| `BaseButton`         | `variant` (`primary`\|`secondary`\|`tertiary`\|`inverse`\|`primary-alt`), `size` (`sm`\|`md`\|`lg`\|`xl`), `link`, `target`                                                                                 | Pill button. `iconOnly` requires an `aria-label`.                                                                                                                                                                                          |
+| `BaseEyebrow`        | `color` (`primary`\|`primary-light`\|`secondary`\|`secondary-light`\|`accent`), `textAlign`                                                                                                                 | Standalone uppercase label (usually you get this via `SectionIntro`'s `eyebrow`).                                                                                                                                                          |
 
 (`*` = required prop. Icons are `<Icon name="lucide:…" aria-hidden="true" />`.)
 
@@ -291,20 +291,29 @@ definePageMeta({
 });
 
 // Data arrays consumed by the template:
-const tocItems = [{ id: "introduction", label: "Introduction" }, /* one per BaseSection id */];
-const faqItems = [{ question: "…", answer: "…" }, /* … */];
-const ctaActions = [{ icon: "lucide:calendar-check", title: "Schedule a Demo", description: "…", link: "/demo-signup" }, /* 3 */];
+const tocItems = [
+  { id: "introduction", label: "Introduction" } /* one per BaseSection id */,
+];
+const faqItems = [{ question: "…", answer: "…" } /* … */];
+const ctaActions = [
+  {
+    icon: "lucide:calendar-check",
+    title: "Schedule a Demo",
+    description: "…",
+    link: "/demo-signup",
+  } /* 3 */,
+];
 // plus any domain arrays for grids/timelines, all flat: { icon, title, description }
 
 const route = useRoute();
 const title = "The Complete Guide To …";
-const description = "…";   // keyword-rich, ~150–160 chars
+const description = "…"; // keyword-rich, ~150–160 chars
 
 useDynamicMeta(
   title,
   description,
   route.path,
-  "https://ik.imagekit.io/facilitron/og/og-<slug>.webp",   // full OG URL
+  "https://ik.imagekit.io/facilitron/og/og-<slug>.webp", // full OG URL
 );
 ```
 

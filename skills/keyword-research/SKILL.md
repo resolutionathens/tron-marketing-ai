@@ -17,6 +17,7 @@ Build a **keyword map** for a topic or page: clusters by intent, mapped to targe
 quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and content drafting.
 
 ## Method
+
 1. **Seed** — start from the product/topic, competitor pages, and the page's current rankings.
 2. **Real data first (when you can reach it)** — pull existing queries (impressions/position) from
    Search Console via `/tron-report`; queries on page 2 (positions 11–20) are the quick-win pool.
@@ -37,13 +38,19 @@ quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and con
    (cannibalization).
 
 ## Output
+
 ```markdown
 # Keyword map — <topic/page>
-## Primary targets        | page | primary kw | intent | est. difficulty | current pos |
-## Clusters               grouped supporting terms per page
-## Quick wins             page-2 queries to push (pos 11–20)
-## Gaps                   intents/terms with no page yet → content ideas
+
+## Primary targets | page | primary kw | intent | est. difficulty | current pos |
+
+## Clusters grouped supporting terms per page
+
+## Quick wins page-2 queries to push (pos 11–20)
+
+## Gaps intents/terms with no page yet → content ideas
 ```
+
 Write `/tmp/seo/keyword-map-<slug>.md`. Hand quick wins to `tron:landing-page-seo`; hand content
 gaps to the content role (`tron:case-study` / `tron:guide-item`). Summarize the primary targets +
 top 3 quick wins.

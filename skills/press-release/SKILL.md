@@ -18,6 +18,7 @@ Draft a clean, standard-format **press release** from an announcement brief. Git
 review-ready markdown draft. Serves the MCR "Press Releases" and "Media Outreach" initiatives.
 
 ## Inputs
+
 - The announcement: what, who, when, why it matters. Pull from the Jira ticket
   (`acli jira workitem view <KEY> --json`) and any Confluence brief (`tron:confluence`).
 - **Boilerplate + media contact are standing assets — source them, don't leave them blank.** Pull the
@@ -28,12 +29,13 @@ review-ready markdown draft. Serves the MCR "Press Releases" and "Media Outreach
 
   > **About Facilitron** — Facilitron is a facility scheduling, rental, and management platform that
   > helps school districts and public agencies open their spaces to the community, streamline
-  > reservations and payments, and recover revenue. Learn more at facilitron.com. *(confirm — standing
-  > boilerplate)*
+  > reservations and payments, and recover revenue. Learn more at facilitron.com. _(confirm — standing
+  > boilerplate)_
 
 - Approved quotes (exec, partner, customer). These are the genuine `TODO` — don't fabricate them.
 
 ## Standard structure
+
 ```
 FOR IMMEDIATE RELEASE
 
@@ -61,14 +63,17 @@ newsworthy first (inverted pyramid).>
 ```
 
 ## Drafting rules
+
 - Inverted pyramid: the news leads, detail follows.
 - **No em dashes**; AP-ish style; third person; no marketing superlatives in the body.
 - Don't fabricate quotes or numbers. Missing quote/stat → `> TODO:` and ask with **AskUserQuestion**
   for the few that matter.
 
 ## Output + handoff
+
 Write to `/tmp/content/<slug>-press-release.md`. Offer:
+
 - `tron:grill` for a credibility pass before it goes out.
 - `tron:md-to-pdf` for a distributable PDF.
 - Posting to the web newsroom → `tron:news-item` (needs a git user).
-Confirm before any outward step. Summarize the angle + any `TODO:` gaps.
+  Confirm before any outward step. Summarize the angle + any `TODO:` gaps.

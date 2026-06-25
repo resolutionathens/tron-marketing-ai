@@ -25,6 +25,7 @@ bash "$SKILL_DIR/scripts/optimize-images.sh" "<target>" --mode "<mode>" --qualit
 ```
 
 ## Modes (the script maps these to the correct per-format tool)
+
 - **default** — PNG→pngquant (`.png`), JPEG→cwebp (`.webp`), WebP→cwebp (`.webp`). Regression-safe for PNGs.
 - **to-webp** — convert everything (incl. PNG) to `.webp` at the quality high-end.
 - **same-format** — keep each extension: PNG→pngquant, JPEG→jpegoptim, WebP→cwebp.
@@ -35,6 +36,7 @@ WebP output is capped at a 2000px longest edge for web-readiness (`--max-dim N`,
 PNGs keep their dimensions). The run is parallel (`--jobs N`, default = CPU count, max 8).
 
 ## Tooling notes (the script handles these — just relay them)
+
 - **pngquant** is PNG-only. **cwebp** reads JPEG/PNG but only writes `.webp`. Keeping a `.jpg`
   needs **jpegoptim**. If a needed tool is missing, the file is **skipped** with a
   `brew install …` hint — the run does not fail.
@@ -43,6 +45,7 @@ PNGs keep their dimensions). The run is parallel (`--jobs N`, default = CPU coun
   original and reported as skipped ("no gain") — the table never shows a negative saving.
 
 ## Return (your final message IS the result)
+
 Relay the script's markdown savings table verbatim — per file (Format | Output | Original |
 Optimized | Savings), the Total row, any skipped files (with the reason/hint), and the output
 directory path. Don't re-run or second-guess it.

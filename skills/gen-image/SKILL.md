@@ -18,12 +18,14 @@ tron:gen-image <sources> [subject description]
 ```
 
 Where `<sources>` is one of:
+
 - A folder path — auto-samples up to 5 representative images from it
 - One or more image file paths (jpg, jpeg, png, webp)
 
 And `subject description` is optional text describing what the new image should depict. If omitted, codex will generate a scene similar in subject matter to the references.
 
 **Examples:**
+
 ```
 tron:gen-image ~/Downloads/padma-pics/
 tron:gen-image ~/Downloads/padma-pics/ a woman reading at a café

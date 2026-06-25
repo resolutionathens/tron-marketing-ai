@@ -24,7 +24,7 @@ Check a design asset or rendered page against the Facilitron brand system and re
 2. **Typography** — type families/weights vs the brand type system; flags non-brand fonts.
 3. **Logo usage** — correct lockup, 1-color vs full-color, adequate clear-space, not stretched/recolored.
 4. **WCAG color contrast** — text/!UI contrast ratios against AA (4.5:1 body, 3:1 large/UI). This is
-   the same lens as the ADA work — for a *live page*, defer to `/a11y-scan` for the full automated pass.
+   the same lens as the ADA work — for a _live page_, defer to `/a11y-scan` for the full automated pass.
 
 ## Inputs
 
@@ -69,11 +69,11 @@ specific failing pair (e.g. breadcrumb link on background — cf. MCR-348).
 
 A findings report grouped by category:
 
-| Category | Finding | Where | Severity | Fix |
-|---|---|---|---|---|
-| Palette | `#1F4FD8` is not a brand token (nearest: `tron-blue` `#2563EB`) | hero CTA | medium | snap to `tron-blue` |
-| Contrast | breadcrumb link 3.1:1 on `#F5F5F5` (AA needs 4.5:1) | /support | high | darken link to ≥`#5A6B8C` |
-| Logo | logo recolored to white on light bg | footer | high | use full-color lockup |
+| Category | Finding                                                         | Where    | Severity | Fix                       |
+| -------- | --------------------------------------------------------------- | -------- | -------- | ------------------------- |
+| Palette  | `#1F4FD8` is not a brand token (nearest: `tron-blue` `#2563EB`) | hero CTA | medium   | snap to `tron-blue`       |
+| Contrast | breadcrumb link 3.1:1 on `#F5F5F5` (AA needs 4.5:1)             | /support | high     | darken link to ≥`#5A6B8C` |
+| Logo     | logo recolored to white on light bg                             | footer   | high     | use full-color lockup     |
 
 End with a one-line verdict: **on-brand** / **needs fixes (N high, M medium)**. If the user wants the
 findings on the ticket, offer `tron:jira-comment` (confirm before posting).

@@ -18,36 +18,45 @@ Draft a tight one-page **sell sheet** for a Facilitron product or feature, struc
 cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 
 ## Inputs
+
 - The product/feature (Works, Tickets, Streaming, DevFees…) and target audience (district admins,
   renters, athletic directors). Pull context from the Jira ticket + `tron:confluence`.
 - Proof points: metrics, customer names, integrations. Real ones only.
 
 ## Structure (fits one page)
+
 ```markdown
 # <Product> — <one-line positioning>
+
 > <Subhead: the core benefit in a sentence.>
 
 ## Why <Product>
+
 - <Value prop 1 — benefit, not feature>
 - <Value prop 2>
 - <Value prop 3>
 
 ## How it works
-1. <Step> 2. <Step> 3. <Step>   (keep to 3)
+
+1. <Step> 2. <Step> 3. <Step> (keep to 3)
 
 ## Proof
+
 <1–2 metrics or a short customer quote.>
 
 ## Get started
+
 <CTA + contact / URL>
 ```
 
 ## Drafting rules
+
 - One page. Ruthless: 3 value props, 3 steps, 1 proof block.
 - Benefits over features. **No em dashes.** No unsupported claims (flag gaps with `> TODO:`).
 - Use **AskUserQuestion** only for audience + the single primary CTA if unclear.
 
 ## Handoff
+
 Write to `/tmp/content/<slug>-onesheet.md`, then render with **`tron:md-to-pdf`** for the branded PDF.
 If it needs a hero/visual, route imagery through `tron:gen-image` or `tron:figma-to-imagekit`
 (designer). Confirm before producing the final PDF. Summarize the positioning + any `TODO:` gaps.

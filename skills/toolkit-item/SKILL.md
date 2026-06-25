@@ -169,13 +169,13 @@ Schema source: `content.config.ts` `toolkit` collection. **Required:** `title`, 
 
 **Internal links — verify each one before saving.** This is the #1 build-breaking pitfall. Common landing pages:
 
-| Want to link to | Correct path | Notes |
-| --- | --- | --- |
-| Facilitron Works product | `/product/works` | has `index.vue` |
+| Want to link to                   | Correct path                                      | Notes                                                                                                |
+| --------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Facilitron Works product          | `/product/works`                                  | has `index.vue`                                                                                      |
 | Scheduling & Reservations product | `/product/facilitron-scheduling-and-reservations` | the directory `/product/scheduling-and-reservations/` has **no index page** — linking there is a 404 |
-| Building Automation Systems | `/product/scheduling-and-reservations/bas` | exists |
-| Facilitron FIT | `/product/facilitron-fit` | |
-| Other toolkit items | `/resources/toolkit/<slug>` | |
+| Building Automation Systems       | `/product/scheduling-and-reservations/bas`        | exists                                                                                               |
+| Facilitron FIT                    | `/product/facilitron-fit`                         |                                                                                                      |
+| Other toolkit items               | `/resources/toolkit/<slug>`                       |                                                                                                      |
 
 When unsure, run `find pages -type f -name "*.vue" | grep -i <keyword>` against the marketing-pages repo to confirm.
 
@@ -191,7 +191,7 @@ lychee --no-progress --cache --max-cache-age 1d --accept 200,206,429 content/res
 
 Note on flags: `--exclude-mail` is **not** a valid flag in the installed lychee — it errors out. Mail links aren't a concern for toolkit markdown anyway, so just omit it. `--base` is deprecated; use `--base-url` instead.
 
-Rationale: catches typos in internal paths and dead external links *before* they're embedded in the PDF artifact. Internal `/product/...` and `/resources/...` paths resolve as relative URLs without a base — that's expected and lychee will report them as `Cannot find file` rather than a 404. Either re-run with `--base-url https://www.facilitron.com` to verify those, or rely on the manual check from step 2's link table.
+Rationale: catches typos in internal paths and dead external links _before_ they're embedded in the PDF artifact. Internal `/product/...` and `/resources/...` paths resolve as relative URLs without a base — that's expected and lychee will report them as `Cannot find file` rather than a 404. Either re-run with `--base-url https://www.facilitron.com` to verify those, or rely on the manual check from step 2's link table.
 
 If lychee flags external links as 403/999 (anti-bot blocks), they're usually fine — note them but don't block on them. Hard 404s, DNS failures, and any internal path mistakes must be fixed before continuing.
 
@@ -216,6 +216,7 @@ Strip these from the temp file even though they live on the web page: the lead-i
 Build the PDF via the `tron:md-to-pdf` skill. **Default to its LaTeX path** (copy `template.tex`, author the content, run `xelatex`) — for toolkit items in particular it produces a much cleaner artifact than the pandoc-from-markdown path. Templates with fillable forms and checklists with multi-column tables should always go LaTeX; the pandoc path is only worth it for a short prose-only SOP.
 
 The pandoc fallback, if you do use it, is the `tron:md-to-pdf` skill's `build.ts` (it lives in the **md-to-pdf** skill dir, not this one). Resolve that dir robustly rather than assuming an env var:
+
 ```bash
 m=md-to-pdf
 MDP_DIR="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$m}"
@@ -282,6 +283,7 @@ Don't remove anything in `content/resources/toolkit/` — only the unstructured 
 ### 7. Verify and report
 
 Tell the user:
+
 - Path of the new toolkit markdown file
 - ImageKit URLs for the PDF and image (so they can sanity-check)
 - A short test plan they can run on dev: load `/resources/toolkit`, click the new card, click Download PDF

@@ -19,13 +19,14 @@ Handles **PNG, JPEG/JPG, and WebP** in a single run, picking the right tool per 
 1. **Resolve the target:** a file, directory (searched recursively for `*.{png,jpg,jpeg,webp}`), or glob. Convert to an absolute path.
 2. **Pick the mode** (pass to the runner):
    - **default** — PNG stays PNG (pngquant), JPEG → `.webp` (best savings for photos), WebP re-encoded. This is the right choice for "compress these photos for web."
-   - **`to-webp`** — convert *everything* (incl. PNG) to `.webp`.
+   - **`to-webp`** — convert _everything_ (incl. PNG) to `.webp`.
    - **`same-format`** — keep every file's original extension (JPEG handled by jpegoptim).
    - Default quality is web (`65-80`); honor a different range if asked.
 3. **Delegate to `optimize-images-runner`** (Task tool): "Optimize the images at `<target>` (mode `<default|to-webp|same-format>`, quality `<range>`). Return the savings table."
 4. **Relay the runner's savings table** (per-file format + output format + savings, total, any skipped).
 
 ## Notes
+
 - Default output is `<source>/optimized/` mirroring source structure; pass `--out` for a different dir.
 - **pngquant** is PNG-only; **cwebp** reads JPEG/PNG but only writes `.webp`; keeping a `.jpg` needs **jpegoptim**. A missing tool degrades gracefully (the file is skipped with a `brew install …` hint) — the run never hard-fails.
 - Already-optimized PNGs (pngquant exit 99) keep the original and are reported as skipped, not errors.

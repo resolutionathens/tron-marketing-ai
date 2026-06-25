@@ -12,22 +12,22 @@ Facilitron repos independently of any single project checkout.
 
 ## What's inside
 
-| Group | Skills |
-|---|---|
-| **Ticket intake** | `tron:jira`, `tron:jira-comment`, `tron:confluence` |
-| **Git lifecycle** | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator) |
-| **Content pipelines** | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item` |
-| **Assets & media** | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf` |
-| **Preview & deploy** | `tron:preview-page`, `tron:preview-url`, `tron:gh` |
-| **CI / pipelines** | `tron:circleci` (list/watch pipelines, fetch logs, validate `.circleci/config.yml`) |
-| **Thinking & meetings** | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap` (transcript → recap + action items), `tron:weekly-update` (Jira-first weekly status email → clipboard) |
-| **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast) |
-| **Content drafting** (git-free) | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet` |
-| **SEO** (git-free) | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (work with the seo.facilitron.work GSC report) |
-| **Manager / board** (git-free) | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold` |
-| **Video** (git-free) | `tron:video-brief` (brief + script + shot list), `tron:video-publish` (YouTube/social publishing kit) |
-| **Social** (git-free) | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights) |
-| **Audits & QA** (read-only) | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:link-check` (broken links), `tron:prose-lint` (prose/style), `tron:site-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
+| Group                                | Skills                                                                                                                                                                                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:confluence`                                                                                                                                                                                                                                     |
+| **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
+| **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
+| **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
+| **Preview & deploy**                 | `tron:preview-page`, `tron:preview-url`, `tron:gh`                                                                                                                                                                                                                                      |
+| **CI / pipelines**                   | `tron:circleci` (list/watch pipelines, fetch logs, validate `.circleci/config.yml`)                                                                                                                                                                                                     |
+| **Thinking & meetings**              | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap` (transcript → recap + action items), `tron:weekly-update` (Jira-first weekly status email → clipboard)                                                                                             |
+| **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast)                                                                                                                                                      |
+| **Content drafting** (git-free)      | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet`                                                                                                                                                                                                         |
+| **SEO** (git-free)                   | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (work with the seo.facilitron.work GSC report)                                                                                                                                                    |
+| **Manager / board** (git-free)       | `tron:board-triage`, `tron:initiative-report`, `tron:board-scaffold`                                                                                                                                                                                                                    |
+| **Video** (git-free)                 | `tron:video-brief` (brief + script + shot list), `tron:video-publish` (YouTube/social publishing kit)                                                                                                                                                                                   |
+| **Social** (git-free)                | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights)                                                                                                                                                                           |
+| **Audits & QA** (read-only)          | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:link-check` (broken links), `tron:prose-lint` (prose/style), `tron:site-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
 
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
 (`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
@@ -43,9 +43,11 @@ Add the marketplace and enable the plugin in the consumer repo's `.claude/settin
 ```jsonc
 {
   "extraKnownMarketplaces": {
-    "tron": { "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" } }
+    "tron": {
+      "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" },
+    },
   },
-  "enabledPlugins": { "tron@tron": true }
+  "enabledPlugins": { "tron@tron": true },
 }
 ```
 
@@ -105,27 +107,27 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 ### Command-line tools
 
-| Tool | Install (macOS) | Needed by |
-|---|---|---|
-| **acli** (Atlassian CLI) | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
-| **tmux** (terminal multiplexer) | `brew install tmux` | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket` |
-| **agent-browser** (headless browser CLI) | `npm i -g agent-browser` | `preview-page` (self-verification: errors/DOM/screenshots) |
-| **gh** (GitHub CLI) | `brew install gh` → `gh auth login` | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket` |
-| **bun** | `brew install oven-sh/bun/bun` | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item` |
-| **node** (Node.js) | `brew install node` | ImageKit CLI consumers + `preview-page`, `md-to-pdf` |
-| **lychee** (link checker) | `brew install lychee` | `news-item`, `toolkit-item`, `guide-item`, `link-check` |
-| **pa11y / axe** (a11y scanners) | `npm i -g pa11y pa11y-ci @axe-core/cli` | `a11y-scan` |
-| **vale** (prose linter) | `brew install vale` | `prose-lint` |
-| **unlighthouse** (site Lighthouse) | `npx unlighthouse` (no install; downloads Chromium on first run) | `site-audit` |
-| **pngquant** (PNG compressor) | `brew install pngquant` | `optimize-images` |
-| **pandoc** | `brew install pandoc` | `md-to-pdf` (pandoc fallback path) |
-| **xelatex** (BasicTeX/MacTeX) | `brew install --cask basictex` (+ `tlmgr install` extras) | `md-to-pdf` (preferred LaTeX path) |
-| **Playwright + Chromium** | per-skill: `(cd $CLAUDE_SKILL_DIR && bun i && bunx playwright install chromium)` | `preview-page` (headless/responsive shots) |
-| **codex** (OpenAI Codex CLI) | `npm i -g @openai/codex` → `codex login` | `gen-image`, `guide-item`, `toolkit-item` (card images) |
-| **jq** | `brew install jq` | `gh`, `preview-url`, `start-ticket` |
-| **webp / cwebp** | `brew install webp` | image fallback for `news-item`, `guide-item`, `toolkit-item` (primary path uses Bun's built-in `Bun.Image` — no install) |
-| **librsvg / rsvg-convert** | `brew install librsvg` | `md-to-pdf` (only to regenerate the logo PNG — rare) |
-| **ripgrep (rg)** | `brew install ripgrep` | recommended for the internal-link `find`/grep checks |
+| Tool                                     | Install (macOS)                                                                           | Needed by                                                                                                                |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item`           |
+| **tmux** (terminal multiplexer)          | `brew install tmux`                                                                       | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket`                                                         |
+| **agent-browser** (headless browser CLI) | `npm i -g agent-browser`                                                                  | `preview-page` (self-verification: errors/DOM/screenshots)                                                               |
+| **gh** (GitHub CLI)                      | `brew install gh` → `gh auth login`                                                       | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket`                                           |
+| **bun**                                  | `brew install oven-sh/bun/bun`                                                            | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item`                                                   |
+| **node** (Node.js)                       | `brew install node`                                                                       | ImageKit CLI consumers + `preview-page`, `md-to-pdf`                                                                     |
+| **lychee** (link checker)                | `brew install lychee`                                                                     | `news-item`, `toolkit-item`, `guide-item`, `link-check`                                                                  |
+| **pa11y / axe** (a11y scanners)          | `npm i -g pa11y pa11y-ci @axe-core/cli`                                                   | `a11y-scan`                                                                                                              |
+| **vale** (prose linter)                  | `brew install vale`                                                                       | `prose-lint`                                                                                                             |
+| **unlighthouse** (site Lighthouse)       | `npx unlighthouse` (no install; downloads Chromium on first run)                          | `site-audit`                                                                                                             |
+| **pngquant** (PNG compressor)            | `brew install pngquant`                                                                   | `optimize-images`                                                                                                        |
+| **pandoc**                               | `brew install pandoc`                                                                     | `md-to-pdf` (pandoc fallback path)                                                                                       |
+| **xelatex** (BasicTeX/MacTeX)            | `brew install --cask basictex` (+ `tlmgr install` extras)                                 | `md-to-pdf` (preferred LaTeX path)                                                                                       |
+| **Playwright + Chromium**                | per-skill: `(cd $CLAUDE_SKILL_DIR && bun i && bunx playwright install chromium)`          | `preview-page` (headless/responsive shots)                                                                               |
+| **codex** (OpenAI Codex CLI)             | `npm i -g @openai/codex` → `codex login`                                                  | `gen-image`, `guide-item`, `toolkit-item` (card images)                                                                  |
+| **jq**                                   | `brew install jq`                                                                         | `gh`, `preview-url`, `start-ticket`                                                                                      |
+| **webp / cwebp**                         | `brew install webp`                                                                       | image fallback for `news-item`, `guide-item`, `toolkit-item` (primary path uses Bun's built-in `Bun.Image` — no install) |
+| **librsvg / rsvg-convert**               | `brew install librsvg`                                                                    | `md-to-pdf` (only to regenerate the logo PNG — rare)                                                                     |
+| **ripgrep (rg)**                         | `brew install ripgrep`                                                                    | recommended for the internal-link `find`/grep checks                                                                     |
 
 `git`, `curl`, and `sips` ship with macOS — no install needed.
 
@@ -164,12 +166,12 @@ Copy [`.env.example`](.env.example) and fill in your own values. These usually l
 `set -a; source ~/.env; set +a` if a token is missing. You can equally export them in
 your shell or add them to your `marketing-pages/.env.local`.
 
-| Var | Used for |
-|---|---|
-| `ATLASSIAN_EMAIL` | Confluence REST basic auth (attachment downloads); falls back to `git config user.email` |
-| `JIRA_API_TOKEN` | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`) |
-| `CONFLUENCE_CLOUD_ID` | *(optional)* override the Confluence cloud ID — defaults to Facilitron's instance |
-| `CONFLUENCE_BASE` | *(optional)* override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
+| Var                   | Used for                                                                                                 |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| `ATLASSIAN_EMAIL`     | Confluence REST basic auth (attachment downloads); falls back to `git config user.email`                 |
+| `JIRA_API_TOKEN`      | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`)                    |
+| `CONFLUENCE_CLOUD_ID` | _(optional)_ override the Confluence cloud ID — defaults to Facilitron's instance                        |
+| `CONFLUENCE_BASE`     | _(optional)_ override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 
 - **1Password** (app + optional `op` CLI, `brew install 1password-cli`) populates `~/.env`.
   If a skill reports a token is unset, the 1Password agent likely isn't running.

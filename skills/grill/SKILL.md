@@ -15,8 +15,8 @@ allowed-tools:
 `/brainstorm` is open-ended ideation. `/grill` is the opposite: take an existing piece of content and find
 every weak spot before a reviewer — or a customer — does. It is the substance critique that sits alongside
 the mechanical gates: `/prose-lint` catches style and terminology, `/link-check` catches broken
-links, `/code-review` catches code bugs. `/grill` asks the harder question — *is this argument sound,
-specific, and complete?*
+links, `/code-review` catches code bugs. `/grill` asks the harder question — _is this argument sound,
+specific, and complete?_
 
 ## When to use
 
@@ -33,7 +33,7 @@ specific, and complete?*
 - You only want a link audit — use `/link-check`
 - The artifact is code — use `/code-review`
 
-> **`/grill` vs the gates:** `/grill` finds weakness in the *substance*. The gates check *mechanics*. Run
+> **`/grill` vs the gates:** `/grill` finds weakness in the _substance_. The gates check _mechanics_. Run
 > `/grill` to make the argument stronger; run the gates to confirm it's clean. Most pieces want both.
 
 ## Prerequisites
@@ -61,22 +61,22 @@ If the type is ambiguous, ask the user before grilling — the checklist is type
 
 Apply the four dimensions from `references/grill-me.md`. Write findings down as you go — don't filter yet.
 
-| Dimension | What It Surfaces |
-|---|---|
-| **Assumption Audit** | Claims stated as fact with no source — "districts want X," "everyone knows," "best practice," uncited stats |
-| **Specificity Check** | Vague language pretending to be precise — "streamline," "powerful," "easy," benefits with no proof point or number |
-| **Edge Case Sweep** | Missing angles — a persona the piece ignores, an objection it never answers, a claim that doesn't hold for part of the audience, an empty/failure state in a how-to |
-| **Reviewer Lens** | What would each reviewer push back on? Walk SEO, brand/voice, legal/compliance, and the target persona (see framework) |
+| Dimension             | What It Surfaces                                                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Assumption Audit**  | Claims stated as fact with no source — "districts want X," "everyone knows," "best practice," uncited stats                                                         |
+| **Specificity Check** | Vague language pretending to be precise — "streamline," "powerful," "easy," benefits with no proof point or number                                                  |
+| **Edge Case Sweep**   | Missing angles — a persona the piece ignores, an objection it never answers, a claim that doesn't hold for part of the audience, an empty/failure state in a how-to |
+| **Reviewer Lens**     | What would each reviewer push back on? Walk SEO, brand/voice, legal/compliance, and the target persona (see framework)                                              |
 
 ### Step 3 — Prioritize Findings
 
 Sort into three buckets:
 
-| Severity | Definition | Action |
-|---|---|---|
-| 🔴 **Blocker** | Will cause rework or a reviewer/customer to reject — wrong audience, unsupported claim, factual risk | Fix before publish |
-| 🟡 **Concern** | Should address but won't block — a weak section, a thin proof point | Note and address if time allows |
-| 🟢 **Polish** | Minor sharpening, optional | Backlog |
+| Severity       | Definition                                                                                           | Action                          |
+| -------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------- |
+| 🔴 **Blocker** | Will cause rework or a reviewer/customer to reject — wrong audience, unsupported claim, factual risk | Fix before publish              |
+| 🟡 **Concern** | Should address but won't block — a weak section, a thin proof point                                  | Note and address if time allows |
+| 🟢 **Polish**  | Minor sharpening, optional                                                                           | Backlog                         |
 
 ### Step 4 — Produce the Grill Memo
 
@@ -87,7 +87,7 @@ read-and-critique skill — it writes the memo and nothing else; it does not edi
 ---
 status: complete
 created: YYYY-MM-DD
-artifact_grilled: {file path or "pasted content"}
+artifact_grilled: { file path or "pasted content" }
 artifact_type: News article | Guide | Toolkit SOP | Landing copy | Brief | Email/Social
 verdict: Ship-ready | Needs Iteration | Pull Back
 ---
@@ -98,9 +98,11 @@ verdict: Ship-ready | Needs Iteration | Pull Back
 **Artifact:** {path} ({type})
 
 ## TL;DR
+
 {2 sentences: the most important weakness, and the recommended next step.}
 
 ## 🔴 Blockers
+
 1. **{Issue title}**
    - **What's wrong:** {specific finding}
    - **Why it matters:** {who pushes back, what breaks downstream}
@@ -108,15 +110,19 @@ verdict: Ship-ready | Needs Iteration | Pull Back
    - **Where:** {section / heading / line}
 
 ## 🟡 Concerns
+
 - {issue} — {1-line rationale}
 
 ## 🟢 Polish
+
 - {minor sharpening opportunity}
 
 ## What I Did NOT Find Issues With
+
 {Brief callout of what's strong — keeps the critique calibrated and prevents nitpicking everything.}
 
 ## Next Step
+
 - **Ship-ready:** run the mechanical gates (`/prose-lint`, `/link-check`) and publish via the
   right content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`).
 - **Needs Iteration:** address blockers, then re-run `/grill` or move to the gates.
@@ -138,7 +144,7 @@ verdict: Ship-ready | Needs Iteration | Pull Back
 - ❌ Skip the "What I Did NOT Find Issues With" section — it forces calibrated critique
 - ❌ Recommend solutions you haven't pressure-tested — propose direction, not a detailed rewrite
 - ❌ Run on a draft that doesn't exist yet — that's `/brainstorm`'s job
-- ❌ Duplicate the mechanical gates — don't flag style nits (Vale's job) or broken links (lychee's job); grill the *substance*
+- ❌ Duplicate the mechanical gates — don't flag style nits (Vale's job) or broken links (lychee's job); grill the _substance_
 - ❌ Edit the artifact — `/grill` produces a memo; the human (or a content skill) applies the fixes
 
 ## Parallelization

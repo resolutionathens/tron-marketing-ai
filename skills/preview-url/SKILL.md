@@ -40,6 +40,7 @@ GitHub Pages) resolves the branch's preview URL via `gh`. One JSON line on stdou
 ```
 
 Read the result, then act:
+
 - **`url` present** → hand it to the user (lead with the URL); offer `/agent-browser`.
 - **`target":"cf-workers"`** → there is no per-PR preview; say so up front (dev server or merge-to-prod).
 - **`target":"circleci"`** → look the branch up in the **marketing-pages branch→URL table** under "Recipes by target › CircleCI" below. That table is the first-class answer — consult it **before** hitting the CircleCI API or grepping a job log. (The script intentionally doesn't hardcode Facilitron bucket URLs, but the skill prose does; `/circleci` carries the same table plus deploy-target/bucket detail.)
@@ -59,17 +60,17 @@ REPO="${REPO:-$(pwd)}"
 BRANCH="${BRANCH:-$(git -C "$REPO" rev-parse --abbrev-ref HEAD)}"
 ```
 
-| Signal in `$REPO`                                                                                          | Deploy target              | URL source of truth                                                          |
-|-----------------------------------------------------------------------------------------------------------|----------------------------|------------------------------------------------------------------------------|
-| `vercel.json` OR Vercel GH App configured                                                                  | **Vercel**                 | `gh api repos/:owner/:repo/deployments?ref=$BRANCH&environment=Preview`       |
-| `netlify.toml`                                                                                             | **Netlify**                | Same `gh api` deployments query                                              |
-| `fly.toml`                                                                                                 | **Fly.io**                 | `flyctl status -a <app-name>` or `https://<app-name>.fly.dev`                |
-| `wrangler.{toml,jsonc}` AND the file contains `pages_build_output_dir` OR `[env.preview]` AND `pages_…`     | **Cloudflare Pages**       | `gh api .../deployments?environment=Preview` OR `wrangler pages deployment list --project-name=<name>` |
-| `wrangler.{toml,jsonc}` AND no Pages markers (the common Workers case)                                     | **Cloudflare Workers**     | **No per-branch preview URL exists.** Workers deploys overwrite production. See "Workers gotcha" below. |
-| `.circleci/config.yml`                                                                                     | **CircleCI** (deploy-anywhere) | Branch → fixed URL mapping for known repos; otherwise CircleCI job log grep |
-| `.github/workflows/*.yml` containing `pages-build-deployment`, `actions/deploy-pages`, or similar          | **GitHub Pages**           | `gh api .../deployments?environment=github-pages`                            |
-| Any `.github/workflows/*.yml` with `cloudflare/wrangler-action` deploying on PR (not just push to master)  | Cloudflare Workers w/ PR-aware deploy | Read the workflow log for the printed URL — see "Workflow log grep" below   |
-| **None of the above**                                                                                      | Unknown                    | Ask the user. Don't guess.                                                  |
+| Signal in `$REPO`                                                                                         | Deploy target                         | URL source of truth                                                                                     |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `vercel.json` OR Vercel GH App configured                                                                 | **Vercel**                            | `gh api repos/:owner/:repo/deployments?ref=$BRANCH&environment=Preview`                                 |
+| `netlify.toml`                                                                                            | **Netlify**                           | Same `gh api` deployments query                                                                         |
+| `fly.toml`                                                                                                | **Fly.io**                            | `flyctl status -a <app-name>` or `https://<app-name>.fly.dev`                                           |
+| `wrangler.{toml,jsonc}` AND the file contains `pages_build_output_dir` OR `[env.preview]` AND `pages_…`   | **Cloudflare Pages**                  | `gh api .../deployments?environment=Preview` OR `wrangler pages deployment list --project-name=<name>`  |
+| `wrangler.{toml,jsonc}` AND no Pages markers (the common Workers case)                                    | **Cloudflare Workers**                | **No per-branch preview URL exists.** Workers deploys overwrite production. See "Workers gotcha" below. |
+| `.circleci/config.yml`                                                                                    | **CircleCI** (deploy-anywhere)        | Branch → fixed URL mapping for known repos; otherwise CircleCI job log grep                             |
+| `.github/workflows/*.yml` containing `pages-build-deployment`, `actions/deploy-pages`, or similar         | **GitHub Pages**                      | `gh api .../deployments?environment=github-pages`                                                       |
+| Any `.github/workflows/*.yml` with `cloudflare/wrangler-action` deploying on PR (not just push to master) | Cloudflare Workers w/ PR-aware deploy | Read the workflow log for the printed URL — see "Workflow log grep" below                               |
+| **None of the above**                                                                                     | Unknown                               | Ask the user. Don't guess.                                                                              |
 
 ### Quick auto-detect script
 
@@ -101,6 +102,7 @@ detect_deploy_target() {
 **Cloudflare Workers (deployed via `wrangler deploy` or `cloudflare/wrangler-action`) does not create per-PR preview URLs by default.** Each deploy overwrites the production Worker. So for any repo deployed this way there is no preview URL for a PR branch.
 
 The realistic answer in these cases is one of:
+
 1. **"Merge to main and check production"** — for low-stakes changes.
 2. **"Run the dev server locally"** — `npm run dev` and use `/agent-browser` on `http://localhost:3000`.
 3. **"Spin up a per-branch Worker with a custom route"** — requires a `wrangler-action` workflow that deploys to `<branch>-<service>.<account>.workers.dev`. If the user wants this set up, route to `/cloudflare-cli` and offer to add a workflow.
@@ -150,11 +152,11 @@ For Facilitron repos with fixed branch→bucket mappings (`marketing-pages`, `ma
 
 #### marketing-pages (`Facilitron/marketing-pages`)
 
-| Branch       | Environment | URL                                    |
-|--------------|-------------|----------------------------------------|
-| `dev`        | Development | https://morning-coast.facilitron.com   |
-| `staging`    | Staging     | https://staging.facilitron.com         |
-| `production` | Production  | https://www.facilitron.com             |
+| Branch       | Environment | URL                                  |
+| ------------ | ----------- | ------------------------------------ |
+| `dev`        | Development | https://morning-coast.facilitron.com |
+| `staging`    | Staging     | https://staging.facilitron.com       |
+| `production` | Production  | https://www.facilitron.com           |
 
 Only `dev`, `staging`, and `production` deploy — the CircleCI `build_and_deploy` workflow filters to exactly those three branches. The `dev` alias is **`morning-coast.facilitron.com`**, not `dev.facilitron.com` — it's a CloudFront alias served via Heroku (a `server: Heroku` header on dev is expected, sometimes with an A/B variant cookie). **`master` and feature/PR branches don't deploy anywhere** — there is no per-PR preview; merge into `dev` and visit the dev URL above once CircleCI finishes.
 
@@ -199,6 +201,7 @@ When invoked, do this:
 5. **Suggest the next step** — usually `/agent-browser` to walk it, or `/verify` to test it.
 
 Don't ask the user follow-up questions if the auto-detect is unambiguous. Only ask when:
+
 - Multiple deploy targets are configured (rare)
 - The repo is in the "unknown" bucket
 - The latest deployment is older than the latest commit on the branch (likely CI failed)

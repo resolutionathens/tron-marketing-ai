@@ -83,6 +83,7 @@ If `MAIN_REPO` and `CURRENT_DIR` are different, you're in a worktree. The dev br
 ## Step 4: Merge into dev
 
 **From a worktree:**
+
 ```bash
 git -C "$MAIN_REPO" checkout dev
 git -C "$MAIN_REPO" pull
@@ -91,6 +92,7 @@ git -C "$MAIN_REPO" push
 ```
 
 **From a regular checkout:**
+
 ```bash
 git checkout dev
 git pull
@@ -101,10 +103,12 @@ git push
 If the merge fails due to conflicts, check which files conflicted:
 
 - **`package.json` and `package-lock.json`** — always keep dev's version. These files should never be updated by feature-branch merges into dev or staging; those branches manage their own dependency state. Resolve automatically:
+
   ```bash
   git -C "$MAIN_REPO" checkout --ours package.json package-lock.json
   git -C "$MAIN_REPO" add package.json package-lock.json
   ```
+
   (omit `-C "$MAIN_REPO"` from a regular checkout.)
 
 - **Any other file** — stop and tell the user. Do NOT attempt to resolve other conflicts automatically.
@@ -116,12 +120,15 @@ Never force push. If the push fails, report the error and stop.
 ## Step 5: Return to previous state
 
 **From a worktree:** Return the main repo to master:
+
 ```bash
 git -C "$MAIN_REPO" checkout master
 ```
+
 The worktree is still on the feature branch — no action needed there.
 
 **From a regular checkout:**
+
 ```bash
 git checkout <feature-branch-name>
 ```
@@ -129,6 +136,7 @@ git checkout <feature-branch-name>
 ## Step 6: Report
 
 Tell the user:
+
 - The feature branch that was merged
 - Confirmation that dev is updated and pushed
 - That they're back on their feature branch (or still in their worktree)
@@ -136,6 +144,7 @@ Tell the user:
 ## Next steps
 
 After testing on dev, remind the user:
+
 - **Ready for review?** Use the **tron:git-pr** skill to create a PR back to master
 - **After PR is merged?** Use **tron:git-pushtoprod** to deploy master to staging and production
 - **Done with this ticket?** Clean up the worktree:

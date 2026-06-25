@@ -21,6 +21,7 @@ This skill delegates the actual link-check to the **`lychee-link-runner`** subag
    - Convert any file targets to **absolute paths** (the subagent has its own working directory).
 
 2. **Delegate to the `lychee-link-runner` subagent** (via the Task tool) with a prompt like:
+
    > "Run a lychee link check on `<absolute target>`. `<any extra options the user asked for>`. Return the triaged summary."
 
 3. **Relay the subagent's report** to the user (tidy formatting only if needed). If it reports lychee isn't installed, tell the user to `brew install lychee`.

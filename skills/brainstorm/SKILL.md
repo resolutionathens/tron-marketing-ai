@@ -13,7 +13,7 @@ allowed-tools:
 
 `/brainstorm` is for the fuzzy front end — when you have a hunch ("we should write something about X," "maybe
 a campaign around Y") but haven't pinned down the audience, the angle, or whether it's even worth doing. It
-runs *upstream* of the content pipeline: the output is an Ideation Note that a content skill
+runs _upstream_ of the content pipeline: the output is an Ideation Note that a content skill
 (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`) can then turn into a real page.
 
 ## When to use
@@ -27,7 +27,7 @@ runs *upstream* of the content pipeline: the output is an Ideation Note that a c
 ## When NOT to use
 
 - You already have a clear, scoped idea → go straight to the content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`)
-- You have a *draft* and want it stress-tested → use `/grill`
+- You have a _draft_ and want it stress-tested → use `/grill`
 - You want to gather the actual signals (search data) → run `/tron-report` (Search Console)
 
 ## Methodology — One Question at a Time
@@ -38,41 +38,47 @@ one, wait, integrate the answer, then ask the next.** A wall of questions short-
 The conversation has 6 stages. Move to the next only after you've answered the current one.
 
 ### Stage 1 — Frame the Problem (not the solution)
+
 Ask: "Before we talk about what to make, what's the problem or pattern you're noticing? What made you bring
 this up today?"
 
 Goal: get out of "let's write a blog post" mode and into "what's the actual gap" mode.
 
 ### Stage 2 — Identify the Audience
+
 Ask: "Who is this for? Be specific — not 'customers' but 'a K-12 facilities director at a 20-school
 district' or 'a parks & rec admin fielding community rental requests.'"
 
 Goal: anchor on a real, specific reader. Generic audience → generic content.
 
 ### Stage 3 — Pressure-Test the Interest
+
 Ask: "What does this audience do today instead? Are they actively searching for this, asking us about it, or
-is this something we *think* they should care about? How do we know there's real pull?"
+is this something we _think_ they should care about? How do we know there's real pull?"
 
 Goal: separate real demand (search volume, repeated questions, sales asks) from imagined demand.
 
 ### Stage 4 — Imagine the Outcome
+
 Ask: "If we did nothing, what happens? If this lands perfectly, what changes — for the reader, and for us
 (ranking, leads, brand, support deflection)?"
 
 Goal: surface the actual delta this produces, not just "more content."
 
 ### Stage 5 — Risk & Constraint Check
+
 Ask: "What could make this a bad idea or a weak piece? Thin angle, wrong funnel stage, claims we can't back,
 something a competitor already owns, or effort that outweighs the payoff?"
 
 Goal: write the risk list now, while it's cheap to redirect.
 
 ### Stage 6 — Inputs & Adjacency
-Ask: "What should we look at *before* producing this? Search Console queries, GA behavior, competitor
+
+Ask: "What should we look at _before_ producing this? Search Console queries, GA behavior, competitor
 content, the questions sales/support actually hear, an existing page we'd cannibalize or could update
 instead?"
 
-Goal: identify the discovery work (and decide whether a *new* page is even the right move vs. updating one).
+Goal: identify the discovery work (and decide whether a _new_ page is even the right move vs. updating one).
 
 ## Anti-patterns
 
@@ -91,41 +97,49 @@ prefer).
 ---
 status: ideation
 created: YYYY-MM-DD
-audience: {specific persona/segment}
-format: {article | guide | toolkit item | landing page | campaign | other}
-ready_to_produce: false   # flip to true once discovery work below is done
+audience: { specific persona/segment }
+format: { article | guide | toolkit item | landing page | campaign | other }
+ready_to_produce: false # flip to true once discovery work below is done
 ---
 
 # Ideation Note — {Short name of the idea}
 
 ## Trigger
+
 {Why this came up — 1-2 sentences}
 
 ## Audience & Pull
+
 - **Who:** {persona, specific}
 - **What they do today:** {current behavior / workaround / search}
 - **Evidence of pull:** {search data, repeated questions, sales asks — or "unproven, needs discovery"}
 
 ## Hypothesis
+
 > If we {make X for audience Y}, then {outcome} — because {why}.
 
 ## Counter-factual
+
 - **Do nothing:** {what happens}
 - **Lands perfectly:** {what changes — for the reader and for us}
 - **Delta:** {the actual change this produces}
 
 ## Risks & Constraints
+
 - {risk 1}
 - {risk 2}
 
 ## Discovery Work (before producing)
+
 - [ ] {signal to gather — e.g. run /tron-report on {query}}
 - [ ] {check: does an existing page already cover this? update vs. new}
 
 ## Open Questions
+
 - {anything unresolved}
 
 ## Next Step
+
 - Once discovery is done, hand to the right production skill for the idea:
   - **Web content** → `tron:news-item` (article), `tron:guide-item` (guide), `tron:toolkit-item` (SOP/checklist/template).
   - **Campaign / lifecycle** → `tron:email-campaign`, `tron:social-post`.

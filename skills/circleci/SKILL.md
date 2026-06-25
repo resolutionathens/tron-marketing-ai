@@ -30,18 +30,18 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 bash "$SKILL_DIR/scripts/circleci.sh" <subcommand> [flags]
 ```
 
-| Want | Command |
-|------|---------|
-| Auth check | `circleci.sh me` |
-| Branch's workflow statuses (the green/red dots) | `circleci.sh status [--slug S] [--branch B]` |
-| Latest pipelines / workflows / jobs | `circleci.sh pipelines` · `workflows` · `jobs --workflow ID` |
-| Poll a workflow to completion | `circleci.sh watch --workflow ID [--interval 15]` |
-| A job's artifacts (deploy URLs often live here) | `circleci.sh artifacts --job N` |
-| Raw step logs (`--grep-urls` for deployed URLs) | `circleci.sh logs --job N [--tail 250] [--grep-urls]` |
-| Rerun (everything or `--from-failed`) / trigger | `circleci.sh rerun --workflow ID` · `trigger` |
-| Derive `gh/Org/repo` from the origin remote | `circleci.sh slug` |
-| **marketing-pages** per-branch URL | `circleci.sh deploy-url <dev\|staging\|production>` |
-| Config validate / process / local run | `circleci.sh validate` · `process` · `local --job-name NAME` |
+| Want                                            | Command                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------ |
+| Auth check                                      | `circleci.sh me`                                             |
+| Branch's workflow statuses (the green/red dots) | `circleci.sh status [--slug S] [--branch B]`                 |
+| Latest pipelines / workflows / jobs             | `circleci.sh pipelines` · `workflows` · `jobs --workflow ID` |
+| Poll a workflow to completion                   | `circleci.sh watch --workflow ID [--interval 15]`            |
+| A job's artifacts (deploy URLs often live here) | `circleci.sh artifacts --job N`                              |
+| Raw step logs (`--grep-urls` for deployed URLs) | `circleci.sh logs --job N [--tail 250] [--grep-urls]`        |
+| Rerun (everything or `--from-failed`) / trigger | `circleci.sh rerun --workflow ID` · `trigger`                |
+| Derive `gh/Org/repo` from the origin remote     | `circleci.sh slug`                                           |
+| **marketing-pages** per-branch URL              | `circleci.sh deploy-url <dev\|staging\|production>`          |
+| Config validate / process / local run           | `circleci.sh validate` · `process` · `local --job-name NAME` |
 
 It resolves the token from `$CIRCLECI_TOKEN` (else `~/.circleci/cli.yml`), defaults
 the slug from `git remote origin` and the branch from `HEAD`, and emits one JSON
@@ -100,7 +100,7 @@ A push to a branch creates a **pipeline** → which contains 1+ **workflows** �
 - Workflow status: `success`, `failed`, `running`, `not_run`, `failing`, `on_hold`, `canceled`, `unauthorized`
 - Job status: same vocabulary as workflow
 
-For "is the deploy done?", the *workflow* status is usually what you want — that's the green/red check that shows up next to a PR.
+For "is the deploy done?", the _workflow_ status is usually what you want — that's the green/red check that shows up next to a PR.
 
 ## Common harness recipes
 
@@ -225,11 +225,11 @@ Most projects auto-trigger on push, so this is mainly for "no-code-change" rerun
 
 The `marketing-pages` repo deploys via CircleCI to S3+CloudFront. **The URL is a function of the branch**, not a per-PR preview. These are the canonical public URLs (source of truth: the repo's own `README.md` "Environments" section):
 
-| Branch       | Environment | URL                                      | CircleCI deploy target               |
-|--------------|-------------|------------------------------------------|--------------------------------------|
-| `dev`        | Development | `https://morning-coast.facilitron.com`   | `facilitron-marketing-pages-dev`     |
-| `staging`    | Staging     | `https://staging.facilitron.com`         | `facilitron-marketing-pages-staging` |
-| `production` | Production  | `https://www.facilitron.com`             | `facilitron-marketing-pages-prod`    |
+| Branch       | Environment | URL                                    | CircleCI deploy target               |
+| ------------ | ----------- | -------------------------------------- | ------------------------------------ |
+| `dev`        | Development | `https://morning-coast.facilitron.com` | `facilitron-marketing-pages-dev`     |
+| `staging`    | Staging     | `https://staging.facilitron.com`       | `facilitron-marketing-pages-staging` |
+| `production` | Production  | `https://www.facilitron.com`           | `facilitron-marketing-pages-prod`    |
 
 Note the `dev` alias is **`morning-coast.facilitron.com`**, not `dev.facilitron.com` — it's a CloudFront alias, and the deployed bundle is served via Heroku behind it (a `server: Heroku` header on dev is expected, sometimes with an A/B variant cookie). `tron:preview-url` routes here for the branch→URL lookup, so keep this table concrete — that's the whole point of it living here rather than the agent re-deriving the domain each time.
 
@@ -290,11 +290,11 @@ For UI tasks, `circleci open` opens the current project in the browser (no token
 
 ## When something goes wrong
 
-| Symptom                                                  | Cause / fix                                                                    |
-|----------------------------------------------------------|--------------------------------------------------------------------------------|
-| `{"message": "Project not found"}` on a project you can see in the dashboard | Missing or wrong `Circle-Token`. Re-mint at `app.circleci.com/settings/user/tokens`. |
-| `Project not found` even with auth                       | Slug case mismatch. Try `gh/Facilitron/...` (capital F) not `facilitron`.       |
-| `circleci pipeline list` rejects the slug                 | The `pipeline list` CLI command takes a UUID, not a slug. Look up the UUID first (recipe above). |
-| Workflow stuck in `running` for >1h                      | A job is hung or waiting on a `hold` approval. `curl .../workflow/<id>/job` to find the offending job. |
-| `circleci local execute` fails with auth/env errors      | Local execution has no project env vars. For deploy jobs that need AWS creds, you can pass `-e KEY=VAL` per env var or accept that the job won't run locally. |
-| `config validate` says "ok" but cloud fails              | The cloud has version constraints local doesn't enforce (e.g., experimental features). Push to a throwaway branch to surface them. |
+| Symptom                                                                      | Cause / fix                                                                                                                                                   |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `{"message": "Project not found"}` on a project you can see in the dashboard | Missing or wrong `Circle-Token`. Re-mint at `app.circleci.com/settings/user/tokens`.                                                                          |
+| `Project not found` even with auth                                           | Slug case mismatch. Try `gh/Facilitron/...` (capital F) not `facilitron`.                                                                                     |
+| `circleci pipeline list` rejects the slug                                    | The `pipeline list` CLI command takes a UUID, not a slug. Look up the UUID first (recipe above).                                                              |
+| Workflow stuck in `running` for >1h                                          | A job is hung or waiting on a `hold` approval. `curl .../workflow/<id>/job` to find the offending job.                                                        |
+| `circleci local execute` fails with auth/env errors                          | Local execution has no project env vars. For deploy jobs that need AWS creds, you can pass `-e KEY=VAL` per env var or accept that the job won't run locally. |
+| `config validate` says "ok" but cloud fails                                  | The cloud has version constraints local doesn't enforce (e.g., experimental features). Push to a throwaway branch to surface them.                            |

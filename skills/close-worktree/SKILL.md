@@ -41,8 +41,17 @@ bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [
 It prints exactly one line of JSON on stdout (everything else is on stderr):
 
 ```json
-{"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"worktreePath":"/…",
- "localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"workspaceClosed":true,"leftovers":[]}
+{
+  "ok": true,
+  "branch": "MD-1801-x",
+  "worktreeRemoved": true,
+  "worktreePath": "/…",
+  "localBranchDeleted": true,
+  "remoteBranchDeleted": true,
+  "sessionClosed": true,
+  "workspaceClosed": true,
+  "leftovers": []
+}
 ```
 
 `sessionClosed` reports whether the tmux session was killed (or none existed); `workspaceClosed` is a backwards-compatible alias carrying the same value.
@@ -50,8 +59,8 @@ It prints exactly one line of JSON on stdout (everything else is on stderr):
 `ok` is `false` (and exit code `1`) **iff `leftovers` is non-empty** — i.e. something it
 was asked to remove is still present (usually a dirty worktree or unmerged branch; rerun
 with `--force`, or stop and tell the user if they may have unsaved work). The result
-fields mirror the dimensions the OS independently verifies, so the skill *does* the
-cleanup and the OS *confirms* it — neither trusts the other's word. The narrative below
+fields mirror the dimensions the OS independently verifies, so the skill _does_ the
+cleanup and the OS _confirms_ it — neither trusts the other's word. The narrative below
 is the fallback for when you DON'T already know the branch (the user said "clean up" and
 you need to show the list and let them pick) or when something goes wrong.
 
@@ -61,6 +70,7 @@ Smoke it against real git any time with
 ## Step 1: Identify worktrees to close
 
 Run:
+
 ```bash
 wt list
 ```
@@ -68,6 +78,7 @@ wt list
 This shows all worktrees with their status, including uncommitted changes and sync state.
 
 The user will either:
+
 - Name a specific branch or worktree
 - Say "all" or "clean up" — show them the list and let them pick
 - Reference the current worktree — `wt list` marks the current one with `@`
@@ -91,6 +102,7 @@ tmux list-sessions -F '#{session_name}'
 Session names may be the full branch name or just the ticket key (e.g., "MD-1661" for branch "MD-1661-add-logos-case-studies-testimonials"), with any `.`/`:` swapped for `-` (those are illegal in tmux session names). Match flexibly — check if a session name starts with the ticket key portion of the branch name.
 
 If a matching session is found:
+
 ```bash
 tmux kill-session -t <session-name>
 ```
@@ -102,6 +114,7 @@ If the user is currently attached to that session, killing it detaches them; the
 ### 2c. Switch away if needed
 
 If the user is in the worktree being removed, switch to main first:
+
 ```bash
 wt switch main
 ```
@@ -124,7 +137,7 @@ if [ -d "<worktree-path>" ]; then
 fi
 ```
 
-This is the one place where a manual `rm -rf` *is* the right move — `wt` has already deregistered the worktree from git, so there's no race left to lose. You're just mopping up filesystem leftovers.
+This is the one place where a manual `rm -rf` _is_ the right move — `wt` has already deregistered the worktree from git, so there's no race left to lose. You're just mopping up filesystem leftovers.
 
 If the worktree has uncommitted changes, `wt remove` will warn. Tell the user and ask what to do — they can force it with `--force` or go save their work first.
 
@@ -157,6 +170,7 @@ dirty, log a notice and leave the checkout as-is.
 ## Step 3: Summary
 
 After cleanup, confirm what was done:
+
 - Worktree removed: `<branch-name>`
 - tmux session killed (if applicable)
 - Branches deleted (if applicable)
@@ -166,6 +180,7 @@ Keep it brief.
 ## Batch mode
 
 For cleaning up multiple merged worktrees at once, use:
+
 ```bash
 wt step prune
 ```
@@ -179,11 +194,13 @@ For manual batch cleanup, loop through each one and run Steps 2a-2e. Ask about b
 ## Alternative: wt merge
 
 If the user wants to merge their changes and clean up in one step, suggest:
+
 ```bash
 wt merge main
 ```
 
 This will:
+
 1. Commit any uncommitted changes (with LLM-generated message if configured)
 2. Rebase onto main
 3. Fast-forward merge to main

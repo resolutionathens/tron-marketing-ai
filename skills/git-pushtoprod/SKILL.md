@@ -53,7 +53,7 @@ when the repo has a staging branch, or `"skipped"` when it has none:
 explanation / manual fallback for conflict cases.
 
 > **Tier reminder:** a production deploy is a high-risk action. This script is the
-> *mechanics*; the decision to run it stays with the human/PR gate — don't invoke it
+> _mechanics_; the decision to run it stays with the human/PR gate — don't invoke it
 > autonomously.
 
 ## Step 1: Ensure clean working tree
@@ -78,12 +78,14 @@ Run `git branch --show-current` to save the current branch (needed to return to 
 ## Step 4: Update master
 
 **From a worktree:**
+
 ```bash
 git -C "$MAIN_REPO" checkout master
 git -C "$MAIN_REPO" pull
 ```
 
 **From a regular checkout:**
+
 ```bash
 git checkout master
 git pull
@@ -107,6 +109,7 @@ git [-C "$MAIN_REPO"] push
 If the merge fails due to conflicts, check which files conflicted:
 
 - **`package.json` and `package-lock.json`** — always keep staging's version. These files should never be updated by merges into dev or staging; those branches manage their own dependency state. Resolve automatically:
+
   ```bash
   git [-C "$MAIN_REPO"] checkout --ours package.json package-lock.json
   git [-C "$MAIN_REPO"] add package.json package-lock.json
@@ -132,11 +135,13 @@ If any step fails, report the error and stop. Do NOT force push or resolve confl
 ## Step 7: Return to previous state
 
 **From a worktree:** Return the main repo to master:
+
 ```bash
 git -C "$MAIN_REPO" checkout master
 ```
 
 **From a regular checkout:**
+
 ```bash
 git checkout <original-branch-name>
 ```
@@ -154,6 +159,7 @@ If the transition fails (wrong status name, already done, etc.), mention it but 
 ## Step 9: Report
 
 Tell the user:
+
 - Master was merged into staging and pushed (or note staging was skipped — no staging branch)
 - Master was merged into production and pushed
 - They're back on their original branch (or still in their worktree)
@@ -163,6 +169,7 @@ Then offer **tron:jira-comment** to post a short "shipped to production" note on
 ## Cleanup reminder
 
 If working in a worktree and this ticket is fully deployed, remind the user they can clean it up:
+
 ```
 git worktree remove ../<branch-name>
 ```

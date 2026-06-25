@@ -17,10 +17,12 @@ Summarize where a Marketing Initiative, Theme, Epic, or Campaign stands. Git-fre
 writes a status summary for sharing up.
 
 ## Resolve the tree
+
 Given a parent key (Initiative/Theme/Epic/Campaign), pull it **plus every descendant** — not just
 direct children. `parent = <PARENT>` is **single-level**: on MCR an Initiative's real subtree is
 Initiative → Epic → Task → Sub-task (often 100+ items), so a one-level query computes % complete on
 the wrong denominator. Walk the tree breadth-first until no new children appear:
+
 ```bash
 acli jira workitem view <PARENT> --json   # the parent itself
 
@@ -40,12 +42,14 @@ keys=$(printf '%s' "$all" | csv)
 acli jira workitem search --jql "key in ($keys)" \
   --fields key,summary,status,assignee,duedate,updated --limit 1000 --json
 ```
+
 Do **not** use `"Epic Link" = <PARENT>` — MCR's marketing hierarchy is `parent`-based and Epic Link
 adds zero rows. For a Theme, the same BFS applies (its Initiatives are just the first level down);
 optionally summarize per-Initiative as well as the rollup. If any level hits the 200 cap, paginate
 (`--limit`/offset) and note the board is larger than one page.
 
 ## Compute
+
 - **% complete** = Done / total over **every descendant** gathered above (not just direct children),
   with a count: `35/118 done, 12 in progress, 71 to do`. State the denominator so the number is auditable.
 - **Shipped** — recently moved to Done (with dates if available).
@@ -54,8 +58,10 @@ optionally summarize per-Initiative as well as the rollup. If any level hits the
 - **Unstarted** — To Do, especially unassigned.
 
 ## Output
+
 ```markdown
 # <Initiative/Theme> — status (<date>)
+
 **Progress:** 12/20 done (60%) · 3 in progress · 5 to do
 **Shipped recently:** <bullets>
 **In flight:** <ticket — owner — note>
@@ -65,6 +71,7 @@ optionally summarize per-Initiative as well as the rollup. If any level hits the
 ```
 
 ## Rules
+
 - Lead with the percent + the one-line health (on track / at risk / blocked).
 - Plain prose, no em dashes, exec-readable. Don't editorialize beyond what the tickets show.
 

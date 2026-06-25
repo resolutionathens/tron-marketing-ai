@@ -18,13 +18,16 @@ the orchestrator's `jira-morning-suggest`. Git-free: it reads and proposes; it w
 after you confirm.
 
 ## Scope
+
 Default board: **MCR** (the marketing master board). Hierarchy: Marketing Theme → Initiative →
 Campaign/Epic/Story/Task/Sub-task.
 
 ## Pull the board
+
 `acli jira workitem search` only returns a fixed set of fields and **rejects `--fields updated`,
 `duedate`, or `parent`** — so the bare search can't compute the stale / overdue / orphaned lenses.
 Pull the candidate keys with search, then **enrich each with `view`** (where those fields resolve):
+
 ```bash
 # 1. Candidate set (keys + the fields search does return). Raise the limit / paginate — MCR has
 #    more than 200 non-Done items, and --limit 200 silently truncates.
@@ -36,10 +39,12 @@ while read k; do
   acli jira workitem view "$k" --fields '*all' --json
 done < /tmp/manager/triage-keys.txt | jq -s '.'
 ```
+
 Enrichment is what powers lenses 2–3 below; without it, only Unassigned, WIP-load, and status are
 computable. If the board is large, enrich just the actionable slice (To Do / In Progress) first.
 
 ## Triage lenses
+
 1. **Unassigned + actionable** — To Do / In Progress with no assignee.
 2. **Stale** — In Progress not updated in >N days (default 14), or To Do that's overdue.
 3. **Missing metadata** — no priority, no due date, or orphaned (no parent Initiative/Theme).
@@ -47,6 +52,7 @@ computable. If the board is large, enrich just the actionable slice (To Do / In 
 5. **WIP load** — who's carrying how much In Progress (over-allocation).
 
 ## Output
+
 Grouped by Marketing Theme, then a proposed-actions list:
 
 ```
@@ -58,7 +64,7 @@ PROPOSED ACTIONS
   - nudge MCR-310 owner for status
 ```
 
-Use the team→role map to suggest *who* fits (designer/content/seo). Use **AskUserQuestion** to batch
+Use the team→role map to suggest _who_ fits (designer/content/seo). Use **AskUserQuestion** to batch
 the decisions. Apply approved assignments/priorities/transitions via `acli` and notes via
 `tron:jira-comment` — **only after confirmation**. Never mass-transition without a yes.
 

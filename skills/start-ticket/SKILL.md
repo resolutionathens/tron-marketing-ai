@@ -2,7 +2,7 @@
 name: start-ticket
 model: sonnet
 effort: medium
-description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and opening a tmux session with the ticket in your default browser. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'."
+description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and opening a tmux session with the ticket. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'."
 allowed-tools:
   - Bash
   - Read
@@ -31,6 +31,7 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
 ```
 
 Use it like this:
+
 1. **First, look up the ticket yourself (Step 1 below)** — you need the title/description
    to (a) summarize for the user and (b) word a good branch slug. That reading is judgment;
    the script doesn't do it.
@@ -43,7 +44,7 @@ Use it like this:
    from the main checkout into the new worktree (the Step 2.5 pitfall — skip it and the
    dev server 500s), symlinks every `node_modules` the main checkout has (root **and**
    nested workspaces — private `@facilitron/*` deps can't reinstall from the public
-   registry), and transitions Jira → *In Progress* / assigns the GitHub issue.
+   registry), and transitions Jira → _In Progress_ / assigns the GitHub issue.
 
 One JSON line on stdout (narration on stderr):
 
@@ -65,13 +66,13 @@ The detailed steps below remain the reference (and the fallback when the script 
 
 Inspect the user's input and pick the path:
 
-| Input shape                                              | Path  | Key/ref extraction                                |
-|----------------------------------------------------------|-------|---------------------------------------------------|
-| `MD-1234`, `ABC-456`, `[A-Z]+-\d+`                       | Jira  | The whole match is the key                        |
-| `https://facilitron.atlassian.net/browse/MD-1234`        | Jira  | Last path segment                                 |
-| `#42` (and `git remote -v` shows a github.com remote)    | GH    | `42`; repo = the current repo's slug              |
-| `owner/repo#42`                                          | GH    | `42`; repo = `owner/repo`                         |
-| `https://github.com/owner/repo/issues/42`                | GH    | `42`; repo = `owner/repo` (parse the URL)         |
+| Input shape                                           | Path | Key/ref extraction                        |
+| ----------------------------------------------------- | ---- | ----------------------------------------- |
+| `MD-1234`, `ABC-456`, `[A-Z]+-\d+`                    | Jira | The whole match is the key                |
+| `https://facilitron.atlassian.net/browse/MD-1234`     | Jira | Last path segment                         |
+| `#42` (and `git remote -v` shows a github.com remote) | GH   | `42`; repo = the current repo's slug      |
+| `owner/repo#42`                                       | GH   | `42`; repo = `owner/repo`                 |
+| `https://github.com/owner/repo/issues/42`             | GH   | `42`; repo = `owner/repo` (parse the URL) |
 
 If the input is ambiguous (e.g., a bare number like `42` with no `#`), ask the user which they mean. If the input is `#42` but the cwd is **not** inside a github.com-remote'd repo, ask for the full `owner/repo#42` form.
 
@@ -108,13 +109,16 @@ Save the ticket URL for step 4: `https://github.com/<SLUG>/issues/<N>`. If the i
 Determine the branch name from the ticket reference + summary/title.
 
 **Jira path:**
+
 - Format: `<KEY>-<slugified-summary>` (e.g., `MD-1658-add-bas-logo-to-product`)
 
 **GitHub path:**
+
 - Format: `issue-<N>-<slugified-title>` (e.g., `issue-185-improve-better-auth-ux`)
 - The `issue-` prefix prevents the branch from looking like a Jira key (which would confuse `tron:git-commit`, `tron:jira`, and other Jira-aware skills downstream).
 
 In both cases:
+
 - Lowercase, hyphen-separated
 - No conventional commit prefixes
 - Keep it concise — trim to ~60 chars if the summary/title is long
@@ -161,6 +165,7 @@ For each match, `cp` it into the worktree root. Don't list them in the user-faci
 ### Jira path
 
 Move the ticket to "In Progress":
+
 ```bash
 acli jira workitem transition --key <KEY> --status 'In Progress' --yes
 ```
@@ -216,11 +221,13 @@ The session starts detached, with one shell already `cd`'d into the worktree. If
 Use the URL you saved in Step 1 (`open` on macOS, `xdg-open` on Linux):
 
 **Jira:**
+
 ```bash
 open "https://facilitron.atlassian.net/browse/<KEY>"
 ```
 
 **GitHub:**
+
 ```bash
 open "https://github.com/<SLUG>/issues/<N>"
 ```
@@ -256,7 +263,7 @@ When invoked by the `tron:ship-ticket` orchestrator, still offer this step — u
 
 ## Step 6: Offer to spawn a worker agent in the tmux session
 
-This is the autonomy step. Instead of leaving the session idle, launch a Claude worker *in its pane* to start the ticket while you stay the orchestrator in your own session. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself and needs no separate worker).
+This is the autonomy step. Instead of leaving the session idle, launch a Claude worker _in its pane_ to start the ticket while you stay the orchestrator in your own session. Offer it for any real implementation/content ticket; skip for trivial one-liners the user clearly wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself and needs no separate worker).
 
 The worker lands in the tmux session created in Step 4 (already `cd`'d into the worktree). All commands target the session by name (`-t "$SESSION"`). There are two launch variants — pick based on the work:
 
@@ -272,7 +279,7 @@ tmux send-keys -t "$SESSION" \
 - `--resume "$CLAUDE_CODE_SESSION_ID"` forks **this** orchestrator session, so the worker shares your context.
 - `--fork-session` gives it a new session ID — no transcript collision with your still-running session.
 - Need parallelism? The worker can fan out its own subagents normally (the Agent tool); there's no special multiplexer wiring to set up.
-- Tradeoff: it inherits your *entire* context, including anything unrelated to the ticket. If the conversation is full of unrelated work, prefer Variant B.
+- Tradeoff: it inherits your _entire_ context, including anything unrelated to the ticket. If the conversation is full of unrelated work, prefer Variant B.
 
 ### Variant B — Fresh independent worker (clean slate)
 
@@ -284,7 +291,7 @@ tmux send-keys -t "$SESSION" "claude --dangerously-skip-permissions" Enter
 
 `--dangerously-skip-permissions` lets the worker run without stalling on permission prompts.
 
-### Sequencing — confirm boot *before* sending the kickoff
+### Sequencing — confirm boot _before_ sending the kickoff
 
 The worker needs a moment to boot. If you send the kickoff immediately it gets typed mid-launch and lost. Read the pane back first, and only send the marching orders once the input prompt (`❯`) is visible:
 
@@ -317,6 +324,7 @@ You remain the orchestrator: re-check the worker's progress any time with `tmux 
 Keep it brief. Give the user the tmux session name (and `tmux attach -t <name>` to enter it), the browser URL you opened, the dev-server URL, and the worker status. If you spawned a worker, note that it's running in the session and will pause for plan approval there.
 
 **Jira example:**
+
 ```
 Ticket CCAL-1002: "News Post featured image edit"
 Status: In Progress
@@ -328,6 +336,7 @@ When finished: wt merge or tron:close-worktree
 ```
 
 **GitHub example:**
+
 ```
 Issue acme-org/acme-app#185: "Improve better-auth UX and review our implementation"
 Assignee: @your-handle
