@@ -1,0 +1,21 @@
+{
+  "skills": ["brainstorm"],
+  "mode": "deterministic",
+  "query": "Slugify an Ideation Note title deterministically.",
+  "files": [],
+  "exec": {
+    "cmd": [
+      "bash",
+      "skills/brainstorm/scripts/brainstorm.sh",
+      "slug",
+      "My Big Idea"
+    ],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": ["my-big-idea"]
+    }
+  },
+  "expected_behavior": [
+    "The slug subcommand normalizes a title to a kebab-case slug and exits 0"
+  ]
+}

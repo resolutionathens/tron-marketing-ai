@@ -1,0 +1,11 @@
+{
+  "skills": ["social-post"],
+  "query": "Draft a social post for the DevFees webinar recap — IG/FB/LI copy.",
+  "files": [],
+  "expected_behavior": [
+    "Produces a master caption plus per-platform Instagram / Facebook / LinkedIn variants in the IG/FB/LI sub-task pattern, each length- and hashtag-appropriate with an image/aspect note",
+    "Writes in Facilitron voice with no em dashes and a single primary CTA per post",
+    "Uses AskUserQuestion only when the primary CTA or audience is unclear, rather than interrogating by default",
+    "Stays git-free: produces copy and hands off to the social tools for scheduling"
+  ]
+}

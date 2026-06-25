@@ -1,0 +1,11 @@
+{
+  "skills": ["__fixture__"],
+  "mode": "deterministic",
+  "query": "fixture that must pass",
+  "files": [],
+  "exec": {
+    "cmd": ["node", "-e", "process.stdout.write('FIXTURE_OK')"],
+    "expect": { "exitCode": 0, "stdoutContains": ["FIXTURE_OK"] }
+  },
+  "expected_behavior": ["prints FIXTURE_OK and exits 0"]
+}

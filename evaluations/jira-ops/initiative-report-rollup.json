@@ -1,0 +1,11 @@
+{
+  "skills": ["initiative-report"],
+  "query": "Roll up the status of the ADA Compliance initiative.",
+  "files": [],
+  "expected_behavior": [
+    "Resolves the initiative tree by walking every level of descendants (BFS), not just direct children",
+    "Computes percent complete over the full descendant set and breaks down child tickets by status",
+    "Reports what shipped, what's in flight, blockers, and what's next in plain, exec-readable prose with no em dashes and no editorializing beyond what the tickets show",
+    "Stays git-free: reads the board and writes a shareable summary"
+  ]
+}

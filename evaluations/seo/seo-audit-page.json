@@ -1,0 +1,11 @@
+{
+  "skills": ["seo-audit"],
+  "query": "SEO audit dfp.facilitron.com for the query set 'district facility rental software, school facility scheduling'. Why isn't it ranking?",
+  "files": [],
+  "expected_behavior": [
+    "Fetches the page and inspects on-page + technical signals (title/meta/H1, heading structure, schema, canonical, internal links, image alt, indexability, Core Web Vitals)",
+    "Folds in the sibling audits where relevant (tron:site-audit for perf, tron:a11y-scan for a11y, tron:link-check for links) rather than re-deriving them",
+    "Ties every finding to the target query set and returns a prioritized fix list, not a flat dump",
+    "Stays git-free: it diagnoses and writes the audit, and hands the actual page edits to a git user rather than branching or committing"
+  ]
+}

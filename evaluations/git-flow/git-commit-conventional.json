@@ -1,0 +1,13 @@
+{
+  "skills": ["git-commit"],
+  "manual": true,
+  "query": "Save my changes and push — I added a new responsive nav component plus its composable and the page that uses it on branch MD-1660-responsive-nav.",
+  "files": [],
+  "expected_behavior": [
+    "Gathers state with git status and git diff before deciding on grouping",
+    "Keeps the component, its composable, and the page in a single commit since they serve one feature rather than over-splitting",
+    "Generates a conventional commit message (feat(scope): description) with a subject under 70 chars and references the MD-1660 issue from the branch name",
+    "Presents the message for approval via AskUserQuestion and commits with a HEREDOC, with no Co-Authored-By line",
+    "Pushes once (using -u if no upstream exists) and reports the commit and push result"
+  ]
+}

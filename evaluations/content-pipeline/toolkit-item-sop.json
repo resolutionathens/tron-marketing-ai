@@ -1,0 +1,12 @@
+{
+  "skills": ["toolkit-item"],
+  "query": "Make this an SOP toolkit item — I dropped the raw markdown and a card image in the repo root, add it to /resources/toolkit.",
+  "files": ["draft-sop.md", "img.png"],
+  "expected_behavior": [
+    "Runs the marketing-pages repo guard (content.sh check-repo) before writing anything",
+    "Reformats the source into the toolkit schema with category set to sop, writing content/resources/toolkit/<slug>.md with required front matter (title, description, date, category) and a download field",
+    "Verifies internal links resolve and rewrites facilitron.com URLs to relative paths, then lints links with lychee",
+    "Builds a trimmed branded PDF via tron:md-to-pdf (LaTeX path) from the actionable section only, gets user sign-off, and uploads it to toolkit/downloads/ with --name",
+    "Converts the dropped-in PNG card image to webp, uploads to toolkit/ with --name, cleans up the dropped-in source files, and reports paths plus a dev test plan"
+  ]
+}

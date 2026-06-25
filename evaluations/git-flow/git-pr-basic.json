@@ -1,0 +1,13 @@
+{
+  "skills": ["git-pr"],
+  "manual": true,
+  "query": "Open a PR for this branch and submit it for review.",
+  "files": [],
+  "expected_behavior": [
+    "Validates the current branch is a feature branch and stops if it is master, main, dev, or production",
+    "Ensures the working tree is clean and the branch is pushed (pushing with -u if there is no upstream)",
+    "Generates a conventional-format title under 70 chars and a structured body with Summary and Test plan sections, with no Co-Authored-By or Generated-with footer",
+    "Presents title and body for approval via AskUserQuestion, then creates the PR with gh pr create targeting master by default",
+    "Best-effort requests a Copilot review via gh pr edit --add-reviewer @copilot (never failing the flow), posts the tron-retro comment, and reports the PR URL"
+  ]
+}

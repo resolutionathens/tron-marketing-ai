@@ -1,0 +1,11 @@
+{
+  "skills": ["site-audit"],
+  "query": "Run Lighthouse across the https://www.facilitron.com/resources/guides section and find the pages with the worst performance.",
+  "files": [],
+  "expected_behavior": [
+    "Picks the section URL as the target and selects the default section mode (audits only that section, not --page or --full)",
+    "Delegates the audit to the unlighthouse-runner subagent via the Task tool rather than assembling the npx command itself",
+    "Notes that the runner invokes the bundled deterministic scripts/site-audit.sh so the crawl stays scoped",
+    "Relays the runner's lowest-scoring pages plus the biggest-impact opportunities"
+  ]
+}

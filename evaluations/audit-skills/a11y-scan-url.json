@@ -1,0 +1,11 @@
+{
+  "skills": ["a11y-scan"],
+  "query": "Run an accessibility scan on https://www.facilitron.com/resources/toolkit and tell me if it's WCAG compliant.",
+  "files": [],
+  "expected_behavior": [
+    "Resolves the single URL as the target and selects WCAG 2.1 AA as the default level",
+    "Delegates the run to the a11y-scan-runner subagent via the Task tool rather than running pa11y or axe directly",
+    "Relays the runner's findings grouped by issue type with severity counts",
+    "Preserves the caveat that automated scanning catches only ~30-40% of WCAG issues, so a clean scan is not proof of compliance"
+  ]
+}

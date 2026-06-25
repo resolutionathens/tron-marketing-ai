@@ -12,6 +12,12 @@ allowed-tools:
 
 # /board-scaffold — Templated sub-task scaffolding
 
+<!-- Model note: kept on `sonnet` (not `haiku`) deliberately. This isn't pure mechanical
+     orchestration — it must match the board's inconsistent naming in practice ("Order Pins"
+     vs "Totes Ordered", "Totebag Design" vs "Sticker Design"), inspect a sibling chain and
+     adapt the per-item sub-task labels accordingly, and draft sensible summaries. That
+     naming/label judgment is what earns sonnet; the acli writes alone would be haiku-tier. -->
+
 Create the repeatable sub-task chains the marketing board uses over and over (the swag/collateral
 Design→Deliver lifecycle and friends), so a manager doesn't hand-create the same five sub-tasks for
 every hat, tee, and banner. Git-free (it writes Jira issues) — **previews and confirms first**, never

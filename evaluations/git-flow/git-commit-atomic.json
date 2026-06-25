@@ -1,0 +1,30 @@
+{
+  "skills": ["git-commit"],
+  "manual": true,
+  "query": "Commit my changes — I fixed a typo in the README and also bumped a dependency in package.json.",
+  "files": ["README.md", "package.json"],
+  "sandbox": {
+    "setup": [
+      "git -c init.defaultBranch=master init -q",
+      "git config user.email eval@example.com",
+      "git config user.name Eval",
+      "printf 'Demo\\n\\nThis is teh project readme.\\n' > README.md",
+      "printf '{\\n  \"name\": \"demo\",\\n  \"version\": \"1.0.0\",\\n  \"dependencies\": { \"left-pad\": \"1.2.0\" }\\n}\\n' > package.json",
+      "git add -A",
+      "git commit -qm 'chore: initial baseline'",
+      "git init -q --bare origin.git",
+      "printf 'origin.git/\\n' >> .git/info/exclude",
+      "git remote add origin \"$PWD/origin.git\"",
+      "git push -q -u origin master",
+      "printf 'Demo\\n\\nThis is the project readme.\\n' > README.md",
+      "printf '{\\n  \"name\": \"demo\",\\n  \"version\": \"1.0.0\",\\n  \"dependencies\": { \"left-pad\": \"1.3.0\" }\\n}\\n' > package.json"
+    ]
+  },
+  "expected_behavior": [
+    "Gathers state with git status, git diff, git diff --staged, and git log before grouping",
+    "Splits the unrelated changes into two atomic commits (a docs typo fix and a chore dependency bump) rather than one combined commit",
+    "Presents the full commit plan with messages and included files for approval via AskUserQuestion before committing",
+    "Stages only each group's files per commit and never appends a Co-Authored-By line",
+    "Pushes once after all commits and reports the resulting commit hashes and push result"
+  ]
+}

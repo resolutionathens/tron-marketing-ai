@@ -1,0 +1,12 @@
+{
+  "skills": ["news-item"],
+  "query": "Start the news item for MD-1820 — it's a Cluster: ticket with a Confluence draft linked in the description.",
+  "files": [],
+  "expected_behavior": [
+    "Runs the marketing-pages repo guard (content.sh check-repo) and refuses to write unless the checkout is marketing-pages",
+    "Reads the Jira ticket, extracts the Confluence inline-card URL and target keywords, and derives the slug from the summary minus the Cluster: prefix",
+    "Fetches the Confluence draft and its referenced images, then delegates the storage-format to markdown transform to a Sonnet subagent",
+    "Converts and uploads images to ImageKit (blog-featured/<slug>.webp and blog-posts/<slug>/) and writes content/resources/news/<slug>.md with correct front matter",
+    "Verifies internal links resolve, checks the served HTML on this worktree's dev server, and cleans up the /tmp working dir"
+  ]
+}

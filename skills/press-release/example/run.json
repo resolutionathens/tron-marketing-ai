@@ -1,0 +1,14 @@
+{
+  "skills": ["press-release"],
+  "mode": "judge",
+  "query": "Write the press release for MCR-273 — we're announcing the launch of Facilitron Tickets, our new online box-office and event-ticketing product for school districts.",
+  "files": [],
+  "expected_behavior": [
+    "Pulls the announcement details from the Jira ticket via acli and any linked Confluence brief via tron:confluence",
+    "Sources the approved About Facilitron boilerplate and media-contact line from the press kit (or falls back to the standing default and flags it for confirmation) so the only real gaps left are approved quotes",
+    "Drafts in standard AP-style PR structure: FOR IMMEDIATE RELEASE, headline, subhead, dateline lead paragraph (inverted pyramid), body with quotes, About Facilitron boilerplate, and Media Contact",
+    "Does not fabricate quotes or numbers — marks missing exec/customer quotes with > TODO: and uses AskUserQuestion for the few facts that matter",
+    "Produces copy with no em dashes (Facilitron voice), third person, no marketing superlatives in the body",
+    "Stays git-free (drafts to /tmp/content/<slug>-press-release.md) and offers handoff to tron:grill, tron:md-to-pdf, or tron:news-item, confirming before any outward step"
+  ]
+}

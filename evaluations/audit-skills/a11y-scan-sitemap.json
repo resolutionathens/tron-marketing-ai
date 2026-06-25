@@ -1,0 +1,11 @@
+{
+  "skills": ["a11y-scan"],
+  "query": "Audit accessibility across every page in https://www.facilitron.com/sitemap.xml and group the WCAG violations.",
+  "files": [],
+  "expected_behavior": [
+    "Recognizes the sitemap target as a many-page scan and selects the pa11y-ci breadth path over single-URL axe",
+    "Delegates the run to the a11y-scan-runner subagent via the Task tool rather than running the scanners itself",
+    "Asks the runner to return findings grouped by issue type with severity counts",
+    "Relays the runner's report and keeps the automated-coverage caveat that a clean scan is not full compliance"
+  ]
+}

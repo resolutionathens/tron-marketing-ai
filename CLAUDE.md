@@ -38,6 +38,23 @@ section runs them rather than re-deriving the steps in prose. Each script has a 
 sibling — run it after editing the script. Keep the prose steps as a readable fallback/spec, but
 the script is the source of truth.
 
+## Reference files & progressive disclosure
+
+Keep the SKILL.md body under 500 lines. When it grows past that (or carries bulky templates,
+schemas, or command catalogs), split the detail into `skills/<name>/reference/*.md` and keep
+the workflow + judgment in SKILL.md.
+
+- **References stay one level deep from SKILL.md.** SKILL.md links the reference file directly;
+  a reference file must not chain to another (Claude only partially reads nested links). If two
+  reference files are both needed, link both from SKILL.md.
+- **Reference files over 100 lines start with a `## Contents` list** of their `##` sections, so
+  a partial read still shows the full scope.
+- **Shared prose used by more than one skill lives once under `tools/<area>/<name>.md`** and is
+  linked directly from each consuming SKILL.md (still one level deep) — don't copy it into each
+  skill's `reference/`. The content image pipeline is the model: the convert → upload → verify
+  mechanics live in `tools/image/images-to-imagekit.md`, while `news-item` / `guide-item` /
+  `toolkit-item` keep only their own destination folders and naming in their `reference/`.
+
 ## Path resolution (two patterns — don't mix them)
 
 - **A skill's own bundled files** resolve through the robust resolver block (copied verbatim into

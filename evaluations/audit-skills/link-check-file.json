@@ -1,0 +1,13 @@
+{
+  "skills": ["link-check"],
+  "query": "Check for broken links in content/resources/toolkit/hvac-preventive-maintenance-checklist-for-school-facilities.md before I publish it.",
+  "files": [
+    "content/resources/toolkit/hvac-preventive-maintenance-checklist-for-school-facilities.md"
+  ],
+  "expected_behavior": [
+    "Resolves the named markdown file as the target and converts it to an absolute path before handing off",
+    "Delegates the lychee run to the lychee-link-runner subagent via the Task tool rather than running lychee directly",
+    "Relays the runner's triaged summary of broken, redirected, and accepted links",
+    "If lychee is not installed, surfaces the brew install lychee remediation rather than failing silently"
+  ]
+}

@@ -202,7 +202,8 @@ tron-marketing-ai/
 │   ├── git/                 # git-promote.sh — deterministic git-dev / git-pushtoprod flow
 │   ├── ticket/              # ticket-lib.sh — shared Jira/GitHub lookup helpers (start-ticket, ship-ticket)
 │   ├── worktree/            # worktree-lib.sh — shared worktree path/resolution helpers
-│   └── image/               # to-webp.sh — used by news-item + guide-item
+│   ├── image/               # to-webp.sh + images-to-imagekit.md (shared convert→upload→verify doc) — news-item, guide-item, toolkit-item
+│   └── evaluate/            # evaluate.mjs — the skill-evaluation harness (see TESTING.md)
 └── README.md
 ```
 

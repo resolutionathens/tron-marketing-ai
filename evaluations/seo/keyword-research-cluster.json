@@ -1,0 +1,11 @@
+{
+  "skills": ["keyword-research"],
+  "query": "Build search keyword clusters for facility rentals and run a content gap analysis.",
+  "files": [],
+  "expected_behavior": [
+    "Gathers candidate keywords and pulls real query data from Search Console where possible rather than inventing volumes",
+    "Clusters terms by search intent (informational / commercial / transactional) and maps each cluster to a target page",
+    "Surfaces quick wins (page-2 / position 11-20 queries) and gaps (intents with no page yet) as distinct sections",
+    "Writes a keyword-map brief to /tmp/seo/ and hands quick wins to tron:landing-page-seo; stays git-free"
+  ]
+}

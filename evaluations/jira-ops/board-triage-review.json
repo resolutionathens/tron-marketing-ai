@@ -1,0 +1,11 @@
+{
+  "skills": ["board-triage"],
+  "query": "Triage the MCR board — what needs attention this morning?",
+  "files": [],
+  "expected_behavior": [
+    "Pulls the full candidate set with pagination (the board has 200+ non-Done items and --limit 200 silently truncates), then enriches with updated/duedate/parent from the full item view",
+    "Applies the triage lenses (new/unassigned, stale or blocked, missing priority or due date, ownership gaps) and groups output by Marketing Theme",
+    "Suggests who fits each item via the team->role map and batches confirmations through AskUserQuestion",
+    "Stays git-free and read-first: it proposes assignments/transitions and writes them to Jira only on confirmation"
+  ]
+}

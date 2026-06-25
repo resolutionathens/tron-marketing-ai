@@ -2,7 +2,13 @@
 name: guide-item
 model: opus
 effort: high
-description: 'Publish a new long-form guide to /resources/guides on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Unlike news and toolkit items, a guide is a bespoke Vue PAGE composed from section/display components (not a Nuxt-Content markdown file) — this skill handles the full workflow: fetching the Confluence page, downloading and converting its images to webp, uploading them to ImageKit, composing the page from the standard guide component palette, registering it in the guides index, and wiring SEO meta. Use this skill whenever the user wants to "start the guide", "create a new guide", "build out this guide", "turn this Confluence draft into a guide page", "add a guide to /resources/guides", references a Jira "Guide" or "Pillar" ticket with a Confluence link, or says "publish this guide" / "get this guide on the site". Even if they describe only one part ("just do the images", "just scaffold the page"), this skill owns the whole pipeline so the pieces stay consistent.'
+description: 'Publish a new long-form guide to /resources/guides on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. A guide is a bespoke Vue PAGE built from section/display components (not a Nuxt-Content markdown file); this skill owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, page composition, guides-index registration, and SEO meta. Use this skill whenever the user wants to "start the guide", "create a new guide", "build out this guide", "turn this Confluence draft into a guide page", "add a guide to /resources/guides", references a Jira "Guide" or "Pillar" ticket with a Confluence link, or says "publish this guide" / "get this guide on the site". Even if they describe only one part ("just do the images", "just scaffold the page"), this skill owns the whole pipeline so the pieces stay consistent.'
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Task
+  - AskUserQuestion
 ---
 
 # Facilitron Guide Item
@@ -49,6 +55,26 @@ but its core is **page composition**, not markdown authoring.
 `JIRA_API_TOKEN` lives in `~/.env` (1Password) and is
 usually autosourced. If a command 401s or a token is unset, source them in the _same_
 Bash call: `set -a; source ~/.env; set +a`.
+
+## Workflow checklist
+
+Copy this into your working notes and check items off as you go — it covers every stage.
+
+```
+- [ ] Preflight: content.sh check-repo confirms marketing-pages (stop if not)
+- [ ] Stage 1: read the Jira ticket + capture target keywords
+- [ ] Stage 1: fetch the Confluence draft + images; Sonnet subagent → markdown + image map
+- [ ] Stage 1: confirm the slug with the user before uploading anything
+- [ ] Stage 2: convert body images to webp + upload to guides/<slug>/
+- [ ] Stage 2: upload the OG image to og/og-<slug>.webp
+- [ ] Stage 2: generate the index card thumbnail and upload as guides/guide-<NN>.webp
+- [ ] Stage 3: compose pages/resources/guides/<slug>.vue from the guide palette
+- [ ] Stage 3: wire useDynamicMeta (title, description, path, OG URL)
+- [ ] Stage 4: append the new entry to the guides array in index.vue
+- [ ] Stage 5: verify it renders, the card shows, images + links resolve
+- [ ] Stage 5: run the verification loop (prose-lint, a11y-scan, no em dashes)
+- [ ] Stage 5: clean up /tmp/guide-<slug> and dropped-in sources
+```
 
 ---
 
@@ -138,199 +164,45 @@ from the returned markdown + image map.
 
 ## Stage 2 — Images
 
-Each image becomes a resized webp with a descriptive, slug-scoped name. Convert with
-the bundled helper (Bun `Bun.Image`, caps longest edge at 2000px, q82), or
-`cwebp`/`sips` directly:
+Each image becomes a resized, slug-scoped webp uploaded to `guides/<slug>/`, plus an OG
+image at `og/og-<slug>.webp` and an index card thumbnail at `guides/guide-<NN>.webp`. The
+card thumbnail is **generated to match the existing index cards** (via `tron:gen-image`,
+seeded with the current cards), not hand-picked.
 
-```bash
-TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"   # shared plugin tool
-"$TOWEBP" "/tmp/guide-<slug>/raw/<original>" "/tmp/guide-<slug>/<name>.webp"
-```
-
-Upload to ImageKit (CLI keeps `--name` exactly — no random suffix):
-
-```bash
-set -a; source ~/.env; set +a
-IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
-
-# Body images — one folder per guide
-node $IK upload "/tmp/guide-<slug>/<name>.webp" --name <name>.webp --folder guides/<slug>
-
-# OG image (1200×630-ish; reuse the hero illustration or a representative body image)
-node $IK upload "/tmp/guide-<slug>/og.webp" --name og-<slug>.webp --folder og
-```
-
-Verify names landed clean: `node $IK list --path guides/<slug>`. Body images are
-referenced by **relative provider path** (`guides/<slug>/<name>.webp`) — never a full
-URL. The OG image IS a full URL in `useDynamicMeta` (Stage 3).
-
-### Card thumbnail — generate to match the index style
-
-The guides index cards share one consistent illustration style (and the toolkit index
-cards use a very similar one). Don't hand-pick a random image — **generate the card with
-the `tron:gen-image` skill** (codex `image_gen`, set up on this machine) seeded with the
-_existing_ guide cards so the new one matches the set's palette, framing, and scale.
-
-```bash
-# 1. Find the existing cards + the next free number
-node $IK list --path guides --limit 50 | grep -oE 'guide-?[0-9]+\.webp' | sort -u
-
-# 2. Download the existing cards from ImageKit as gen-image style references
-mkdir -p /tmp/guide-<slug>/card-refs
-for n in 01 02 03 04; do
-  curl -s -o "/tmp/guide-<slug>/card-refs/guide-$n.webp" \
-    "https://ik.imagekit.io/facilitron/guides/guide-$n.webp"
-done
-```
-
-Then invoke the **`tron:gen-image`** skill with `/tmp/guide-<slug>/card-refs` as the reference
-set and a prompt describing this guide's subject (e.g. "flat editorial illustration of a
-preventive-maintenance calendar, school-facility theme"). It returns an image styled to
-match the references. Convert to webp and upload as the next number:
-
-```bash
-"$TOWEBP" <generated.png> "/tmp/guide-<slug>/guide-<NN>.webp"
-node $IK upload "/tmp/guide-<slug>/guide-<NN>.webp" --name guide-<NN>.webp --folder guides
-```
-
-`<NN>` is the next free index (e.g. `05` if `guide-04.webp` is the highest). This is the
-thumbnail the `index.vue` entry references in Stage 4 — distinct from the
-`guides/<slug>/` body-image folder. (The toolkit skill's card image uses the same
-generate-from-references approach against its own index cards.)
-
-> If codex `image_gen` is ever unavailable, fall back to asking the user for a card image
-> or pulling one from Figma — but generate-from-references is the default; it keeps the
-> index visually consistent.
+Guide-specific naming, paths, and the OG/card destinations live in
+[`reference/images.md`](reference/images.md); the shared convert → upload → verify
+mechanics and the generate-from-references card workflow live in
+[`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md).
+Judgment that stays here: name each image descriptively (never the source filename),
+reference body images by **relative provider path** (`guides/<slug>/<name>.webp`) and the OG
+image as a full URL (Stage 3), and confirm names landed clean with
+`node $IK list --path guides/<slug>`.
 
 ---
 
 ## Stage 3 — Compose the page
 
 Create `pages/resources/guides/<slug>.vue`. Mirror an existing guide such as
-`preventive-maintenance-strategy.vue` for the full pattern. The skeleton, palette, and
-conventions below are the reference — follow them rather than re-reading all four
-guides each time.
+`preventive-maintenance-strategy.vue` for the full pattern.
 
-### Canonical section skeleton
+**This is the judgment core — do not delegate it.** Choosing components, section order,
+variants, and styling from the palette is what keeps the orchestrator (Opus) on this stage.
+Read the draft markdown + image map, then compose:
 
-```
-<NuxtLayout>
-  SectionHeroProduct        eyebrow, title, description, cta-text, cta-link,
-                            background-color="bg-tron-primary-600",
-                            :background-image="IMAGEKIT_BG_GRID",
-                            hero-image, hero-image-alt
-  NavPillarSubnav           :links="tocItems" aria-label="Guide navigation"
+1. Open with the universal frame — hero, TOC, intro — then lay out 2–5 body sections that
+   flex to the content, an optional pull quote and dark "at a glance" block, the mid-page
+   CTA, conclusion, and FAQ.
+2. Map each piece of draft content to the right component (prose → `BaseSection`, takeaways
+   → `callout`, point lists → `alternative` grids, numbered processes → the timeline
+   pattern, FAQs → `SectionAccordion`).
+3. Wire `useDynamicMeta` with the title, keyword-rich description, route path, and the full
+   OG URL. Keep every TOC `id` in sync with its `BaseSection id`, and use `tron-` tokens
+   only — no arbitrary Tailwind values.
 
-  BaseSection id="introduction" class="scroll-mt-36" padding="pt-16 px-4"
-    SectionIntro eyebrow="Introduction" headline headline-tag="h2" headline-style="h1"
-    div.mx-auto.max-w-4xl.space-y-4
-      <p>…</p>
-      DisplayFeatureCard variant="callout" icon="lucide:lightbulb" title="Key Takeaway"
-      <p>…</p>
-
-  [2–5 more BaseSection content blocks — alternate no-bg / class="bg-tron-sand-50"]
-    each: SectionIntro + prose + DisplayFeatureCard grids as the content needs
-
-  SectionQuoteSimple        quote, quotee, position            (a pull quote, optional)
-
-  <section class="scroll-mt-36 bg-tron-asphalt-800 px-4 py-20 lg:px-32">   ← dark "at a glance"
-    div.container.mx-auto → heading (frame-h2 text-white) + grid of v-for cards
-
-  <section class="bg-tron-primary-700 py-24">                  ← mid-page CTA
-    3-up grid of NuxtLink cards from a ctaActions array
-
-  BaseSection id="conclusion" padding="py-16 px-4"
-    SectionIntro headline="Conclusion" headline-tag="h2" headline-style="h1"
-    div.mx-auto.max-w-4xl.space-y-4 → prose + a rounded bg-tron-primary-600 rocket callout
-
-  BaseSection id="faq" class="scroll-mt-36" padding="py-16 px-4"
-    SectionIntro headline="Frequently Asked Questions" headline-tag="h2" headline-style="h1"
-    div.mx-auto.max-w-4xl → SectionAccordion :items="faqItems"
-</NuxtLayout>
-```
-
-Hero, TOC, intro, mid-page CTA, conclusion, and FAQ are **universal**. The middle body
-sections, pull quote, and dark section flex to the content.
-
-### Component palette (only what guides use)
-
-| Component            | Key props                                                                                                                                                                                                   | Notes                                                                                                                                                                                                                                      |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SectionHeroProduct` | `eyebrow`_, `title`_, `description`, `ctaText`, `ctaLink`, `ctaVariant` (`primary-alt`\|`primary`\|`secondary`\|`tertiary`\|`inverse`), `backgroundColor`\*, `backgroundImage`, `heroImage`, `heroImageAlt` | Full-bleed hero. Use `background-color="bg-tron-primary-600"` + `:background-image="IMAGEKIT_BG_GRID"`. `heroImage` is a provider path string (component renders it).                                                                      |
-| `NavPillarSubnav`    | `links`\* (`[{id, label}]`), `ariaLabel`                                                                                                                                                                    | Sticky TOC; each `id` must match a `BaseSection id`.                                                                                                                                                                                       |
-| `SectionIntro`       | `headline`\*, `eyebrow`, `description`, `headlineTag` (`h1`\|`h2`\|`h3`, default `h2`), `headlineStyle` (`h1`…`h4`), `textAlign` (default `center`)                                                         | Section header. Guides always use `headline-tag="h2" headline-style="h1"`. Has a `#description` slot for rich content.                                                                                                                     |
-| `DisplayFeatureCard` | `variant` (`default`\|`product`\|`alternative`\|`compact`\|`callout`), `icon` (lucide name), `title`, `description`, `accentColor`, `titleTag`                                                              | Workhorse card. `callout` = highlighted takeaway block (default slot for prose); `alternative` = light-blue grid card; `compact` = inline row (used in timelines/insets); `product` = large brand card with `eyebrow`/`ctaText`/`ctaLink`. |
-| `DisplayIconHeading` | `icon`_, `title`_, `tag` (default `h3`)                                                                                                                                                                     | Icon-badge + heading row. Optional sugar for the inline icon+`h3` pattern.                                                                                                                                                                 |
-| `SectionQuoteSimple` | `quote`_, `quotee`_, `position`, `location`, `backgroundColor`, `borderBottom` (default `true`), `image`, `imageAlt`                                                                                        | Pull quote. Use the `section/` one, NOT `content/QuoteSimple.vue`.                                                                                                                                                                         |
-| `SectionAccordion`   | `items`\* (`[{question, answer}]`), `name`                                                                                                                                                                  | FAQ; native `<details>`. Feed it `faqItems`.                                                                                                                                                                                               |
-| `SectionCtaProduct`  | `title`_, `ctaText`_, `ctaLink`, `description`, `variant` (`dark`\|`dark-split`\|`dark-image`\|`blue`), `backgroundColor`\*                                                                                 | A componentized CTA — an alternative to the raw mid-page CTA `<section>`. `title` is `v-html` — no untrusted input.                                                                                                                        |
-| `BaseSection`        | `padding` (default `py-12`), `class`, `prose` (default `true`), `grid`, `columns`, `gap`                                                                                                                    | Section wrapper with prose styling. Standard content padding is `py-16 px-4`; first section `pt-16 px-4`.                                                                                                                                  |
-| `BaseButton`         | `variant` (`primary`\|`secondary`\|`tertiary`\|`inverse`\|`primary-alt`), `size` (`sm`\|`md`\|`lg`\|`xl`), `link`, `target`                                                                                 | Pill button. `iconOnly` requires an `aria-label`.                                                                                                                                                                                          |
-| `BaseEyebrow`        | `color` (`primary`\|`primary-light`\|`secondary`\|`secondary-light`\|`accent`), `textAlign`                                                                                                                 | Standalone uppercase label (usually you get this via `SectionIntro`'s `eyebrow`).                                                                                                                                                          |
-
-(`*` = required prop. Icons are `<Icon name="lucide:…" aria-hidden="true" />`.)
-
-### How draft content maps to components
-
-- **A prose section** → `BaseSection` > `SectionIntro` (heading) + `div.mx-auto.max-w-4xl.space-y-4` of `<p>`s.
-- **A "key takeaway" callout** → `DisplayFeatureCard variant="callout" icon="lucide:lightbulb" title="Key Takeaway"` with prose in the default slot.
-- **A list of benefits/points** → a grid of `DisplayFeatureCard variant="alternative"`:
-  `div.mx-auto.mt-10.grid.max-w-5xl.gap-4.sm:grid-cols-2.lg:grid-cols-3`.
-- **A numbered process** → a timeline: a `v-for` over a `steps` array rendering numbered
-  badges + `DisplayFeatureCard variant="compact"` (see `preventive-maintenance-strategy.vue`).
-- **An "at a glance" / best-practices block** → the dark raw `<section class="bg-tron-asphalt-800 …">` with a `v-for` of `bg-white/5` bordered cards (full-bleed, so NOT `BaseSection`).
-- **An FAQ** → a `faqItems` array → `SectionAccordion`.
-- **Images** → `<NuxtImg provider="imagekit" src="guides/<slug>/<name>.webp" alt="…" class="w-full rounded-lg" sizes="500px md:1200px lg:1800px" />`. `alt` is required (WCAG) — write a real description, never the source filename.
-
-### `<script setup>` conventions
-
-```ts
-definePageMeta({
-  documentDriven: { page: false, surround: false },
-  layout: "news",
-});
-
-// Data arrays consumed by the template:
-const tocItems = [
-  { id: "introduction", label: "Introduction" } /* one per BaseSection id */,
-];
-const faqItems = [{ question: "…", answer: "…" } /* … */];
-const ctaActions = [
-  {
-    icon: "lucide:calendar-check",
-    title: "Schedule a Demo",
-    description: "…",
-    link: "/demo-signup",
-  } /* 3 */,
-];
-// plus any domain arrays for grids/timelines, all flat: { icon, title, description }
-
-const route = useRoute();
-const title = "The Complete Guide To …";
-const description = "…"; // keyword-rich, ~150–160 chars
-
-useDynamicMeta(
-  title,
-  description,
-  route.path,
-  "https://ik.imagekit.io/facilitron/og/og-<slug>.webp", // full OG URL
-);
-```
-
-`IMAGEKIT_BG_GRID` (from `utils/imagekit.ts`) and `useDynamicMeta` are auto-imported —
-no `import` line needed. Guide detail pages do **not** call `useJsonLd`/`useArticleSchema`
-(only the index does). Do **not** add a `#`/H1 in the body — the hero renders the title.
-
-### Styling rules (tron tokens only — no arbitrary values)
-
-- Alternate section backgrounds: white (no bg class) ↔ `class="bg-tron-sand-50"`.
-- Dark emphasis sections and the mid-page CTA use **raw `<section>`** (not `BaseSection`)
-  for full-bleed: `bg-tron-asphalt-800` / `bg-tron-primary-700`.
-- Every `BaseSection` that the TOC links to gets `id="…"` + `class="scroll-mt-36"`.
-- Prose column `max-w-4xl`; card grids `max-w-5xl`/`max-w-6xl`. Paragraph rhythm
-  `space-y-4`; subsection blocks `space-y-10`; card grids `gap-4`/`gap-6`.
-- Colors are `tron-` tokens or Tailwind built-ins — never `bg-[#…]` or `w-[…px]` (see
-  the root CLAUDE.md Tailwind discipline).
+The full reference — section skeleton, the component palette with props, the
+draft-to-component mapping, the `<script setup>` conventions, and the styling rules — lives
+in [`reference/components.md`](reference/components.md). Follow it rather than re-reading
+all four guides each time.
 
 ---
 
@@ -382,6 +254,22 @@ body-image folder.
    `tron:a11y-scan` against the rendered guide route (new pages should clear the WCAG gate).
 6. **Clean up** — remove the dropped-in sources and `/tmp/guide-<slug>`. Only the new
    `.vue` page and the `index.vue` edit should end up tracked.
+
+### Verification loop (validate → fix → repeat)
+
+Quality is iterative, not one-shot. Run this loop until it comes back clean before you
+call the guide done:
+
+1. **Validate.** Render the route (Stage 5 step 1), then run `tron:prose-lint` on the copy
+   and `tron:a11y-scan` against the rendered guide. Re-grep the page source for em dashes
+   (`grep -n '—' pages/resources/guides/<slug>.vue`) — Facilitron voice has **no em
+   dashes** in produced copy.
+2. **Fix.** Address each finding at its source: rewrite em dashes to commas, periods, or
+   "to" ranges; supply real `alt` text for any image flagged by a11y; tighten vague or
+   off-brand prose.
+3. **Repeat.** Re-run the same checks. Don't stop at the first pass — fixes can introduce
+   new findings (a reworded sentence can reintroduce a dash). Loop until prose-lint,
+   a11y-scan, and the em-dash grep all come back empty.
 
 ## Common pitfalls
 

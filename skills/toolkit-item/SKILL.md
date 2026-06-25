@@ -2,6 +2,12 @@
 name: toolkit-item
 model: opus
 effort: high
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Task
+  - AskUserQuestion
 description: Add a new item (checklist, SOP, or template) to the Facilitron marketing-pages toolkit at /resources/toolkit. Handles the full workflow — reformatting raw markdown into the Nuxt-Content toolkit schema, writing to content/resources/toolkit/, building the branded PDF, uploading the PDF and card image to ImageKit, verifying internal links resolve, and cleaning up source files. Trigger whenever the user wants to "add a toolkit item", "create a new checklist/SOP/template for the toolkit", "publish this checklist", "add this to /resources/toolkit", drops a raw markdown file and references the toolkit, or shares a Confluence/Google Doc-style draft with phrases like "make this a toolkit item" or "let's get this on the resources page". Also trigger when the user mentions adding a downloadable resource for facility managers, schools, or districts where the destination is the marketing site's toolkit section.
 ---
 
@@ -39,64 +45,31 @@ Ask for whichever isn't already obvious:
 3. **Category** — must be one of `sop`, `checklist`, or `template`. Often inferable from the title ("Checklist for…" → `checklist`, "Standard Operating Procedure" → `sop`).
 4. **Slug** — derive from the title (lowercase, hyphenated, drop "for", "the", etc. only if length is a problem). Confirm with the user when in doubt.
 
-## Page anatomy & component reference
+## Schema & component reference
 
-Don't re-derive this by reading sibling pages each time — the patterns below come
-from the existing toolkit items and the slug renderer
-(`pages/resources/toolkit/[...slug].vue`).
+The toolkit schema details live in **[`reference/schema.md`](reference/schema.md)** —
+load it before authoring the destination markdown. It covers the front-matter options
+(required vs optional fields, the `meta_*` SEO overrides), the page chrome the slug
+renderer supplies (so you don't duplicate it), the two MDC components
+(`::checklist-group`, `::faq`), the per-category skeleton (`sop` / `checklist` /
+`template`), the source-to-toolkit conversion rules, and the internal-link reference
+table. Don't re-derive any of that by reading sibling pages each time.
 
-### What the slug page renders for you — do NOT author these
+## Workflow checklist
 
-The page is mostly chrome you must not duplicate in the markdown body:
+Copy this and check off as you go:
 
-- **Hero** (`SectionHeroProduct`) shows an **eyebrow** = the category label (auto from
-  `category`: `sop` → "Standard Operating Procedure", `checklist` → "Checklist",
-  `template` → "Template"), then the `title`, the `description`, and a **Download PDF**
-  button (when `download:` is set). So: don't repeat the title as an `#` H1, don't
-  restate the category in the title, and don't write a download link in the body.
-- A **second Download PDF button** auto-renders after the body, followed by a
-  **social-share** row.
-- A **"Schedule a Demo" CTA** (`SectionBasicCta`) closes every page — don't author
-  your own closing CTA.
-- **SEO** — Article JSON-LD and meta tags are emitted automatically from front matter.
-- The body renders inside Tailwind **`.prose`** at `max-w-6xl`, so plain markdown
-  (headings, tables, lists, bold) is styled automatically — no wrapper classes.
-
-### Components used in toolkit bodies
-
-Only two MDC block components appear in toolkit items — **`::checklist-group`** and
-**`::faq`**. Everything else is plain markdown (`##`/`###` headings, paragraphs, `-`
-bullets, pipe tables). `::image-text` and `::fImg` are **news-article** components —
-do not use them here.
-
-- **`::checklist-group`** (`components/content/ChecklistGroup.vue`) — wraps plain
-  `- item` bullets; CSS draws the checkbox via `::before`. Use one group per logical
-  checklist section (e.g. one per room or area). Never write `- [ ]` inside it
-  (double box — see pitfalls).
-- **`::faq`** (`components/content/Faq.vue`) — `faqItems: [{question, answer}, …]`;
-  renders its own "FAQ" heading and emits FAQPage JSON-LD. Don't add a `## FAQ`
-  heading above it.
-
-### Structure by category
-
-Every page opens with a 1–2 paragraph intro (no heading), then follows a consistent
-skeleton:
-
-- **`sop`** → `## What is <X>?` → `## Procedure: How to <X>` with numbered
-  `### 1. … ### N.` steps → optional `## Compliance & Regulatory Standards` →
-  `::faq`. SOPs use numbered steps — no `::checklist-group`, no tables.
-- **`checklist`** → `## What Is / What Does <X> Include?` → a `## … Checklist`
-  (often "…by Facility Area") section holding several `### <Area> Checklist`
-  subsections, **each wrapping a `::checklist-group`** → usually a "Why it matters"
-  or "Tips" section. Checklists typically have **no** `::faq`; a frequency table is
-  optional.
-- **`template`** → `## What Is <X>?` → `## Free <X> Templates` (or `## <X> Template`)
-  presenting one or more **markdown tables** (e.g. `### Template 1/2/3`) →
-  `## What to Include` / `## How to Use` → `::faq`. Templates are table-driven, not
-  checklist-driven.
-
-(The PDF, by contrast, carries only the actionable section — the procedure steps, the
-checklist body, or the fillable grid. See step 3.)
+```
+- [ ] 0. Preflight — confirm you're in the marketing-pages repo (content.sh check-repo)
+- [ ] 1. Read the source markdown — note title, audience, links, category
+- [ ] 2. Reformat into the toolkit schema (see reference/schema.md) and write content/resources/toolkit/<slug>.md — all four required front-matter fields (title, description, date, category)
+- [ ] 2.5. Lint links with lychee; rewrite facilitron.com → relative; verify internal paths
+- [ ] 3. Build the trimmed PDF (LaTeX path via tron:md-to-pdf); open it and get user sign-off
+- [ ] 4. Upload the PDF to ImageKit (toolkit/downloads/, with --name)
+- [ ] 5. Upload (converting to .webp if needed) the card image to ImageKit (toolkit/, with --name)
+- [ ] 6. Clean up the dropped-in source markdown and source image
+- [ ] 7. Run the verification loop, then report paths + URLs + a dev test plan
+```
 
 ## Shared scripted helpers
 
@@ -140,46 +113,21 @@ Find and read the source file. Note the title, intended audience, and any links 
 
 ### 2. Reformat into the toolkit schema
 
-Write the destination file at `content/resources/toolkit/<slug>.md`. Use this front matter:
+Write the destination file at `content/resources/toolkit/<slug>.md`. The full schema
+spec — front-matter fields (required vs optional, the `meta_*` SEO overrides), the body
+conventions, the per-category skeleton, and the internal-link reference table — lives in
+**[`reference/schema.md`](reference/schema.md)**. Read it now and apply it.
 
-```yaml
----
-title: <Title from source, sentence case or title case>
-date: <today's date in YYYY-MM-DD>
-description: <1–2 sentence summary; shown in the hero AND used as the default meta description>
-image: <slug>.webp
-category: sop | checklist | template
-download: <slug>.pdf
-meta_title: <optional SEO <title> override; keep under ~60 chars>
-meta_description: <optional SEO meta override; distinct from description, keyword-rich, ~150–160 chars>
----
-```
+Judgment calls that stay here:
 
-Schema source: `content.config.ts` `toolkit` collection. **Required:** `title`, `description`, `date`, `category` (a Zod enum — `sop`, `checklist`, `template`; invalid values fail the Nuxt build). **Optional:** `image`, `download`, `meta_title`, `meta_description`. The two `meta_*` fields override `title`/`description` for the page `<title>` and meta tags only (`[...slug].vue` falls back to `title`/`description` when they're absent) — set them when you want SEO copy that differs from the on-page hero. Most recent items do; check a sibling for the house style.
-
-**Body conventions** — follow the **Page anatomy & component reference** section above (page chrome, the two components, and the per-category skeleton are documented there, so you don't need to re-read sibling pages each time):
-
-- Open with a 1–2 paragraph intro. The hero on the slug page already shows title + description, so don't repeat the H1.
-- Use `## Section` and `### Subsection` headings.
-- Wrap checklist items in `::checklist-group` blocks. Inside the block use plain `- item` bullets — the `ChecklistGroup.vue` component renders each `<li>` with a CSS-drawn checkbox. The `tron:md-to-pdf` build script also auto-converts those bullets into task-list checkboxes for the PDF.
-- Don't manually write `- [ ]` syntax inside `::checklist-group` — the website renders both the CSS box and the `<input type=checkbox>`, producing a double-box.
-- Drop the source's "Choose your format / PDF / Excel" trailing section. The slug page (`pages/resources/toolkit/[...slug].vue`) auto-renders a Download PDF button when the front matter has a `download` field — in two places: in the hero (after the description, above the fold) and at the bottom of the body. You don't author either; they come from the `download:` field.
-- Don't put empty fillable grids in the web markdown. Empty pipe-table cells render as faint ghost lines on the page — the fillable grid belongs in the PDF only. On the web, use a populated descriptive table (e.g. a `Field | Purpose` table) or underscore-style bullets instead.
-- Drop any "Version Control" table the source contains (a single-row "v1.0 / Initial SOP creation" entry is noise on a public marketing page — git history is the source of truth, and old toolkit items have already had it removed).
-
-**Internal links — verify each one before saving.** This is the #1 build-breaking pitfall. Common landing pages:
-
-| Want to link to                   | Correct path                                      | Notes                                                                                                |
-| --------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Facilitron Works product          | `/product/works`                                  | has `index.vue`                                                                                      |
-| Scheduling & Reservations product | `/product/facilitron-scheduling-and-reservations` | the directory `/product/scheduling-and-reservations/` has **no index page** — linking there is a 404 |
-| Building Automation Systems       | `/product/scheduling-and-reservations/bas`        | exists                                                                                               |
-| Facilitron FIT                    | `/product/facilitron-fit`                         |                                                                                                      |
-| Other toolkit items               | `/resources/toolkit/<slug>`                       |                                                                                                      |
-
-When unsure, run `find pages -type f -name "*.vue" | grep -i <keyword>` against the marketing-pages repo to confirm.
-
-Convert any `https://www.facilitron.com/...` URLs in the source to relative paths.
+- Pick `category` (`sop` / `checklist` / `template`) and derive the `slug` (the
+  `content.sh slug` helper below). Confirm with the user when ambiguous.
+- Match the house style by checking a recent sibling — most recent items set the
+  `meta_*` SEO overrides.
+- **Verify every internal link before saving** — a bad path is the #1 build-breaking
+  pitfall. Use the link table in `reference/schema.md`, and when unsure run
+  `find pages -type f -name "*.vue" | grep -i <keyword>` against the marketing-pages
+  repo to confirm. Convert any `https://www.facilitron.com/...` URLs to relative paths.
 
 ### 2.5. Lint links with lychee
 
@@ -244,30 +192,21 @@ The `download:` front-matter field stores just the filename — the slug page bu
 
 ### 5. Upload the card image to ImageKit
 
-**If no card image was provided,** generate one with the `tron:gen-image` skill (codex
-`image_gen`) seeded with the existing toolkit cards so it matches the set's style —
-download a few references first (`curl -s -o /tmp/ref-N.webp https://ik.imagekit.io/facilitron/toolkit/<existing-slug>.webp`),
-then prompt `tron:gen-image` with this item's subject. (Guide cards use the same
-generate-from-references approach — see the `tron:guide-item` skill.)
+The convert → upload → verify mechanics and the generate-card-from-references workflow are
+shared — see [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md).
+Toolkit-specific parameters:
 
-The toolkit naming convention is `.webp` — the list page builds the URL as `toolkit/<image>` and the existing items are all `.webp`. If the user provided a `.webp`, upload as-is. If they provided a PNG or JPG (common — they'll often drop an `img.png` in the repo root), convert first:
+- **If a card image was provided** (often an `img.png` dropped in the repo root), convert it
+  to webp with the shared `to-webp.sh` and upload to the `toolkit` folder as `<slug>.webp`.
+  A `.webp` source can be uploaded as-is.
+- **If no card image was provided,** generate one via the shared generate-from-references
+  workflow with index folder `toolkit` and the existing toolkit cards as the reference set,
+  then upload as `<slug>.webp`.
 
-```bash
-cwebp -q 85 <source-image-path> -o /tmp/<slug>.webp
-```
-
-`cwebp` ships with the Homebrew `webp` package (`brew install webp`). Quality 85 lands around 30–60 KB for a 1600px-wide card image, which is well under the listing-page budget.
-
-Then upload:
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload \
-  /tmp/<slug>.webp \
-  --name <slug>.webp \
-  --folder toolkit
-```
-
-Same env-var caveat as the PDF upload. The `image:` front-matter field stores just the filename — the toolkit list page prefixes it with `toolkit/` for ImageKit lookup.
+The toolkit naming convention is `.webp` — the list page builds the URL as `toolkit/<image>`
+and the existing items are all `.webp`. The `image:` front-matter field stores just the
+filename; the toolkit list page prefixes it with `toolkit/` for the ImageKit lookup, so the
+uploaded filename must match the front-matter value exactly.
 
 ### 6. Clean up source files
 
@@ -291,6 +230,29 @@ Tell the user:
 Before publish, offer a QA pass: `tron:prose-lint` on the markdown, `tron:link-check` on its links, and `tron:a11y-scan` against the rendered toolkit page.
 
 Don't auto-commit or push — leave that to the user (or to a separate `git-commit` invocation).
+
+## Verification loop
+
+Before reporting, run a validate → fix → repeat pass until it's clean. Don't ship on
+the first draft.
+
+1. **Internal links resolve.** Run `content.sh check-link` for each internal path and
+   the lychee pass (step 2.5). Any `Cannot find file` or hard 404 → fix the path in the
+   markdown and re-run. Repeat until zero internal failures.
+2. **Schema validity.** Confirm `category` is one of `sop` / `checklist` / `template`
+   and the required fields are present (a bad enum fails the Nuxt build). If a local
+   dev build is running, watch for prerender 404s and fix the named link.
+3. **Content quality + Facilitron voice.** Re-read the body and **strip every em dash**
+   — Facilitron voice uses none; rewrite the sentence with a comma, period, or
+   parentheses instead. Run `tron:prose-lint` on the markdown; fix flagged issues and
+   re-lint until clean. Check no `- [ ]` appears inside a `::checklist-group` (double
+   box) and no empty fillable grid leaks onto the web page.
+4. **Artifacts match.** Open the built PDF and confirm it carries only the actionable
+   section. Confirm the uploaded ImageKit filenames exactly match the `download:` and
+   `image:` front-matter values (exact-match lookup — a `.png` vs `.webp` mismatch
+   breaks the card).
+
+Only after this loop comes back clean do you move to step 7's report.
 
 ## Common pitfalls
 

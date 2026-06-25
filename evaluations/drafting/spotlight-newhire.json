@@ -1,0 +1,11 @@
+{
+  "skills": ["spotlight"],
+  "query": "New hire spotlight for our new Customer Success lead — IG/FB/LI.",
+  "files": [],
+  "expected_behavior": [
+    "Identifies the spotlight type (new-hire) and uses the house structure with LinkedIn leading, plus Instagram and Facebook variants",
+    "Uses only real facts; for a missing quote or detail it inserts a `> TODO:` placeholder and asks via AskUserQuestion rather than inventing a person's quote or title",
+    "Writes human-first, genuine copy with no em dashes and exact names/titles",
+    "Stays git-free: produces the copy and leaves scheduling to the social tools"
+  ]
+}

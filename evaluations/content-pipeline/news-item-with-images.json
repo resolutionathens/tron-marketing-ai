@@ -1,0 +1,12 @@
+{
+  "skills": ["news-item"],
+  "query": "I dropped featuredimg.png in the repo root for the preventive-maintenance cluster article — turn the Confluence draft into a news post with all the inline images wired up.",
+  "files": ["featuredimg.png"],
+  "expected_behavior": [
+    "Runs the marketing-pages repo guard before writing anything",
+    "Confirms the slug with the user before uploading, since the slug drives both ImageKit folders and the featured-image name",
+    "Names each inline image after the section it illustrates, converts each to resized webp with to-webp.sh, and uploads to blog-posts/<slug>/",
+    "Chooses ::image-text for wrap-left/wrap-right Confluence layouts and ::fImg for centered or full-width images, writing a real alt description for each (WCAG)",
+    "Verifies uploaded names landed clean with no random suffix, spot-checks the ImageKit URLs, and removes the dropped-in featuredimg.png on cleanup"
+  ]
+}

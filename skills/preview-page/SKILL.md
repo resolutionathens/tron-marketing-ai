@@ -3,6 +3,9 @@ name: preview-page
 model: haiku
 effort: low
 description: Open a marketing-pages route in the user's default browser so they can visually inspect it. Spins up the Nuxt dev server on port 4001 if it isn't running, then opens the requested URL in the default browser. Use this whenever the user asks to "preview", "open in the browser", "show me the page", "load it up", "open that route", or anything similar after creating or editing a `pages/**/*.vue` file. Also trigger when they say "let's both look at it" or "pop it open" right after a page edit — that phrasing implies opening the page in the browser, not just printing the URL.
+allowed-tools:
+  - Bash
+  - Read
 ---
 
 # Preview Page in the Default Browser

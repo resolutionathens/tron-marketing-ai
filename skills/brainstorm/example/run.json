@@ -1,0 +1,14 @@
+{
+  "skills": ["brainstorm"],
+  "mode": "judge",
+  "query": "I've been noodling on a content campaign around back-to-school facility prep for K-12 districts, but I haven't pinned down the angle or whether it's even worth doing. Help me think through it.",
+  "files": [],
+  "expected_behavior": [
+    "Asks one question at a time and waits for the answer before the next, never dumping all the questions in a single message",
+    "Walks the 6 stages in order: frame the problem (not the solution), identify a specific audience, pressure-test real vs imagined demand, imagine the do-nothing vs lands-perfectly outcome, risk & constraint check, inputs & adjacency",
+    "Does NOT produce the content itself (no outline or draft) — it produces the thinking and grounds any angle in the specific audience from Stage 2",
+    "Saves a single structured Ideation Note (e.g. /tmp/ideation-<slug>.md), preferably via the bundled scripts/brainstorm.sh save helper, without clobbering an existing note",
+    "Ends the Ideation Note with a Next Step that hands the idea to the right production skill (tron:news-item, tron:guide-item, tron:toolkit-item, tron:landing-page-seo, or /grill)",
+    "Produces copy with no em dashes (Facilitron voice)"
+  ]
+}

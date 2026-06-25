@@ -1,0 +1,14 @@
+{
+  "skills": ["prose-lint"],
+  "query": "Run Vale on content/resources/news/school-facilities-maintenance-news-and-updates.md and check it against our style guide before publish.",
+  "files": [
+    "content/resources/news/school-facilities-maintenance-news-and-updates.md"
+  ],
+  "expected_behavior": [
+    "Resolves the named markdown file as the lint target",
+    "Resolves the bundled Facilitron style pack and passes the absolute styles/ path to the runner",
+    "Delegates the lint to the vale-prose-runner subagent via the Task tool rather than running vale directly",
+    "Relays the runner's findings grouped by file with severity counts and top offenders",
+    "If vale is not installed, surfaces the brew install vale remediation"
+  ]
+}

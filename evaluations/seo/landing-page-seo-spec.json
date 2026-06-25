@@ -1,0 +1,11 @@
+{
+  "skills": ["landing-page-seo"],
+  "query": "Optimize the DFP landing page for search — give me the on-page spec to make it rank.",
+  "files": [],
+  "expected_behavior": [
+    "Produces a prescriptive change spec (recommended title/meta/H1, heading outline, content additions, internal links, schema, technical/CWV fixes), not a diagnosis",
+    "Builds on tron:seo-audit (current state) and tron:keyword-research (targets) rather than re-running them from scratch",
+    "Keeps every recommendation specific and implementable by a developer, with no vague 'improve content' hand-waves",
+    "Writes the spec to /tmp/seo/ and stays git-free, handing the implementation to a git user as a marketing-pages change"
+  ]
+}

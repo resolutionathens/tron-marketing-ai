@@ -1,0 +1,14 @@
+{
+  "skills": ["news-item"],
+  "mode": "judge",
+  "query": "Start the news item for CCAL-512 — it's a Cluster: How to Prepare a Preventive Maintenance Plan blog post with a Confluence draft linked in the ticket, and I dropped featuredimg.png in the repo root.",
+  "files": ["featuredimg.png"],
+  "expected_behavior": [
+    "Runs the marketing-pages preflight guard (content.sh check-repo) and refuses to write content if the checkout is not marketing-pages",
+    "Reads the Jira ticket via acli, extracts the Confluence inline-card link and target SEO keywords, and derives + confirms the slug (e.g. how-to-prepare-a-preventive-maintenance-plan) before uploading anything",
+    "Fetches the Confluence draft and its referenced images, converts images to webp, and uploads the featured image to ImageKit at blog-featured/<slug>.webp and inline images to blog-posts/<slug>/<name>.webp",
+    "Writes content/resources/news/<slug>.md with the Nuxt-Content news front matter and a body assembled from the standard component palette (::image-text, ::fImg, ::faq, ::quote) rather than authoring its own hero/CTA/SEO",
+    "Converts facilitron.com URLs to relative internal paths and verifies each resolves, avoiding the /product/scheduling-and-reservations/ trap, and writes a real alt-text description on every image",
+    "Produces copy with no em dashes (Facilitron voice), runs the served-HTML verification on this worktree, and cleans up the dropped-in featured image and /tmp working directory"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "skills": ["gh"],
+  "mode": "deterministic",
+  "query": "Show me the gh skill's scripted fast-path commands.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/gh/scripts/gh.sh", "help"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": [
+        "gh-view-pr",
+        "gh-list-issues",
+        "gh-merge-pr",
+        "gh-comment"
+      ]
+    }
+  },
+  "expected_behavior": [
+    "Running the scripted help target exits 0 and lists all four deterministic subcommands"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "skills": ["__fixture__"],
+  "mode": "deterministic",
+  "query": "fixture that must fail",
+  "files": [],
+  "exec": {
+    "cmd": ["node", "-e", "process.stdout.write('nope')"],
+    "expect": { "exitCode": 0, "stdoutContains": ["EXPECTED_BUT_ABSENT"] }
+  },
+  "expected_behavior": ["this assertion is intentionally unsatisfiable"]
+}

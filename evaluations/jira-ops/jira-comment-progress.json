@@ -1,0 +1,11 @@
+{
+  "skills": ["jira-comment"],
+  "query": "Drop a progress comment on MD-1234 about what we did.",
+  "files": [],
+  "expected_behavior": [
+    "Resolves the ticket key (from the message or the current branch) before drafting",
+    "Drafts a short, plain-language comment in prose with no bullets, no em dashes, no conventional-commit prefixes, and no code-y identifiers leaking into the text",
+    "Ends with a clear status pointer (what's next / current state) in a human teammate voice",
+    "Posts via acli only after the draft is right, rather than padding it with technical detail"
+  ]
+}

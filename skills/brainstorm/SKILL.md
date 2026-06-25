@@ -35,7 +35,18 @@ runs _upstream_ of the content pipeline: the output is an Ideation Note that a c
 The whole point is to surface assumptions you didn't know you had. **Never dump a list of questions; ask
 one, wait, integrate the answer, then ask the next.** A wall of questions short-circuits the discipline.
 
-The conversation has 6 stages. Move to the next only after you've answered the current one.
+The conversation has 6 stages. Move to the next only after you've answered the current one. Track
+progress with this checklist (copy it and check items off as you go):
+
+```
+- [ ] Stage 1 — Frame the problem (not the solution)
+- [ ] Stage 2 — Identify a specific audience
+- [ ] Stage 3 — Pressure-test the interest (real vs. imagined demand)
+- [ ] Stage 4 — Imagine the outcome (do-nothing vs. lands-perfectly delta)
+- [ ] Stage 5 — Risk & constraint check
+- [ ] Stage 6 — Inputs & adjacency (discovery work, new page vs. update)
+- [ ] Save the Ideation Note
+```
 
 ### Stage 1 — Frame the Problem (not the solution)
 
@@ -91,62 +102,38 @@ Goal: identify the discovery work (and decide whether a _new_ page is even the r
 ## Output: Ideation Note
 
 After Stage 6, save to a working path: `/tmp/ideation-<slug>.md` (or alongside the user's notes if they
-prefer).
+prefer). Use the template in `reference/ideation-note-template.md` — fill in the answers from the 6 stages.
 
-```markdown
----
-status: ideation
-created: YYYY-MM-DD
-audience: { specific persona/segment }
-format: { article | guide | toolkit item | landing page | campaign | other }
-ready_to_produce: false # flip to true once discovery work below is done
----
+### Fast path (scripted)
 
-# Ideation Note — {Short name of the idea}
+The save boilerplate (slug, today's date, front-matter, fence-stripping) is a bundled wrapper — reach
+for it instead of hand-writing the path and skeleton, then fill in the body:
 
-## Trigger
-
-{Why this came up — 1-2 sentences}
-
-## Audience & Pull
-
-- **Who:** {persona, specific}
-- **What they do today:** {current behavior / workaround / search}
-- **Evidence of pull:** {search data, repeated questions, sales asks — or "unproven, needs discovery"}
-
-## Hypothesis
-
-> If we {make X for audience Y}, then {outcome} — because {why}.
-
-## Counter-factual
-
-- **Do nothing:** {what happens}
-- **Lands perfectly:** {what changes — for the reader and for us}
-- **Delta:** {the actual change this produces}
-
-## Risks & Constraints
-
-- {risk 1}
-- {risk 2}
-
-## Discovery Work (before producing)
-
-- [ ] {signal to gather — e.g. run /tron-report on {query}}
-- [ ] {check: does an existing page already cover this? update vs. new}
-
-## Open Questions
-
-- {anything unresolved}
-
-## Next Step
-
-- Once discovery is done, hand to the right production skill for the idea:
-  - **Web content** → `tron:news-item` (article), `tron:guide-item` (guide), `tron:toolkit-item` (SOP/checklist/template).
-  - **Campaign / lifecycle** → `tron:email-campaign`, `tron:social-post`.
-  - **Narrative / proof** → `tron:case-study`, `tron:press-release`.
-  - **A new landing page** → `tron:landing-page-seo` (target keywords + on-page spec).
-- Or run `/grill` to stress-test the hypothesis before committing.
+```bash
+# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
+# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
+name=brainstorm
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+# fall back to the newest INSTALLED copy that actually contains scripts/brainstorm.sh
+# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
+[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/brainstorm.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || { echo "tron:$name: can't find scripts/brainstorm.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] [--out PATH]
 ```
+
+It prints the written path (default `/tmp/ideation-<slug>.md`), seeds `created`/`audience`/`format` in
+the front-matter, and refuses to clobber an existing note (pass `--force`). Then edit that file to fill
+the body sections. Smoke the offline surface (slug, save, no-clobber, usage contract) with
+`bash "$SKILL_DIR/scripts/test-brainstorm.sh"`.
+
+The Ideation Note ends with a **Next Step** that hands the idea to the right production skill once the
+discovery work is done:
+
+- **Web content** → `tron:news-item` (article), `tron:guide-item` (guide), `tron:toolkit-item` (SOP/checklist/template).
+- **Campaign / lifecycle** → `tron:email-campaign`, `tron:social-post`.
+- **Narrative / proof** → `tron:case-study`, `tron:press-release`.
+- **A new landing page** → `tron:landing-page-seo` (target keywords + on-page spec).
+- Or run `/grill` to stress-test the hypothesis before committing.
 
 ## Compensating Actions
 

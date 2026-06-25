@@ -1,0 +1,14 @@
+{
+  "skills": ["toolkit-item"],
+  "mode": "judge",
+  "query": "Add this to /resources/toolkit — I dropped hvac-checklist.md and img.png in the repo root. It's an HVAC Preventive Maintenance Checklist for School Facilities, make it a downloadable toolkit item.",
+  "files": ["hvac-checklist.md", "img.png"],
+  "expected_behavior": [
+    "Runs the marketing-pages preflight guard (content.sh check-repo) and refuses to write if the checkout is not marketing-pages",
+    "Reformats the source into the toolkit Nuxt-Content schema with category set to one of sop/checklist/template, derives + confirms the slug, and writes content/resources/toolkit/<slug>.md",
+    "Verifies every internal link resolves (lychee plus content.sh check-link) and converts facilitron.com URLs to relative paths before building the PDF",
+    "Builds a trimmed branded PDF via tron:md-to-pdf (LaTeX path) containing only the actionable checklist body, gets user sign-off, then uploads it to ImageKit at toolkit/downloads/<slug>.pdf with --name",
+    "Converts the card image to .webp with the shared tools/image/to-webp.sh and uploads it to toolkit/<slug>.webp with --name so the front-matter image: filename matches the uploaded asset exactly",
+    "Produces copy with no em dashes (Facilitron voice), uses plain bullets inside ::checklist-group (no double-box - [ ]), cleans up the dropped-in source markdown and image, and runs the verification loop before reporting paths and URLs"
+  ]
+}
