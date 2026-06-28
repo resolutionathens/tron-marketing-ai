@@ -81,7 +81,7 @@ acli jira workitem create \
 acli jira workitem edit --key MD-1234 --description-file /tmp/desc.adf.json --yes
 ```
 
-The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support). It handles: headings, **bold**, _italic_, `inline code`, fenced code blocks, bullet/numbered lists, links, blockquotes, horizontal rules. Tables and images aren't supported — if you need them, edit in the UI afterwards.
+The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support). It handles: headings, **bold**, _italic_, fenced code blocks, bullet/numbered lists, links, blockquotes, horizontal rules. Inline `code` (backtick) spans are flattened to plain text — `acli` rejects the ADF `code` mark with `INVALID_INPUT`, so the helper strips it (the text is kept, just unstyled); use a fenced code block when you need monospace. Tables and images aren't supported — if you need them, edit in the UI afterwards.
 
 **Rule:** any time the ticket description is more than a line or two, or uses any markdown formatting, go through the helper. Never pass markdown directly via `-d`/`--description`.
 

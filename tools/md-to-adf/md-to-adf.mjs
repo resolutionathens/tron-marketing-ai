@@ -29,4 +29,27 @@ const pi = args.indexOf('--preset');
 if (pi !== -1 && args[pi + 1]) preset = args[pi + 1];
 
 const md = fs.readFileSync(0, 'utf8'); // fd 0 = stdin
-process.stdout.write(JSON.stringify(markdownToAdf(md, { preset })));
+const adf = markdownToAdf(md, { preset });
+
+// Strip inline `code` marks. They are valid ADF per the Atlassian spec, but the `acli`
+// backend this output is fed to (`acli ... --description-file`) rejects them with
+// `InvalidPayloadException: INVALID_INPUT` — so any description with backticks (file
+// paths, identifiers, flags) would fail to submit. We drop just the `code` mark; the
+// text stays (readable as plain text). Fenced code blocks (`codeBlock` nodes) and
+// `strong`/`em` marks are accepted by acli and are left intact. (MD-1944)
+function stripCodeMarks(node) {
+  if (Array.isArray(node)) {
+    node.forEach(stripCodeMarks);
+    return;
+  }
+  if (node && typeof node === 'object') {
+    if (Array.isArray(node.marks)) {
+      node.marks = node.marks.filter((m) => m && m.type !== 'code');
+      if (node.marks.length === 0) delete node.marks;
+    }
+    for (const value of Object.values(node)) stripCodeMarks(value);
+  }
+}
+stripCodeMarks(adf);
+
+process.stdout.write(JSON.stringify(adf));
