@@ -35,6 +35,32 @@ set -euo pipefail
 
 log() { echo "gen-image: $*" >&2; }
 
+diagnostics() {
+  local _rcount=0
+  [ -n "${refs+isset}" ] && _rcount="${#refs[@]}"
+  {
+    echo "gen-image: --- diagnostics ---"
+    echo "gen-image:   OPENAI_API_KEY     $([ -n "${OPENAI_API_KEY:-}" ] && echo 'set (hidden)' || echo 'not set')"
+    echo "gen-image:   OPENROUTER_API_KEY $([ -n "${OPENROUTER_API_KEY:-}" ] && echo 'set (hidden)' || echo 'not set')"
+    echo "gen-image:   CODEX_HOME         ${CODEX_HOME:-(not set)}"
+    echo "gen-image:   IMAGE_GEN          ${IMAGE_GEN:-(not set)}  exists=$([ -f "${IMAGE_GEN:-}" ] && echo yes || echo no)"
+    echo "gen-image:   PYTHON             ${PY:-(not found)}"
+    if [ -n "${PY:-}" ]; then
+      printf 'gen-image:   openai package     '
+      "$PY" -c 'import openai; print("yes")' 2>/dev/null || echo 'no'
+    fi
+    printf 'gen-image:   codex on PATH      %s\n' "$(command -v codex 2>/dev/null || echo 'no')"
+    echo "gen-image:   refs count         ${_rcount}"
+    [ "${_rcount}" -gt 0 ] && echo "gen-image:   first ref          ${refs[0]}"
+    echo "gen-image:   OUTPUT             ${OUTPUT:-(not set)}"
+    echo "gen-image:   SIZE               ${SIZE:-1024x1024}"
+    echo "gen-image:   QUALITY            ${QUALITY:-high}"
+    echo "gen-image: -----------------------------"
+  } >&2
+}
+
+trap 'diagnostics' ERR
+
 SOURCES="${1:?usage: gen-image.sh <sources-dir-or-file> [subject] [output.png]}"
 SUBJECT="${2:-}"
 OUTPUT="${3:-$(pwd)/generated-$(date +%Y%m%d-%H%M%S).png}"
@@ -87,6 +113,7 @@ QUALITY="${GENIMG_QUALITY:-high}"
 # PATH A — deterministic CLI (preferred). Honors --out; no agent loop.
 # ========================================================================================
 if [ -n "${OPENAI_API_KEY:-}" ] && [ -f "$IMAGE_GEN" ] && [ -n "$PY" ]; then
+  log "PATH A: image_gen.py CLI — OPENAI_API_KEY set, image_gen.py found, python=$PY"
   log "generating via image_gen.py CLI (deterministic, model gpt-image-2)…"
   # We always have ≥1 reference (required above), so use `edit` with the refs as inputs.
   # (`generate` is the no-input subcommand; only the `edit` subcommand accepts --image.)
@@ -109,14 +136,17 @@ if [ -n "${OPENAI_API_KEY:-}" ] && [ -f "$IMAGE_GEN" ] && [ -n "$PY" ]; then
       exit 4
     fi
     log "image_gen.py failed (rc=$rc)."
+    diagnostics
+    log "TIP: check the stderr output above for the CLI error, or try setting OPENROUTER_API_KEY for a different path."
     exit 1
   fi
 
 # ========================================================================================
 # PATH B — OpenRouter image API (deterministic, no OPENAI_API_KEY needed).
 # ========================================================================================
-elif [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+elif [ -n "${OPENROUTER_API_KEY:-}" ] && command -v python3 >/dev/null 2>&1; then
   OR_MODEL="${GENIMG_MODEL:-google/gemini-2.5-flash-image}"
+  log "PATH B: OpenRouter ($OR_MODEL) — OPENROUTER_API_KEY set"
   log "generating via OpenRouter ($OR_MODEL)…"
 
   # Build payload + call API + decode response — all in one Python script so shell quoting
@@ -128,7 +158,8 @@ elif [ -n "${OPENROUTER_API_KEY:-}" ] && command -v curl >/dev/null 2>&1 && comm
   OR_KEY="$OPENROUTER_API_KEY"
   OR_SIZE="$SIZE"
 
-  python3 <<'PYEOF' || { log "ERROR: OpenRouter request failed."; exit 1; }
+  _py_rc=0
+  python3 <<'PYEOF' || _py_rc=$?
 import os, sys, base64, json, mimetypes, urllib.request, urllib.error
 
 model     = os.environ.get('OR_MODEL', 'google/gemini-2.5-flash-image')
@@ -211,12 +242,19 @@ if not b64:
 open(out_path, 'wb').write(base64.b64decode(b64))
 print(f"gen-image: wrote {out_path} ({os.path.getsize(out_path):,} bytes)", file=sys.stderr)
 PYEOF
+  if [ "$_py_rc" -ne 0 ]; then
+    log "ERROR: OpenRouter generation failed (rc=$_py_rc)."
+    diagnostics
+    log "TIP: verify your OPENROUTER_API_KEY has quota and the model '$OR_MODEL' is available."
+    exit 1
+  fi
   log "OpenRouter generation done."
 
 # ========================================================================================
 # PATH C — fallback: built-in tool via codex exec (the known-unreliable path).
 # ========================================================================================
 else
+  log "PATH C: codex exec fallback — PATH A/B unavailable (missing API key and/or required deps)"
   if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
     log "no OPENAI_API_KEY or OPENROUTER_API_KEY — falling back to the codex built-in tool (less reliable headless)."
     log "  tip: add OPENROUTER_API_KEY to ~/.env for the deterministic OpenRouter path."
@@ -271,16 +309,20 @@ gen-image: ERROR — the codex built-in image_gen tool produced NO new image thi
     • add OPENAI_API_KEY to ~/.env (unlocks the deterministic image_gen.py CLI path), or
     • run the generation interactively where the built-in tool is dependable.
 EOF
+    diagnostics
     exit 1
   fi
 fi
 
 # --- 3. Verify a real, non-trivial image landed ----------------------------------------
-if [ ! -s "$OUTPUT" ]; then log "error: no output at $OUTPUT"; exit 1; fi
+if [ ! -s "$OUTPUT" ]; then log "error: no output at $OUTPUT"; diagnostics; exit 1; fi
 if ! file "$OUTPUT" | grep -qiE 'image|png|jpeg'; then
-  log "error: output at $OUTPUT is not a valid image"; exit 1
+  _ftype="$(file "$OUTPUT" || true)"
+  log "error: output at $OUTPUT is not a valid image (file says: $_ftype)"
+  diagnostics
+  exit 1
 fi
 bytes="$(wc -c < "$OUTPUT" | tr -d ' ')"
-[ "$bytes" -ge 1024 ] || { log "error: output suspiciously small (${bytes} B)"; exit 1; }
+[ "$bytes" -ge 1024 ] || { log "error: output suspiciously small (${bytes} B) at $OUTPUT"; diagnostics; exit 1; }
 log "done: $OUTPUT (${bytes} bytes)."
 echo "$OUTPUT"
