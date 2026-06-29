@@ -76,6 +76,20 @@ Must never fail the lifecycle. One request at PR open only.
 
 ## Step 8: Post retro comment
 
+First resolve and run the token-usage helper — it reads this session's real token
+counts from the transcript and prints the footer's token line:
+
+```bash
+name=git-pr
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/token-usage.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/token-usage.sh" ] && echo "$d"; done | sort -V | tail -1)"
+TOKENS="$([ -e "$SKILL_DIR/scripts/token-usage.sh" ] && bash "$SKILL_DIR/scripts/token-usage.sh")"
+```
+
+`$TOKENS` holds a line like `*in 18k · out 8.2k · cache 1.2M read / 40k write*`,
+or empty string if the transcript can't be read (it must never block the PR).
+Then post the comment in the **same shell** so `$TOKENS` expands:
+
 ```bash
 gh pr comment "<N>" --body "<!-- tron-retro -->
 ### Retro
@@ -86,10 +100,11 @@ gh pr comment "<N>" --body "<!-- tron-retro -->
 FOLLOW-UP:
 
 ---
-*<your model ID>*"
+*<your model ID>*
+$TOKENS"
 ```
 
-Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text** before running the command. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` — Claude Code does not export the model ID to the shell, so it will not expand and the literal `${...}` will end up in the comment. You know your own model ID from your session context; write it in directly.
+Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text** before running the command. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` for the model ID — Claude Code does not export it to the shell, so it would not expand and the literal `${...}` would end up in the comment. You know your own model ID from your session context; write it in directly. (`$TOKENS` is different — it's set by the helper above and *does* expand, so leave it as the variable.)
 
 The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
 
