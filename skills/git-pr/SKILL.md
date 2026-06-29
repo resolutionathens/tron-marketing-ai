@@ -86,8 +86,10 @@ gh pr comment "<N>" --body "<!-- tron-retro -->
 FOLLOW-UP:
 
 ---
-*${CLAUDE_MODEL_ID:-unknown model}*"
+*<your model ID>*"
 ```
+
+Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text** before running the command. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` — Claude Code does not export the model ID to the shell, so it will not expand and the literal `${...}` will end up in the comment. You know your own model ID from your session context; write it in directly.
 
 The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
 
