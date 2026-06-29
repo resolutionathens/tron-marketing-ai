@@ -77,16 +77,16 @@ Must never fail the lifecycle. One request at PR open only.
 ## Step 8: Post retro comment
 
 ```bash
-gh pr comment "<N>" --body "$(cat <<'EOF'
-<!-- tron-retro -->
+gh pr comment "<N>" --body "<!-- tron-retro -->
 ### Retro
 **What went well:**
 **Friction / surprises:**
 **Follow-up (filed):**
 **Out of scope / not filed:**
 FOLLOW-UP:
-EOF
-)"
+
+---
+*${CLAUDE_MODEL_ID:-unknown model}*"
 ```
 
 The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
