@@ -14,7 +14,7 @@ Facilitron repos independently of any single project checkout.
 
 | Group                                | Skills                                                                                                                                                                                                                                                                                  |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:confluence`                                                                                                                                                                                                                                     |
+| **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:enrich-jira-ticket`, `tron:confluence`                                                                                                                                                                                                           |
 | **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
 | **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
 | **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
@@ -109,7 +109,7 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 | Tool                                     | Install (macOS)                                                                           | Needed by                                                                                                                |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item`           |
+| **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `enrich-jira-ticket`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
 | **tmux** (terminal multiplexer)          | `brew install tmux`                                                                       | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket`                                                         |
 | **agent-browser** (headless browser CLI) | `npm i -g agent-browser`                                                                  | `preview-page` (self-verification: errors/DOM/screenshots)                                                               |
 | **gh** (GitHub CLI)                      | `brew install gh` → `gh auth login`                                                       | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket`                                           |
@@ -139,7 +139,8 @@ its own `node_modules` on first run (not committed — needs `node` + `npm` + ne
 first time, then runs offline):
 
 - **`md-to-adf`** (`tools/md-to-adf/md-to-adf.mjs`) — converts markdown → Atlassian Document
-  Format JSON for rich Jira descriptions (`tron:jira`). Wraps `markdown-to-adf` (`story` preset).
+  Format JSON for rich Jira descriptions (`tron:jira`, `tron:enrich-jira-ticket`). Wraps
+  `markdown-to-adf` (`story` preset).
 
 **ImageKit CLI**
 

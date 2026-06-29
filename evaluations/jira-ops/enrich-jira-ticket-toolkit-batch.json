@@ -1,0 +1,14 @@
+{
+  "skills": ["enrich-jira-ticket"],
+  "query": "These tickets need enrichment: CCAL-1971, CCAL-1972, CCAL-1974, CCAL-1976, and CCAL-1977. The source link is in a comment on each ticket, the work is in marketing-pages, and they are all /resources/toolkit items.",
+  "files": [],
+  "expected_behavior": [
+    "Fetches each Jira ticket and its comments with acli before drafting descriptions",
+    "Extracts source URLs from both standard comment links and Jira smart-card inlineCard attrs",
+    "Infers toolkit category from the ticket summary prefix, mapping Checklist to checklist, SOP to sop, and Template to template",
+    "Fetches accessible Google Doc text exports to capture meta title, meta description, slug, and source title when available",
+    "Drafts implementation-ready Jira descriptions with source link, marketing-pages destination file, public route, toolkit category, front matter guidance, PDF and ImageKit requirements, and acceptance criteria",
+    "Converts markdown descriptions through tools/md-to-adf before editing Jira so markdown does not render literally",
+    "Reports any corrected or skipped ticket keys and verifies the updated descriptions after writing"
+  ]
+}
