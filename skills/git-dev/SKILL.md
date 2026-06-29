@@ -10,144 +10,43 @@ allowed-tools:
 
 # Merge to Dev Assistant
 
-Merge the current clean feature branch into dev, push, and return to the feature branch. Works from both regular checkouts and worktrees.
+Merge the current clean feature branch into dev, push, and return to the feature branch.
 
 ## Fast path (deterministic)
 
-This whole flow is mechanical — run the bundled script instead of the steps below:
-
 ```bash
-# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
-# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
 name=git-dev
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/git-dev.sh
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
 [ -e "$SKILL_DIR/scripts/git-dev.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-dev.sh" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/scripts/git-dev.sh" ] || { echo "tron:$name: can't find scripts/git-dev.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+[ -e "$SKILL_DIR/scripts/git-dev.sh" ] || { echo "tron:$name: scripts/git-dev.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/git-dev.sh" [feature-branch] [--worktree <abs-path>]
 #   feature-branch    defaults to the branch checked out in the worktree
-#   --worktree <path> resolve the source branch + dirty-check from this path, not $PWD
+#   --worktree <path> resolve source branch + dirty-check from this path, not $PWD
 ```
 
-It validates the branch (refuses master/main/dev/staging/production), checks the
-working tree is clean, detects worktree-vs-checkout, merges the feature into `dev`,
-pushes, and restores your starting state. The **only** conflicts it resolves are the
-dependency manifests/lockfiles — `package.json`, `package-lock.json`, `bun.lock`,
-`bun.lockb` (→ `--ours`, per the project rule that the long-lived branches own their
-dependency state); **any other conflict aborts the merge cleanly and is handed back
-to you** — read the conflicting files, resolve with the user, and don't re-run blindly.
+Validates the branch (refuses master/main/dev/staging/production), checks the tree is clean, detects worktree vs checkout, merges into `dev`, pushes, restores your starting state. Only resolves dependency lockfiles (`package.json`, `package-lock.json`, `bun.lock` → `--ours`); any other conflict aborts cleanly — read the conflicting files and resolve with the user.
 
-**`--worktree`**: branch detection and the clean/dirty check are read from this path
-(default `$PWD`). Pass it when calling from a worktree-integrated shell, where `$PWD`
-is reset to the **main** checkout after every Bash call — without it the script reads
-the main checkout's branch (often `master` → `on-protected-branch`) or its stray files
-(→ `dirty-working-tree`). The merge target (`dev`) is always resolved on the main
-checkout via `--git-common-dir`, so only the source/worktree side needs this.
+Use `--worktree` when calling from a worktree-integrated shell where `$PWD` resets to the main checkout after each Bash call.
 
-It prints one JSON line on stdout (narration on stderr):
+One JSON line on stdout:
 
 ```json
 {"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"worktree":true,"depsResolved":["package.json"]}
 {"ok":false,"branch":"MD-1801-x","target":"dev","error":"conflicts","conflicts":["src/a.ts"]}
+{"ok":false,"branch":"MD-1801-x","target":"dev","error":"no-dev-branch"}
 ```
 
-`ok:false` with `"error":"dirty-working-tree"` means commit/stash first (tron:git-commit).
-`"error":"no-dev-branch"` means this repo ships straight to its default branch (it has
-no `dev` branch — e.g. `tron-os`, `tron-marketing-ai`); don't promote to dev, open a PR
-with **tron:git-pr** instead. Smoke it any time with
-`bash "$SKILL_DIR/scripts/test-git-dev.sh"`. The steps below are the explanation /
-manual fallback for when the script reports a conflict.
+- `error: dirty-working-tree` → commit/stash first (`tron:git-commit`)
+- `error: no-dev-branch` → this repo has no `dev`; open a PR with `tron:git-pr` instead
 
-## Step 1: Validate current branch
+## If the script reports a conflict
 
-Run `git branch --show-current`.
+The only auto-resolved conflicts are dependency lockfiles (per project rule: long-lived branches own their dep state). For any other file:
 
-**Stop if** the current branch is `master`, `main`, `dev`, or `production` — the user must be on a feature branch.
-
-## Step 2: Ensure clean working tree
-
-Run `git status --porcelain`.
-
-If there are uncommitted changes, tell the user to commit or stash first. Suggest they use the tron:git-commit skill.
-
-## Step 3: Detect worktree vs regular checkout
-
-```bash
-MAIN_REPO=$(git rev-parse --path-format=absolute --git-common-dir | sed 's/\/.git$//')
-CURRENT_DIR=$(pwd)
-```
-
-If `MAIN_REPO` and `CURRENT_DIR` are different, you're in a worktree. The dev branch needs to be checked out from the main repo, not the worktree.
-
-## Step 4: Merge into dev
-
-**From a worktree:**
-
-```bash
-git -C "$MAIN_REPO" checkout dev
-git -C "$MAIN_REPO" pull
-git -C "$MAIN_REPO" merge <feature-branch-name>
-git -C "$MAIN_REPO" push
-```
-
-**From a regular checkout:**
-
-```bash
-git checkout dev
-git pull
-git merge <feature-branch-name>
-git push
-```
-
-If the merge fails due to conflicts, check which files conflicted:
-
-- **`package.json` and `package-lock.json`** — always keep dev's version. These files should never be updated by feature-branch merges into dev or staging; those branches manage their own dependency state. Resolve automatically:
-
-  ```bash
-  git -C "$MAIN_REPO" checkout --ours package.json package-lock.json
-  git -C "$MAIN_REPO" add package.json package-lock.json
-  ```
-
-  (omit `-C "$MAIN_REPO"` from a regular checkout.)
-
-- **Any other file** — stop and tell the user. Do NOT attempt to resolve other conflicts automatically.
-
-After resolving package file conflicts, continue the merge with `git commit --no-edit`, then push.
-
-Never force push. If the push fails, report the error and stop.
-
-## Step 5: Return to previous state
-
-**From a worktree:** Return the main repo to master:
-
-```bash
-git -C "$MAIN_REPO" checkout master
-```
-
-The worktree is still on the feature branch — no action needed there.
-
-**From a regular checkout:**
-
-```bash
-git checkout <feature-branch-name>
-```
-
-## Step 6: Report
-
-Tell the user:
-
-- The feature branch that was merged
-- Confirmation that dev is updated and pushed
-- That they're back on their feature branch (or still in their worktree)
+1. Read the conflicting file
+2. Show the user the conflict markers and ask how to resolve
+3. Run `git add <file>` and `git commit --no-edit` manually after they decide
 
 ## Next steps
 
-After testing on dev, remind the user:
-
-- **Ready for review?** Use the **tron:git-pr** skill to create a PR back to master
-- **After PR is merged?** Use **tron:git-pushtoprod** to deploy master to staging and production
-- **Done with this ticket?** Clean up the worktree:
-  ```
-  git worktree remove ../<branch-name>
-  ```
+After the merge: `tron:git-pr` for review, or `tron:git-pushtoprod` to deploy. Clean up with `tron:close-worktree` when done with the ticket.

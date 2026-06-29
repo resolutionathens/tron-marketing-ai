@@ -19,10 +19,8 @@ This skill delegates the lint to the **`vale-prose-runner`** subagent (runs on S
    ```bash
    name=prose-lint
    SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   # fall back to the newest INSTALLED copy that actually contains styles
-   # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
    [ -e "$SKILL_DIR/styles" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/styles" ] && echo "$d"; done | sort -V | tail -1)"
-   [ -e "$SKILL_DIR/styles" ] || { echo "tron:$name: can't find styles — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+   [ -e "$SKILL_DIR/styles" ] || { echo "tron:$name: styles not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
    echo "$SKILL_DIR/styles"   # → the absolute style-pack path to hand the runner
    ```
 3. **Delegate to `vale-prose-runner`** (Task tool): "Lint `<target>` with Vale using the Facilitron style pack at `<absolute styles path>` (scaffold `.vale.ini` + symlinks if missing). Return findings grouped by file with severity counts and the top offenders." If the user wants an errors-only gate (pre-commit/PR), say so in the prompt.

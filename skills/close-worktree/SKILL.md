@@ -10,200 +10,46 @@ allowed-tools:
 
 # Close Worktree
 
-Remove git worktrees that are no longer needed using `wt`, along with their tmux sessions and optionally their branches.
+Remove git worktrees that are no longer needed, along with their tmux sessions and optionally branches.
 
-## Fast path (deterministic) — when you already know the branch
-
-When you know exactly which branch to close (the common case after a merge, and the
-only case when the OS routes here), skip the interactive steps and run the bundled
-script. It does the fixed sequence as ONE command — kill the tmux session, remove
-the worktree and verify it's gone, delete the local branch, delete the origin branch,
-then re-sync the main checkout's default branch to `origin/<default>` (fast-forward only)
-so the next ticket doesn't branch off a stale base — and is **idempotent**: any piece
-that's already gone counts as done, not an error.
+## Fast path — when you already know the branch
 
 ```bash
-# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
-# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
 name=close-worktree
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/close-worktree.sh
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
 [ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/close-worktree.sh" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || { echo "tron:$name: can't find scripts/close-worktree.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || { echo "tron:$name: scripts/close-worktree.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
 ```
 
-- `--force` — force-remove a dirty worktree / force-delete an unmerged branch.
-- `--keep-branch` — remove the worktree only, leave the branch (local + remote).
-- `--keep-remote` — delete the local branch but leave origin's copy.
+Kills the tmux session, removes the worktree (verifies it's gone), deletes local + remote branch, re-syncs the main checkout's default branch. Idempotent — any piece already gone counts as done.
 
-It prints exactly one line of JSON on stdout (everything else is on stderr):
+- `--force` — force-remove a dirty worktree / force-delete an unmerged branch
+- `--keep-branch` — remove worktree only, leave local + remote branch
+- `--keep-remote` — delete local branch but keep origin's copy
+
+One JSON line:
 
 ```json
-{
-  "ok": true,
-  "branch": "MD-1801-x",
-  "worktreeRemoved": true,
-  "worktreePath": "/…",
-  "localBranchDeleted": true,
-  "remoteBranchDeleted": true,
-  "sessionClosed": true,
-  "workspaceClosed": true,
-  "leftovers": []
-}
+{"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"leftovers":[]}
 ```
 
-`sessionClosed` reports whether the tmux session was killed (or none existed); `workspaceClosed` is a backwards-compatible alias carrying the same value.
+`ok:false` with non-empty `leftovers` means something is still present — rerun with `--force`, or stop if there may be unsaved work.
 
-`ok` is `false` (and exit code `1`) **iff `leftovers` is non-empty** — i.e. something it
-was asked to remove is still present (usually a dirty worktree or unmerged branch; rerun
-with `--force`, or stop and tell the user if they may have unsaved work). The result
-fields mirror the dimensions the OS independently verifies, so the skill _does_ the
-cleanup and the OS _confirms_ it — neither trusts the other's word. The narrative below
-is the fallback for when you DON'T already know the branch (the user said "clean up" and
-you need to show the list and let them pick) or when something goes wrong.
+**Before removal — stop the worktree's dev server.** If `start-ticket` spun up a `bun dev` background task for this worktree, `TaskStop` it first. The script kills the tmux session but can't stop that task (it's a background task of the orchestrator session, not in tmux); a live dev server keeps file handles open in the worktree dir and races `wt remove`, leaving orphaned fragments behind.
 
-Smoke it against real git any time with
-`bash "$SKILL_DIR/scripts/test-close-worktree.sh"`.
+## When you DON'T know which branch to close
 
-## Step 1: Identify worktrees to close
+Run `wt list` to show all worktrees. The user will either name a branch or say "clean up." If they say "clean up," present the list and let them pick.
 
-Run:
+## For the manual path (if script is unavailable)
 
-```bash
-wt list
-```
+Use `wt remove <branch>` (with `--force` if dirty). Kill the tmux session first with `tmux kill-session -t <name>` — wait a beat between kill and remove to avoid file-handle races. After removal, `rm -rf <worktree-path>` if `wt`'s background cleanup left fragments. Delete branches with `git branch -d <branch>` and `git push origin --delete <branch>`.
 
-This shows all worktrees with their status, including uncommitted changes and sync state.
-
-The user will either:
-
-- Name a specific branch or worktree
-- Say "all" or "clean up" — show them the list and let them pick
-- Reference the current worktree — `wt list` marks the current one with `@`
-
-If the user is currently inside the worktree being closed, warn them that their tmux session will be killed and they'll need to switch.
-
-## Step 2: For each worktree, run cleanup
-
-### 2a. Stop the worktree's dev server (if one was started)
-
-If `start-ticket` spun up a `bun dev` background task for this worktree earlier in the session, stop it before removing the worktree — otherwise the running Node process keeps file handles open on a directory that's about to be deleted, which can race with `wt remove`'s async cleanup. Use `TaskStop` with the task ID that `start-ticket` captured. If you don't have the ID handy (different session, or the user started the server manually), it's fine to skip; the worktree removal will still succeed, but the user may need to kill the stale process themselves.
-
-### 2b. Kill the tmux session (if one exists)
-
-Find the session by matching its name against the branch name or ticket key:
-
-```bash
-tmux list-sessions -F '#{session_name}'
-```
-
-Session names may be the full branch name or just the ticket key (e.g., "MD-1661" for branch "MD-1661-add-logos-case-studies-testimonials"), with any `.`/`:` swapped for `-` (those are illegal in tmux session names). Match flexibly — check if a session name starts with the ticket key portion of the branch name.
-
-If a matching session is found:
-
-```bash
-tmux kill-session -t <session-name>
-```
-
-If the user is currently attached to that session, killing it detaches them; they'll need to attach to another session or start fresh.
-
-**Do not chain `tmux kill-session` with `wt remove` in a single `&&` command.** `kill-session` returns quickly, but the panes inside (vim, shells, lingering postinstall scripts) take a moment to die and release file handles on files inside the worktree directory. If `wt remove` fires while those handles are still open, its background `rm` leaves fragments behind and you end up with orphan directories on disk that `wt list` no longer knows about. Run them as separate commands and give the panes a beat.
-
-### 2c. Switch away if needed
-
-If the user is in the worktree being removed, switch to main first:
-
-```bash
-wt switch main
-```
-
-### 2d. Remove the worktree with wt — and verify it actually went away
-
-```bash
-wt remove <branch-name>
-```
-
-`wt remove` unregisters the worktree from git synchronously and kicks off a background `rm` of the directory. The unregister is reliable; the directory removal can fail silently if a process inside the worktree still has files open (see 2b).
-
-**Always verify and clean up afterward.** Capture the path from `wt list` before removing, then after `wt remove`:
-
-```bash
-# Give wt's background cleanup a moment, then check
-sleep 2
-if [ -d "<worktree-path>" ]; then
-  rm -rf "<worktree-path>"
-fi
-```
-
-This is the one place where a manual `rm -rf` _is_ the right move — `wt` has already deregistered the worktree from git, so there's no race left to lose. You're just mopping up filesystem leftovers.
-
-If the worktree has uncommitted changes, `wt remove` will warn. Tell the user and ask what to do — they can force it with `--force` or go save their work first.
-
-### 2e. Branch deletion (usually already handled)
-
-When the branch is fully merged, `wt remove` deletes it as part of the same operation. If the branch was unmerged or `wt remove` left it in place, ask the user:
-
-- **Delete local branch only** — `git branch -d <branch>` (safe — fails if not fully merged)
-- **Delete local and remote** — also `git push origin --delete <branch>`
-- **Keep branches** — skip deletion
-
-If a local delete fails because the branch isn't merged, mention this and ask if they want to force it (`git branch -D`). This is a safety net — they may have unmerged work.
-
-**Tip:** If the user's workflow ends with `wt merge`, the branch is already deleted as part of the merge process.
-
-## Step 2.6: Re-sync the main checkout's default branch
-
-After the worktree and branch are gone, fast-forward the main checkout's default branch
-to origin so the **next** ticket starts from an up-to-date base (cleanup that never
-freshens the default lets it drift behind origin, which makes the next `start-ticket`
-branch off a stale base). The bundled script does this automatically; when cleaning up by
-hand, in the main checkout: ensure you're on `<default>` (`main` or `master` — switch onto
-it only if the tree is clean), then `git fetch origin <default>` and `git merge --ff-only
-origin/<default>`.
-
-Strictly best-effort and **fast-forward only**: never create a merge commit, never switch
-a dirty tree, and never fail the cleanup over it — if the default diverged or the tree is
-dirty, log a notice and leave the checkout as-is.
-
-## Step 3: Summary
-
-After cleanup, confirm what was done:
-
-- Worktree removed: `<branch-name>`
-- tmux session killed (if applicable)
-- Branches deleted (if applicable)
-
-Keep it brief.
-
-## Batch mode
-
-For cleaning up multiple merged worktrees at once, use:
+## Batch cleanup for merged worktrees
 
 ```bash
 wt step prune
 ```
 
-This removes all worktrees whose branches have been merged into the default branch and deletes the branches. Fast and safe — it only touches fully merged work.
-
-`wt step prune` skips worktrees younger than 1h. For very recent worktrees, fall back to `wt remove <branch>` for each one.
-
-For manual batch cleanup, loop through each one and run Steps 2a-2e. Ask about branch deletion once with options like "delete all", "keep all", or "ask for each".
-
-## Alternative: wt merge
-
-If the user wants to merge their changes and clean up in one step, suggest:
-
-```bash
-wt merge main
-```
-
-This will:
-
-1. Commit any uncommitted changes (with LLM-generated message if configured)
-2. Rebase onto main
-3. Fast-forward merge to main
-4. Remove the worktree and delete the branch
-
-This is the cleanest workflow when the work is done and ready to merge.
+Removes all worktrees whose branches are merged into the default branch. Skips worktrees younger than 1h — for recent ones, fall back to individual `wt remove`.

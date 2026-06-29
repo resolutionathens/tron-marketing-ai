@@ -10,168 +10,57 @@ allowed-tools:
 
 # Deploy to Production Assistant
 
-Promote master to production — through `staging` first when the repo has one, otherwise straight to `production` — pushing each, then return to the original branch. Works from both regular checkouts and worktrees.
+Promote master to production — through `staging` first when it exists, otherwise straight to `production`.
 
 ## Fast path (deterministic)
 
-This flow is mechanical — run the bundled script instead of the steps below:
-
 ```bash
-# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
-# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
 name=git-pushtoprod
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/git-pushtoprod.sh
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
 [ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-pushtoprod.sh" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || { echo "tron:$name: can't find scripts/git-pushtoprod.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+[ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || { echo "tron:$name: scripts/git-pushtoprod.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/git-pushtoprod.sh" [--no-jira] [--key <TICKET>]
 ```
 
-It checks the tree is clean, brings `master` current, merges master into `staging`
-(only if the repo HAS a staging branch) then `production` (pushing each), and
-transitions the ticket to **Done**. `staging` is optional — a repo with only
-master+production promotes straight to production; `production` is required (a repo
-without it is rejected with `no-production-branch`). It stops at the **first**
-failed/conflicted environment — `production` is never touched if `staging` fails —
-so a partial deploy is impossible to miss. `package.json`/`package-lock.json`
-conflicts resolve to `--ours`; any other conflict aborts that environment and is
-reported. The Jira key is parsed from the branch unless you pass `--key`;
-`--no-jira` skips the transition (e.g. GitHub-issue work).
+Checks clean tree, brings master current, merges through staging → production (or just production if no staging branch), pushes each, transitions the Jira ticket to Done. Stops at the first failed environment — production is never touched if staging fails. Lockfile conflicts resolve to `--ours`; any other conflict aborts.
 
-One JSON line on stdout (narration on stderr). The `staging` field is `true`/`false`
-when the repo has a staging branch, or `"skipped"` when it has none:
+One JSON line on stdout:
 
 ```json
-{"ok":true,"staging":true,"production":true,"jira":"MD-1801:Done","leftovers":[]}
-{"ok":true,"staging":"skipped","production":true,"jira":"MD-1801:Done","leftovers":[]}
-{"ok":false,"staging":false,"production":false,"error":"staging-conflicts","conflicts":["src/a.ts"],"jira":null,"leftovers":["staging","production"]}
+{"ok":true,"staging":true,"production":true,"jira":"MD-1801:Done"}
+{"ok":true,"staging":"skipped","production":true,"jira":"MD-1801:Done"}
+{"ok":false,"staging":false,"production":false,"error":"staging-conflicts","conflicts":["src/a.ts"]}
 ```
 
-`leftovers` lists the environments that did **not** ship. Smoke it with
-`bash "$SKILL_DIR/scripts/test-git-pushtoprod.sh"`. The steps below are the
-explanation / manual fallback for conflict cases.
+The Jira key is parsed from the branch; `--no-jira` skips the transition. `staging` field is `true`/`false` when the repo has a staging branch, or `"skipped"` when it has none.
 
-> **Tier reminder:** a production deploy is a high-risk action. This script is the
-> _mechanics_; the decision to run it stays with the human/PR gate — don't invoke it
-> autonomously.
+> **Tier reminder:** production deploy is high-risk. The script is the mechanics; the decision to run it stays with the human/PR gate — don't invoke autonomously.
 
-## Step 1: Ensure clean working tree
+## If the script reports a conflict
 
-Run `git status --porcelain`.
+Only dependency lockfiles are auto-resolved. For other conflicts, show the conflicting files to the user and ask how to resolve. Then `git add <file>` and `git commit --no-edit` manually.
 
-If there are uncommitted changes, tell the user to commit or stash first.
+## Manual fallback (if the bundled script can't be resolved)
 
-## Step 2: Detect worktree vs regular checkout
+High-risk — confirm with the user first. Resolve `<default>` (`master` or `main`), then promote through `staging` when that branch exists, else straight to `production`:
 
 ```bash
-MAIN_REPO=$(git rev-parse --path-format=absolute --git-common-dir | sed 's/\/.git$//')
-CURRENT_DIR=$(pwd)
+git checkout <default> && git pull --ff-only
+for env in staging production; do
+  git rev-parse --verify "origin/$env" >/dev/null 2>&1 || continue   # skip staging if the repo has none
+  git checkout "$env" && git merge "<default>" --no-edit \
+    || { echo "conflict on $env — STOP; never push production if staging failed"; break; }
+  git push origin "$env"
+  git checkout <default>
+done
 ```
 
-If in a worktree, all branch operations should use `git -C "$MAIN_REPO"`. Otherwise, run commands normally.
-
-## Step 3: Record current state
-
-Run `git branch --show-current` to save the current branch (needed to return to it if not in a worktree).
-
-## Step 4: Update master
-
-**From a worktree:**
-
-```bash
-git -C "$MAIN_REPO" checkout master
-git -C "$MAIN_REPO" pull
-```
-
-**From a regular checkout:**
-
-```bash
-git checkout master
-git pull
-```
-
-If the pull fails, report the error and stop.
-
-## Step 5: Merge master into staging (only if a staging branch exists)
-
-Skip this step entirely if the repo has no `staging` branch (check with
-`git [-C "$MAIN_REPO"] show-ref --verify --quiet refs/heads/staging || git [-C "$MAIN_REPO"] show-ref --verify --quiet refs/remotes/origin/staging`).
-A repo with only master+production promotes straight to production in Step 6.
-
-```bash
-git [-C "$MAIN_REPO"] checkout staging
-git [-C "$MAIN_REPO"] pull
-git [-C "$MAIN_REPO"] merge master
-git [-C "$MAIN_REPO"] push
-```
-
-If the merge fails due to conflicts, check which files conflicted:
-
-- **`package.json` and `package-lock.json`** — always keep staging's version. These files should never be updated by merges into dev or staging; those branches manage their own dependency state. Resolve automatically:
-
-  ```bash
-  git [-C "$MAIN_REPO"] checkout --ours package.json package-lock.json
-  git [-C "$MAIN_REPO"] add package.json package-lock.json
-  git [-C "$MAIN_REPO"] commit --no-edit
-  git [-C "$MAIN_REPO"] push
-  ```
-
-- **Any other file** — stop and tell the user. Do NOT resolve other conflicts automatically.
-
-Never force push. If the push fails, report the error and stop.
-
-## Step 6: Merge master into production
-
-```bash
-git [-C "$MAIN_REPO"] checkout production
-git [-C "$MAIN_REPO"] pull
-git [-C "$MAIN_REPO"] merge master
-git [-C "$MAIN_REPO"] push
-```
-
-If any step fails, report the error and stop. Do NOT force push or resolve conflicts automatically.
-
-## Step 7: Return to previous state
-
-**From a worktree:** Return the main repo to master:
-
-```bash
-git -C "$MAIN_REPO" checkout master
-```
-
-**From a regular checkout:**
-
-```bash
-git checkout <original-branch-name>
-```
-
-## Step 8: Transition Jira ticket to Done
-
-Extract the ticket key from the branch name (e.g., `MD-1714` from `MD-1714-redirect-old-fit-page-to-new` or `CCAL-1789` from `CCAL-1789-fix-panelist-name-typo`). The key is the leading `<PROJECT>-<NUMBER>` segment.
+Stop at the first failed environment — production is never touched if staging fails. Lockfile conflicts resolve to `--ours` (`git checkout --ours <lockfile> && git add <lockfile>`); any other conflict aborts. Then transition the ticket (the branch's `<KEY>`), unless the user asked to skip it:
 
 ```bash
 acli jira workitem transition --key <KEY> --status 'Done' --yes
 ```
 
-If the transition fails (wrong status name, already done, etc.), mention it but don't block the rest of the flow.
+## After promotion
 
-## Step 9: Report
-
-Tell the user:
-
-- Master was merged into staging and pushed (or note staging was skipped — no staging branch)
-- Master was merged into production and pushed
-- They're back on their original branch (or still in their worktree)
-
-Then offer **tron:jira-comment** to post a short "shipped to production" note on the ticket.
-
-## Cleanup reminder
-
-If working in a worktree and this ticket is fully deployed, remind the user they can clean it up:
-
-```
-git worktree remove ../<branch-name>
-```
-
-This deletes the worktree directory. The branch remains in git history — it's just the working copy that's removed.
+Offer `tron:jira-comment` to post a "shipped to production" note, then `tron:close-worktree` if the ticket is done.

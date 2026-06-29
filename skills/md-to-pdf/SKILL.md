@@ -24,10 +24,8 @@ $SKILL_DIR/   # template.tex, fonts/, facilitron-logo.png, build.ts
 ```bash
 name=md-to-pdf
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains template.tex
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
 [ -e "$SKILL_DIR/template.tex" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/template.tex" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/template.tex" ] || { echo "tron:$name: can't find template.tex — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+[ -e "$SKILL_DIR/template.tex" ] || { echo "tron:$name: template.tex not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 ```
 
 This prefers the env hint, then the newest _installed copy that actually contains the asset_ (so a stale mirror missing it is skipped, and same-version ties go to the marketplace copy) — and survives a plugin version bump. `build.ts` additionally resolves its own assets relative to itself (`import.meta.url`), so once you invoke it through `$SKILL_DIR` it needs no env var at all.

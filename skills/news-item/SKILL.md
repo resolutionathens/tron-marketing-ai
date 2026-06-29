@@ -2,7 +2,7 @@
 name: news-item
 model: opus
 effort: high
-description: Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use this skill whenever the user wants to "start the news item", "create the news article", "build out this cluster article", "turn this Confluence draft into a news post", references a Jira "Blog Post" or "Cluster:" ticket with a Confluence link, or drops a featuredimg into the repo root and mentions a news/blog/cluster article. Also trigger when the user says "publish this article", "get this post on the site", or is working a CCAL/MD ticket whose summary starts with "Cluster:" — even if they describe only one part (e.g. "just do the images"), this skill owns the whole pipeline so the pieces stay consistent.
+description: Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use this skill whenever the user wants to "start the news item", "create the news article", "build out this cluster article", "turn this Confluence draft into a news post", references a Jira "Blog Post" or "Cluster:" ticket with a Confluence link, or drops a featuredimg into the repo root and mentions a news/blog/cluster article. Even if they describe only one part, this skill owns the whole pipeline so the pieces stay consistent.
 allowed-tools:
   - Bash
   - Read
@@ -13,286 +13,106 @@ allowed-tools:
 
 # Facilitron News Item
 
-Publish a new article under `/resources/news` on the marketing-pages site, starting
-from a Jira ticket that links a Confluence draft. The workflow has several stages
-that each have a sharp edge — Confluence auth, attachment downloads, ImageKit paths,
-the Nuxt-Content schema — and getting any one wrong produces a broken page or a
-build failure. This skill exists so the stages stay in sync: the slug chosen in
-intake drives the ImageKit folders, which drive the `::fImg` srcs in the article.
+Publish a new article under `/resources/news` from a Jira ticket linking a Confluence draft.
 
 ## Checklist
 
-Copy this into your working notes and check items off as you go:
-
-```markdown
-- [ ] Preflight: confirm checkout is marketing-pages (content.sh check-repo)
+```
+- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo)
 - [ ] Stage 1 — Intake: read ticket, fetch Confluence draft + images, confirm slug
-- [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit, verify clean names
-- [ ] Stage 3 — Write: front matter, body from body.html, internal links verified, ::image-text/::fImg/::faq wired up
+- [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit
+- [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
 - [ ] Stage 4 — Verify: links, images resolve, served-HTML check on THIS worktree, prose-lint + a11y-scan
-- [ ] Verification loop: re-read draft against brief, check Facilitron voice / no em-dashes, fix, repeat
+- [ ] Verification loop: re-read against brief, no em-dashes, fix, repeat
 - [ ] Clean up: remove dropped-in featured image + /tmp/news-<slug>
 ```
 
 ## What gets produced
 
-- A markdown file at `content/resources/news/<slug>.md` — Nuxt-Content schema, body
-  converted from the Confluence draft, inline images as `::fImg` blocks
-- The featured image uploaded to ImageKit at `blog-featured/<slug>.webp` (front
-  matter `image:` resolves there — see `pages/resources/news/[...slug].vue`)
-- The article's inline images uploaded to `blog-posts/<slug>/<name>.webp`
-- Local source files (the Confluence download, the dropped-in featured image)
-  cleaned up when done
+- `content/resources/news/<slug>.md` — Nuxt-Content markdown with `::fImg` blocks
+- Featured image at `blog-featured/<slug>.webp` (front-matter `image:`)
+- Inline images at `blog-posts/<slug>/<name>.webp`
+- Local source files cleaned up
 
-## Inputs you need
+## Inputs
 
-1. **Jira ticket key** — usually already on the branch name (`<KEY>-<slug>`). The
-   ticket type is "Blog Post" and the summary often starts with `Cluster:`. Its
-   description carries the target SEO keywords and a Confluence inline-card link.
-2. **Featured image** — the user drops this in the repo root, typically as
-   `featuredimg.png` (PNG/JPG/webp all fine). If it's missing, ask whether to pull
-   one from Figma/ImageKit or proceed without one.
-3. **Slug** — derive from the ticket summary (drop the `Cluster:` prefix,
-   lowercase, hyphenate, e.g. `How to Prepare a Preventive Maintenance Plan` →
-   `how-to-prepare-a-preventive-maintenance-plan`). The article file, both ImageKit
-   folders, and the featured-image name all use it — confirm it with the user
-   before uploading anything, because renaming after upload means re-uploading.
+| Input | Source |
+|-------|--------|
+| **Jira key** | Branch name (`<KEY>-<slug>`) |
+| **Confluence draft + SEO keywords** | Ticket description (inlineCard → Confluence URL) |
+| **Featured image** | User drops in repo root as `featuredimg.png` |
+| **Slug** | Derived from ticket summary, lowercase-hyphenated. Confirm before uploading. |
 
-## Environment
-
-`JIRA_API_TOKEN` lives in `~/.env` (generated by
-1Password) and is usually autosourced into the shell. Occasionally it isn't —
-if a command 401s or complains a token is unset, source them yourself with
-`set -a; source ~/.env; set +a` in the _same_ Bash call (shell state doesn't
-persist between Bash calls). The bundled `fetch-confluence.sh` already does this
-fallback on its own, only sourcing if the token is actually missing.
-
----
-
-## Subagents & model tiers
-
-This pipeline mixes mechanical work (fetch, convert, upload) with high-judgment
-work (component selection, link verification, column balancing). Push the
-mechanical parts to cheaper subagents so the orchestrator's context stays on
-assembly.
-
-**Delegate the Confluence → markdown conversion (Sonnet).** The storage-format
-`body.html` is the largest raw payload in the pipeline, and converting it is a
-lossless transform, not a judgment call. Hand a Sonnet subagent the `body.html`
-path and the `tron:confluence` skill's faithful-markdown contract, and have it return:
-
-- the body as clean markdown, and
-- a per-image map — `{ original-filename, ac:alt, ac:layout (wrap-left | wrap-right
-| center | none), document-order }`.
-
-That keeps the raw XML out of the orchestrator entirely while preserving exactly
-what Stage 2 (naming) and Stage 3 (`::image-text` vs `::fImg`) need. **The subagent
-transforms and maps — it must not summarize, drop images, or resolve links.** Every
-Facilitron-specific decision stays with the orchestrator.
-
-**Optionally fan out image convert + upload (Haiku).** Once you've decided each
-image's section-scoped name (judgment — keep it here), the convert → upload →
-verify for each image is independent and deterministic. For an article with many
-inline images, fan out one Haiku subagent per image (each runs `to-webp.sh` then
-the ImageKit upload for its single file) to parallelize and keep CLI chatter out of
-context. For a handful of images, a single batched Bash loop is simpler — don't add
-subagent overhead you don't need.
-
-**Never delegate:** the article assembly itself (Stage 3 body + component choices),
-internal-link conversion and verification, and the Stage 4 served-HTML check. Those
-are the judgment core and the correctness gate.
-
----
-
-## Shared scripted helpers
-
-The deterministic backbone shared with `tron:toolkit-item` and `tron:guide-item`
-(repo guard, slug, the facilitron.com→relative link rewrite, internal-path
-validation) is one wrapper — use it instead of hand-rolling these:
+## Shared helper (plugin tools)
 
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
-bash "$C" check-repo                       # marketing-pages guard (below)
-bash "$C" slug "<ticket summary minus Cluster:>"   # the slug that drives both ImageKit folders
-bash "$C" rewrite-links content/resources/news/<slug>.md   # facilitron.com→relative, in place (Stage 3)
-bash "$C" check-link /product/facilitron-scheduling-and-reservations   # verify an internal link resolves
+bash "$C" check-repo                       # → must succeed (marketing-pages guard)
+bash "$C" slug "<summary>"                 # → {"ok":true,"slug":"…"}
+bash "$C" rewrite-links content/resources/news/<slug>.md
+bash "$C" check-link /product/<path>
 ```
-
-Each emits one JSON line. Smoke them with
-`bash ${CLAUDE_PLUGIN_ROOT:-…}/tools/content/test-content.sh`. The Confluence→markdown
-transform, component choices, and column balancing below stay judgment.
-
-## Preflight — confirm you're in the marketing-pages repo
-
-The `tron` plugin can be installed in any Facilitron repo, but this skill writes
-marketing-pages content (`content/resources/news/`). **Verify the checkout first and
-stop if it doesn't match** — `content.sh check-repo` is the guard (worktrees of
-marketing-pages still match — shared remote):
-
-```bash
-bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo \
-  | grep -q '"isMarketingPages":true' \
-  || echo "✋ NOT in the marketing-pages repo — switch to that checkout first."
-```
-
-If the guard fails, ask the user to switch to the marketing-pages checkout
-before continuing — don't write files into the wrong repo.
 
 ## Stage 1 — Intake
-
-Read the ticket and the Confluence draft.
 
 ```bash
 acli jira workitem view <KEY> --json
 ```
 
-The description's `inlineCard` attr holds the Confluence URL (often a tiny link
-like `/wiki/x/XXXXX`). Capture the target keywords from the description too — they
-shape the title, the meta description, and the H2s.
-
-Then fetch the page and its images with the shared script. **The Confluence and
-image helpers live in the plugin's shared `tools/` dir** (one copy, used by both
-`tron:news-item` and `tron:guide-item`). Resolve it via `CLAUDE_PLUGIN_ROOT`, with
-a fallback up two levels from `CLAUDE_SKILL_DIR` (the skill's own dir) so it works
-whichever variable the runtime exports:
+Extract the Confluence URL and target keywords from the description. Then fetch the draft:
 
 ```bash
-TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"   # plugin-level shared tools
-set -a; source ~/.env; set +a               # cold-start insurance: 1Password may still be writing ~/.env on the first call
-
-"$TOOLS/confluence/fetch-confluence.sh" <confluence-url-or-page-id> /tmp/news-<slug>
+TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"
+"$TOOLS/confluence/fetch-confluence.sh" <confluence-url> /tmp/news-<slug>
 ```
 
-This writes `/tmp/news-<slug>/body.html` (the storage-format body to convert) and
-`/tmp/news-<slug>/raw/<original-name>` for each image the body _actually
-references_ — Confluence pages routinely carry extra unused uploads, and the
-script skips those. It prints the referenced images in document order; keep that
-list, you'll map each one to a section in Stage 2.
+This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per referenced image (skips unused uploads). Delegate the storage→markdown transform to a **Sonnet subagent** — hand it `body.html` and the confluence skill's faithful-markdown contract. It returns clean markdown + a per-image `{filename, alt, layout, order}` map. Keep the raw XML out of the orchestrator.
 
-If you need to do this by hand (script unavailable), the non-obvious parts: the
-v2 pages API (`/wiki/api/v2/pages/<id>?body-format=storage`) works with basic
-auth, but the `/wiki/download/` servlet **401s** with an API token — download
-attachments through the gateway instead:
-`curl -L --location-trusted -u "$ATLASSIAN_EMAIL:$JIRA_API_TOKEN" "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`
-
----
+**Gotcha:** The Confluence `/wiki/download/` servlet 401s with an API token. The shared script handles this via the API gateway. If going manual, use `curl -L ... "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`.
 
 ## Stage 2 — Images
 
-Every image becomes a resized webp with a descriptive, slug-scoped name, then
-uploads to ImageKit. **Naming is judgment — name each image after the section it
-illustrates** (walk `body.html` in order), then convert with `to-webp.sh` and
-upload with the bundled ImageKit CLI, verifying the names land clean.
+Name each image after the section it illustrates. Convert to webp and upload.
 
-- Naming + destination paths (news-specific): [`reference/images.md`](reference/images.md)
-- Convert → upload → verify mechanics (shared): [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
+- Naming + paths: [`reference/images.md`](reference/images.md)
+- Convert → upload → verify: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
 
----
+Fan out image convert+upload to **Haiku subagents** for articles with many images (one per image); a single Bash loop is fine for few.
 
 ## Stage 3 — Write the article
 
-Create `content/resources/news/<slug>.md`. Write the front matter (`news` collection
-schema), then convert `body.html` to markdown — prefer delegating the transform to a
-Sonnet subagent (see **Subagents & model tiers**) so the raw XML never enters the
-orchestrator. Assemble the body from the returned markdown + per-image layout map,
-choosing `::image-text` (for `wrap-left`/`wrap-right` images), `::fImg` (centered /
-full-width), `::faq` (if the draft ends with one), and `::quote` where the draft
-calls for it. `school-facilities-maintenance-news-and-updates.md` is a clean concrete
-example if you want one.
+Create `content/resources/news/<slug>.md`. Front-matter (`news` collection schema), body from markdown + image layout map. Choose components: `::image-text` (wrap-left/right), `::fImg` (centered), `::faq`, `::quote`.
 
-See `reference/components.md` for the full component palette — what the slug page
-renders for you (don't author hero/CTA/SEO), the front-matter shape, the
-Confluence-cruft stripping rules, and every MDC block's syntax and judgment notes
-(column balancing, the no-duplicate-FAQ-heading trap, etc.).
+See `reference/components.md` for the full palette, front-matter shape, and MDC block syntax.
 
-**Internal links — verify each one before saving.** This is the top
-build/UX pitfall, so it stays in the main flow. The draft will contain
-`https://www.facilitron.com/...` URLs; convert them to relative paths and confirm the
-path exists:
+**Internal links — verify each before saving.** Convert `https://www.facilitron.com/...` to relative paths:
 
 ```bash
 find pages -type f -name "*.vue" | grep -i <keyword>
 ```
 
-Watch for the known trap: `/product/scheduling-and-reservations/` has **no index
-page** — link to `/product/facilitron-scheduling-and-reservations` instead. Sub-
-paths like `/product/scheduling-and-reservations/automated-work-orders` are fine.
+Known trap: `/product/scheduling-and-reservations/` has no index page — link to `/product/facilitron-scheduling-and-reservations`. Sub-paths like `/product/scheduling-and-reservations/automated-work-orders` are fine.
 
-`alt` text is required on every image for WCAG compliance (the marketing site has an
-active accessibility mandate) — write a genuine description of the photo, never reuse
-the `pexels-...` source filename.
-
----
+Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels source filename.
 
 ## Stage 4 — Verify & clean up
 
-1. **Links** — lint the new file:
+1. **Links:** `lychee --no-progress --cache --accept 200,206,429 content/resources/news/<slug>.md`
+2. **Images resolve:** Spot-check `https://ik.imagekit.io/facilitron/blog-featured/<slug>.webp`
+3. **Served-HTML trap:** News catch-all returns HTTP 200 even without the markdown file. Verify you're on THIS worktree's server by grepping rendered HTML:
    ```bash
-   lychee --no-progress --cache --accept 200,206,429 --exclude-mail \
-     content/resources/news/<slug>.md
+   curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oE '<title>[^<]*</title>'
+   curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oc 'blog-posts/<slug>'
    ```
-   Internal relative paths report as "Cannot find file" without a base — that's
-   expected; re-run with `--base http://localhost:3000` against the dev server, or
-   rely on the Stage 3 `find` check. Hard 404s and DNS failures must be fixed.
-2. **Images resolve** — spot-check the featured image and a couple of `::fImg`
-   srcs load: `https://ik.imagekit.io/facilitron/blog-featured/<slug>.webp` and
-   `https://ik.imagekit.io/facilitron/blog-posts/<slug>/<name>.webp`.
-3. **Dev server — confirm you're hitting THIS worktree's server.** News articles
-   render through the `[...slug].vue` catch-all, which returns **HTTP 200 even when
-   the markdown file doesn't exist in the server's worktree** — so a 200 is _not_
-   proof the article rendered. The trap: port 4001 (and 4002) are often already
-   bound by _other_ worktrees' dev servers, and `/preview-page` defaults to 4001,
-   so you can silently preview a sibling worktree that has no `<slug>.md`. Symptoms
-   are a generic `<title>` and zero `blog-posts/<slug>` image refs in the HTML.
-
-   Verify by grepping the _served HTML_, not the status code:
-
-   ```bash
-   URL=http://localhost:<port>/resources/news/<slug>
-   curl -s "$URL" | grep -oE '<title>[^<]*</title>'        # must contain the article title
-   curl -s "$URL" | grep -oc 'blog-posts/<slug>'           # must be > 0 (srcset variants)
-   ```
-
-   If it's the wrong server, start _this_ worktree's dev server on a free port
-   (check `pwd` and the dev-log path to be sure it's this worktree, since 4001/4002
-   are usually taken) and re-point the preview there:
-
+   If ports 4001/4002 are bound by sibling worktrees, start this one on a free port:
    ```bash
    for p in 4001 4002 4003 4004 4005; do lsof -ti:$p >/dev/null 2>&1 || { echo "free: $p"; break; }; done
    source ~/.nvm/nvm.sh && nvm use >/dev/null 2>&1
    ./node_modules/.bin/nuxt dev --port=<free-port> --dotenv .env.local > /tmp/news-dev.log 2>&1 &
    ```
-
-   (`bun run dev` hardcodes `--port=4001`, and bare `nuxt` isn't on PATH — call the
-   local binary as above.) Then ask the user to confirm the hero + all inline
-   images render. Don't run `build` to verify — the dev server is for that.
-
-4. **Prose & a11y** — before publish, offer a copy pass with `tron:prose-lint`
-   on the new markdown, and `tron:a11y-scan` against the rendered page (catches the
-   WCAG regressions a manual read misses).
-5. **Clean up** — remove the dropped-in featured image from the repo root and the
-   `/tmp/news-<slug>` working directory once the page looks right.
-
-The article file is the only thing that should end up tracked in git.
+4. **Prose & a11y:** Offer `tron:prose-lint` and `tron:a11y-scan` before publish.
+5. **Clean up:** Remove `featuredimg.png` from repo root, `/tmp/news-<slug>`.
 
 ## Verification loop
 
-Content quality is a loop, not a single pass. After the draft is assembled, validate
-it against the brief and the Facilitron voice, fix what's off, and repeat until it
-holds — then move to clean up:
-
-1. **Re-read the draft against the brief.** Does it cover the ticket's target SEO
-   keywords in the title, description, and H2s? Does every section from the Confluence
-   draft survive (no dropped images, no summarized-away paragraphs)? Is the structure
-   intro → body → FAQ as intended?
-2. **Check Facilitron voice — no em-dashes** in the produced copy. Scan the markdown
-   for `—` and rewrite those sentences (commas, periods, or restructure). Confirm the
-   tone is plain and customer-facing, not internal-Confluence phrasing.
-3. **Check mechanics:** alt text is a real description on every image, internal links
-   resolve (Stage 3 `find` + Stage 4 lychee), and the served-HTML check passed on
-   THIS worktree.
-4. **Fix and repeat.** Any miss sends you back to Stage 3 (body/components) or Stage 2
-   (images), not forward. Only once a full pass turns up nothing do you clean up.
-
-For a sharper outside read, hand the draft to `tron:prose-lint` (mechanics) and
-`tron:grill` (assumptions, vague claims) before publish.
+Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, no em-dashes (Facilitron voice), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Smoke for preview-url.sh. Detection is pure filesystem signal-matching, so it
 # is fully testable offline: build temp repos carrying each signal and assert
-# the detected target + the ok/url/reason semantics. URL resolution (gh/flyctl)
-# is best-effort and not asserted here — without a registered deployment it
-# correctly degrades to url:null with a routing reason.
+# the detected target + the ok/url/reason semantics.
+#
+# Scoped to the Facilitron stack: only Cloudflare Workers (wrangler.*) and CircleCI
+# (.circleci/config.yml) are detected; everything else is `unknown`.
 #
 #   bash skills/preview-url/scripts/test-preview-url.sh
 set -euo pipefail
@@ -24,39 +25,20 @@ has() { grep -q "$2" <<<"$1" || fail "$3 — got: $1"; }
 
 echo "preview-url smoke: root=$ROOT"
 
-# vercel.json → vercel
-D="$(mk vercel)"; echo '{}' > "$D/vercel.json"
-O="$(run "$D")"; echo "  → $O"
-has "$O" '"target":"vercel"' "vercel.json should detect vercel"
-has "$O" '"ok":true' "vercel ok"
-pass "vercel.json → vercel"
-
-# netlify.toml → netlify
-D="$(mk netlify)"; echo '' > "$D/netlify.toml"
-O="$(run "$D")"; has "$O" '"target":"netlify"' "netlify.toml should detect netlify"
-pass "netlify.toml → netlify"
-
-# fly.toml → fly (no flyctl in test → default .fly.dev host from app name)
-D="$(mk fly)"; printf 'app = "my-app"\n' > "$D/fly.toml"
-O="$(run "$D")"; echo "  → $O"
-has "$O" '"target":"fly"' "fly.toml should detect fly"
-has "$O" 'my-app.fly.dev' "fly should derive the default host from app name"
-pass "fly.toml → fly (default host from app name)"
-
-# wrangler.toml with no Pages markers → cf-workers, the no-preview verdict
+# wrangler.toml → cf-workers, the no-preview verdict
 D="$(mk workers)"; printf 'name = "svc"\nmain = "src/index.ts"\n' > "$D/wrangler.toml"
 O="$(run "$D")"; echo "  → $O"
-has "$O" '"target":"cf-workers"' "bare wrangler.toml → cf-workers"
+has "$O" '"target":"cf-workers"' "wrangler.toml → cf-workers"
 has "$O" '"url":null' "cf-workers has no preview URL"
 has "$O" 'no per-PR preview' "cf-workers should state the gotcha up front"
 has "$O" '"ok":true' "cf-workers is a real answer, not a failure"
-pass "bare wrangler.toml → cf-workers (states the no-preview gotcha)"
+pass "wrangler.toml → cf-workers (states the no-preview gotcha)"
 
-# wrangler.jsonc WITH a Pages marker → cf-pages
-D="$(mk pages)"; printf '{ "pages_build_output_dir": "dist" }\n' > "$D/wrangler.jsonc"
+# wrangler.jsonc also → cf-workers (Pages isn't part of the Facilitron stack)
+D="$(mk workers-jsonc)"; printf '{ "name": "svc" }\n' > "$D/wrangler.jsonc"
 O="$(run "$D")"; echo "  → $O"
-has "$O" '"target":"cf-pages"' "wrangler + pages_build_output_dir → cf-pages"
-pass "wrangler.jsonc + Pages marker → cf-pages"
+has "$O" '"target":"cf-workers"' "wrangler.jsonc → cf-workers"
+pass "wrangler.jsonc → cf-workers"
 
 # .circleci/config.yml → circleci, routes onward (no hardcoded URL)
 D="$(mk circle)"; mkdir -p "$D/.circleci"; echo 'version: 2.1' > "$D/.circleci/config.yml"
@@ -73,10 +55,10 @@ has "$O" '"target":"unknown"' "no signal → unknown"
 has "$O" '"ok":false' "unknown is a failure (ask the user)"
 pass "no deploy signal → unknown (ok:false)"
 
-# precedence: vercel.json wins over a co-present wrangler.toml
-D="$(mk both)"; echo '{}' > "$D/vercel.json"; echo 'name="x"' > "$D/wrangler.toml"
-O="$(run "$D")"; has "$O" '"target":"vercel"' "vercel.json should win over wrangler.toml"
-pass "precedence — vercel.json wins over wrangler.toml"
+# precedence: wrangler.* wins over a co-present .circleci/config.yml
+D="$(mk both)"; echo 'name="x"' > "$D/wrangler.toml"; mkdir -p "$D/.circleci"; echo 'version: 2.1' > "$D/.circleci/config.yml"
+O="$(run "$D")"; has "$O" '"target":"cf-workers"' "wrangler.* should win over .circleci"
+pass "precedence — wrangler.* wins over .circleci"
 
 echo ""
 echo "✅ preview-url smoke PASSED ($PASS checks)"

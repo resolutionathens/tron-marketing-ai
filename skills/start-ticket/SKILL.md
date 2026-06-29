@@ -11,238 +11,103 @@ allowed-tools:
 
 # Start Ticket
 
-Set up everything needed to begin work on a ticket: look it up, create a worktree, transition the ticket, and open a tmux session plus the ticket page in the user's default browser. Works for both **Jira tickets** (via `acli`) and **GitHub issues** (via `gh`).
-
-## Fast path (deterministic spine)
-
-The mechanical middle of this skill — classify the ref, freshen the base, create the
-branch+worktree, carry over gitignored env files, transition/assign the ticket — is one script:
-
-```bash
-# Resolve this skill's bundled dir robustly. $CLAUDE_SKILL_DIR is NOT always exported
-# into the agent's Bash (e.g. under the headless worker); never hardcode a version-pinned path.
-name=start-ticket
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/start-ticket.sh
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
-[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/start-ticket.sh" ] && echo "$d"; done | sort -V | tail -1)"
-[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || { echo "tron:$name: can't find scripts/start-ticket.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
-bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
-```
-
-Use it like this:
-
-1. **First, look up the ticket yourself (Step 1 below)** — you need the title/description
-   to (a) summarize for the user and (b) word a good branch slug. That reading is judgment;
-   the script doesn't do it.
-2. Run the script with the ref and either `--branch <name>` (you chose the slug) or
-   `--summary "<ticket title>"` (it slugifies into `<KEY>-slug` / `issue-<N>-slug`).
-3. It detects Jira-vs-GitHub, fast-forwards the local default branch to `origin/<default>`
-   so the new branch starts from origin's latest (not a stale local base — `wt switch -c`
-   does NOT fetch first; best-effort and non-fatal, skipped when you pass `--base`), runs
-   `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`
-   from the main checkout into the new worktree (the Step 2.5 pitfall — skip it and the
-   dev server 500s), symlinks every `node_modules` the main checkout has (root **and**
-   nested workspaces — private `@facilitron/*` deps can't reinstall from the public
-   registry), and transitions Jira → _In Progress_ / assigns the GitHub issue.
-
-One JSON line on stdout (narration on stderr):
-
-```json
-{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules","control-plane/web/node_modules"],"baseFreshened":true,"transitioned":true}
-{"ok":false,"error":"ambiguous-ref","ref":"42","hint":"use #N for a GitHub issue or PROJ-N for Jira"}
-```
-
-Read `worktreePath` from the result, then **continue with the judgment steps the script
-does NOT do**: the tmux session (Step 4), the dev-server offer (Step 5), and the worker
-spawn (Step 6). Pass `--no-transition` when you only want the worktree (e.g. the ticket is
-already In Progress). Smoke the deterministic core with
-`bash "$SKILL_DIR/scripts/test-start-ticket.sh"`.
-
-The detailed steps below remain the reference (and the fallback when the script reports
-`ambiguous-ref`, `wt-switch-failed`, or a non-blocking transition failure).
+Look up a ticket, create a worktree, transition it, open a tmux session + ticket page.
 
 ## Step 0: Detect ticket type
 
-Inspect the user's input and pick the path:
+| Input | Path | Key |
+|-------|------|-----|
+| `MD-1234`, `PROJ-456` (`[A-Z]+-\d+`) | Jira | The key |
+| `https://facilitron.atlassian.net/browse/MD-1234` | Jira | Last path segment |
+| `#42` (cwd has github.com remote) | GH | `42`; repo = current repo slug |
+| `owner/repo#42` | GH | `42`; repo = `owner/repo` |
+| `https://github.com/owner/repo/issues/42` | GH | `42`; repo = `owner/repo` |
 
-| Input shape                                           | Path | Key/ref extraction                        |
-| ----------------------------------------------------- | ---- | ----------------------------------------- |
-| `MD-1234`, `ABC-456`, `[A-Z]+-\d+`                    | Jira | The whole match is the key                |
-| `https://facilitron.atlassian.net/browse/MD-1234`     | Jira | Last path segment                         |
-| `#42` (and `git remote -v` shows a github.com remote) | GH   | `42`; repo = the current repo's slug      |
-| `owner/repo#42`                                       | GH   | `42`; repo = `owner/repo`                 |
-| `https://github.com/owner/repo/issues/42`             | GH   | `42`; repo = `owner/repo` (parse the URL) |
-
-If the input is ambiguous (e.g., a bare number like `42` with no `#`), ask the user which they mean. If the input is `#42` but the cwd is **not** inside a github.com-remote'd repo, ask for the full `owner/repo#42` form.
-
-For the rest of this skill: `<KEY>` is the Jira key (e.g. `MD-1658`), `<N>` is the GH issue number (e.g. `42`), and `<SLUG>` is the GH repo slug (e.g. `Facilitron/marketing-pages`).
+Ambiguous bare number → ask user. `#42` outside a github remote → ask for `owner/repo#42`.
 
 ## Step 1: Look up the ticket
 
-### Jira path
-
 ```bash
+# Jira
 acli jira workitem view <KEY> --fields '*all'
-```
 
-Present a brief summary: **title, status, assignee, description**.
-
-Save the ticket URL for step 4: `https://facilitron.atlassian.net/browse/<KEY>`.
-
-### GitHub path
-
-```bash
-# Current repo
+# GitHub
 gh issue view <N> --json number,title,state,labels,assignees,author,body
-
-# Specific repo
-gh issue view <N> --repo <SLUG> --json number,title,state,labels,assignees,author,body
 ```
 
-Present a brief summary: **title, state, author, labels, body (truncated to ~5 lines)**.
+Present: **title, status, assignee, description** (Jira) or **title, state, author, labels, body (~5 lines)** (GitHub). Save the ticket URL for later.
 
-Save the ticket URL for step 4: `https://github.com/<SLUG>/issues/<N>`. If the input was `#N` in cwd, derive `<SLUG>` via `gh repo view --json nameWithOwner --jq .nameWithOwner`.
+## Fast path (deterministic spine — script handles the mechanical core)
 
-## Step 2: Create the branch and worktree with wt
-
-Determine the branch name from the ticket reference + summary/title.
-
-**Jira path:**
-
-- Format: `<KEY>-<slugified-summary>` (e.g., `MD-1658-add-bas-logo-to-product`)
-
-**GitHub path:**
-
-- Format: `issue-<N>-<slugified-title>` (e.g., `issue-185-improve-better-auth-ux`)
-- The `issue-` prefix prevents the branch from looking like a Jira key (which would confuse `tron:git-commit`, `tron:jira`, and other Jira-aware skills downstream).
-
-In both cases:
-
-- Lowercase, hyphen-separated
-- No conventional commit prefixes
-- Keep it concise — trim to ~60 chars if the summary/title is long
-
-Use `wt switch` to create the worktree. Always include `--yes` because Claude runs non-interactively and can't approve hook prompts:
+The mechanical middle (classify, freshen base, create branch+worktree, copy env files, symlink node_modules, transition/assign) is one script:
 
 ```bash
-wt switch -c <branch-name> --yes
+name=start-ticket
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/start-ticket.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || { echo "tron:$name: scripts/start-ticket.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
 ```
 
-The `-c` flag creates a new branch from the default branch. `wt` automatically places the worktree in a sibling directory based on the branch name.
+1. You look up the ticket (Step 1) — the script doesn't do this.
+2. Run it with `--branch <name>` or `--summary "<title>"` (slugifies to `<KEY>-slug` or `issue-<N>-slug`).
+3. It freshens the base, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`, symlinks `node_modules` (root + workspaces), transitions Jira → In Progress / assigns GitHub issue.
 
-**Freshen the base first.** `wt switch -c` bases the new branch on the **local** default branch and does **not** fetch from origin first, so if the main checkout is behind origin the worker starts on a stale base. The script handles this for you (it fast-forwards the local default to `origin/<default>` before `wt` branches off it). When running `wt` by hand, fast-forward the default first: resolve `<default>` (`main` for some repos, `master` for others), then `git fetch origin <default>` and `git merge --ff-only origin/<default>` in the main checkout. This is best-effort and FF-only — if you're offline or the default diverged, fall back to the local base and continue; starting work must never be blocked by a failed fetch.
-
-Dependencies are handled automatically by `wt` post-create hooks. If hooks fail, mention it so the user can install deps manually. Also sanity-check `ls <worktree-path>/node_modules/ | head -1` — an empty `node_modules/` means the hook silently no-op'd and the dev server will fail with `command not found` (nuxt, vite, etc.); run the project's install command in the worktree before continuing.
-
-**Common hook failure — `mise trust`.** On repos that use mise, the install hook fails on a fresh worktree with `Config files in .../.mise.toml are not trusted`. Each worktree is a new path mise hasn't seen. Recover with:
-
-```bash
-mise trust <worktree-path>/.mise.toml
-(cd <worktree-path> && mise install && mise exec -- bun i)   # or the repo's install command
+```json
+{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules"],"baseFreshened":true,"transitioned":true}
 ```
 
-Then re-run the `node_modules/` sanity check above.
+Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-switch-failed`, or transition failure — fall back to the manual steps below if it fails.
 
-After `wt switch`, get the worktree's absolute path from `wt list` output — the worktree path follows a pattern like `<project>.<branch-name>` alongside the main checkout.
+### Manual fallback (if script unavailable)
 
-## Step 2.5: Carry over gitignored env files
+**Branch naming:** `<KEY>-<slugified-summary>` (Jira) or `issue-<N>-<slugified-title>` (GitHub). Lowercase, hyphenated, ~60 chars max.
 
-`.env`, `.dev.vars`, `.env.local`, and similar secret files are gitignored, so `wt switch -c` does **not** copy them into the new worktree. Without them, the dev server typically boots but every request 500s with "X is required" config errors (e.g. `BETTER_AUTH_SECRET is required`).
+**Create worktree:** Freshen base first — `git fetch origin <default> && git merge --ff-only origin/<default>` in the main checkout. Then `wt switch -c <branch> --yes`. If the post-create hook fails with `mise trust`, recover with `mise trust <worktree>/.mise.toml && (cd <worktree> && mise install && mise exec -- bun i)`.
 
-Find the main checkout from `git worktree list` (its first entry is always the primary checkout, wherever the user keeps their repos) and copy any gitignored env files it has into the worktree. The set varies per repo — check what's actually there rather than guessing:
+**Env files:** Copy `.env*`/`.dev.vars*` from the main checkout (first entry in `git worktree list`) into the worktree root. Without these, the dev server 500s with config errors.
 
-```bash
-MAIN_CHECKOUT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
-ls -1a "$MAIN_CHECKOUT" | grep -E '^\.(env|dev\.vars)' || true
-# cp each match into the worktree root
-```
+**Node modules:** Check `ls <worktree>/node_modules/ | head -1`. Empty → run the project's install command.
 
-For each match, `cp` it into the worktree root. Don't list them in the user-facing summary — this is plumbing.
-
-## Step 3: Transition the ticket / take ownership
-
-### Jira path
-
-Move the ticket to "In Progress":
-
+**Jira transition:**
 ```bash
 acli jira workitem transition --key <KEY> --status 'In Progress' --yes
 ```
 
-If the transition fails (wrong status name, already in progress, etc.), mention it but don't block.
-
-### GitHub path
-
-GitHub issues have no formal "In Progress" status. The convention is:
-
-1. **Always: assign yourself.**
-   ```bash
-   gh issue edit <N> --add-assignee @me                                      # current repo
-   gh issue edit <N> --repo <SLUG> --add-assignee @me                        # other repo
-   ```
-2. **If the repo uses an `in-progress` (or similar) label:** also add it. Check first:
-   ```bash
-   gh label list --json name --jq '.[].name' | grep -iE 'in.progress|wip|active'
-   ```
-   If a matching label exists, `gh issue edit <N> --add-label "<label-name>"`.
-3. **Don't try to move it on a GitHub Project board** unless the user explicitly asks — `gh project item-edit` requires the `project` scope (we have it) but board layouts are repo-specific and easy to misconfigure.
-
-Skipping any of these is fine if it fails — just mention it and continue.
+**GitHub assignment:**
+```bash
+gh issue edit <N> --add-assignee @me
+# Optional in-progress label:
+gh label list --json name | grep -iE 'in.progress|wip|active' && gh issue edit <N> --add-label "<label>"
+```
 
 ## Step 4: Set up the tmux session
 
-Create a detached tmux session rooted in the worktree and open the ticket in the user's default browser. **Skip this entire step when invoked by the `tron:ship-ticket` orchestrator** (that skill drives every stage itself, so a dedicated session goes unused — jump to Step 5 and omit the `Session:` line from the final confirmation).
-
-For the session-creation commands, branch-name sanitizing, browser-open URLs, and the attach instruction, see `reference/worker-spawn.md` (Step 4).
-
-## Step 5: Offer to start the worktree's dev server
-
-If the work is likely to need browser verification (UI changes, page edits, component tweaks, anything visual), offer to start a dev server from the worktree directory in the background.
-
-This step exists because of a real pitfall: a dev server running in the **main** repo won't reflect edits made inside a **worktree**. They're separate working copies. If the user has a dev server already running and edits happen in the worktree, the browser keeps showing stale code and time gets wasted wondering why changes aren't appearing.
-
-Offer it by default for code/UI tickets. Skip for clearly content-only work — toolkit items whose artifact is a PDF, news posts where verification happens after deploy, config-only changes. Use judgment.
-
-Start it as a **background task of this orchestrator session** (not in the tmux session — that's for the worker in Step 6) and capture the task ID so `close-worktree` can stop it later:
+Skip this when invoked by `tron:ship-ticket` orchestrator. Create a detached session in the worktree:
 
 ```bash
-cd <worktree-absolute-path> && bun dev   # or the repo's dev command
-# run_in_background: true
+SESSION="$(printf '%s' '<branch>' | tr '.:' '--')"
+tmux new-session -d -s "$SESSION" -c "<worktreePath>"
+tmux send-keys -t "$SESSION" 'vim .' Enter
+tmux split-window -v -t "$SESSION" -c "<worktreePath>"
 ```
 
-Tell the user the dev server is running and on which URL (the dev server prints its `Local: http://localhost:PORT/` once it boots; tail the log if needed to confirm the port). If you spawn a worker in Step 6, pass this URL into its kickoff.
+Open the ticket URL: `open "<url>"`. Tell the user: `tmux attach -t "$SESSION"`.
 
-When invoked by the `tron:ship-ticket` orchestrator, still offer this step — unlike the tmux session, a worktree-scoped dev server is genuinely useful during orchestrator-driven UI work.
+## Step 5: Offer dev server
 
-## Step 6: Offer to spawn a worker agent in the tmux session
+Offer to start a worktree-scoped dev server for code/UI tickets (skip for content-only work). Run as a background task of this session:
 
-This is the autonomy step: launch a Claude worker _in the Step 4 session's pane_ to start the ticket while you stay the orchestrator. Offer it for any real implementation/content ticket; skip for trivial one-liners the user wants to do by hand, and **skip entirely when invoked by the `tron:ship-ticket` orchestrator** (it drives the work itself).
+```bash
+cd <worktree-path> && bun dev   # run_in_background: true
+```
 
-For the launch variants (shared-context vs fresh worker), the boot-then-kickoff sequencing, and the standing kickoff instructions (plan-first, out-of-scope follow-up handling, marker discipline), see `reference/worker-spawn.md` (Step 6).
+Tell the user the URL once the server boots.
+
+## Step 6: Offer a worker agent (optional)
+
+For implementation tickets, offer to spawn a Claude worker in the tmux session's pane. See `reference/worker-spawn.md` for launch variants and kickoff instructions. Skip when invoked by `tron:ship-ticket`.
 
 ## Step 7: Confirm
 
-Keep it brief. Give the user the tmux session name (and `tmux attach -t <name>` to enter it), the browser URL you opened, the dev-server URL, and the worker status. If you spawned a worker, note that it's running in the session and will pause for plan approval there.
-
-**Jira example:**
-
-```
-Ticket CCAL-1002: "News Post featured image edit"
-Status: In Progress
-Session: CCAL-1002-news-post-featured-image-width (tmux attach -t CCAL-1002-news-post-featured-image-width)
-Ticket opened in your default browser.
-Dev server: http://localhost:4001 (background task <id>)
-Worker: shared-context (claude --resume --fork-session) running in the session — will pause for your plan approval there.
-When finished: wt merge or tron:close-worktree
-```
-
-**GitHub example:**
-
-```
-Issue acme-org/acme-app#185: "Improve better-auth UX and review our implementation"
-Assignee: @your-handle
-Session: issue-185-improve-better-auth-ux (tmux attach -t issue-185-improve-better-auth-ux)
-Ticket opened in your default browser.
-When finished: wt merge or tron:close-worktree
-```
+Give the user: session name + `tmux attach -t <name>`, browser URL, dev server URL, worker status (if spawned). Keep it brief.
