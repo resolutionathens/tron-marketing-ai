@@ -39,6 +39,10 @@ LIB="${ROOT:+$ROOT/tools/ticket/ticket-lib.sh}"
 [[ -z "$LIB" || ! -f "$LIB" ]] && LIB="$(cd "$(dirname "$0")/../../../tools/ticket" && pwd)/ticket-lib.sh"
 # shellcheck source=/dev/null
 source "$LIB"
+WLIB="${ROOT:+$ROOT/tools/worktree/worktree-lib.sh}"
+[[ -z "$WLIB" || ! -f "$WLIB" ]] && WLIB="$(cd "$(dirname "$0")/../../../tools/worktree" && pwd)/worktree-lib.sh"
+# shellcheck source=/dev/null
+source "$WLIB"
 
 # ---- classify the ref -------------------------------------------------------
 if ! DET="$(tl_detect_ref "$REF")"; then
@@ -62,7 +66,7 @@ log "ref=$REF → $RTYPE $RID ${RREPO:-(current repo)} → branch $BRANCH"
 # back to the current local base. Skipped when the caller pinned an explicit --base.
 BASE_FRESHENED=false
 if [[ -z "$BASE" ]]; then
-  MAIN_NOW="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree /{print $2; exit}')" || true
+  MAIN_NOW="$(wl_main_checkout 2>/dev/null || true)"
   if [[ -n "$MAIN_NOW" ]]; then
     if DEFBR="$(tl_freshen_default "$MAIN_NOW")"; then
       BASE_FRESHENED=true; log "base $DEFBR fast-forwarded to origin/$DEFBR"
@@ -83,18 +87,8 @@ if ! wt "${WT_ARGS[@]}" >&2; then
 fi
 
 # ---- resolve the worktree path + the primary checkout -----------------------
-worktree_path_for_branch() {
-  local want="$1" path=""
-  while IFS= read -r line; do
-    case "$line" in
-      "worktree "*) path="${line#worktree }" ;;
-      "branch refs/heads/$want") printf '%s\n' "$path"; return 0 ;;
-    esac
-  done < <(git worktree list --porcelain)
-  return 1
-}
-WTPATH="$(worktree_path_for_branch "$BRANCH" || true)"
-MAIN_CHECKOUT="$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')"
+WTPATH="$(wl_worktree_path_for_branch "$BRANCH" || true)"
+MAIN_CHECKOUT="$(wl_main_checkout || true)"
 
 # ---- carry over gitignored env/secret files + symlink node_modules ----------
 ENV_COPIED=(); NM_LINKED=()

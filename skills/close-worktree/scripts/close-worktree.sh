@@ -60,6 +60,17 @@ fi
 
 log() { echo "close-worktree: $*" >&2; }
 
+# ---- source shared libs -------------------------------------------------------
+_TLIB="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/tools/ticket/ticket-lib.sh}"
+[[ -z "$_TLIB" || ! -f "$_TLIB" ]] && _TLIB="$(cd "$(dirname "$0")/../../../tools/ticket" && pwd)/ticket-lib.sh"
+# shellcheck source=/dev/null
+source "$_TLIB"
+_WLIB="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/tools/worktree/worktree-lib.sh}"
+[[ -z "$_WLIB" || ! -f "$_WLIB" ]] && _WLIB="$(cd "$(dirname "$0")/../../../tools/worktree" && pwd)/worktree-lib.sh"
+# shellcheck source=/dev/null
+source "$_WLIB"
+unset _TLIB _WLIB
+
 # ---- resolve the main checkout ---------------------------------------------
 # --git-common-dir points at the shared .git for every worktree; strip the
 # trailing /.git to get the primary checkout (same idiom as tron:git-dev).
@@ -70,36 +81,7 @@ fi
 MAIN_REPO="${GIT_COMMON_DIR%/.git}"
 g() { git -C "$MAIN_REPO" "$@"; }
 
-# Resolve the main checkout's DEFAULT branch — `main` for some repos, `master`
-# for others. Offline-safe (never contacts the remote): prefers the locally
-# recorded origin/HEAD, then whichever of main/master exists, then current HEAD.
-default_branch() {
-  local d=""
-  d="$(g symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
-  d="${d#origin/}"
-  if [[ -z "$d" ]]; then
-    if   g show-ref --verify --quiet refs/heads/main   2>/dev/null; then d=main
-    elif g show-ref --verify --quiet refs/heads/master 2>/dev/null; then d=master
-    else d="$(g symbolic-ref --quiet --short HEAD 2>/dev/null || true)"; fi
-  fi
-  printf '%s' "$d"
-}
-
-# ---- locate the worktree for this branch -----------------------------------
-# Parse `git worktree list --porcelain` stanzas: a `worktree <path>` line
-# followed (for an attached worktree) by `branch refs/heads/<name>`.
-worktree_path_for_branch() {
-  local want="$1" path=""
-  while IFS= read -r line; do
-    case "$line" in
-      "worktree "*) path="${line#worktree }" ;;
-      "branch refs/heads/$want") printf '%s\n' "$path"; return 0 ;;
-    esac
-  done < <(g worktree list --porcelain)
-  return 1
-}
-
-WTPATH="$(worktree_path_for_branch "$BRANCH" || true)"
+WTPATH="$(wl_worktree_path_for_branch "$BRANCH" "$MAIN_REPO" || true)"
 
 # Track anything we were asked to remove but couldn't.
 LEFTOVERS=()
@@ -204,37 +186,8 @@ fi
 
 # ---- 4.5 re-sync the main checkout's default branch (best-effort, ff-only) --
 # Cleanup that never freshens the default lets the local default drift behind
-# origin, which makes the NEXT start-ticket branch off a stale base. Fast-forward
-# the main checkout's default to origin's. Strictly best-effort and FF-ONLY: it
-# never creates a merge commit, never switches a dirty tree, and never fails the
-# cleanup or adds a leftover — the success contract above is unaffected.
-resync_default() {
-  local default cur
-  default="$(default_branch)"
-  [[ -z "$default" ]] && return 0
-  g remote get-url origin >/dev/null 2>&1 || { log "no origin remote — skipping default re-sync"; return 0; }
-  cur="$(g symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
-  if [[ "$cur" != "$default" ]]; then
-    # Only move onto the default branch if the tree is clean and it exists.
-    if [[ -z "$(g status --porcelain 2>/dev/null)" ]] && g show-ref --verify --quiet "refs/heads/$default" 2>/dev/null; then
-      if g checkout --quiet "$default" 2>/dev/null; then cur="$default"
-      else log "could not switch main checkout to $default — leaving as-is"; return 0; fi
-    else
-      log "main checkout not on $default (dirty tree or branch absent) — skipping default re-sync"
-      return 0
-    fi
-  fi
-  if ! g fetch --quiet origin "$default" 2>/dev/null; then
-    log "fetch of origin/$default failed (offline?) — left $default as-is"; return 0
-  fi
-  if g merge --ff-only --quiet "origin/$default" 2>/dev/null; then
-    log "re-synced $default to origin/$default"
-  else
-    log "$default could not fast-forward (diverged or dirty) — left as-is"
-  fi
-  return 0
-}
-resync_default || true
+# origin, which makes the NEXT start-ticket branch off a stale base.
+tl_freshen_default "$MAIN_REPO" >/dev/null || true
 
 # ---- 5. emit the machine-readable result line ------------------------------
 OK=true; [[ ${#LEFTOVERS[@]} -gt 0 ]] && OK=false
