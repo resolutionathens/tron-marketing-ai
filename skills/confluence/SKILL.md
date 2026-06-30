@@ -39,14 +39,12 @@ acli confluence page view --id <PAGE_ID> --body-format storage --json \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['body']['storage']['value'])"
 ```
 
-## Faithful-markdown conversion
+## Storage-XML → markdown
 
-The storage format is HTML-like XML (`ac:structured-macro`, `ac:image`, etc.). Convert it to clean markdown with these rules:
+Delegate the XML-to-markdown transform to the **`confluence-transformer` agent**. Hand it the path to `body.html` — pipe the `fetch` output to a file first if needed:
 
-- **Lossless — don't summarize, don't drop images.** Downstream pipelines (`tron:news-item`, `tron:toolkit-item`) rebuild pages from this output.
-- Preserve heading hierarchy, links, tables, lists, code macros (→ fenced blocks with language), panel/info macros (→ blockquote with label), bold/italic/inline code.
-- **Never drop `<ac:image>` attachments** — convert to `![alt](filename)`. Image downloads need the API gateway (use `tools/confluence/fetch-confluence.sh`).
-- Strip internal IDs (`local-id`, `ac:macro-id`, etc.).
-- Unwrap `ac:inline-comment-marker` to plain text; collect wrapped snippets into a "Recently commented" note at the end.
+```bash
+bash "$SKILL_DIR/scripts/confluence.sh" fetch <url-or-id> > /tmp/body.html
+```
 
-For large pages, delegate the fetch + convert to a Sonnet subagent — keep only the clean markdown and the list of image filenames in your context.
+For content pipelines (news-item, guide-item), use `tools/confluence/fetch-confluence.sh` instead — it handles attachment downloads and writes `body.html` directly. The transformer returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of your context.

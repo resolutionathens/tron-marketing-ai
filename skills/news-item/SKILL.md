@@ -66,7 +66,7 @@ TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"
 "$TOOLS/confluence/fetch-confluence.sh" <confluence-url> /tmp/news-<slug>
 ```
 
-This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per referenced image (skips unused uploads). Delegate the storage→markdown transform to a **Sonnet subagent** — hand it `body.html` and the confluence skill's faithful-markdown contract. It returns clean markdown + a per-image `{filename, alt, layout, order}` map. Keep the raw XML out of the orchestrator.
+This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per referenced image (skips unused uploads). Delegate the storage→markdown transform to the **`confluence-transformer` agent** — hand it the path to `body.html`. It returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of the orchestrator.
 
 **Gotcha:** The Confluence `/wiki/download/` servlet 401s with an API token. The shared script handles this via the API gateway. If going manual, use `curl -L ... "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`.
 
@@ -95,7 +95,7 @@ node "$IK" upload /tmp/news-<slug>/<slug>.webp --name <slug>.webp --folder blog-
 
 ## Stage 3 — Write the article
 
-Create `content/resources/news/<slug>.md`. Front-matter (`news` collection schema), body from markdown + image layout map. Choose components: `::image-text` (wrap-left/right), `::fImg` (centered), `::faq`, `::quote`.
+Create `content/resources/news/<slug>.md`. Front-matter (`news` collection schema), body from the markdown (extracted from `<markdown>` block) and the image filenames list (from `<images>` block). Choose components: `::image-text` (wrap-left/right), `::fImg` (centered), `::faq`, `::quote`.
 
 See `reference/components.md` for the full palette, front-matter shape, and MDC block syntax.
 

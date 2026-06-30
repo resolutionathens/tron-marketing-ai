@@ -68,7 +68,7 @@ TOOLS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools"
 "$TOOLS/confluence/fetch-confluence.sh" <confluence-url> /tmp/guide-<slug>
 ```
 
-Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>/raw/`. Delegate the storage→markdown transform to a **Sonnet subagent** (keeps raw XML out of context). Returns clean markdown + image map.
+Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>/raw/`. Delegate the storage→markdown transform to the **`confluence-transformer` agent** — hand it the path to `body.html`. It returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of context.
 
 ## Stage 2 — Images
 
