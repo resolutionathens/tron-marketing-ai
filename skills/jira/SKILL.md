@@ -85,6 +85,10 @@ The helper uses the `markdown-to-adf` npm package with the `story` preset (full 
 
 **Rule:** any time the ticket description is more than a line or two, or uses any markdown formatting, go through the helper. Never pass markdown directly via `-d`/`--description`.
 
+## Project naming conventions
+
+See [tools/jira/conventions.md](../../tools/jira/conventions.md) for summary prefix rules by repo.
+
 ## Presentation guidelines
 
 - Lead with the ticket summary as a heading, then status and assignee
