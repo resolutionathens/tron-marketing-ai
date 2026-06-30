@@ -3,7 +3,7 @@
 # the ref, create the branch+worktree with wt, carry over gitignored env files,
 # and transition/assign the ticket. Emits a machine-readable result line. The
 # JUDGMENT steps stay in the SKILL.md: reading the ticket, wording the slug, and
-# the tmux-session / dev-server / worker-spawn offers.
+# moving into the worktree to begin the work.
 #
 # Usage:
 #   start-ticket.sh <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]

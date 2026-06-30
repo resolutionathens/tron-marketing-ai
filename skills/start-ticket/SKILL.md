@@ -2,7 +2,7 @@
 name: start-ticket
 model: sonnet
 effort: medium
-description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and opening a tmux session with the ticket. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'."
+description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and then moving into the worktree and beginning the implementation against the ticket as the spec. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'. It scaffolds the workspace and kicks off the work; it does not commit, promote, or open a PR (those are separate lifecycle skills)."
 allowed-tools:
   - Bash
   - Read
@@ -11,7 +11,7 @@ allowed-tools:
 
 # Start Ticket
 
-Look up a ticket, create a worktree, and transition it.
+Look up a ticket, create a worktree, transition it, then move into the worktree and begin the work.
 
 ## Step 0: Detect ticket type
 
@@ -93,5 +93,16 @@ gh issue edit <N> --add-assignee @me
 gh label list --json name | grep -iE 'in.progress|wip|active' && gh issue edit <N> --add-label "<label>"
 ```
 
-Open the ticket URL: `open "<url>"`. Tell the user: `tmux attach -t "$SESSION"`.
+## Step 2: Move into the worktree and begin the work
+
+Setup is done. Now actually start the ticket — do not stop at scaffolding.
+
+1. **Switch your working context to the worktree.** Every command, file read, and edit from here runs against `worktreePath`, never the main checkout. `cd` into it (or pass it explicitly) so the dev server, edits, and git all target the new branch.
+2. **Use the ticket as the spec.** Work from the description you looked up in Step 1 — its Context, Sources, Implementation notes, and Acceptance criteria. Open the linked sources the description names (Figma, Confluence, GitHub, docs).
+3. **If the ticket is too thin to act on** (empty or vague description, no implementation notes), enrich it first with `tron:enrich-jira-ticket`, or ask the user for the missing detail. Do not guess at scope.
+4. **State a short plan, then start.** Restate the first implementation steps in a line or two, then make the first changes in the worktree, working the acceptance criteria top to bottom.
+
+Open the ticket URL for reference: `open "<url>"`.
+
+This skill begins the work; it does not finish it. Committing, dev promotion, PR, and prod stay with their own lifecycle skills (`tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`). Hand off once there is something to commit.
 

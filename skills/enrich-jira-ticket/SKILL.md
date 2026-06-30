@@ -2,7 +2,7 @@
 name: enrich-jira-ticket
 model: sonnet
 effort: medium
-description: Enrich existing Jira tickets with implementation-ready descriptions by reading the ticket, pulling source links from comments, extracting source metadata when possible, and writing a rich ADF description via acli. Use when the user says ticket enrichment, enrich these tickets, flesh out Jira tickets, add acceptance criteria, prep these tickets for dev, the link is in a comment, or when a batch of CCAL/MCR/MD tickets needs structured context, source links, repo/path guidance, implementation notes, and acceptance criteria. Especially useful for marketing-pages content tasks such as /resources/toolkit, /resources/news, /resources/guides, landing pages, and creative or SEO implementation tickets. Jira-write skill. It edits ticket descriptions only after the user clearly asks for enrichment or confirms a preview.
+description: Enrich existing Jira tickets with implementation-ready descriptions by reading the ticket and its parent and linked issues, pulling source links from comments and descriptions, extracting source metadata when possible, and writing a rich ADF description via acli. Use when the user says ticket enrichment, enrich these tickets, flesh out Jira tickets, add acceptance criteria, prep these tickets for dev, the link is in a comment, the context is on the parent or a linked ticket, or when a batch of CCAL/MCR/MD tickets needs structured context, source links, repo/path guidance, implementation notes, and acceptance criteria. Works for any ticket type — webdev and navigation changes, design/Figma implementation, landing pages, content tasks (/resources/toolkit, /resources/news, /resources/guides), and creative or SEO work. Jira-write skill. It edits ticket descriptions only after the user clearly asks for enrichment or confirms a preview.
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -10,21 +10,32 @@ allowed-tools:
 
 # Enrich Jira Ticket
 
-Turn thin Jira tickets into implementation-ready tickets. This skill reads existing tickets, finds the real source material, usually in comments, drafts a structured description, converts it to Atlassian Document Format, and writes it back to Jira with `acli`.
+Turn thin Jira tickets into implementation-ready tickets. This skill reads an existing ticket along with its parent and linked issues, finds the real source material wherever it lives, drafts a structured description, converts it to Atlassian Document Format, and writes it back to Jira with `acli`.
 
-Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the links a developer needs.
+Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the context and links a developer needs. It is type-agnostic: a webdev sub-task, a Figma-implementation ticket, a landing page, an SEO change, or a content item all enrich the same way.
 
 ## What this skill does
 
 - Fetches each Jira ticket summary, status, assignee, description, and comments.
-- Extracts source links from both plain links and Jira smart cards in comments.
+- Traverses the ticket's **parent** and **linked issues** to gather context and source links, because thin sub-tasks usually inherit their real material from a parent epic or campaign and a sibling design/spec ticket. See [Where the source material lives](#where-the-source-material-lives).
+- Extracts source links from descriptions, plain links, and Jira smart cards in comments.
 - Resolves obvious key typos when safe, for example `CCLA-1976` might be `CCAL-1976` if the first key fails and the neighboring keys match.
-- Pulls source metadata when available, especially Google Docs `export?format=txt` fields like `Meta Title`, `Meta Description`, and `Slug`.
+- Recognizes a range of source types — a Figma file, a page being replaced, an ImageKit asset folder, a Google Doc, a Confluence spec, a GitHub PR/issue/code path, or an error/monitoring link — and pulls the metadata each one carries. See [step 4](#4-pull-source-metadata).
 - Drafts a structured Jira description with context, source links, destination paths, implementation notes, and acceptance criteria.
 - Converts markdown to ADF with the bundled `tools/md-to-adf` helper so Jira renders headings, bullets, links, and code correctly.
 - Updates the Jira description with `acli jira workitem edit --description-file`.
 
 It does **not** implement the ticket, create branches, commit code, or move ticket status. It is Jira enrichment only.
+
+## Where the source material lives
+
+A thin ticket rarely holds its own context. Look in this order and merge what you find:
+
+1. **The ticket itself** — description and comments (plain links and smart-card `inlineCard`/`blockCard` URLs).
+2. **Linked issues** — especially a `blocks` / `is blocked by` design or spec ticket. These commonly hold the Figma file, the page being replaced, the asset location, and reviewer notes. Read their description and comments too.
+3. **The parent** — an epic or campaign that states the overall goal and the "why". Pull its summary and description for the context line.
+
+When the same link or fact appears in more than one place, keep one copy and prefer the most specific source.
 
 ## Authorization rule
 
@@ -42,17 +53,30 @@ For a batch, create a temp working directory and keep one markdown draft and one
 mkdir -p /tmp/tron-enrich-jira-ticket
 ```
 
-Fetch ticket basics:
+Fetch ticket basics. Use `--fields '*all'` so `parent` and `issuelinks` come back (the bare `--json` omits them):
 
 ```bash
-acli jira workitem view <KEY> --json
+acli jira workitem view <KEY> --fields '*all' --json
 acli jira workitem view <KEY> --fields comment --json
 ```
 
-Extract comment URLs, including regular link marks and smart-card `inlineCard` URLs:
+Discover the parent key and every linked-issue key, then read each one the same way:
 
 ```bash
-acli jira workitem view <KEY> --fields comment --json \
+acli jira workitem view <KEY> --fields '*all' --json \
+  | jq -r '
+      .fields.parent.key // empty,
+      (.fields.issuelinks[]? | (.outwardIssue.key // .inwardIssue.key))
+    ' \
+  | sort -u
+# then, for each KEY above:
+acli jira workitem view <RELATED_KEY> --fields summary,description,comment --json
+```
+
+Extract comment and description URLs, including regular link marks and smart-card `inlineCard` URLs:
+
+```bash
+acli jira workitem view <KEY> --fields description,comment --json \
   | jq -r '
       .. | objects |
       (.attrs.href? // .attrs.url? // empty)
@@ -60,10 +84,10 @@ acli jira workitem view <KEY> --fields comment --json \
   | sort -u
 ```
 
-Extract visible text from comments when the link is not obvious:
+Extract visible text from the description and comments when the link is not obvious:
 
 ```bash
-acli jira workitem view <KEY> --fields comment --json \
+acli jira workitem view <KEY> --fields description,comment --json \
   | jq -r '.. | objects | select(has("text")) | .text'
 ```
 
@@ -90,16 +114,21 @@ Parse all keys the user gave. If a key fails, do not silently skip it. Check for
 
 Example: if the user gives `CCAL-1971`, `CCAL-1972`, `CCAL-1974`, `CCLA-1976`, and `CCAL-1977`, try `CCAL-1976` after `CCLA-1976` fails and report the correction.
 
-### 2. Read each ticket and comments
+### 2. Read the ticket, its parent, and its linked issues
 
-For every ticket capture:
+For the target ticket capture:
 
 - Key
 - Summary
 - Status
 - Assignee
 - Existing description state
-- All source links found in comments
+- Parent key, and linked-issue keys with their link type (`blocks`, `is blocked by`, `relates to`)
+
+Then read the parent and each linked issue (see [Where the source material lives](#where-the-source-material-lives)) and capture from them:
+
+- Summary and description — the parent usually carries the goal, the linked design/spec ticket usually carries the source links
+- All source links found in their descriptions and comments
 - Comment author and date if useful for provenance
 
 Prefer `--json` and `jq` over screen-scraping formatted output.
@@ -108,26 +137,38 @@ Prefer `--json` and `jq` over screen-scraping formatted output.
 
 Infer from the summary, source, and user context. Common Facilitron patterns:
 
-- `Checklist:` with `/resources/toolkit` means toolkit category `checklist`.
-- `SOP:` with `/resources/toolkit` means toolkit category `sop`.
-- `Template:` with `/resources/toolkit` means toolkit category `template`.
+- Webdev or navigation changes (add to a dropdown, footer, header, menu) belong in the relevant app repo and need component, route, and placement notes.
+- A `blocks` / `is blocked by` link to a Figma or design ticket means design-driven implementation: build to match the linked Figma file, using the assets it names.
+- Landing page work usually belongs in `pages/**` and needs route, SEO, and component notes.
 - Blog, cluster article, or news item means `content/resources/news/<slug>.md`.
 - Guide or pillar means a bespoke Vue page under `/resources/guides` plus guide index registration.
-- Landing page work usually belongs in `pages/**` and needs route, SEO, and component notes.
+- `Checklist:` / `SOP:` / `Template:` with `/resources/toolkit` means a toolkit item — see [reference/toolkit-playbook.md](reference/toolkit-playbook.md).
 
 When the user states the repo or destination type, trust that over inference.
 
 ### 4. Pull source metadata
 
-When the source is a Google Doc and accessible, fetch its text export. Look near the top for fields such as:
+Identify the source type from the links you gathered and capture whatever the implementer will need. A ticket often has more than one source (a spec plus a design, say) — capture each. Common source types:
 
-- `Meta Title:`
-- `Meta Description:`
-- `Slug:`
-- H1 title
-- Purpose, Scope, Procedure, FAQ, or checklist sections
+**Design and content sources**
 
-If the doc is not accessible, still enrich the ticket with the source URL and note that the implementer should use the linked doc as the copy source.
+- **Figma file** — keep the full URL with its `node-id`. Note the frame or page name from any comment. The implementer builds to this; do not try to render it.
+- **Existing or HubSpot page being replaced** — keep the URL as the content/layout reference.
+- **Asset location** — an ImageKit folder, a download link, or attachments named in the source ticket.
+- **Google Doc** — when accessible, fetch its text export and read fields near the top such as `Meta Title:`, `Meta Description:`, `Slug:`, the H1 title, and Purpose / Scope / Procedure / FAQ sections.
+
+**Spec and code sources**
+
+- **Confluence page** — the brief or spec often lives here. Fetch the body with the shared helper so the spec text lands in the description, not just a link:
+  ```bash
+  "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/confluence/fetch-confluence.sh" <confluence-url-or-id>
+  ```
+  Pull the goal, scope, and any acceptance criteria already written there.
+- **GitHub PR, issue, or code path** — keep the URL, or a `owner/repo` + file path / symbol reference, so the implementer knows exactly where the change or the prior art lives. A linked PR is often the pattern to copy or the thing to revert.
+- **Error or monitoring link** (Sentry, logs, dashboard) — keep the issue URL and capture the error message, affected endpoint, and frequency if shown. This is the repro context for a fix.
+- **Chat or recording link** (Slack thread, Loom) — keep the URL as provenance, but note it may not be accessible to the implementer; summarize any decision captured in the ticket text rather than relying on the link.
+
+If a source is not directly accessible, still enrich the ticket with its URL and note that the implementer should use it as the reference.
 
 ### 5. Draft the enriched description
 
@@ -138,19 +179,14 @@ Use this base shape. Keep it practical and implementation-ready.
 
 ## Context
 
-<Short explanation of what this ticket is for and where the source lives.>
+<Short explanation of what this ticket is for and the goal it serves. Pull the "why" from the parent epic or campaign when there is one.>
 
-- Source content: [<Source label>](<url>)
-- Destination repo: `<repo>`
-- Destination file: `<path if known>`
-- Public route: `<route if known>`
+## Sources
+
+- <Source label>: [<url or location>](<url>) — <one-line note on what it is>
+- Destination repo: `<repo if known>`
+- Destination path or route: `<path or route if known>`
 - Work type: `<type>`
-
-## Source SEO fields
-
-- Meta title: <title if known>
-- Meta description: <description if known>
-- Source slug: `<slug if known>`
 
 ## Implementation notes
 
@@ -160,82 +196,52 @@ Use this base shape. Keep it practical and implementation-ready.
 
 ## Acceptance criteria
 
-- <Expected file or page exists.>
+- <Expected file, page, or change exists.>
 - <The page or asset renders in the expected location.>
 - <Links, downloads, images, or metadata work.>
 - <Review criteria are satisfied.>
 ```
 
-Do not include empty sections. If a ticket has no SEO fields, replace that section with the relevant source notes or omit it.
+Add only the sections a ticket needs. For content/SEO work, add a `## Source SEO fields` section with meta title, meta description, and slug. For a Figma-driven ticket, list the Figma file, the page being replaced, and the asset location under `## Sources`. Do not include empty sections.
 
-## Playbook: marketing-pages toolkit items
+For a webdev or navigation ticket sourced from a linked Figma design, the enriched description looks like this:
 
-When the user says the work is in `marketing-pages` and all items are `/resources/toolkit` items, use this richer structure:
-
-````markdown
-# Publish toolkit item: <Title>
+```markdown
+# Add Tickets to the product dropdown and footer
 
 ## Context
 
-This ticket is ready for development. The source copy lives in <source>, linked from the ticket comment. Build it as a `/resources/toolkit` item in the `marketing-pages` repository.
+Part of migrating the Tickets landing page from HubSpot to facilitron.com (parent campaign MCR-321). Once the page exists, it needs entry points: an item in the Product dropdown and a link in the site footer.
 
-- Source content: [Google Doc](<url>)
-- Destination repo: `marketing-pages`
-- Destination file: `content/resources/toolkit/<slug>.md`
-- Public route: `/resources/toolkit/<slug>`
-- Toolkit category: `<sop|checklist|template>`
+## Sources
 
-## Source SEO fields
-
-- Meta title: <meta title>
-- Meta description: <meta description>
-- Source slug: `/<slug>`
+- Figma design: [Product Pages — Tickets](<figma url with node-id>) — build the page and nav entries to match (from linked MCR-346).
+- Page being replaced: <hubspot url> — current Tickets content and layout reference.
+- Assets: ImageKit `/product/ticketing` folder.
+- Destination repo: `<app repo>`
+- Work type: `navigation / webdev`
 
 ## Implementation notes
 
-1. Convert the Google Doc into Nuxt Content markdown using the toolkit item schema.
-2. Use the toolkit front matter fields below, updating `date` to the publish date:
-
-```yaml
-title: <Title>
-date: YYYY-MM-DD
-description: <description>
-image: <slug>.webp
-category: <sop|checklist|template>
-download: <slug>.pdf
-meta_title: <meta title>
-meta_description: <meta description>
-```
-
-3. Keep the web page body focused on the public article content. Do not duplicate the page hero, title, download button, social share row, or closing demo CTA because the toolkit renderer supplies those.
-4. Build the branded PDF from the actionable section only. For checklists, include the checklist groups. For SOPs, include the procedure steps. For templates, include the fillable template grid or structured template content. Upload it to ImageKit as `toolkit/downloads/<slug>.pdf`.
-5. Create or source a toolkit card image, convert to WebP if needed, and upload it to ImageKit as `toolkit/<slug>.webp`.
-6. Rewrite any `facilitron.com` links to relative internal paths and verify internal links before publish.
+1. Add a Tickets entry to the Product dropdown component, matching the placement in the Figma design.
+2. Add a Tickets link to the site footer in the product/links column.
+3. Point both at the new Tickets route, not the HubSpot URL.
 
 ## Acceptance criteria
 
-- `content/resources/toolkit/<slug>.md` exists and uses valid front matter with category `<sop|checklist|template>`.
-- The page renders at `/resources/toolkit/<slug>` and appears on `/resources/toolkit` with the correct category card.
-- The Download PDF button is visible and the PDF opens from ImageKit.
-- The toolkit card image loads from ImageKit with an exact filename match.
-- Link checks pass for the new markdown, with internal Facilitron paths verified against the site.
-- The page has been reviewed for Facilitron voice, no raw Google Doc formatting, and no duplicate page chrome.
-````
+- Tickets appears in the Product dropdown and links to the new on-site Tickets page.
+- Tickets appears in the footer and links to the same route.
+- No remaining links point at the old HubSpot Tickets page.
+```
 
-### Toolkit slug handling
+## Playbooks
 
-If the source gives `Slug: /my-item`, use `my-item`. If not, derive one from the title with lowercase hyphenation. Match the destination filename, public route, PDF filename, and image filename exactly.
-
-### Toolkit category mapping
-
-- Summary starts with `Checklist:` to `checklist`
-- Summary starts with `SOP:` to `sop`
-- Summary starts with `Template:` to `template`
+- **marketing-pages toolkit items** (`/resources/toolkit` checklists, SOPs, templates sourced from a Google Doc) use a richer schema-bound structure. See [reference/toolkit-playbook.md](reference/toolkit-playbook.md).
 
 ## Quality rules
 
-- Use direct, concrete instructions. The ticket should be enough for a developer to start without hunting through comments.
-- Preserve the source link in the enriched description even if it already exists in a comment.
+- Use direct, concrete instructions. The ticket should be enough for a developer to start without hunting through comments, the parent, or a linked ticket.
+- Preserve the source link in the enriched description even if it already exists in a comment or on a linked ticket.
 - Keep descriptions scannable with headings and bullets.
 - Do not paste the full source document into Jira unless the user asks. Link to the source and summarize the implementation requirements.
 - Do not invent fields that are not supported by the destination schema.
