@@ -104,11 +104,11 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
    curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oE '<title>[^<]*</title>'
    curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oc 'blog-posts/<slug>'
    ```
-   If ports 4001/4002 are bound by sibling worktrees, start this one on a free port:
+   If no server is running yet (or ports are bound by siblings), start one:
    ```bash
-   for p in 4001 4002 4003 4004 4005; do lsof -ti:$p >/dev/null 2>&1 || { echo "free: $p"; break; }; done
-   source ~/.nvm/nvm.sh && nvm use >/dev/null 2>&1
-   ./node_modules/.bin/nuxt dev --port=<free-port> --dotenv .env.local > /tmp/news-dev.log 2>&1 &
+   DS="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/tron/tron/*/. 2>/dev/null | sort -V | tail -1 | sed 's|/\.$||')}/tools/content/dev-server.sh"
+   [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
+   PORT="$(bash "$DS" start --route /resources/news/<slug>)"
    ```
 4. **Prose & a11y:** Offer `tron:prose-lint` and `tron:a11y-scan` before publish.
 5. **Clean up:** Remove `featuredimg.png` from repo root, `/tmp/news-<slug>`.

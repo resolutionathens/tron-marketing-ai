@@ -104,10 +104,13 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
 
 ## Stage 5 — Verify & clean up
 
-1. **Served-HTML check:** Confirms you're on THIS worktree's server (ports get bound by siblings):
+1. **Served-HTML check:** Start a worktree-scoped dev server and confirm the page is served:
    ```bash
-   curl -s "http://localhost:<port>/resources/guides/<slug>" | grep -oE '<title>[^<]*</title>'
-   curl -s "http://localhost:<port>/resources/guides/<slug>" | grep -oc 'guides/<slug>'
+   DS="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/tron/tron/*/. 2>/dev/null | sort -V | tail -1 | sed 's|/\.$||')}/tools/content/dev-server.sh"
+   [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
+   PORT="$(bash "$DS" start --route /resources/guides/<slug>)"
+   curl -s "http://localhost:${PORT}/resources/guides/<slug>" | grep -oE '<title>[^<]*</title>'
+   curl -s "http://localhost:${PORT}/resources/guides/<slug>" | grep -oc 'guides/<slug>'
    ```
 2. **Index card:** Load `/resources/guides`, confirm new card shows.
 3. **Images resolve:** Spot-check ImageKit URLs.

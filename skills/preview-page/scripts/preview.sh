@@ -23,15 +23,17 @@ if [[ $# -lt 1 ]]; then
 fi
 
 INPUT="$1"
-PORT=4001
-LOG=/tmp/preview-page-dev.log
-# Persist the last-previewed URL so screenshot.sh / agent-browser self-checks
-# can reuse it without re-deriving the route.
 URL_FILE=/tmp/preview-page-url
+
+# ---- resolve dev-server.sh --------------------------------------------------
+_DS="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/tools/content/dev-server.sh}"
+[[ -z "$_DS" || ! -f "$_DS" ]] && _DS="$(cd "$(dirname "$0")/../../../tools/content" && pwd)/dev-server.sh"
 
 # ---- 1. Resolve URL ---------------------------------------------------------
 if [[ "$INPUT" =~ ^https?:// ]]; then
   URL="$INPUT"
+  PORT="$(printf '%s' "$URL" | grep -oE ':[0-9]+' | head -1 | tr -d ':' || true)"
+  PORT="${PORT:-4001}"
 else
   ROUTE="$INPUT"
   # Strip pages/ prefix and .vue suffix if a file path was given.
@@ -42,53 +44,10 @@ else
   [[ "$ROUTE" == "index" ]] && ROUTE=""
   # Ensure leading slash.
   [[ "$ROUTE" != /* ]] && ROUTE="/$ROUTE"
+
+  # ---- 2. Ensure dev server is running ------------------------------------
+  PORT="$(bash "$_DS" start --route "$ROUTE")"
   URL="http://localhost:${PORT}${ROUTE}"
-fi
-
-# ---- 2. Start dev server if not already up ----------------------------------
-if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
-  echo "starting bun dev on :$PORT..." >&2
-  # Find the repo root from the CALLER's cwd, not the script's location: the
-  # skill now ships inside the tron plugin cache, so script-relative path math
-  # would point at the plugin dir (which has no `dev` script). Walk up from cwd
-  # to the marketing-pages app (identified by its package.json name).
-  REPO_ROOT="${PWD}"
-  while [[ "$REPO_ROOT" != "/" ]] && ! grep -q '"facilitron-marketing-pages"' "$REPO_ROOT/package.json" 2>/dev/null; do
-    REPO_ROOT="$(dirname "$REPO_ROOT")"
-  done
-  if [[ "$REPO_ROOT" == "/" ]]; then
-    echo "preview.sh: not inside the marketing-pages repo (cwd=$PWD)" >&2
-    exit 1
-  fi
-  (
-    cd "$REPO_ROOT"
-    # shellcheck disable=SC1091
-    [[ -s "$HOME/.nvm/nvm.sh" ]] && source "$HOME/.nvm/nvm.sh" && nvm use >/dev/null 2>&1 || true
-    nohup bun dev >"$LOG" 2>&1 &
-    disown
-  )
-
-  # Wait until the port actually accepts connections, or bail if errors show up.
-  # A network probe is robust to changes in the Nuxt/Bun ready banner; curl exits
-  # non-zero (connection refused) until the server is listening, then succeeds on
-  # any HTTP response (-f is intentionally omitted so a 404 still counts as "up").
-  server_up() { curl -s -o /dev/null --max-time 2 "http://localhost:${PORT}/"; }
-  for _ in $(seq 1 60); do
-    if server_up; then
-      break
-    fi
-    if grep -Eq "^(Error|error|Failed)" "$LOG" 2>/dev/null; then
-      echo "dev server failed to start; see $LOG" >&2
-      tail -20 "$LOG" >&2
-      exit 1
-    fi
-    sleep 1
-  done
-
-  if ! server_up; then
-    echo "dev server didn't start listening on :$PORT within 60s; see $LOG" >&2
-    exit 1
-  fi
 fi
 
 # ---- 3. Open the URL in the user's default browser --------------------------
