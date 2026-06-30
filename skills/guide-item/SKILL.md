@@ -53,9 +53,7 @@ bash "$C" check-repo                       # must succeed
 bash "$C" slug "<title>"
 bash "$C" check-link /product/<path>
 
-# Next free guide-card index
-node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" list --path guides --limit 50 \
-  | grep -oE 'guide-?[0-9]+\.webp' | bash "$C" next-index --prefix guide --suffix .webp
+GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
 ```
 
 ## Stage 1 — Intake
@@ -75,7 +73,8 @@ Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>
 Convert body images to webp, upload to `guides/<slug>/`. Also upload OG image and generate the index card thumbnail.
 
 - Guide-specific naming + paths: [`reference/images.md`](reference/images.md)
-- Card thumbnail: generate via `tron:gen-image` seeded with existing cards (see [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md))
+- Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
+- Card thumbnail: generate via `generate-card.sh --folder guides --prefix guide --prompt "<subject>"`
 
 Run the image pipeline for all body images — no per-image subagents needed:
 

@@ -57,6 +57,8 @@ bash "$C" check-repo                       # must succeed
 bash "$C" slug "<title>"
 bash "$C" rewrite-links content/resources/toolkit/<slug>.md
 bash "$C" check-link /product/<path>
+
+GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
 ```
 
 ## Step by step
@@ -104,7 +106,18 @@ CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest toolkit)
 # CARD: {"<slug>.webp": "https://ik.imagekit.io/facilitron/toolkit/<slug>.webp"}
 ```
 
-If no image is provided, generate one via the shared generate-from-references workflow (see [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)).
+If no image was provided, generate one from existing toolkit cards as style references:
+
+```bash
+RESULT=$(bash "$GENCARD" \
+  --folder toolkit \
+  --name "<slug>.webp" \
+  --size 1536x1024 \
+  --prompt "<subject prompt describing this item's content>" )
+FILE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['file'])")
+```
+
+Toolkit cards are landscape (1600×901 after webp conversion from the 1536×1024 generation size). See `../../tools/image/images-to-imagekit.md` for convert/upload mechanics.
 
 ### 6. Clean up
 Remove source markdown and source image files. Don't touch `content/resources/toolkit/`.

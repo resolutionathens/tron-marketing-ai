@@ -61,57 +61,37 @@ a wrong upload.
 
 ## Generate an index/card thumbnail from references
 
-The index cards (guides, toolkit) share one consistent illustration style. Don't hand-pick
-a random image — generate the card with the `tron:gen-image` skill, seeded with the
-_existing_ index cards so the new one matches the set's palette, framing, and scale.
-
-**Always fetch the current card set live from ImageKit** — never hardcode filenames, because
-the set grows over time and descriptive-named folders (toolkit) have no predictable pattern.
+The index cards (guides, toolkit) share one consistent illustration style. Use the
+shared `generate-card.sh` helper — it fetches reference cards live from ImageKit,
+computes the next sequence number if needed, calls `gen-image.sh`, converts to webp,
+and uploads, all in one step.
 
 ```bash
-# 1. Download 3 recent existing cards from ImageKit as style references
-mkdir -p /tmp/card-refs
-node "$IK" list --path <index-folder> --limit 3 | \
-  python3 -c "
-import sys, json
-for f in json.load(sys.stdin):
-    print(f['url'].split('?')[0], f['name'])
-" | while read -r url name; do
-    curl -sf -o "/tmp/card-refs/$name" "$url"
-  done
+GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
 ```
 
-For **guides** (sequential `guide-NN.webp` naming), also find the next free number:
+**Guides** (sequential `guide-NN.webp` naming — `--prefix` auto-numbers):
 
 ```bash
-NEXT=$(node "$IK" list --path guides --limit 50 | \
-  python3 -c "
-import sys, json, re
-nums = [int(m.group(1)) for f in json.load(sys.stdin)
-        if (m := re.search(r'guide-(\d+)\.webp', f['name']))]
-print(f'{max(nums)+1:02d}' if nums else '01')
-")
-# $NEXT is e.g. "06" when guide-05.webp is the current highest
+RESULT=$(bash "$GENCARD" \
+  --folder guides \
+  --prefix guide \
+  --prompt "<subject prompt for this guide>" )
+# RESULT → {"ok":true,"file":"/tmp/…/guide-06.webp","name":"guide-06.webp","folder":"guides","url":"…","next":"06"}
+NAME=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['name'])")
+FILE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['file'])")
 ```
 
-Then invoke `tron:gen-image` with `/tmp/card-refs` as the reference set and a prompt
-describing this item's subject. Toolkit cards are landscape (1600×901); set `GENIMG_SIZE`
-to `1536x1024` so the generated image matches that aspect ratio before the webp conversion.
-The prompt must explicitly say "similar but visually distinct from the reference images —
-do not copy the specific scene; create a new composition with the same illustration style,
-palette, and mood."
+**Toolkit** (slug-based naming — `--name` sets the exact filename; landscape cards need `--size`):
 
 ```bash
-# guides:  output name = guide-$NEXT.webp, folder = guides
-# toolkit: output name = <slug>.webp,       folder = toolkit
-#
-# For toolkit cards, invoke gen-image with the landscape size:
-#   GENIMG_SIZE=1536x1024 tron:gen-image /tmp/card-refs "<subject prompt>"
-# The skill resolves GENIMG_SIZE and passes it through to the image API.
-"$TOWEBP" <generated.png> "/tmp/<output-name>.webp"
-node "$IK" upload "/tmp/<output-name>.webp" --name <output-name>.webp --folder <index-folder>
+RESULT=$(bash "$GENCARD" \
+  --folder toolkit \
+  --name "<slug>.webp" \
+  --size 1536x1024 \
+  --prompt "<subject prompt for this item>" )
 ```
 
-If `tron:gen-image` is unavailable, fall back to asking the user for a card image or pulling
-one from Figma — but generate-from-references is the default; it keeps the index visually
-consistent.
+The prompt should describe the subject; `generate-card.sh` appends the style-diversity
+instruction automatically. If card generation is unavailable, fall back to asking the user
+for a card image or pulling one from Figma — but generate-from-references is the default.
