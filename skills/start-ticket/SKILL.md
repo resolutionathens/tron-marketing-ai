@@ -11,17 +11,17 @@ allowed-tools:
 
 # Start Ticket
 
-Look up a ticket, create a worktree, transition it, open a tmux session + ticket page.
+Look up a ticket, create a worktree, and transition it.
 
 ## Step 0: Detect ticket type
 
-| Input | Path | Key |
-|-------|------|-----|
-| `MD-1234`, `PROJ-456` (`[A-Z]+-\d+`) | Jira | The key |
-| `https://facilitron.atlassian.net/browse/MD-1234` | Jira | Last path segment |
-| `#42` (cwd has github.com remote) | GH | `42`; repo = current repo slug |
-| `owner/repo#42` | GH | `42`; repo = `owner/repo` |
-| `https://github.com/owner/repo/issues/42` | GH | `42`; repo = `owner/repo` |
+| Input                                             | Path | Key                            |
+| ------------------------------------------------- | ---- | ------------------------------ |
+| `MD-1234`, `PROJ-456` (`[A-Z]+-\d+`)              | Jira | The key                        |
+| `https://facilitron.atlassian.net/browse/MD-1234` | Jira | Last path segment              |
+| `#42` (cwd has github.com remote)                 | GH   | `42`; repo = current repo slug |
+| `owner/repo#42`                                   | GH   | `42`; repo = `owner/repo`      |
+| `https://github.com/owner/repo/issues/42`         | GH   | `42`; repo = `owner/repo`      |
 
 Ambiguous bare number → ask user. `#42` outside a github remote → ask for `owner/repo#42`.
 
@@ -54,7 +54,17 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
 3. It freshens the base, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`, symlinks `node_modules` (root + workspaces), transitions Jira → In Progress / assigns GitHub issue.
 
 ```json
-{"ok":true,"refType":"jira","key":"MD-1801","branch":"MD-1801-x","worktreePath":"/…","envCopied":[".env.local"],"nodeModulesLinked":["node_modules"],"baseFreshened":true,"transitioned":true}
+{
+  "ok": true,
+  "refType": "jira",
+  "key": "MD-1801",
+  "branch": "MD-1801-x",
+  "worktreePath": "/…",
+  "envCopied": [".env.local"],
+  "nodeModulesLinked": ["node_modules"],
+  "baseFreshened": true,
+  "transitioned": true
+}
 ```
 
 Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-switch-failed`, or transition failure — fall back to the manual steps below if it fails.
@@ -70,44 +80,18 @@ Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-sw
 **Node modules:** Check `ls <worktree>/node_modules/ | head -1`. Empty → run the project's install command.
 
 **Jira transition:**
+
 ```bash
 acli jira workitem transition --key <KEY> --status 'In Progress' --yes
 ```
 
 **GitHub assignment:**
+
 ```bash
 gh issue edit <N> --add-assignee @me
 # Optional in-progress label:
 gh label list --json name | grep -iE 'in.progress|wip|active' && gh issue edit <N> --add-label "<label>"
 ```
 
-## Step 4: Set up the tmux session
-
-Skip this when invoked by `tron:ship-ticket` orchestrator. Create a detached session in the worktree:
-
-```bash
-SESSION="$(printf '%s' '<branch>' | tr '.:' '--')"
-tmux new-session -d -s "$SESSION" -c "<worktreePath>"
-tmux send-keys -t "$SESSION" 'vim .' Enter
-tmux split-window -v -t "$SESSION" -c "<worktreePath>"
-```
-
 Open the ticket URL: `open "<url>"`. Tell the user: `tmux attach -t "$SESSION"`.
 
-## Step 5: Offer dev server
-
-Offer to start a worktree-scoped dev server for code/UI tickets (skip for content-only work). Run as a background task of this session:
-
-```bash
-cd <worktree-path> && bun dev   # run_in_background: true
-```
-
-Tell the user the URL once the server boots.
-
-## Step 6: Offer a worker agent (optional)
-
-For implementation tickets, offer to spawn a Claude worker in the tmux session's pane. See `reference/worker-spawn.md` for launch variants and kickoff instructions. Skip when invoked by `tron:ship-ticket`.
-
-## Step 7: Confirm
-
-Give the user: session name + `tmux attach -t <name>`, browser URL, dev server URL, worker status (if spawned). Keep it brief.
