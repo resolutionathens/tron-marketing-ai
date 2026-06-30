@@ -72,12 +72,26 @@ This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per r
 
 ## Stage 2 — Images
 
-Name each image after the section it illustrates. Convert to webp and upload.
+Name each image after the section it illustrates. Naming + paths: [`reference/images.md`](reference/images.md)
 
-- Naming + paths: [`reference/images.md`](reference/images.md)
-- Convert → upload → verify: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
+Run the image pipeline to convert and upload all body images in one shot — no per-image subagents needed:
 
-Fan out image convert+upload to **Haiku subagents** for articles with many images (one per image); a single Bash loop is fine for few.
+```bash
+PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
+IMAGES=$(bash "$PIPE" --src /tmp/news-<slug>/raw --dest blog-posts/<slug>)
+# IMAGES: {"pm-plan-intro.webp": "https://ik.imagekit.io/facilitron/blog-posts/<slug>/pm-plan-intro.webp", ...}
+```
+
+Parse the JSON to get each image's URL: `python3 -c "import sys,json; d=json.load(sys.stdin); print(d['pm-plan-intro.webp'])" <<< "$IMAGES"`
+
+The featured image has a different output name (`<slug>.webp`, not `featuredimg.webp`) — handle it directly:
+
+```bash
+TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"
+IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
+bash "$TOWEBP" featuredimg.png /tmp/news-<slug>/<slug>.webp
+node "$IK" upload /tmp/news-<slug>/<slug>.webp --name <slug>.webp --folder blog-featured
+```
 
 ## Stage 3 — Write the article
 

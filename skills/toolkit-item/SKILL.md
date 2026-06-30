@@ -94,7 +94,17 @@ node "$IK" upload /tmp/facilitron-md-to-pdf/<slug>.pdf --name <slug>.pdf --folde
 Always pass `--name` to avoid ImageKit's random suffix. If you see a broker auth error, the Cloudflare Access session expired — run `cloudflared access login https://secrets.facilitron.work`.
 
 ### 5. Upload card image
-Convert PNG/JPG to webp first. Upload to `toolkit/` folder as `<slug>.webp`. If no image provided, generate one via the shared generate-from-references workflow (see `../../tools/image/images-to-imagekit.md`).
+Run the image pipeline — copy/rename the source to `<slug>.png` so the output is `<slug>.webp`:
+
+```bash
+PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
+mkdir -p /tmp/toolkit-card
+cp <source-image> /tmp/toolkit-card/<slug>.png
+CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest toolkit)
+# CARD: {"<slug>.webp": "https://ik.imagekit.io/facilitron/toolkit/<slug>.webp"}
+```
+
+If no image is provided, generate one via the shared generate-from-references workflow (see [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)).
 
 ### 6. Clean up
 Remove source markdown and source image files. Don't touch `content/resources/toolkit/`.

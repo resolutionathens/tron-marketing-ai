@@ -75,10 +75,24 @@ Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>
 Convert body images to webp, upload to `guides/<slug>/`. Also upload OG image and generate the index card thumbnail.
 
 - Guide-specific naming + paths: [`reference/images.md`](reference/images.md)
-- Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
-- Card thumbnail: generate via `tron:gen-image` seeded with existing cards
+- Card thumbnail: generate via `tron:gen-image` seeded with existing cards (see [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md))
 
-Fan out per-image convert+upload to **Haiku subagents** for guides with many illustrations.
+Run the image pipeline for all body images — no per-image subagents needed:
+
+```bash
+PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
+IMAGES=$(bash "$PIPE" --src /tmp/guide-<slug>/raw --dest guides/<slug>)
+# IMAGES: {"section-name.webp": "https://ik.imagekit.io/facilitron/guides/<slug>/section-name.webp", ...}
+```
+
+The OG image has a specific output name — handle it directly:
+
+```bash
+TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"
+IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
+bash "$TOWEBP" <hero-source>.png /tmp/og-<slug>.webp
+node "$IK" upload /tmp/og-<slug>.webp --name og-<slug>.webp --folder og
+```
 
 ## Stage 3 — Compose the page
 
