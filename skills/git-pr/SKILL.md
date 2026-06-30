@@ -80,10 +80,8 @@ First resolve and run the token-usage helper — it reads this session's real to
 counts from the transcript and prints the footer's token line:
 
 ```bash
-name=git-pr
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/token-usage.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/token-usage.sh" ] && echo "$d"; done | sort -V | tail -1)"
-TOKENS="$([ -e "$SKILL_DIR/scripts/token-usage.sh" ] && bash "$SKILL_DIR/scripts/token-usage.sh")"
+TOKEN_USAGE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/git/token-usage.sh"
+TOKENS="$([ -e "$TOKEN_USAGE" ] && bash "$TOKEN_USAGE")"
 ```
 
 `$TOKENS` holds a line like `*in 18k · out 8.2k · cache 1.2M read / 40k write*`,
