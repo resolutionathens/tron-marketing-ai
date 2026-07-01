@@ -85,6 +85,13 @@ The helper uses the `markdown-to-adf` npm package with the `story` preset (full 
 
 **Rule:** any time the ticket description is more than a line or two, or uses any markdown formatting, go through the helper. Never pass markdown directly via `-d`/`--description`.
 
+## Creating tickets
+
+When creating a ticket in the MD project, prefix the summary per
+[tools/jira/conventions.md](../../tools/jira/conventions.md) — the repo/prefix table there is
+canonical (it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT repo). If the target
+repo isn't clear from context, ask the user which repo the ticket is for rather than guessing.
+
 ## Project naming conventions
 
 See [tools/jira/conventions.md](../../tools/jira/conventions.md) for summary prefix rules by repo.
