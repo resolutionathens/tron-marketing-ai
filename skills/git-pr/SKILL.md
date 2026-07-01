@@ -65,7 +65,22 @@ EOF
 )" --base master
 ```
 
-## Step 7: Request Copilot code review (best-effort)
+## Step 7: Request Copilot code review (best-effort, skip for small doc-only PRs)
+
+Skip the request only when **both** hold, using the `git diff master...HEAD --stat` output
+from Step 3:
+
+- every changed file is documentation (`*.md`, `*.mdx`, or a `reference/*.md`) — no `.mjs`,
+  `.sh`, `.json`, `.ts`, `.yml`, or other logic/config files touched
+- the diff is small: **3 files or fewer** and **40 changed lines or fewer** (insertions +
+  deletions, from the `--stat` summary line)
+
+A SKILL.md counts as documentation for this check, but its size and blast radius (it's
+instructions an agent executes) still make it easy to blow past the line/file threshold —
+don't special-case it lower than the numbers above.
+
+If both hold, skip the request and note in Step 9 that Copilot review was skipped as a
+small doc-only change. Otherwise:
 
 ```bash
 gh pr edit "<N>" --add-reviewer "@copilot" \
@@ -108,4 +123,5 @@ The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP
 
 ## Step 9: Report
 
-Give the user the PR URL. Offer `tron:preview-url` to find the staging link if this repo has previews.
+Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line. Offer
+`tron:preview-url` to find the staging link if this repo has previews.
