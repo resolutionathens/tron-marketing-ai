@@ -10,7 +10,7 @@ concrete example if you want one.
 
 - What the slug page renders for you — do NOT author these
 - Front matter
-- Body — converting from Confluence storage format
+- Body — assembling from the transformer's markdown
 - Inline images — `::image-text` vs `::fImg`
 - FAQ section
 - Other MDC blocks available
@@ -52,35 +52,24 @@ categories:
 `categories` values: `b2b`, `best-practices`, `facilitron-university`,
 `in-the-news`. A cluster/how-to article is almost always `b2b` + `best-practices`.
 
-## Body — converting from Confluence storage format
+## Body — assembling from the transformer's markdown
 
-Convert `body.html` to markdown. Prefer delegating this transform to a Sonnet
-subagent (see **Subagents & model tiers** in SKILL.md) so the raw XML never enters the
-orchestrator — you then assemble from the returned markdown + per-image layout map.
-Whether the conversion runs in a subagent or inline, strip the Confluence-only
-cruft the same way:
+The storage-format → markdown conversion (attribute stripping, macros, inline-comment
+markers, `<hr>`s, heading normalization) is owned by the **`confluence-transformer`
+agent** — SKILL.md Stage 1 delegates `body.html` to it. Don't re-derive or second-guess
+those rules here; assemble the article from the agent's returned `<markdown>` block plus
+the `<images>` list. Orchestrator-side concerns only:
 
-- Drop `local-id`, `ac:local-id`, `ac:macro-id` attributes entirely.
-- `<ac:inline-comment-marker>` — keep the wrapped text, drop the tag. These are
-  editor comments and sometimes wrap an unfinished thought (e.g. a bare
-  `/types-of-maintenance-strategies` path that was meant to become a real link) —
-  resolve those into proper links or plain text, don't paste them verbatim.
-- `<hr>` between sections — drop them; the article styling handles section spacing.
-- Headings: the page's bold intro/conclusion labels become regular `##`/`###`.
-- Don't repeat the title as an H1 — the news hero already renders title +
+- **Don't repeat the title as an H1** — the news hero already renders title +
   description.
-
-**Internal links — verify each one before saving.** This is the top
-build/UX pitfall. The draft will contain `https://www.facilitron.com/...` URLs;
-convert them to relative paths and confirm the path exists:
-
-```bash
-find pages -type f -name "*.vue" | grep -i <keyword>
-```
-
-Watch for the known trap: `/product/scheduling-and-reservations/` has **no index
-page** — link to `/product/facilitron-scheduling-and-reservations` instead. Sub-
-paths like `/product/scheduling-and-reservations/automated-work-orders` are fine.
+- The agent appends a `## Recently commented` section collecting inline-comment
+  snippets. That's review material for you, not article body: resolve any unfinished
+  thought it surfaces (e.g. a bare path meant to become a link), then drop the section.
+- **Internal links — verify each one before saving.** This is the top build/UX
+  pitfall; SKILL.md Stage 3 runs `content.sh rewrite-links` + `check-link`. One-line
+  rule: `/product/scheduling-and-reservations/` has **no index page** — link to
+  `/product/facilitron-scheduling-and-reservations` (full table:
+  `tools/content/internal-links.md`, linked from SKILL.md).
 
 ## Inline images — `::image-text` vs `::fImg`
 
@@ -114,14 +103,12 @@ component to use:
   full-width and centered:
 
   ```markdown
-  ## ::fImg
-
+  ::fImg
+  ---
   src: "blog-posts/<slug>/<name>.webp"
   format: "webp"
   alt: "<real description>"
-
   ---
-
   ::
   ```
 
@@ -138,10 +125,10 @@ If the draft ends with an FAQ, render it with `::faq` (`components/content/Faq.v
 — it also emits FAQPage schema.org JSON-LD, which a plain markdown list wouldn't:
 
 ```markdown
-## ::faq
-
-## faqItems: [{question: "...", answer: "..."}, {question: "...", answer: "..."}]
-
+::faq
+---
+faqItems: [{question: "...", answer: "..."}, {question: "...", answer: "..."}]
+---
 ::
 ```
 

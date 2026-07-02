@@ -26,6 +26,10 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 IK="$PLUGIN_ROOT/tools/imagekit/imagekit.mjs"
 TOWEBP="$PLUGIN_ROOT/tools/image/to-webp.sh"
 
+# Shared deterministic primitives (ct_next_index for --prefix numbering)
+# shellcheck source=/dev/null
+source "$PLUGIN_ROOT/tools/content/content-lib.sh"
+
 # Locate gen-image.sh via the standard plugin resolver
 GENIMG_SKILL_DIR="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/gen-image}"
 if [ ! -e "${GENIMG_SKILL_DIR:-}/scripts/gen-image.sh" ]; then
@@ -93,17 +97,11 @@ NEXT=""
 if [[ -n "$PREFIX" ]]; then
   NEXT=$(node "$IK" list --path "$FOLDER" --limit 50 | \
     python3 -c "
-import sys, json, re
-prefix = '${PREFIX}'
-data = json.load(sys.stdin)
-nums = [
-  int(m.group(1))
-  for f in data
-  if f.get('type') == 'file'
-  and (m := re.search(rf'{re.escape(prefix)}-?0*(\d+)\.webp', f['name']))
-]
-print(f'{max(nums)+1:02d}' if nums else '01')
-")
+import sys, json
+for f in json.load(sys.stdin):
+    if f.get('type') == 'file':
+        print(f['name'])
+" | ct_next_index "$PREFIX" ".webp")
   NAME="${PREFIX}-${NEXT}.webp"
 fi
 
