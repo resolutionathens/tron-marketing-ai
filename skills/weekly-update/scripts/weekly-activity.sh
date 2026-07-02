@@ -76,7 +76,9 @@ fi
 command -v acli >/dev/null 2>&1 || { log "acli not found — install the Atlassian CLI and run: acli jira auth"; exit 1; }
 
 jira_search() { # jql → JSON array on stdout, or nonzero on failure
-  acli jira workitem search --jql "$1" --json 2>/dev/null
+  # --limit 200: acli's default page is smaller and truncates silently; a busy
+  # two-week window can exceed it. 200 comfortably covers one person's window.
+  acli jira workitem search --jql "$1" --limit 200 --json 2>/dev/null
 }
 
 UPDATED_JQL="assignee = currentUser() AND updated >= '$START' ORDER BY updated DESC"

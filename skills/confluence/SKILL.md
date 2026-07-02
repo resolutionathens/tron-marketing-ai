@@ -2,7 +2,7 @@
 name: confluence
 model: haiku
 effort: low
-description: Fetch and read Confluence pages by URL or page ID. Use this skill whenever the user shares a Confluence link (including tiny links like /wiki/x/XXXXX), mentions a Confluence page, asks to read or pull content from Confluence, or references facilitron.atlassian.net/wiki. For fetching images (downloads), use the shared `tools/confluence/fetch-confluence.sh` instead — it handles the API gateway auth for attachment bytes.
+description: Fetch and read Confluence pages by URL or page ID. Use this skill whenever the user shares a Confluence link (including tiny links like /wiki/x/XXXXX), mentions a Confluence page, asks to read or pull content from Confluence, or references facilitron.atlassian.net/wiki.
 allowed-tools:
   - Bash
 ---
@@ -24,7 +24,7 @@ bash "$SKILL_DIR/scripts/confluence.sh" fetch   <url-or-id>   # storage body →
 bash "$SKILL_DIR/scripts/confluence.sh" images  body.html     # referenced attachment filenames, doc order
 ```
 
-`resolve` extracts the page ID from a raw ID, full URL, or `/wiki/x/` tiny link. `fetch` runs `acli` and prints the raw storage body — pipe into the faithful-markdown conversion (Step 3 below). `images` lists attachments the body actually references (skips unused uploads).
+`resolve` extracts the page ID from a raw ID, full URL, or `/wiki/x/` tiny link. `fetch` runs `acli` and prints the raw storage body — pipe into the "Storage-XML → markdown" section below. `images` lists attachments the body actually references (skips unused uploads).
 
 ## Manual resolution (if script unavailable)
 
@@ -47,4 +47,4 @@ Delegate the XML-to-markdown transform to the **`confluence-transformer` agent**
 bash "$SKILL_DIR/scripts/confluence.sh" fetch <url-or-id> > /tmp/body.html
 ```
 
-For content pipelines (news-item, guide-item), use `tools/confluence/fetch-confluence.sh` instead — it handles attachment downloads and writes `body.html` directly. The transformer returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of your context.
+For content pipelines (news-item, guide-item) and any image/attachment downloads, use the shared `tools/confluence/fetch-confluence.sh` instead — it handles the API gateway auth for attachment bytes and writes `body.html` directly. The transformer returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of your context.

@@ -2,7 +2,7 @@
 # confluence: the deterministic front of tron:confluence (Phase B) — resolve a
 # page id from any input shape and fetch the storage-format body via acli. The
 # storage-XML → faithful-markdown transform stays a JUDGMENT step delegated to a
-# subagent (see the skill's "faithful-markdown contract"); this script just gets
+# subagent (see the skill's "Storage-XML → markdown" section); this script just gets
 # the id and the raw body reliably so that step has clean input.
 #
 # Usage:

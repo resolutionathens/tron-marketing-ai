@@ -91,11 +91,18 @@ Hey Kristina and Dave,
 
 ## Step 5 — Copy to clipboard
 
+Write the composed body to a file, then copy from it:
+
 ```bash
-printf '%s' "$REPORT" | pbcopy
+cat > /tmp/weekly-update-body.txt <<'BODY'
+<the composed email body>
+BODY
+if command -v pbcopy >/dev/null 2>&1; then
+  pbcopy < /tmp/weekly-update-body.txt
+fi
 ```
 
-Print the full body for user review. Tell them: "On your clipboard. Paste into a new email."
+Print the full body for user review. If `pbcopy` succeeded, tell them: "On your clipboard. Paste into a new email." If `pbcopy` is unavailable (e.g. not on macOS), print the body and say it could not be copied — the user copies it from the terminal.
 
 ## Edge cases
 
