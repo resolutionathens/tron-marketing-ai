@@ -141,7 +141,7 @@ behaviors below.
 
 | Tier               | Skills (intended)                                                | What to verify holds at this tier                                                                                                                           |
 | ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `haiku` / low      | the 5 audit skills, `jira`, `confluence`, `preview-page/url`     | Pure orchestration only — resolve the target, delegate, relay. It must **not** start doing the heavy work itself or add judgment the runner owns.           |
+| `haiku` / low      | the 5 audit skills, `jira`, `confluence`                         | Pure orchestration only — resolve the target, delegate, relay. It must **not** start doing the heavy work itself or add judgment the runner owns.           |
 | `sonnet` / low–med | git flows, board ops, SEO, video, social, `figma-to-imagekit`    | Light judgment is correct: commit grouping is atomic, PR title/body are conventional, drafting is on-voice. No over-splitting, no hallucinated steps.       |
 | `opus` / high      | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `grill` | Long-form quality dominates: component selection, column balancing, link verification, and the served-HTML correctness gate are all exercised, not skipped. |
 

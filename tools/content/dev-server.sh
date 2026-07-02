@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # dev-server: unified background Nuxt dev server runner for marketing-pages
-# content pipelines (tron:preview-page, news-item, guide-item). Eliminates the
+# content pipelines (news-item, guide-item). Eliminates the
 # ad-hoc port loops and poll code each skill used to hand-roll.
 #
 # Usage:

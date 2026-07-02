@@ -77,7 +77,7 @@ declared model and its delegation note in sync.
 
 ## Content-pipeline repo guard
 
-`news-item`, `toolkit-item`, `guide-item`, `preview-page` write into the `marketing-pages` repo.
+`news-item`, `toolkit-item`, `guide-item` write into the `marketing-pages` repo.
 They run a preflight check (`tools/content/content.sh check-repo`) and refuse to write unless the
 current checkout is `marketing-pages`. Preserve that guard on any content-writing skill.
 

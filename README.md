@@ -3,7 +3,7 @@
 A Claude Code **plugin** bundling the skills that drive day-to-day work on the
 [Facilitron marketing site](https://www.facilitron.com): Jira/Confluence intake, the
 git task lifecycle, content pipelines (news, toolkit, guides), branded PDF export,
-ImageKit/Figma asset operations, and page-preview tooling.
+ImageKit/Figma asset operations, and audit/QA tooling.
 
 It is its own repository so the skills can be versioned, reviewed, and installed across
 Facilitron repos independently of any single project checkout.
@@ -18,9 +18,9 @@ Facilitron repos independently of any single project checkout.
 | **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
 | **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
 | **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
-| **Preview & deploy**                 | `tron:preview-page`, `tron:preview-url`, `tron:gh`                                                                                                                                                                                                                                      |
+| **Preview & deploy**                 | `tron:gh`                                                                                                                                                                                                                                                                               |
 | **CI / pipelines**                   | `tron:circleci` (list/watch pipelines, fetch logs, validate `.circleci/config.yml`)                                                                                                                                                                                                     |
-| **Thinking & meetings**              | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:meeting-recap` (transcript → recap + action items), `tron:weekly-update` (Jira-first weekly status email → clipboard)                                                                                             |
+| **Thinking & meetings**              | `tron:brainstorm` (ideation), `tron:grill` (artifact critique), `tron:weekly-update` (Jira-first weekly status email → clipboard)                                                                                                                                                       |
 | **Designer** (git-free intake/audit) | `tron:creative-request` (ticket → design brief + asset plan), `tron:brand-check` (palette / `tron-` tokens / logo / WCAG contrast)                                                                                                                                                      |
 | **Content drafting** (git-free)      | `tron:case-study`, `tron:press-release`, `tron:email-campaign`, `tron:onesheet`                                                                                                                                                                                                         |
 | **SEO** (git-free)                   | `tron:seo-audit`, `tron:keyword-research`, `tron:landing-page-seo`, `tron:seo-report` (work with the seo.facilitron.work GSC report)                                                                                                                                                    |
@@ -29,9 +29,9 @@ Facilitron repos independently of any single project checkout.
 | **Social** (git-free)                | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights)                                                                                                                                                                           |
 | **Audits & QA** (read-only)          | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:link-check` (broken links), `tron:prose-lint` (prose/style), `tron:site-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
 
-Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content/preview skills
-(`news-item`, `toolkit-item`, `guide-item`, `preview-page`) run a **preflight repo
-guard** and refuse to write unless the current checkout is `marketing-pages`.
+Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content skills
+(`news-item`, `toolkit-item`, `guide-item`) run a **preflight repo guard** and
+refuse to write unless the current checkout is `marketing-pages`.
 
 ---
 
@@ -111,10 +111,9 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 | ---------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `enrich-jira-ticket`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
 | **tmux** (terminal multiplexer)          | `brew install tmux`                                                                       | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket`                                                         |
-| **agent-browser** (headless browser CLI) | `npm i -g agent-browser`                                                                  | `preview-page` (self-verification: errors/DOM/screenshots)                                                               |
-| **gh** (GitHub CLI)                      | `brew install gh` → `gh auth login`                                                       | `gh`, `git-pr`, `git-pushtoprod`, `preview-url`, `start-ticket`, `ship-ticket`                                           |
-| **bun**                                  | `brew install oven-sh/bun/bun`                                                            | `md-to-pdf`, `preview-page`, `news-item`, `guide-item`, `toolkit-item`                                                   |
-| **node** (Node.js)                       | `brew install node`                                                                       | ImageKit CLI consumers + `preview-page`, `md-to-pdf`                                                                     |
+| **gh** (GitHub CLI)                      | `brew install gh` → `gh auth login`                                                       | `gh`, `git-pr`, `git-pushtoprod`, `start-ticket`, `ship-ticket`                                                          |
+| **bun**                                  | `brew install oven-sh/bun/bun`                                                            | `md-to-pdf`, `news-item`, `guide-item`, `toolkit-item`                                                                   |
+| **node** (Node.js)                       | `brew install node`                                                                       | ImageKit CLI consumers + `md-to-pdf`                                                                                     |
 | **lychee** (link checker)                | `brew install lychee`                                                                     | `news-item`, `toolkit-item`, `guide-item`, `link-check`                                                                  |
 | **pa11y / axe** (a11y scanners)          | `npm i -g pa11y pa11y-ci @axe-core/cli`                                                   | `a11y-scan`                                                                                                              |
 | **vale** (prose linter)                  | `brew install vale`                                                                       | `prose-lint`                                                                                                             |
@@ -122,9 +121,8 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 | **pngquant** (PNG compressor)            | `brew install pngquant`                                                                   | `optimize-images`                                                                                                        |
 | **pandoc**                               | `brew install pandoc`                                                                     | `md-to-pdf` (pandoc fallback path)                                                                                       |
 | **xelatex** (BasicTeX/MacTeX)            | `brew install --cask basictex` (+ `tlmgr install` extras)                                 | `md-to-pdf` (preferred LaTeX path)                                                                                       |
-| **Playwright + Chromium**                | per-skill: `(cd $CLAUDE_SKILL_DIR && bun i && bunx playwright install chromium)`          | `preview-page` (headless/responsive shots)                                                                               |
 | **codex** (OpenAI Codex CLI)             | `npm i -g @openai/codex` → `codex login`                                                  | `gen-image`, `guide-item`, `toolkit-item` (card images)                                                                  |
-| **jq**                                   | `brew install jq`                                                                         | `gh`, `preview-url`, `start-ticket`                                                                                      |
+| **jq**                                   | `brew install jq`                                                                         | `gh`, `start-ticket`                                                                                                     |
 | **webp / cwebp**                         | `brew install webp`                                                                       | image fallback for `news-item`, `guide-item`, `toolkit-item` (primary path uses Bun's built-in `Bun.Image` — no install) |
 | **librsvg / rsvg-convert**               | `brew install librsvg`                                                                    | `md-to-pdf` (only to regenerate the logo PNG — rare)                                                                     |
 | **ripgrep (rg)**                         | `brew install ripgrep`                                                                    | recommended for the internal-link `find`/grep checks                                                                     |
@@ -157,8 +155,8 @@ the token on each call.
 
 ### MCP servers
 
-- **Figma Dev Mode MCP** — required by `tron:figma-to-imagekit` (and used for design
-  comparisons in `preview-page`). Connect it in Claude Code before running figma exports.
+- **Figma Dev Mode MCP** — required by `tron:figma-to-imagekit`. Connect it in Claude
+  Code before running figma exports.
 
 ### Environment variables
 
@@ -189,29 +187,31 @@ tron-marketing-ai/
 │   └── marketplace.json     # single-plugin marketplace, source "."
 ├── skills/                  # one dir per skill
 │   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
-│   ├── preview-page/        # bundles its own package.json + playwright scripts (single-skill)
-│   ├── prose-lint/     # bundles the Facilitron Vale style pack under styles/
+│   ├── prose-lint/          # bundles the Facilitron Vale style pack under styles/
 │   └── …
 ├── agents/                  # runner subagents the audit skills delegate to (Haiku/Sonnet)
 │   ├── a11y-scan-runner.md  # axe/pa11y · lychee-link-runner · unlighthouse-runner ·
-│   └── …                    # optimize-images-runner · vale-prose-runner
+│   └── …                    # optimize-images-runner · vale-prose-runner · confluence-transformer
+├── hooks/                   # SessionStart update-notice hook (check-update.sh + hooks.json)
+├── evaluations/             # skill-evaluation scenarios run by tools/evaluate (see TESTING.md)
 ├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 │   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)
-│   ├── confluence/          # fetch-confluence.sh — used by news-item + guide-item
-│   ├── content/             # content.sh + content-lib.sh — slug/check-repo helpers for the content pipelines
-│   ├── git/                 # git-promote.sh — deterministic git-dev / git-pushtoprod flow
+│   ├── confluence/          # fetch-confluence.sh + confluence-lib.sh — used by confluence, news-item, guide-item
+│   ├── content/             # content.sh + content-lib.sh + dev-server.sh — slug/check-repo/dev-server helpers
+│   ├── git/                 # git-promote.sh + token-usage.sh — deterministic git flows + PR retro stats
 │   ├── ticket/              # ticket-lib.sh — shared Jira/GitHub lookup helpers (start-ticket, ship-ticket)
 │   ├── worktree/            # worktree-lib.sh — shared worktree path/resolution helpers
-│   ├── image/               # to-webp.sh + images-to-imagekit.md (shared convert→upload→verify doc) — news-item, guide-item, toolkit-item
+│   ├── image/               # to-webp.sh + image-pipeline.sh + generate-card.sh + images-to-imagekit.md — news-item, guide-item, toolkit-item
 │   └── evaluate/            # evaluate.mjs — the skill-evaluation harness (see TESTING.md)
+├── TESTING.md
 └── README.md
 ```
 
 Two reference patterns:
 
 - A skill's **own** bundled files resolve through **`$CLAUDE_SKILL_DIR`** (set by the
-  plugin to that skill's directory) — e.g. `md-to-pdf` and `preview-page`, whose assets
+  plugin to that skill's directory) — e.g. `md-to-pdf` and `prose-lint`, whose assets
   are single-skill.
 - **Shared** tooling used by several skills lives once under `tools/` and resolves through
   **`${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…`** — the `CLAUDE_PLUGIN_ROOT`

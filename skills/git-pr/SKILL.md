@@ -123,5 +123,4 @@ The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP
 
 ## Step 9: Report
 
-Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line. Offer
-`tron:preview-url` to find the staging link if this repo has previews.
+Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line.
