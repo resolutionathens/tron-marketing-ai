@@ -49,11 +49,18 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
-bash "$C" check-repo                       # must succeed
 bash "$C" slug "<title>"
+bash "$C" rewrite-links pages/resources/guides/<slug>.vue
 bash "$C" check-link /product/<path>
 
 GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
+```
+
+## Preflight — marketing-pages repo guard
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo | grep -q '"isMarketingPages":true' \
+  || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
 ```
 
 ## Stage 1 — Intake
@@ -74,7 +81,7 @@ Convert body images to webp, upload to `guides/<slug>/`. Also upload OG image an
 
 - Guide-specific naming + paths: [`reference/images.md`](reference/images.md)
 - Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
-- Card thumbnail: generate via `generate-card.sh --folder guides --prefix guide --prompt "<subject>"`
+- Card thumbnail: `"$GENCARD"` with `--folder guides --prefix guide` (auto-numbers `guide-NN.webp`); invocation + result parsing live in the "Generate an index/card thumbnail from references" section of the shared doc above
 
 Run the image pipeline for all body images — no per-image subagents needed:
 
@@ -119,7 +126,7 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
 
 1. **Served-HTML check:** Start a worktree-scoped dev server and confirm the page is served:
    ```bash
-   DS="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/tron/tron/*/. 2>/dev/null | sort -V | tail -1 | sed 's|/\.$||')}/tools/content/dev-server.sh"
+   DS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/dev-server.sh"
    [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
    PORT="$(bash "$DS" start --route /resources/guides/<slug>)"
    curl -s "http://localhost:${PORT}/resources/guides/<slug>" | grep -oE '<title>[^<]*</title>'
@@ -127,7 +134,7 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
    ```
 2. **Index card:** Load `/resources/guides`, confirm new card shows.
 3. **Images resolve:** Spot-check ImageKit URLs.
-4. **Links:** Convert `facilitron.com` → relative paths, verify targets exist.
+4. **Links:** Run `bash "$C" rewrite-links pages/resources/guides/<slug>.vue` (facilitron.com → relative), then `bash "$C" check-link` each internal path. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, grep for `—` (no em-dashes).
 6. **Clean up:** Remove `/tmp/guide-<slug>` and dropped-in sources.
 

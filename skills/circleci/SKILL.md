@@ -2,7 +2,7 @@
 name: circleci
 model: sonnet
 effort: medium
-description: "Interact with CircleCI pipeline internals from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'why did CircleCI fail', 'watch the CI run on this branch'), wants to validate or lint a CircleCI config, wants to test a job locally, or pastes a circleci.com/pipelines/... URL. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'config validate', 'run this job locally'. For staging/preview URLs use tron:preview-url."
+description: "Interact with CircleCI pipeline internals from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'why did CircleCI fail', 'watch the CI run on this branch'), wants to validate or lint a CircleCI config, wants to test a job locally, or pastes a circleci.com/pipelines/... URL. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'config validate', 'run this job locally'."
 allowed-tools:
   - Bash
   - Read
@@ -29,14 +29,14 @@ For the full subcommand table and raw v2 API curl recipes, see `reference/comman
 
 | Want | Command |
 |------|---------|
-| List pipelines for branch | `circleci.sh pipelines [--branch <name>] [--limit N]` |
-| List workflows in pipeline | `circleci.sh workflows --pipeline <id>` |
+| Branch's workflow statuses | `circleci.sh status [--slug S] [--branch B]` |
 | Watch workflow to completion | `circleci.sh watch --workflow <id>` (run_in_background: true) |
-| Fetch job artifacts | `circleci.sh artifacts --job <number>` |
-| Read job log | `circleci.sh logs --job <number>` |
-| Rerun workflow | `circleci.sh rerun --pipeline <id> [--from-failed]` |
-| Validate config | `circleci.sh validate` |
-| Deploy URL lookup | `circleci.sh deploy-url [--branch <name>]` |
+| Read job log | `circleci.sh logs --job <number> [--grep-urls]` |
+| Rerun workflow | `circleci.sh rerun --workflow <id> [--from-failed]` |
+| Deploy URL lookup | `circleci.sh deploy-url <branch>` |
+
+Full subcommand table (pipelines, workflows, jobs, artifacts, trigger, slug,
+validate/process/local) lives in `reference/commands.md`.
 
 ## Setup — auth
 
@@ -51,13 +51,11 @@ Unauthenticated requests return `{"message": "Project not found"}`.
 
 ## Facilitron deploy URLs (marketing-pages)
 
-| Branch | URL |
-|--------|-----|
-| `dev` | `https://morning-coast.facilitron.com` |
-| `staging` | `https://staging.facilitron.com` |
-| `production` | `https://www.facilitron.com` |
-
-The `dev` alias is **morning-coast**, not `dev.facilitron.com`. Only these three branches deploy — feature branches do not get preview URLs. Check each repo's README for sibling repos.
+`circleci.sh deploy-url <branch>` is the canonical lookup — don't reconstruct the
+URLs from memory. One gotcha worth knowing: the `dev` alias is **morning-coast**
+(`morning-coast.facilitron.com`), not `dev.facilitron.com`. Only
+`dev`/`staging`/`production` deploy — feature branches do not get preview URLs.
+Check each repo's README for sibling repos.
 
 ## Config validation & local execution
 

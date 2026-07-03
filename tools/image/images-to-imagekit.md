@@ -9,12 +9,30 @@ two levels up from `CLAUDE_SKILL_DIR`).
 
 ## Contents
 
-- Convert to webp
-- Upload to ImageKit
+- Batch fast path — `image-pipeline.sh`
+- Convert to webp (single-file fallback)
+- Upload to ImageKit (single-file fallback)
 - Verify names landed clean
 - Generate an index/card thumbnail from references
 
-## Convert to webp
+## Batch fast path — `image-pipeline.sh`
+
+All three consumer skills run this for their body/card images — it converts every image
+in a source directory to webp and uploads the batch in parallel, one command:
+
+```bash
+PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
+IMAGES=$(bash "$PIPE" --src <source-dir> --dest <ik-folder>)
+# stdout: JSON mapping output filename → CDN URL
+# {"section-intro.webp": "https://ik.imagekit.io/facilitron/<ik-folder>/section-intro.webp", ...}
+```
+
+Each file becomes `<stem>.webp` (name the sources before running), so uploads land with
+exact names — no `--name` bookkeeping per file. Use the manual steps below only for a
+single file that needs a different output name than its source stem (e.g. a featured/OG
+image).
+
+## Convert to webp (single-file fallback)
 
 Convert every source image with the bundled helper. It uses Bun's built-in `Bun.Image`
 (libwebp, zero deps — no ImageMagick or cwebp needed), caps the longest edge at 2000px
@@ -31,14 +49,15 @@ is ever unavailable, `cwebp -q 82 <source> -o <out>.webp` (Homebrew `webp` packa
 `sips` are acceptable fallbacks — but `to-webp.sh` is the default so every asset is sized
 and encoded the same way.
 
-## Upload to ImageKit
+## Upload to ImageKit (single-file fallback)
 
 The ImageKit CLI (bundled at `tools/imagekit/`) always passes `useUniqueFileName: false` and
 `overwriteFile: true` on every upload, so filenames keep exactly what `--name` specifies with
-no random suffix appended:
+no random suffix appended. It authenticates through the cloudflared-backed secrets broker —
+no env vars to source (on a broker auth error, run
+`cloudflared access login https://secrets.facilitron.work`):
 
 ```bash
-set -a; source ~/.env; set +a
 IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
 
 node "$IK" upload "<out>/<name>.webp" --name <name>.webp --folder <destination-folder>

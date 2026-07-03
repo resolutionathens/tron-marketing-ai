@@ -1,7 +1,7 @@
 ---
 name: ship-ticket
-model: sonnet
-effort: medium
+model: haiku
+effort: low
 description: "Walk the canonical Facilitron task lifecycle end-to-end: ticket lookup → branch & worktree → atomic commits → dev → PR → prod → cleanup. Use this skill ONLY when the user asks for the whole flow at once — phrases like 'ship MD-XXXX end-to-end', 'take this ticket from start to finish', 'walk me through the full Facilitron flow', 'run the full lifecycle on CCAL-XXXX', or 'do everything for this ticket'. Do NOT use this skill when the user asks for a single stage ('commit', 'open a PR', 'start MD-XXXX'); those have their own dedicated skills (tron:git-commit, tron:git-pr, tron:start-ticket). This is the orchestrator for whole-lifecycle requests, not individual moves."
 allowed-tools:
   - Skill
@@ -11,6 +11,12 @@ allowed-tools:
 ---
 
 # Ship Ticket — Whole-Lifecycle Orchestrator
+
+<!-- Model note: kept on `haiku`/`low` deliberately. This skill is pure routing —
+     detect lifecycle position from a few cheap git/gh checks, confirm the next
+     stage, and delegate via the Skill tool. All real judgment (commit messages,
+     PR bodies, deploy gates) lives in the per-stage skills it invokes, each of
+     which carries its own model tier. Anything heavier here is a routing bug. -->
 
 Walk the canonical Facilitron task lifecycle by **delegating to the existing per-stage skills** in sequence. This skill never reimplements stage logic — it routes.
 
@@ -26,8 +32,6 @@ Walk the canonical Facilitron task lifecycle by **delegating to the existing per
 7. PROMOTE-PROD — promote to production                      (tron:git-pushtoprod)
 8. CLEANUP      — remove worktree, prune branch              (tron:close-worktree)
 ```
-
-This orchestrator drives every stage itself, so it does **not** want a dedicated tmux session — there's nothing to work in it. When delegating KICKOFF, tell `tron:start-ticket` to skip its tmux session setup step. CLEANUP likewise has no session to close. The dev-server step in `tron:start-ticket`, on the other hand, is still useful — orchestrator-driven UI work needs a worktree-scoped dev server too — so leave that one in.
 
 ## Step 1 — Determine current lifecycle position
 
@@ -54,8 +58,6 @@ Example:
 ## Step 3 — Delegate via the Skill tool
 
 Invoke the dedicated skill for the chosen stage using the Skill tool. Do not run the stage's commands directly — the per-stage skills own their own logic, prompts, and edge cases.
-
-When delegating KICKOFF, pass `tron:start-ticket` an explicit instruction to skip its tmux session setup step (the dev-server step stays — orchestrator-driven UI work needs a worktree-scoped dev server) — see the note under "Lifecycle stages" above.
 
 Skill mapping:
 

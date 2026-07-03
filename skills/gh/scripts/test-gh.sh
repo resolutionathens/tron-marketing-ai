@@ -19,14 +19,19 @@ has() { grep -q "$2" <<<"$1" || fail "$3 — got: $1"; }
 # Run the script, capture exit code without tripping set -e.
 rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; }
 
-if ! command -v gh >/dev/null 2>&1; then
-  echo "gh smoke: SKIPPED — the gh CLI is not on PATH (install: brew install gh)"
-  exit 0
-fi
 if ! command -v jq >/dev/null 2>&1; then
   echo "gh smoke: SKIPPED — jq is not on PATH; gh.sh hard-requires it (install: brew install jq)"
   exit 0
 fi
+
+# These are pure flag-parsing/contract tests — no network. Prepend a stub `gh`
+# shim so they run even where the real gh CLI is absent (and never hit the API
+# where it is present).
+SHIM="$(mktemp -d "${TMPDIR:-/tmp}/gh-smoke-shim.XXXXXX")"
+trap 'rm -rf "$SHIM"' EXIT
+printf '#!/usr/bin/env bash\nexit 1\n' > "$SHIM/gh"
+chmod +x "$SHIM/gh"
+export PATH="$SHIM:$PATH"
 
 echo "gh smoke: script=$SCRIPT"
 
@@ -60,6 +65,14 @@ has "$O" 'gh-list-issues' "help lists gh-list-issues"
 has "$O" 'gh-merge-pr' "help lists gh-merge-pr"
 has "$O" 'gh-comment' "help lists gh-comment"
 pass "help → prints usage listing all four subcommands (exit 0)"
+
+# help must print even when the gh CLI is entirely absent (no preflight trip).
+NOGH="$(mktemp -d "${TMPDIR:-/tmp}/gh-smoke-nogh.XXXXXX")"
+for b in bash sed; do ln -s "$(command -v "$b")" "$NOGH/$b"; done
+O="$(PATH="$NOGH" bash "$SCRIPT" help)" || fail "help should exit 0 without gh on PATH"
+rm -rf "$NOGH"
+has "$O" 'gh.sh <subcommand>' "help prints usage without gh present"
+pass "help → works with no gh CLI on PATH"
 
 echo ""
 echo "✅ gh smoke PASSED ($PASS checks)"

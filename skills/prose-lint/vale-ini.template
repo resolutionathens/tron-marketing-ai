@@ -1,0 +1,22 @@
+# Facilitron Vale config — copied VERBATIM from the tron plugin
+# (skills/prose-lint/vale-ini.template) by the vale-prose-runner scaffold.
+# The style pack itself is symlinked into .vale/styles (gitignored); this file is
+# committed and stays portable because it never contains a machine-specific path.
+# NO Microsoft package — too noisy.
+
+StylesPath = .vale/styles
+MinAlertLevel = suggestion
+Packages = write-good, alex
+Vocab = Facilitron
+
+[*.md]
+BasedOnStyles = Vale, Facilitron, write-good, alex
+Vale.Spelling = NO
+write-good.E-Prime = NO
+alex.ProfanityUnlikely = NO
+
+# Ignore Nuxt/MDC component fences (::card … ::, including nested ::: variants and
+# {prop} attribute braces) — they are markup, not prose.
+BlockIgnores = (?s) *(:{2,}[\w-]+(\{[^{}\n]*\})?.*?\n *:{2,})
+# Ignore inline/display math ($…$ and $$…$$) and inline code spans.
+TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`)

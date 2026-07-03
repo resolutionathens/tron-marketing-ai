@@ -64,5 +64,5 @@ CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
 
 ## Handoff
 
-Write `/tmp/social/<slug>-spotlight.md`. For non-spotlight posts use `tron:social-post`; for a
+Write `/tmp/social/<slug>-spotlight.md` (slug = kebab-case of the title). For non-spotlight posts use `tron:social-post`; for a
 deeper customer story use `tron:case-study`. Imagery via the designer; scheduling by the owner.

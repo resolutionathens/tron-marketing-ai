@@ -22,6 +22,14 @@ wl_worktree_path_for_branch() {
   return 1
 }
 
+# Sanitize a branch name into a tmux session name. '.' and ':' are illegal in
+# tmux session names, so both map to '-'. This is THE canonical rule — the
+# open-worktree session setup and close-worktree session matching must agree.
+#   wl_session_name_for_branch MD-1801.hotfix → MD-1801-hotfix
+wl_session_name_for_branch() {
+  printf '%s\n' "$(printf '%s' "$1" | tr '.:' '--')"
+}
+
 # Echo the primary checkout (the first `worktree` stanza), or return 1.
 #   wl_main_checkout [repo] → /Users/…/marketing-pages
 wl_main_checkout() {

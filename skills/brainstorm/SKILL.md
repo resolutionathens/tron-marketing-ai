@@ -58,6 +58,6 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] [--out PATH]
 ```
 
-Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`.
+Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. No em dashes in the note's copy (Facilitron voice).
 
-The note ends with a next-step routing: web content → `tron:news-item`/`tron:guide-item`/`tron:toolkit-item`, email → `tron:email-campaign`, social → `tron:social-post`, PDF → `tron:md-to-pdf`.
+The note ends with a next-step routing — route per the template's Next Step list.

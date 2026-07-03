@@ -22,8 +22,10 @@ Check a design asset or rendered page against the Facilitron brand system and re
 1. **Palette** — colors used vs the Facilitron brand palette / `tron-` Tailwind design tokens.
    Flags off-palette colors and near-misses (close-but-not-exact hexes that should snap to a token).
 2. **Typography** — type families/weights vs the brand type system; flags non-brand fonts.
-3. **Logo usage** — correct lockup, 1-color vs full-color, adequate clear-space, not stretched/recolored.
-4. **WCAG color contrast** — text/!UI contrast ratios against AA (4.5:1 body, 3:1 large/UI). This is
+3. **Logo usage** — correct lockup, 1-color vs full-color, not stretched/recolored, and measurable
+   clear-space: **≥ the logomark height on all sides** (defer to `knowledge/brand/` in tron-os if it
+   specifies a different minimum).
+4. **WCAG color contrast** — text/UI contrast ratios against AA (4.5:1 body, 3:1 large/UI). This is
    the same lens as the ADA work — for a _live page_, defer to `/a11y-scan` for the full automated pass.
 
 ## Inputs
@@ -56,14 +58,27 @@ Treat those tokens as the allow-list. Anything outside it is a finding.
 magick "<asset>" -resize 25% -colors 8 -unique-colors txt: 2>/dev/null | grep -oE '#[0-9A-Fa-f]{6}'
 ```
 
-For each sampled hex, find the nearest brand token; if the delta is non-trivial and it's meant to be
-a brand color, flag it to snap to the token.
+For each sampled hex, find the nearest brand token. **Snap threshold:** if every RGB channel is
+within **±8** of a `tron-` token (a ΔE-ish tolerance), call it a **snap-to-token** finding — it was
+meant to be that token. If any channel is off by more than 8, treat it as an off-palette color and
+ask whether it's intentional.
 
 ## Contrast math
 
-For two colors, compute the WCAG ratio (relative luminance, `(L1+0.05)/(L2+0.05)`). Report pass/fail
-at AA: **4.5:1** normal text, **3:1** large text (≥24px or ≥19px bold) and UI/graphics. Call out the
-specific failing pair (e.g. breadcrumb link on background — cf. MCR-348).
+Don't hand-compute luminance — use the bundled deterministic helper, which implements the full
+sRGB relative-luminance formula and prints the ratio plus PASS/FAIL at AA **4.5:1** (normal text)
+and **3:1** (large text ≥24px or ≥19px bold, and UI/graphics):
+
+```bash
+name=brand-check
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/contrast.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/contrast.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/contrast.sh" ] || { echo "tron:$name: scripts/contrast.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+
+bash "$SKILL_DIR/scripts/contrast.sh" "<fg-hex>" "<bg-hex>"   # e.g. '#5A6B8C' '#F5F5F5'
+```
+
+Call out the specific failing pair (e.g. breadcrumb link on background — cf. MCR-348).
 
 ## Output
 

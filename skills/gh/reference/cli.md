@@ -8,6 +8,7 @@ is a flat list of commands — copy the one you need and fill in `<N>` / `owner/
 
 - Issues
 - Pull Requests
+- PR review inspection
 - Workflow runs (CI / Actions)
 - Deployments (finding staging URLs)
 - Releases
@@ -122,6 +123,28 @@ When parsing `gh pr view --json`, these are the values the fields actually take:
 - `mergeable`: `"MERGEABLE"`, `"CONFLICTING"`, `"UNKNOWN"` (GitHub hasn't computed it yet — retry in a few seconds).
 - `state`: `"OPEN"`, `"CLOSED"`, `"MERGED"`.
 - `statusCheckRollup`: array of check objects with `conclusion` ∈ `"SUCCESS"`, `"FAILURE"`, `"CANCELLED"`, `"SKIPPED"`, `"NEUTRAL"`, `"TIMED_OUT"`, `"ACTION_REQUIRED"`, or `status` ∈ `"QUEUED"`, `"IN_PROGRESS"`, `"COMPLETED"`. **An empty `statusCheckRollup` array is ambiguous** — it could mean (a) no checks are configured for this repo, (b) checks haven't started yet (race after push), or (c) the PR is from a fork and required checks haven't run. Cross-check with `gh pr checks <N>` for human-readable diagnosis.
+
+## PR review inspection
+
+When checking a PR's review status:
+
+```bash
+# Overall review decision (APPROVED / CHANGES_REQUESTED / REVIEW_REQUIRED)
+gh pr view <N> --json reviewDecision --jq .reviewDecision
+
+# All reviews — who reviewed, what they said, and their verdict
+gh pr view <N> --json reviews --jq '.[] | {reviewer: .author.login, state: .state, body: .body}'
+
+# Inline comments (non-review threads)
+gh pr view <N> --json comments --jq '.[] | {author: .author.login, body: .body}'
+
+# Who was requested to review (pending)
+gh pr view <N> --json reviewRequests --jq '.[] | .requestedReviewer.login'
+
+# All at once — decision + reviews + comments
+gh pr view <N> --json reviews,comments,reviewDecision \
+  --jq '{decision: .reviewDecision, reviews: [.reviews[] | {reviewer: .author.login, state: .state, body: .body}], comments: [.comments[] | {author: .author.login, body: .body}]}'
+```
 
 ## Workflow runs (CI / Actions)
 
@@ -248,7 +271,7 @@ gh auth switch            # toggle between accounts if multiple are logged in
 gh auth token             # print the active token (useful for `curl` calls)
 ```
 
-Current scopes on this machine: `gist, project, read:org, repo, workflow`. **No `admin:org`** — don't attempt org-admin operations (team management, org settings) without first running `gh auth refresh -s admin:org`.
+Run `gh auth status` to check the active token's scopes before privileged operations. If `admin:org` is missing, don't attempt org-admin operations (team management, org settings) without first running `gh auth refresh -s admin:org`.
 
 ## Output handling
 

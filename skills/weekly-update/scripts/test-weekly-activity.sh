@@ -23,10 +23,12 @@ hasnt() { grep -qF -- "$2" <<<"$1" && fail "$3 — unexpectedly got: $1"; return
 
 echo "weekly-activity smoke: root=$ROOT"
 
-# --- stub bin: fake acli (always returns []) + controllable fake gh ----------
+# --- stub bin: fake acli (always returns [], logs argv) + controllable fake gh
 BIN="$ROOT/bin"; mkdir -p "$BIN"
-cat >"$BIN/acli" <<'EOF'
+ARGLOG="$ROOT/acli-args.log"
+cat >"$BIN/acli" <<EOF
 #!/usr/bin/env bash
+echo "\$@" >> "$ARGLOG"
 echo '[]'
 EOF
 chmod +x "$BIN/acli"
@@ -52,6 +54,10 @@ run() { PATH="$BIN:$PATH" bash "$SCRIPT" "$@"; }
 O="$(run fetch --start 2026-05-04 --no-github)"; echo "  → $(head -1 <<<"$O")"
 has "$O" 'WINDOW_START=2026-05-04  (1 week)' "explicit --start is echoed verbatim"
 pass "window: --start passes through unchanged"
+
+# jira_search must cap explicitly — acli's default page truncates silently
+grep -q -- '--limit 200' "$ARGLOG" || fail "jira search should pass --limit 200 (got: $(cat "$ARGLOG"))"
+pass "jira: search passes --limit 200 to acli"
 
 # default window is a Monday, WEEKS*7 days before this week's Monday
 DEF_START="$(run fetch --no-github | sed -n 's/^WINDOW_START=\([0-9-]*\).*/\1/p')"

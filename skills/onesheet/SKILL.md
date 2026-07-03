@@ -38,7 +38,9 @@ cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 
 ## How it works
 
-1. <Step> 2. <Step> 3. <Step> (keep to 3)
+1. <Step>
+2. <Step>
+3. <Step> (keep to 3)
 
 ## Proof
 
@@ -57,6 +59,6 @@ cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 
 ## Handoff
 
-Write to `/tmp/content/<slug>-onesheet.md`, then render with **`tron:md-to-pdf`** for the branded PDF.
+Write to `/tmp/content/<slug>-onesheet.md` (slug = kebab-case of the title), then render with **`tron:md-to-pdf`** for the branded PDF.
 If it needs a hero/visual, route imagery through `tron:gen-image` or `tron:figma-to-imagekit`
 (designer). Confirm before producing the final PDF. Summarize the positioning + any `TODO:` gaps.

@@ -37,8 +37,12 @@ command -v jq >/dev/null 2>&1 || exit 0
 # Claude projects tree. Newest match wins if a session id somehow appears twice.
 if [[ -z "$TX" ]]; then
   [[ -z "$SID" ]] && exit 0
+  # Portable mtime sort: GNU stat (-c, Linux) first, BSD stat (-f, macOS) fallback.
   TX="$(find "${HOME}/.claude/projects" -name "${SID}.jsonl" -type f 2>/dev/null \
-        | xargs -I{} stat -f '%m %N' {} 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)"
+        | while IFS= read -r f; do
+            m="$(stat -c '%Y' "$f" 2>/dev/null || stat -f '%m' "$f" 2>/dev/null)" || continue
+            [ -n "$m" ] && printf '%s %s\n' "$m" "$f"
+          done | sort -rn | head -1 | cut -d' ' -f2-)"
 fi
 [[ -n "$TX" && -f "$TX" ]] || exit 0
 

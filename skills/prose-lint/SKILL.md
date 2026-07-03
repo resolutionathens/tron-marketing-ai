@@ -19,8 +19,9 @@ This skill delegates the lint to the **`vale-prose-runner`** subagent (runs on S
    ```bash
    name=prose-lint
    SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   [ -e "$SKILL_DIR/styles" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/styles" ] && echo "$d"; done | sort -V | tail -1)"
-   [ -e "$SKILL_DIR/styles" ] || { echo "tron:$name: styles not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+   probe() { [ -e "$1/styles" ] && [ -e "$1/vale-ini.template" ]; }
+   probe "$SKILL_DIR" || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/styles" ] && [ -e "$d/vale-ini.template" ] && echo "$d"; done | sort -V | tail -1)"
+   probe "$SKILL_DIR" || { echo "tron:$name: styles/vale-ini.template not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
    echo "$SKILL_DIR/styles"   # → the absolute style-pack path to hand the runner
    ```
 3. **Delegate to `vale-prose-runner`** (Task tool): "Lint `<target>` with Vale using the Facilitron style pack at `<absolute styles path>` (scaffold `.vale.ini` + symlinks if missing). Return findings grouped by file with severity counts and the top offenders." If the user wants an errors-only gate (pre-commit/PR), say so in the prompt.
@@ -29,5 +30,5 @@ This skill delegates the lint to the **`vale-prose-runner`** subagent (runs on S
 ## Notes
 
 - The Facilitron style pack is bundled with the plugin (`styles/Facilitron/` rules + `styles/config/vocabularies/Facilitron/accept.txt` vocab) — shared across repos. To accept a false-positive term, append it to `accept.txt` and the change ships with the next plugin release.
-- The runner handles project scaffolding (symlinks, `.vale.ini`, `vale sync`) — `.vale.ini` is committed; `.vale/styles/` is gitignored.
+- The runner handles project scaffolding (symlinks, `.vale.ini`, `vale sync`) — `.vale.ini` is copied verbatim from the bundled `vale-ini.template` (next to `styles/`) and committed; `.vale/styles/` is gitignored.
 - Good final pass before `tron:news-item` / `tron:guide-item` / `tron:case-study` / `tron:press-release` open their PR.

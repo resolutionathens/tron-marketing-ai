@@ -6,6 +6,7 @@ description: "Produce an on-page SEO optimization spec for a specific landing pa
 allowed-tools:
   - Bash
   - Read
+  - Write
   - Glob
   - Grep
   - WebFetch

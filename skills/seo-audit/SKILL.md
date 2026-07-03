@@ -29,18 +29,33 @@ it diagnoses; implementing fixes is handed to a git user.
    coverage + intent match, image `alt`, internal links in/out, URL slug.
 3. **Structured data** — schema.org type present + valid for the page (Org, Product, FAQ, Article).
 4. **Content** — depth vs intent, thin/duplicate, missing sections competitors cover.
-5. **Performance / CWV** — defer to `/site-audit` (LCP/CLS/INP) and fold the scores in.
+5. **Performance / CWV** — defer to `tron:site-audit` in its single-page mode (`--page`, bounded to
+   the one URL) for LCP/CLS/INP, and fold the scores in.
 6. **A11y + links** — `/a11y-scan` and `/link-check` for the page; surface SEO-relevant hits.
 
-## Fetching the page
+## Fast path — fetch + meta extraction (scripted)
+
+The fetch and meta pull are deterministic — run the bundled script rather than hand-rolling curl/grep:
 
 ```bash
-curl -sL --compressed -A "Mozilla/5.0" "<url>" -o /tmp/seo/page.html  # --compressed: marketing-pages are CloudFront gzip
-# title / meta / h1 / canonical quick pull:
-grep -ioE '<title>[^<]*</title>|<meta name="description"[^>]*>|<h1[^>]*>|rel="canonical"[^>]*' /tmp/seo/page.html | head
+name=seo-audit
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/seo-audit.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/seo-audit.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/seo-audit.sh" ] || { echo "tron:$name: scripts/seo-audit.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+
+bash "$SKILL_DIR/scripts/seo-audit.sh" "<url>"
+# already have the HTML locally (or offline)? parse it without a fetch:
+bash "$SKILL_DIR/scripts/seo-audit.sh" --html-file /tmp/seo/page.html "<url>"
 ```
 
-Use WebFetch for a rendered read when the page is JS-heavy.
+One JSON line on stdout: status code + redirect chain, `robots_meta`, `canonical`, `title` (+ length),
+`meta_description` (+ length), `h1s`/`h1_count`, and img-alt coverage. Narration goes to stderr;
+exits 0 (parsed), 1 (fetch/read failure), 2 (usage).
+
+Your judgment starts where the JSON ends: is the title's keyword front-loaded and ≤60 chars? Does
+the canonical point where it should (watch redirect chains that end somewhere unexpected)? Is a
+`noindex` intentional? Do the H1/heading hierarchy and alt coverage match the target query set?
+Use WebFetch for a rendered read when the page is JS-heavy (the script sees only source HTML).
 
 ## Output
 

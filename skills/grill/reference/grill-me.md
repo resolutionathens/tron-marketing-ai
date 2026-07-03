@@ -4,6 +4,13 @@ The questioning discipline `/grill` runs against marketing content — articles,
 briefs, emails. It finds weakness in the _substance_ of a piece before a reviewer or customer does. It is not
 a style or link check (that's `/prose-lint` and `/link-check`) — it interrogates the argument.
 
+## Contents
+
+- [The Four Dimensions](#the-four-dimensions)
+- [Per-Artifact Checklists](#per-artifact-checklists)
+- [Calibration](#calibration)
+- [Anti-patterns to Avoid](#anti-patterns-to-avoid)
+
 ## The Four Dimensions
 
 ### 1. Assumption Audit

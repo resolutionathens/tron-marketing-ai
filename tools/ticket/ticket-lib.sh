@@ -7,8 +7,8 @@
 # These encode the two mechanics that are easy to get subtly wrong by hand:
 # (1) detecting Jira-vs-GitHub from the many ref shapes, and (2) carrying the
 # gitignored env/secret files into a fresh worktree (skip it and the dev server
-# 500s on every request). The interactive judgment — reading the ticket, the
-# branch slug wording, the tmux/worker/dev-server offers — stays in the skill.
+# 500s on every request). The interactive judgment — reading the ticket and the
+# branch slug wording — stays in the skill.
 
 # Classify a ticket ref. Echoes a single line:
 #   jira <KEY>                e.g. "jira MD-1234"

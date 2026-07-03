@@ -122,5 +122,29 @@ grep -q '"staging":"skipped"' <<<"$OUT" || fail "D: staging should be skipped, n
 pass "repo with no production branch is rejected cleanly (staging reported skipped)"
 rm -rf "$ROOT"
 
+# ── E. --worktree: branch/dirty/Jira-key resolve from the given path ─────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+echo "wt feature" > "$MAIN/app.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: wt ship"; gx "$MAIN" push -q
+WT="$ROOT/wt-MD-13"
+gx "$MAIN" worktree add -q -b MD-13-wt "$WT" master
+# E1: a dirty WORKTREE must be caught even when cwd (the main checkout) is clean.
+echo dirty > "$WT/scratch.txt"
+OUT="$(cd "$MAIN" && bash "$SCRIPT" --no-jira --worktree "$WT")" && fail "E1: expected non-zero exit, got: $OUT"
+echo "  → $OUT"
+grep -q '"error":"dirty-working-tree"' <<<"$OUT" || fail "E1: dirty worktree not detected via --worktree: $OUT"
+pass "--worktree: dirty worktree detected while \$PWD (main) is clean"
+# E2: clean run — Jira key parses from the WORKTREE's branch, main parked on master.
+rm "$WT/scratch.txt"
+OUT="$(cd "$MAIN" && bash "$SCRIPT" --no-jira --worktree "$WT")" || fail "E2: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "E2: not ok: $OUT"
+grep -q '"jira":"MD-13:skipped"' <<<"$OUT" || fail "E2: Jira key should come from the worktree branch: $OUT"
+grep -q "wt ship" <<<"$(gx "$MAIN" log production --oneline)" || fail "E2: production missing master's commit"
+[[ "$(gx "$MAIN" rev-parse --abbrev-ref HEAD)" == master ]] || fail "E2: main checkout should be parked on master after a worktree run"
+[[ "$(gx "$WT" rev-parse --abbrev-ref HEAD)" == MD-13-wt ]] || fail "E2: worktree should still be on its branch"
+pass "--worktree: START_BRANCH + Jira key from the worktree; promotion works; main parked on master"
+rm -rf "$ROOT"
+
 echo ""
 echo "✅ git-pushtoprod smoke PASSED ($PASS checks)"

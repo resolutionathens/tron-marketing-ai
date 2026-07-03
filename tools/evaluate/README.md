@@ -1,5 +1,14 @@
 # `evaluate` — the skill evaluation harness
 
+## Contents
+
+- [Where scenarios live](#where-scenarios-live)
+- [Running](#running)
+- [Scenario format](#scenario-format)
+- [What judge mode can and can't observe](#what-judge-mode-can-and-cant-observe)
+- [Adding a golden example to a skill](#adding-a-golden-example-to-a-skill)
+- [Testing the harness itself](#testing-the-harness-itself)
+
 An executable runner for the skill evaluations. It discovers every scenario,
 runs it, and exits non-zero if any executed scenario fails. There are two kinds
 of scenario and the harness picks the mode per file:

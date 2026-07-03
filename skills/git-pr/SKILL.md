@@ -30,9 +30,13 @@ Check tracking: `git status -sb`. If no upstream, `git push -u origin <branch>`.
 
 ## Step 3: Gather context
 
+Resolve the default branch **once** here and reuse it for the diff and for
+`--base` in Step 6:
+
 ```bash
-git log --oneline master..HEAD    # fallback to main..HEAD
-git diff master...HEAD --stat
+BASE="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)"; BASE="${BASE:-master}"
+git log --oneline "$BASE..HEAD"
+git diff "$BASE...HEAD" --stat
 ```
 
 Read changed files if needed to understand purpose.
@@ -58,70 +62,78 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 
 ## Step 6: Create the PR
 
+`$BASE` is the default branch resolved in Step 3 — if this runs in a fresh shell,
+re-run the Step 3 resolver line first.
+
 ```bash
 gh pr create --title "<title>" --body "$(cat <<'EOF'
 <body>
 EOF
-)" --base master
+)" --base "$BASE"
 ```
 
-## Step 7: Request Copilot code review (best-effort, skip for small doc-only PRs)
+## Steps 7–8: Copilot review + retro comment (scripted)
 
-Skip the request only when **both** hold, using the `git diff master...HEAD --stat` output
-from Step 3:
-
-- every changed file is documentation (`*.md`, `*.mdx`, or a `reference/*.md`) — no `.mjs`,
-  `.sh`, `.json`, `.ts`, `.yml`, or other logic/config files touched
-- the diff is small: **3 files or fewer** and **40 changed lines or fewer** (insertions +
-  deletions, from the `--stat` summary line)
-
-A SKILL.md counts as documentation for this check, but its size and blast radius (it's
-instructions an agent executes) still make it easy to blow past the line/file threshold —
-don't special-case it lower than the numbers above.
-
-If both hold, skip the request and note in Step 9 that Copilot review was skipped as a
-small doc-only change. Otherwise:
+The mechanics — the doc-only skip arithmetic, the token-usage lookup, and the
+marker-comment assembly — live in the bundled `git-pr-retro.sh`. Resolve it once:
 
 ```bash
-gh pr edit "<N>" --add-reviewer "@copilot" \
-  || echo "notice: Copilot review not enabled for this repo/org — continuing"
+name=git-pr
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/git-pr-retro.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-pr-retro.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/git-pr-retro.sh" ] || { echo "tron:$name: scripts/git-pr-retro.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 ```
 
-Must never fail the lifecycle. One request at PR open only.
-
-## Step 8: Post retro comment
-
-First resolve and run the token-usage helper — it reads this session's real token
-counts from the transcript and prints the footer's token line:
+**Step 7 — Copilot review (best-effort, skipped for small doc-only PRs):**
 
 ```bash
-TOKEN_USAGE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/git/token-usage.sh"
-TOKENS="$([ -e "$TOKEN_USAGE" ] && bash "$TOKEN_USAGE")"
+bash "$SKILL_DIR/scripts/git-pr-retro.sh" skip-check --pr "<N>"
 ```
 
-`$TOKENS` holds a line like `*in 18k · out 8.2k · cache 1.2M read / 40k write*`,
-or empty string if the transcript can't be read (it must never block the PR).
-Then post the comment in the **same shell** so `$TOKENS` expands:
+Prints `{"skip":bool,"reason":"..."}` (doc = `*.md`/`*.mdx` only; small = ≤3 files
+and ≤40 changed lines). A SKILL.md counts as documentation, but its blast radius
+(it's instructions an agent executes) still makes it easy to blow past the
+thresholds — don't special-case it lower. If `skip` is true, skip the request and
+note it in Step 9. Otherwise:
 
 ```bash
-gh pr comment "<N>" --body "<!-- tron-retro -->
-### Retro
+bash "$SKILL_DIR/scripts/git-pr-retro.sh" request-review --pr "<N>"
+```
+
+Never fails the lifecycle (an org without Copilot review returns `requested:false`,
+exit 0). One request at PR open only.
+
+**Step 8 — retro comment.** Write the filled-in retro sections (this is your
+judgment) to a temp file, then post:
+
+```bash
+cat > /tmp/tron-retro-body.md <<'EOF'
 **What went well:**
 **Friction / surprises:**
 **Follow-up (filed):**
 **Out of scope / not filed:**
 FOLLOW-UP:
-
----
-*<your model ID>*
-$TOKENS"
+EOF
+bash "$SKILL_DIR/scripts/git-pr-retro.sh" retro-comment --pr "<N>" \
+  --model "<your model ID>" --body-file /tmp/tron-retro-body.md
 ```
 
-Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text** before running the command. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` for the model ID — Claude Code does not export it to the shell, so it would not expand and the literal `${...}` would end up in the comment. You know your own model ID from your session context; write it in directly. (`$TOKENS` is different — it's set by the helper above and *does* expand, so leave it as the variable.)
+The script adds the `<!-- tron-retro -->` marker (required for the OS reviewer),
+the `### Retro` header, and the footer: the `*<model ID>*` line plus this session's
+real token line from `tools/git/token-usage.sh` (empty token data never blocks the
+comment).
 
-The `<!-- tron-retro -->` marker is required for the OS reviewer. Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
+Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text**. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` — Claude Code does not export it to the shell, so the literal `${...}` would end up in the comment. You know your own model ID from your session context; write it in directly.
+
+Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
+
+**Manual fallback** (if the bundled script can't be resolved): skip the Copilot
+request only for doc-only diffs (`*.md`/`*.mdx`, ≤3 files, ≤40 changed lines from
+Step 3's `--stat`); else `gh pr edit "<N>" --add-reviewer "@copilot" || true`. For
+the retro, run `tools/git/token-usage.sh` into `$TOKENS` and, in the same shell,
+`gh pr comment "<N>" --body "<!-- tron-retro -->..."` with the sections above, a
+`---`, the literal model ID, and `$TOKENS`.
 
 ## Step 9: Report
 
-Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line. Offer
-`tron:preview-url` to find the staging link if this repo has previews.
+Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line.

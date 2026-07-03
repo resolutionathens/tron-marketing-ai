@@ -6,7 +6,7 @@
 # the PDF — stays in each skill.
 #
 # Usage:
-#   content.sh check-repo   [--repo PATH]          → {"ok":true,"isMarketingPages":true,"slug":"…"}
+#   content.sh check-repo   [--repo PATH]          → {"ok":true,"isMarketingPages":true,"checkout":"…"}
 #   content.sh slug         "<title>"              → {"ok":true,"slug":"…"}
 #   content.sh rewrite-links <file>                rewrite facilitron.com→relative in place
 #   content.sh check-link   <path> [--repo PATH]   → {"ok":true,"path":"…","exists":true,"resolved":"pages/…"}
@@ -24,9 +24,9 @@ CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 REPO="$(pwd)"; PREFIX=""; SUFFIX=""; ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --repo) REPO="${2:-}"; shift ;;
-    --prefix) PREFIX="${2:-}"; shift ;;
-    --suffix) SUFFIX="${2:-}"; shift ;;
+    --repo)   [[ $# -gt 1 ]] || usage_err "--repo requires a value";   REPO="$2";   shift ;;
+    --prefix) [[ $# -gt 1 ]] || usage_err "--prefix requires a value"; PREFIX="$2"; shift ;;
+    --suffix) [[ $# -gt 1 ]] || usage_err "--suffix requires a value"; SUFFIX="$2"; shift ;;
     -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) ARGS+=("$1") ;;

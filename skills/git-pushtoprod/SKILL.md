@@ -19,8 +19,10 @@ name=git-pushtoprod
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
 [ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/git-pushtoprod.sh" ] && echo "$d"; done | sort -V | tail -1)"
 [ -e "$SKILL_DIR/scripts/git-pushtoprod.sh" ] || { echo "tron:$name: scripts/git-pushtoprod.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
-bash "$SKILL_DIR/scripts/git-pushtoprod.sh" [--no-jira] [--key <TICKET>]
+bash "$SKILL_DIR/scripts/git-pushtoprod.sh" [--no-jira] [--key <TICKET>] [--worktree <abs-path>]
 ```
+
+Use `--worktree` when calling from a worktree-integrated shell where `$PWD` resets to the main checkout after each Bash call — the dirty-check, starting branch, and Jira-key parsing then use that path instead of `$PWD` (same convention as `tron:git-dev`).
 
 Checks clean tree, brings master current, merges through staging → production (or just production if no staging branch), pushes each, transitions the Jira ticket to Done. Stops at the first failed environment — production is never touched if staging fails. Lockfile conflicts resolve to `--ours`; any other conflict aborts.
 

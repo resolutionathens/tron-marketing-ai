@@ -12,20 +12,7 @@ allowed-tools:
 
 Turn thin Jira tickets into implementation-ready tickets. This skill reads an existing ticket along with its parent and linked issues, finds the real source material wherever it lives, drafts a structured description, converts it to Atlassian Document Format, and writes it back to Jira with `acli`.
 
-Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the context and links a developer needs. It is type-agnostic: a webdev sub-task, a Figma-implementation ticket, a landing page, an SEO change, or a content item all enrich the same way.
-
-## What this skill does
-
-- Fetches each Jira ticket summary, status, assignee, description, and comments.
-- Traverses the ticket's **parent** and **linked issues** to gather context and source links, because thin sub-tasks usually inherit their real material from a parent epic or campaign and a sibling design/spec ticket. See [Where the source material lives](#where-the-source-material-lives).
-- Extracts source links from descriptions, plain links, and Jira smart cards in comments.
-- Resolves obvious key typos when safe, for example `CCLA-1976` might be `CCAL-1976` if the first key fails and the neighboring keys match.
-- Recognizes a range of source types — a Figma file, a page being replaced, an ImageKit asset folder, a Google Doc, a Confluence spec, a GitHub PR/issue/code path, or an error/monitoring link — and pulls the metadata each one carries. See [step 4](#4-pull-source-metadata).
-- Drafts a structured Jira description with context, source links, destination paths, implementation notes, and acceptance criteria.
-- Converts markdown to ADF with the bundled `tools/md-to-adf` helper so Jira renders headings, bullets, links, and code correctly.
-- Updates the Jira description with `acli jira workitem edit --description-file`.
-
-It does **not** implement the ticket, create branches, commit code, or move ticket status. It is Jira enrichment only.
+Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the context and links a developer needs. It is type-agnostic: a webdev sub-task, a Figma-implementation ticket, a landing page, an SEO change, or a content item all enrich the same way. It does **not** implement the ticket, create branches, commit code, or move ticket status — Jira enrichment only.
 
 ## Where the source material lives
 
@@ -148,91 +135,13 @@ When the user states the repo or destination type, trust that over inference.
 
 ### 4. Pull source metadata
 
-Identify the source type from the links you gathered and capture whatever the implementer will need. A ticket often has more than one source (a spec plus a design, say) — capture each. Common source types:
-
-**Design and content sources**
-
-- **Figma file** — keep the full URL with its `node-id`. Note the frame or page name from any comment. The implementer builds to this; do not try to render it.
-- **Existing or HubSpot page being replaced** — keep the URL as the content/layout reference.
-- **Asset location** — an ImageKit folder, a download link, or attachments named in the source ticket.
-- **Google Doc** — when accessible, fetch its text export and read fields near the top such as `Meta Title:`, `Meta Description:`, `Slug:`, the H1 title, and Purpose / Scope / Procedure / FAQ sections.
-
-**Spec and code sources**
-
-- **Confluence page** — the brief or spec often lives here. Fetch the body with the shared helper so the spec text lands in the description, not just a link:
-  ```bash
-  "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/confluence/fetch-confluence.sh" <confluence-url-or-id>
-  ```
-  Pull the goal, scope, and any acceptance criteria already written there.
-- **GitHub PR, issue, or code path** — keep the URL, or a `owner/repo` + file path / symbol reference, so the implementer knows exactly where the change or the prior art lives. A linked PR is often the pattern to copy or the thing to revert.
-- **Error or monitoring link** (Sentry, logs, dashboard) — keep the issue URL and capture the error message, affected endpoint, and frequency if shown. This is the repro context for a fix.
-- **Chat or recording link** (Slack thread, Loom) — keep the URL as provenance, but note it may not be accessible to the implementer; summarize any decision captured in the ticket text rather than relying on the link.
+Identify the source type from the links you gathered and capture whatever the implementer will need. A ticket often has more than one source (a spec plus a design, say) — capture each. What each type carries (Figma, page being replaced, asset location, Google Doc, Confluence spec, GitHub PR/issue/path, error link, chat/recording) is catalogued in [reference/source-types.md](reference/source-types.md).
 
 If a source is not directly accessible, still enrich the ticket with its URL and note that the implementer should use it as the reference.
 
 ### 5. Draft the enriched description
 
-Use this base shape. Keep it practical and implementation-ready.
-
-```markdown
-# <Action-oriented title>
-
-## Context
-
-<Short explanation of what this ticket is for and the goal it serves. Pull the "why" from the parent epic or campaign when there is one.>
-
-## Sources
-
-- <Source label>: [<url or location>](<url>) — <one-line note on what it is>
-- Destination repo: `<repo if known>`
-- Destination path or route: `<path or route if known>`
-- Work type: `<type>`
-
-## Implementation notes
-
-1. <Concrete first step.>
-2. <Schema, component, asset, PDF, or routing guidance.>
-3. <QA or verification guidance.>
-
-## Acceptance criteria
-
-- <Expected file, page, or change exists.>
-- <The page or asset renders in the expected location.>
-- <Links, downloads, images, or metadata work.>
-- <Review criteria are satisfied.>
-```
-
-Add only the sections a ticket needs. For content/SEO work, add a `## Source SEO fields` section with meta title, meta description, and slug. For a Figma-driven ticket, list the Figma file, the page being replaced, and the asset location under `## Sources`. Do not include empty sections.
-
-For a webdev or navigation ticket sourced from a linked Figma design, the enriched description looks like this:
-
-```markdown
-# Add Tickets to the product dropdown and footer
-
-## Context
-
-Part of migrating the Tickets landing page from HubSpot to facilitron.com (parent campaign MCR-321). Once the page exists, it needs entry points: an item in the Product dropdown and a link in the site footer.
-
-## Sources
-
-- Figma design: [Product Pages — Tickets](<figma url with node-id>) — build the page and nav entries to match (from linked MCR-346).
-- Page being replaced: <hubspot url> — current Tickets content and layout reference.
-- Assets: ImageKit `/product/ticketing` folder.
-- Destination repo: `<app repo>`
-- Work type: `navigation / webdev`
-
-## Implementation notes
-
-1. Add a Tickets entry to the Product dropdown component, matching the placement in the Figma design.
-2. Add a Tickets link to the site footer in the product/links column.
-3. Point both at the new Tickets route, not the HubSpot URL.
-
-## Acceptance criteria
-
-- Tickets appears in the Product dropdown and links to the new on-site Tickets page.
-- Tickets appears in the footer and links to the same route.
-- No remaining links point at the old HubSpot Tickets page.
-```
+Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. Keep it practical and implementation-ready: add only the sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
 
 ## Playbooks
 
@@ -246,7 +155,7 @@ Part of migrating the Tickets landing page from HubSpot to facilitron.com (paren
 - Do not paste the full source document into Jira unless the user asks. Link to the source and summarize the implementation requirements.
 - Do not invent fields that are not supported by the destination schema.
 - No em dashes in prose you draft.
-- For rich descriptions, always use `tools/md-to-adf`. Never pass markdown directly to `acli --description`, because Jira will render the markdown literally.
+- For rich descriptions, always use `tools/md-to-adf` with `--description-file` — never pass raw markdown to `acli --description` (it renders literally). Mechanics and caveats: [tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md).
 
 ## Verification
 
