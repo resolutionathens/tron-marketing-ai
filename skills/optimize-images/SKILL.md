@@ -28,6 +28,4 @@ Handles **PNG, JPEG/JPG, and WebP** in a single run, picking the right tool per 
 ## Notes
 
 - Default output is `<source>/optimized/` mirroring source structure; pass `--out` for a different dir.
-- **pngquant** is PNG-only; **cwebp** reads JPEG/PNG but only writes `.webp`; keeping a `.jpg` needs **jpegoptim**. A missing tool degrades gracefully (the file is skipped with a `brew install …` hint) — the run never hard-fails.
-- Already-optimized PNGs (pngquant exit 99) keep the original and are reported as skipped, not errors.
 - For designers shipping Figma exports, run this before pushing assets to the CDN via `tron:figma-to-imagekit` (that skill already optimizes its own export leg, but this covers loose images).

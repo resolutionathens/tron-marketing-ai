@@ -17,13 +17,14 @@ If the caller did not give you a `<STYLES>` path, fall back to `~/.claude/skills
 ## Steps
 
 1. **Verify install:** `vale --version`. If missing, report `brew install vale` needed and stop.
-2. **Detect/scaffold config** from project root. If `.vale.ini` is missing, scaffold (substitute the real `<STYLES>` path):
+2. **Detect/scaffold config** from project root. If `.vale.ini` is missing, scaffold (substitute the real `<STYLES>` path — it appears only in the symlinks, so the committed `.vale.ini` stays portable):
    ```
    mkdir -p .vale/styles/config
    ln -snf <STYLES>/Facilitron .vale/styles/Facilitron
    ln -snf <STYLES>/config/vocabularies .vale/styles/config/vocabularies
+   cp "<STYLES>/../vale-ini.template" .vale.ini
    ```
-   Write `.vale.ini` (StylesPath=.vale/styles, MinAlertLevel=suggestion, Vocab=Facilitron, Packages=write-good, alex; `[*.md]` BasedOnStyles=Vale, Facilitron, write-good, alex; Vale.Spelling=NO; write-good.E-Prime=NO; alex.ProfanityUnlikely=NO; with the MDC BlockIgnores/TokenIgnores for `::component` fences and `$...$`/inline-code). NO Microsoft package (too noisy). Then `vale sync`. Add `.vale/styles/` to .gitignore; commit `.vale.ini`.
+   The template ships next to the style pack (`skills/prose-lint/vale-ini.template`, i.e. `<STYLES>/../vale-ini.template`) — copy it **verbatim**, never retype the ini or invent regexes; its `StylesPath = .vale/styles` already points at the symlinks you just created, and it carries the MDC BlockIgnores / math + inline-code TokenIgnores. Then `vale sync`. Add `.vale/styles/` to .gitignore; commit `.vale.ini`.
 3. **Run vale** on the target. Default target order: a file/dir the user named → `content/` if it exists → project root. Useful flags: `--minAlertLevel=warning`, `--output=line`, `--filter='.Level=="error"'`.
 
 ## Return (your final message IS the result)

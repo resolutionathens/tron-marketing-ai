@@ -109,10 +109,15 @@ relpath() { # path relative to SRCROOT (best-effort)
   case "$1" in "$SRCROOT"/*) printf '%s' "${1#"$SRCROOT"/}";; *) basename "$1";; esac
 }
 ext_lc() { printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]'; }
-img_dims() { # <file> -> "W H" (macOS sips); empty if unavailable
-  command -v sips >/dev/null 2>&1 || return 0
-  sips -g pixelWidth -g pixelHeight "$1" 2>/dev/null \
-    | awk '/pixelWidth/{w=$2} /pixelHeight/{h=$2} END{if(w&&h)print w" "h}'
+img_dims() { # <file> -> "W H" — prefers ImageMagick (magick/identify), falls back to macOS sips; empty if neither
+  if command -v magick >/dev/null 2>&1; then
+    magick identify -format '%w %h' "$1" 2>/dev/null
+  elif command -v identify >/dev/null 2>&1; then
+    identify -format '%w %h' "$1" 2>/dev/null
+  elif command -v sips >/dev/null 2>&1; then
+    sips -g pixelWidth -g pixelHeight "$1" 2>/dev/null \
+      | awk '/pixelWidth/{w=$2} /pixelHeight/{h=$2} END{if(w&&h)print w" "h}'
+  fi
 }
 
 do_pngquant() { # <in> <out.png>
