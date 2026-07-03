@@ -1,0 +1,11 @@
+{
+  "skills": ["ship-ticket"],
+  "query": "Ship MD-1820 end-to-end - take it from start to finish.",
+  "files": [],
+  "expected_behavior": [
+    "Recognizes this as a whole-lifecycle request and acts as the orchestrator, walking the canonical stages in order: ticket lookup -> branch & worktree -> atomic commits -> dev -> PR -> prod -> cleanup",
+    "Delegates each stage to its dedicated skill (tron:start-ticket, tron:git-commit, tron:git-dev, tron:git-pr, tron:git-pushtoprod, tron:close-worktree) rather than re-implementing any stage itself",
+    "Stays orchestration-only (haiku tier): it sequences and hands off, it does not add its own judgment to the individual moves",
+    "Confirms with the user at the promotion gates rather than pushing to dev or prod unattended"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "skills": ["video-publish"],
+  "query": "Build the publishing kit for the DevFees webinar - I need a YouTube title, description with chapters, and the socials cutdown specs.",
+  "files": [],
+  "expected_behavior": [
+    "Produces the full publishing kit: SEO title, description with timestamped chapters, tags, thumbnail brief, and end-screen/CTA",
+    "Gives the per-platform cutdown specs (aspect ratios plus length for YouTube/IG/FB/LI)",
+    "Produces copy with no em dashes (Facilitron voice)",
+    "Stays git-free: produces the metadata and specs, the upload happens in YouTube / the social tools"
+  ]
+}

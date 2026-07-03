@@ -1,0 +1,16 @@
+{
+  "skills": ["close-worktree"],
+  "mode": "deterministic",
+  "query": "Show the close-worktree skill's scripted teardown flags.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/close-worktree/scripts/close-worktree.sh", "-h"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": ["--force", "--keep-branch", "--keep-remote"]
+    }
+  },
+  "expected_behavior": [
+    "The scripted help target exits 0 offline and documents the idempotent teardown flags (--force, --keep-branch, --keep-remote), confirming the deterministic worktree+branch+tmux cleanup sequence the skill runs as one command instead of improvising N steps"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "skills": ["git-pushtoprod"],
+  "manual": true,
+  "query": "Push to prod - deploy master to staging and production.",
+  "files": [],
+  "sandbox": {
+    "setup": [
+      "git -c init.defaultBranch=master init -q",
+      "git config user.email eval@example.com",
+      "git config user.name Eval",
+      "printf 'app v1\\n' > app.txt",
+      "git add -A",
+      "git commit -qm 'chore: initial baseline'",
+      "git init -q --bare origin.git",
+      "printf 'origin.git/\\n' >> .git/info/exclude",
+      "git remote add origin \"$PWD/origin.git\"",
+      "git push -q -u origin master",
+      "git branch staging master",
+      "git push -q -u origin staging",
+      "git branch production master",
+      "git push -q -u origin production",
+      "printf 'app v2\\n' > app.txt",
+      "git commit -qam 'feat: ship v2'",
+      "git push -q origin master"
+    ]
+  },
+  "expected_behavior": [
+    "Runs the bundled scripts/git-pushtoprod.sh rather than improvising the promotion sequence",
+    "Promotes master by merging through staging first (this repo has a staging branch), then staging into production, rather than master straight to production",
+    "Applies the project rule that package*.json merge conflicts resolve with --ours and any other conflict aborts cleanly",
+    "Confirms with the user via AskUserQuestion before pushing to production rather than promoting unattended, and reports the resulting state",
+    "Never appends a Co-Authored-By line to any merge commit it creates"
+  ]
+}

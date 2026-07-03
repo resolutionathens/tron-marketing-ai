@@ -1,0 +1,11 @@
+{
+  "skills": ["md-to-pdf"],
+  "query": "Turn this toolkit SOP markdown into a downloadable branded PDF.",
+  "files": ["sop.md"],
+  "expected_behavior": [
+    "Renders the markdown from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes) rather than plain default styling",
+    "Writes the output PDF under /tmp/facilitron-md-to-pdf by default unless the user names another destination",
+    "Reserves the pandoc-from-markdown path as a fallback for quick prose-only output, not the primary branded render",
+    "Reports the output path and does not fabricate content that is not in the source markdown"
+  ]
+}

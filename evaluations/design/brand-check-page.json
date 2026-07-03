@@ -1,0 +1,11 @@
+{
+  "skills": ["brand-check"],
+  "query": "Brand check this staging page - are these the right colors and is the contrast ADA compliant? https://staging.facilitron.com/streaming",
+  "files": [],
+  "expected_behavior": [
+    "Resolves the live/staging URL as the target and audits it against Facilitron brand guidelines: palette / tron- Tailwind tokens, typography, and logo usage / clear-space",
+    "Checks WCAG color contrast using the deterministic scripts/contrast.sh helper rather than eyeballing ratios",
+    "Reports findings grouped by category with concrete pass/fail calls and the offending tokens or ratios",
+    "Stays git-free: reports findings and does not edit code, branch, or open PRs"
+  ]
+}
