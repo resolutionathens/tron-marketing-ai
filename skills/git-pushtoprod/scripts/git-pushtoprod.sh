@@ -8,9 +8,14 @@
 # package*.json conflicts resolve to --ours; any other conflict aborts.
 #
 # Usage:
-#   git-pushtoprod.sh [--no-jira] [--key <TICKET>]
-#     --no-jira     skip the Jira transition (e.g. GitHub-issue work, or tests)
-#     --key <KEY>   override the ticket key (default: parsed from the branch)
+#   git-pushtoprod.sh [--no-jira] [--key <TICKET>] [--worktree <abs-path>]
+#     --no-jira          skip the Jira transition (e.g. GitHub-issue work, or tests)
+#     --key <KEY>        override the ticket key (default: parsed from the branch)
+#     --worktree <path>  resolve the starting branch, dirty-check, and Jira key
+#                        from this path instead of $PWD. The worktree-integrated
+#                        shell resets $PWD to the MAIN checkout after every Bash
+#                        call, so a wt caller must pass the worktree explicitly
+#                        (same convention as git-dev.sh).
 #
 # Output: one JSON line on stdout (narration on stderr). `staging` is true/false
 # when the repo has a staging branch, or "skipped" when it has none. Examples:
@@ -20,16 +25,21 @@ set -euo pipefail
 
 log() { echo "git-pushtoprod: $*" >&2; }
 
-NO_JIRA=0; KEY=""
+NO_JIRA=0; KEY=""; WT=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-jira) NO_JIRA=1 ;;
     --key) KEY="${2:-}"; shift ;;
+    --worktree)
+      [[ -z "${2:-}" ]] && { echo '{"ok":false,"error":"missing-worktree-value"}'; exit 2; }
+      WT="$2"; shift ;;
     -*) echo "git-pushtoprod.sh: unknown flag '$1'" >&2; exit 2 ;;
     *) echo "git-pushtoprod.sh: unexpected argument '$1'" >&2; exit 2 ;;
   esac
   shift
 done
+# The worktree we start FROM: an explicit --worktree, else the current dir.
+WT="${WT:-$(pwd)}"
 
 ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 LIB="${ROOT:+$ROOT/tools/git/git-promote.sh}"
@@ -37,14 +47,17 @@ LIB="${ROOT:+$ROOT/tools/git/git-promote.sh}"
 # shellcheck source=/dev/null
 source "$LIB"
 
-MAIN="$(gp_main_repo)" || { echo '{"ok":false,"error":"not a git repo"}'; exit 1; }
+MAIN="$(git -C "$WT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+  && MAIN="${MAIN%/.git}" || { echo '{"ok":false,"error":"not a git repo"}'; exit 1; }
 
-if [[ -n "$(gp_dirty "$(pwd)")" ]]; then
+# Branch + dirty-check are worktree-scoped — read them from $WT, never $PWD
+# (which the wt-integrated shell resets to MAIN after every Bash call).
+if [[ -n "$(gp_dirty "$WT")" ]]; then
   echo '{"ok":false,"error":"dirty-working-tree","staging":false,"production":false}'; exit 1
 fi
 
-IN_WT=false; gp_in_worktree "$MAIN" && IN_WT=true
-START_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+IN_WT=false; gp_in_worktree "$MAIN" "$WT" && IN_WT=true
+START_BRANCH="$(git -C "$WT" rev-parse --abbrev-ref HEAD)"
 [[ -z "$KEY" ]] && KEY="$(printf '%s' "$START_BRANCH" | grep -oE '^[A-Z]+-[0-9]+' || true)"
 
 restore() {

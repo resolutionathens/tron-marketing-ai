@@ -8,6 +8,11 @@
 #   bash skills/circleci/scripts/test-circleci.sh
 set -euo pipefail
 
+# Hermetic git: a global `url.….insteadOf` rewrite (common on CI boxes) would
+# change what `git remote get-url origin` returns and silently kill the slug
+# checks under set -e.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/circleci.sh"
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/circleci-smoke.XXXXXX")"
@@ -35,12 +40,12 @@ has "$O" '"slug":"gh/Facilitron/marketing-pages"' "ssh remote → gh/Facilitron/
 pass "slug: git@github.com:Org/repo.git → gh/Org/repo"
 
 D="$(mkrepo gh-https 'https://github.com/Facilitron/marketing-pages.git')"
-O="$(bash "$SCRIPT" slug --repo "$D")"
+O="$(bash "$SCRIPT" slug --repo "$D" || true)"
 has "$O" '"slug":"gh/Facilitron/marketing-pages"' "https remote → gh/Facilitron/marketing-pages"
 pass "slug: https://github.com/Org/repo.git → gh/Org/repo"
 
 D="$(mkrepo bb 'git@bitbucket.org:team/thing.git')"
-O="$(bash "$SCRIPT" slug --repo "$D")"
+O="$(bash "$SCRIPT" slug --repo "$D" || true)"
 has "$O" '"slug":"bb/team/thing"' "bitbucket remote → bb/team/thing"
 pass "slug: bitbucket → bb/team/repo"
 

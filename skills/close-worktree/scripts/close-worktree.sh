@@ -92,12 +92,12 @@ REMOTE_DELETED=true
 
 # ---- 1. kill the tmux session (best-effort) --------------------------------
 # Match the session whose name starts with the ticket key (MD-1661) or the full
-# branch. Sessions are created from the branch name with '.'/':' swapped for '-'
-# (those are illegal in tmux session names), so match against the sanitized form.
-# Skipped silently when tmux isn't on PATH (headless run) — a missing
-# multiplexer is not a leftover.
+# branch. Session names come from wl_session_name_for_branch (worktree-lib.sh):
+# the branch with '.'/':' swapped for '-' (illegal in tmux session names), so
+# match against that sanitized form. Skipped silently when tmux isn't on PATH
+# (headless run) — a missing multiplexer is not a leftover.
 TICKET_KEY="$(printf '%s' "$BRANCH" | grep -oE '^[A-Z]+-[0-9]+' || true)"
-BRANCH_SESSION="$(printf '%s' "$BRANCH" | tr '.:' '--')"
+BRANCH_SESSION="$(wl_session_name_for_branch "$BRANCH")"
 if command -v tmux >/dev/null 2>&1; then
   SESSION="$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
     | grep -E "^(${TICKET_KEY:-$BRANCH_SESSION}|${BRANCH_SESSION})" | head -1 || true)"

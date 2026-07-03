@@ -38,54 +38,23 @@ Each returns one JSON line with an `ok` boolean. For everything else (create, ed
 
 ## Merging a PR — worktree-safe
 
-**Default to the server-side API merge** (no local git ops, safe from worktrees):
-
-```bash
-gh api -X PUT repos/:owner/:repo/pulls/<N>/merge -f merge_method=squash
-gh api -X DELETE repos/:owner/:repo/git/refs/heads/<branch>
-```
-
-Get the branch name: `gh pr view <N> --json headRefName --jq .headRefName`
+**Default to the server-side API merge** — no local git ops, so it's safe from a
+worktree. Use the scripted `gh.sh gh-merge-pr` (table above); the raw commands are
+in `reference/cli.md` § "Server-side (worktree-safe) merge commands".
 
 **Why not bare `gh pr merge` from a worktree:** `gh pr merge <N> --squash --delete-branch` runs local cleanup (`git checkout <default>`) that fails inside a worktree with `fatal: '<default>' is already checked out at <path>`. The merge succeeds but the error is a false alarm. From a regular (non-worktree) checkout, `gh pr merge` is fine.
 
 ## Common ad-hoc commands
 
 ```bash
-gh issue view <N>                             # look up an issue
-gh pr view <N>                                # look up a PR
-gh pr view <N> --comments                      # view PR comments thread
+gh pr view <N>                                # look up a PR (add --comments for the thread)
 gh pr checks <N> --watch                      # watch CI for a PR
-gh issue list --assignee @me --state open     # my open issues
-gh search issues "deploy" --owner facilitron  # search across a repo
-gh run list --limit 5                         # recent workflow runs
 gh run view <N> --log-failed                  # read a failed job log
-gh api repos/:owner/:repo/deployments?ref=<branch>  # find preview URLs
 ```
 
-## PR review inspection
-
-When checking a PR's review status:
-
-```bash
-# Overall review decision (APPROVED / CHANGES_REQUESTED / REVIEW_REQUIRED)
-gh pr view <N> --json reviewDecision --jq .reviewDecision
-
-# All reviews — who reviewed, what they said, and their verdict
-gh pr view <N> --json reviews --jq '.[] | {reviewer: .author.login, state: .state, body: .body}'
-
-# Inline comments (non-review threads)
-gh pr view <N> --json comments --jq '.[] | {author: .author.login, body: .body}'
-
-# Who was requested to review (pending)
-gh pr view <N> --json reviewRequests --jq '.[] | .requestedReviewer.login'
-
-# All at once — decision + reviews + comments
-gh pr view <N> --json reviews,comments,reviewDecision \
-  --jq '{decision: .reviewDecision, reviews: [.reviews[] | {reviewer: .author.login, state: .state, body: .body}], comments: [.comments[] | {author: .author.login, body: .body}]}'
-```
-
-For multi-step recipes (staging-URL lookup, watch CI, bulk-close), see `reference/cli.md`.
+For everything else — issue lookup/search, workflow runs, deployments/preview URLs,
+PR review inspection (the `--json reviews` jq recipes), and multi-step recipes
+(staging-URL lookup, watch CI, bulk-close) — see `reference/cli.md`.
 
 ## Troubleshooting
 

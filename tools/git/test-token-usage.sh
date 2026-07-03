@@ -34,6 +34,25 @@ echo '{"usage":{"input_tokens":500,"output_tokens":250}}' > "$TX2"
 out="$(bash "$SCRIPT" --transcript "$TX2")"
 check "flat .usage + sub-1k exact + zero caches" '*in 500 · out 250 · cache 0 read / 0 write*' "$out"
 
+# --- --session lookup: HOME fixture tree, portable stat (Linux + macOS) ------
+FAKEHOME="$TMP/home"
+mkdir -p "$FAKEHOME/.claude/projects/proj-a" "$FAKEHOME/.claude/projects/proj-b"
+SID="sess-1234"
+# Older copy in proj-a (stale), newer copy in proj-b — the newest must win.
+echo '{"usage":{"input_tokens":1,"output_tokens":1}}' > "$FAKEHOME/.claude/projects/proj-a/$SID.jsonl"
+echo '{"usage":{"input_tokens":500,"output_tokens":250}}' > "$FAKEHOME/.claude/projects/proj-b/$SID.jsonl"
+touch -t 202001010000 "$FAKEHOME/.claude/projects/proj-a/$SID.jsonl"
+touch -t 202601010000 "$FAKEHOME/.claude/projects/proj-b/$SID.jsonl"
+
+out="$(HOME="$FAKEHOME" bash "$SCRIPT" --session "$SID")"
+check "--session finds transcript under HOME (newest wins)" '*in 500 · out 250 · cache 0 read / 0 write*' "$out"
+
+out="$(HOME="$FAKEHOME" CLAUDE_CODE_SESSION_ID="$SID" bash "$SCRIPT")"
+check "env session id path works too" '*in 500 · out 250 · cache 0 read / 0 write*' "$out"
+
+out="$(HOME="$FAKEHOME" bash "$SCRIPT" --session no-such-session)"; rc=$?
+check "--session with unknown id -> empty" "" "$out"; check "--session with unknown id -> exit 0" "0" "$rc"
+
 # --- failure modes: all must be empty stdout + exit 0 ------------------------
 out="$(bash "$SCRIPT" --transcript "$TMP/does-not-exist.jsonl")"; rc=$?
 check "missing transcript -> empty" "" "$out"; check "missing transcript -> exit 0" "0" "$rc"

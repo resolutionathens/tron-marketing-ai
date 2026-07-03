@@ -33,8 +33,14 @@ If `nodeModulesEmpty` is true, run the project's install before launching dev.
 
 ## Set up the tmux session
 
+The session name is the branch sanitized for tmux — the canonical rule is
+`wl_session_name_for_branch` in `tools/worktree/worktree-lib.sh` (`.` and `:` are
+illegal in tmux session names and map to `-`); close-worktree matches sessions by
+the same rule:
+
 ```bash
-SESSION="$(printf '%s' '<branch-name>' | tr '.:' '--')"
+source "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/worktree/worktree-lib.sh"
+SESSION="$(wl_session_name_for_branch '<branch-name>')"
 tmux new-session -d -s "$SESSION" -c "<worktreePath>"
 tmux send-keys -t "$SESSION" 'vim .' Enter
 tmux split-window -v -t "$SESSION" -c "<worktreePath>"
