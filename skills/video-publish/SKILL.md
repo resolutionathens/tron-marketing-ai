@@ -60,6 +60,6 @@ YouTube / the social schedulers. Serves the webinar-sharing + YouTube-series wor
 
 ## Handoff
 
-Write `/tmp/video/<slug>-publish.md`. For social cutdowns, hand the copy to `tron:social-post`
+Write `/tmp/video/<slug>-publish.md` (slug = kebab-case of the title). For social cutdowns, hand the copy to `tron:social-post`
 (per-platform variants). Offer to drop the title/description on the ticket via `tron:jira-comment`
 (confirm first). The actual upload/scheduling is done by the owner in YouTube / the social tools.
