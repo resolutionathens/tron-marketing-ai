@@ -1,0 +1,11 @@
+{
+  "skills": ["board-scaffold"],
+  "query": "Set up the standard design-to-deliver sub-tasks under MCR-305 for the new event lanyards.",
+  "files": [],
+  "expected_behavior": [
+    "Looks up the parent ticket MCR-305 (via the jira/acli path) and recognizes this as the standard Facilitron creative production chain",
+    "Proposes the canonical sub-task sequence (Design, Design Approval, Order Logistics, Ordered, Delivered) as the template rather than inventing an ad hoc checklist",
+    "Previews the full set of sub-tasks it will create and confirms with the user via AskUserQuestion before writing anything to Jira",
+    "Stays git-free (Jira writes only) and does not create any sub-task until the user approves the preview"
+  ]
+}

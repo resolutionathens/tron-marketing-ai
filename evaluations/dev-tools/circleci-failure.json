@@ -1,0 +1,11 @@
+{
+  "skills": ["circleci"],
+  "query": "Why did CircleCI fail on my branch? Pull the logs for the failed job.",
+  "files": [],
+  "expected_behavior": [
+    "Resolves the pipeline/workflow for the branch and fetches the failed job's logs using the bundled scripts/circleci.sh subcommands (workflows, jobs, logs) rather than re-assembling curl|jq by hand",
+    "Identifies which job/step failed and relays the relevant log output rather than guessing at the cause",
+    "Surfaces a clean message if credentials or the CircleCI token are missing instead of inventing a result",
+    "Reports findings and does not rerun or mutate the pipeline unless the user explicitly asks"
+  ]
+}

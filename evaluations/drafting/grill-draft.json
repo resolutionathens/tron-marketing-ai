@@ -1,0 +1,11 @@
+{
+  "skills": ["grill"],
+  "query": "Poke holes in this landing-page draft before we ship it - what am I missing?",
+  "files": ["draft.md"],
+  "expected_behavior": [
+    "Reads the draft and interrogates it critically: surfaces hidden assumptions, vague or unbacked claims, missing edge cases, and the pushback a reviewer or customer will raise",
+    "Produces a Grill Memo with prioritized findings and a concrete fix for each, rather than rewriting the copy itself",
+    "Stays in its lane: finds weakness in the argument, does not check mechanics, and points to /prose-lint, /link-check, and /code-review for prose, links, and code",
+    "Stays git-free (does not branch, commit, or edit the content tree) - it critiques and hands back"
+  ]
+}

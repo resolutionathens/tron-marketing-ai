@@ -1,0 +1,16 @@
+{
+  "skills": ["figma-to-imagekit"],
+  "mode": "deterministic",
+  "query": "Show the figma-to-imagekit skill's scripted export commands.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/figma-to-imagekit/scripts/figma-export.sh", "-h"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": ["figma-export.sh parse-url", "figma-export.sh run"]
+    }
+  },
+  "expected_behavior": [
+    "The scripted help target exits 0 offline and documents the deterministic parse-url and run subcommands (download -> resize -> pngquant -> ImageKit upload) the skill fans out to, rather than the model hand-rolling sips/curl uploads"
+  ]
+}

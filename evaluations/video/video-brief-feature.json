@@ -1,0 +1,12 @@
+{
+  "skills": ["video-brief"],
+  "query": "Script the DevFees feature video and give me a shot list so an editor can start.",
+  "files": [],
+  "expected_behavior": [
+    "Pulls the video request / CCAL ticket and pins down purpose, audience, and key message before writing",
+    "Produces a production-ready brief plus a script/voiceover and a shot list an editor can work straight from",
+    "Points downstream to the production chain (Rough Cut -> GFX -> Color -> Sound -> Deliverables) and to remotion-narrated-film for generated/narrated explainers",
+    "Produces copy with no em dashes (Facilitron voice)",
+    "Stays git-free: it plans, editing happens in the NLE"
+  ]
+}

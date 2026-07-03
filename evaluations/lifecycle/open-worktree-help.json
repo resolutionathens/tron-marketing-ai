@@ -1,0 +1,16 @@
+{
+  "skills": ["open-worktree"],
+  "mode": "deterministic",
+  "query": "Show the open-worktree skill's scripted spine and its flags.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/open-worktree/scripts/open-worktree.sh", "-h"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": ["--branch", "--no-switch", "worktreePath"]
+    }
+  },
+  "expected_behavior": [
+    "The scripted help target exits 0 offline and documents the --branch/--repo/--no-switch flags and the JSON result shape (worktreePath, envCopied, nodeModulesEmpty), confirming the deterministic resolve + env-carryover spine the skill runs as one command"
+  ]
+}

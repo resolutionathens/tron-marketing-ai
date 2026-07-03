@@ -1,0 +1,20 @@
+{
+  "skills": ["confluence"],
+  "mode": "deterministic",
+  "query": "Show the confluence skill's scripted fast-path commands.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/confluence/scripts/confluence.sh", "-h"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": [
+        "confluence.sh resolve",
+        "confluence.sh fetch",
+        "confluence.sh images"
+      ]
+    }
+  },
+  "expected_behavior": [
+    "The scripted help target exits 0 offline and lists the deterministic resolve/fetch/images subcommands, confirming the id-resolution and body-fetch fast path the haiku skill delegates to rather than re-deriving the acli calls by hand"
+  ]
+}

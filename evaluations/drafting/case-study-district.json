@@ -1,0 +1,12 @@
+{
+  "skills": ["case-study"],
+  "query": "Turn these interview notes into a case study for Palmdale SD - they cut scheduling admin time and recovered rental revenue after moving to Facilitron.",
+  "files": [],
+  "expected_behavior": [
+    "Pulls available inputs (any linked Jira ticket or Confluence brief) and treats the quantified Results metrics as the spine of the draft",
+    "Uses AskUserQuestion to secure the 3-4 headline metrics and an attributable pull-quote (speaker plus title) before drafting rather than opening with an empty Results block",
+    "Structures the draft in the Facilitron Challenge -> Solution -> Results house format with a pull-quote and metrics, and flags genuinely missing facts with > TODO: instead of inventing numbers",
+    "Produces a markdown draft at a draft path (e.g. /tmp/...) with no em dashes (Facilitron voice)",
+    "Stays git-free (does not branch, commit, or write to the content tree) and offers handoff to tron:guide-item / tron:news-item or tron:md-to-pdf, confirming before any publish step"
+  ]
+}

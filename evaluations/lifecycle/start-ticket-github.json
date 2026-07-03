@@ -1,0 +1,11 @@
+{
+  "skills": ["start-ticket"],
+  "query": "Pick up GitHub issue owner/repo#42 and set up a branch for it.",
+  "files": [],
+  "expected_behavior": [
+    "Detects owner/repo#42 as a GitHub issue (not a Jira ticket) from the input format and looks it up to use as the spec",
+    "Runs the bundled scripts/start-ticket.sh to create the branch and worktree rather than improvising the git steps",
+    "Handles the GitHub path (no Jira transition) and moves into the worktree to begin the implementation against the issue",
+    "Scaffolds the workspace and kicks off work only: it does not commit, promote, or open a PR"
+  ]
+}

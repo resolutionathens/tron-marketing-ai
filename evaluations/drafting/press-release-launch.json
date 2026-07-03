@@ -1,0 +1,12 @@
+{
+  "skills": ["press-release"],
+  "query": "Draft the press release for our new Tickets product launch.",
+  "files": [],
+  "expected_behavior": [
+    "Asks for the load-bearing facts (announcement specifics, dateline city/date, an attributable executive quote, availability) via AskUserQuestion before drafting rather than fabricating them",
+    "Produces a markdown draft in standard AP-style PR structure: headline, subhead, dateline, body with quotes, boilerplate, and media contact",
+    "Uses > TODO: placeholders for facts it does not have instead of inventing quotes, dates, or numbers",
+    "Produces copy with no em dashes (Facilitron voice)",
+    "Stays git-free (drafts only, no branch/commit) and notes that publishing and distribution are a separate step"
+  ]
+}

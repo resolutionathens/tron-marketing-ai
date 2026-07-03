@@ -1,0 +1,12 @@
+{
+  "skills": ["seo-report"],
+  "query": "Build the monthly SEO report and summarize what changed in search last month.",
+  "files": [],
+  "expected_behavior": [
+    "Works from the Facilitron Search Console (GSC) report, pointing non-technical users to the hosted GSC Analyzer at seo.facilitron.work and engineers to the CLI rather than fabricating metrics",
+    "Interprets the GSC markdown into a shareable SEO summary plus a leadership translation and slide inputs",
+    "Proposes concrete follow-up tasks off the data",
+    "Optionally pulls GA4 context via the analytics MCP when useful",
+    "Stays git-free: interprets and repackages the report, does not branch or commit"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "skills": ["gh"],
+  "query": "What's the status of PR #214 - who reviewed it and did the checks pass?",
+  "files": [],
+  "expected_behavior": [
+    "Recognizes #214 as an existing GitHub PR and uses the gh CLI (via the skill's scripted fast-path, e.g. gh.sh gh-view-pr) rather than the web UI or a guess",
+    "Reports the PR's reviews and check status from the gh output without fabricating reviewers or results",
+    "Stays a read/inspect operation: does not merge, comment, or transition unless the user explicitly asks",
+    "Routes new-PR creation to tron:git-pr rather than trying to open a PR here"
+  ]
+}

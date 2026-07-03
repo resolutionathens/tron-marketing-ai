@@ -1,0 +1,16 @@
+{
+  "skills": ["circleci"],
+  "mode": "deterministic",
+  "query": "Show the CircleCI skill's scripted subcommands.",
+  "files": [],
+  "exec": {
+    "cmd": ["bash", "skills/circleci/scripts/circleci.sh", "-h"],
+    "expect": {
+      "exitCode": 0,
+      "stdoutContains": ["pipelines", "workflows", "artifacts", "logs"]
+    }
+  },
+  "expected_behavior": [
+    "The scripted help target exits 0 offline and lists the deterministic subcommands (pipelines, workflows, artifacts, logs) the skill shells out to instead of hand-assembling curl|jq pipelines"
+  ]
+}
