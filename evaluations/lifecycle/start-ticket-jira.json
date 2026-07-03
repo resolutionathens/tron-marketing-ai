@@ -1,0 +1,11 @@
+{
+  "skills": ["start-ticket"],
+  "query": "Start working on MD-1801.",
+  "files": [],
+  "expected_behavior": [
+    "Detects MD-1801 as a Jira ticket (not a GitHub issue) from the KEY-NUMBER format and looks it up to use as the spec",
+    "Runs the bundled scripts/start-ticket.sh to create the branch and worktree rather than hand-rolling the git worktree and branch-naming steps",
+    "Transitions the Jira ticket to In Progress and moves into the new worktree to begin the implementation",
+    "Scaffolds the workspace and kicks off work only: it does not commit, promote to dev/prod, or open a PR (those are separate lifecycle skills)"
+  ]
+}

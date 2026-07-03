@@ -1,0 +1,11 @@
+{
+  "skills": ["jira"],
+  "query": "What's the status of MD-1834 and who's it assigned to?",
+  "files": [],
+  "expected_behavior": [
+    "Recognizes MD-1834 as a Jira key and looks it up with the acli CLI rather than guessing or asking for a link",
+    "Reports the ticket's status, assignee, and summary from the acli output as pure orchestration, without inventing fields",
+    "Stays a read-only lookup: does not transition, assign, or comment unless the user explicitly asks, and points progress-comment work to tron:jira-comment",
+    "Does no heavier judgment or drafting itself (haiku orchestration tier), just resolves the key, runs acli, and relays the result"
+  ]
+}

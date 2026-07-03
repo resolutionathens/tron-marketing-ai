@@ -1,0 +1,32 @@
+{
+  "skills": ["git-dev"],
+  "manual": true,
+  "query": "Merge my feature branch to dev and push.",
+  "files": [],
+  "sandbox": {
+    "setup": [
+      "git -c init.defaultBranch=master init -q",
+      "git config user.email eval@example.com",
+      "git config user.name Eval",
+      "printf 'app\\n' > app.txt",
+      "git add -A",
+      "git commit -qm 'chore: initial baseline'",
+      "git init -q --bare origin.git",
+      "printf 'origin.git/\\n' >> .git/info/exclude",
+      "git remote add origin \"$PWD/origin.git\"",
+      "git push -q -u origin master",
+      "git branch dev master",
+      "git push -q -u origin dev",
+      "git switch -qc MD-1801-feature master",
+      "printf 'app\\nfeature line\\n' > app.txt",
+      "git commit -qam 'feat: add feature line'"
+    ]
+  },
+  "expected_behavior": [
+    "Runs the bundled scripts/git-dev.sh to merge the current feature branch into dev, rather than hand-rolling the checkout/merge/push sequence",
+    "Merges the feature branch into dev (not master) and pushes dev to origin",
+    "Applies the project rule that package*.json merge conflicts resolve with --ours and aborts cleanly on any other conflict rather than leaving a half-merged tree",
+    "Does not touch master or any production branch, and reports the merge result",
+    "Never appends a Co-Authored-By line to any commit it creates"
+  ]
+}

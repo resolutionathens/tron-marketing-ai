@@ -1,0 +1,12 @@
+{
+  "skills": ["creative-request"],
+  "query": "Work up a brief for MCR-123 - it's a design request for event swag hats.",
+  "files": [],
+  "expected_behavior": [
+    "Pulls the Jira ticket and any linked Confluence/Figma brief to ground the intake rather than starting from a blank brief",
+    "Pins down the deliverable specs (dimensions, format, brand tokens, deadline) via AskUserQuestion for anything the ticket does not already state",
+    "Produces a review-ready design brief plus an asset plan / checklist for the swag item",
+    "Routes the actual asset export downstream to tron:figma-to-imagekit or tron:gen-image rather than exporting assets itself",
+    "Stays git-free (does not branch, commit, or open PRs)"
+  ]
+}

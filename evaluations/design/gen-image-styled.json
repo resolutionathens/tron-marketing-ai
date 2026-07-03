@@ -1,0 +1,11 @@
+{
+  "skills": ["gen-image"],
+  "query": "Generate an image of a school gymnasium set up for an event, in the style of these reference photos.",
+  "files": ["refs/"],
+  "expected_behavior": [
+    "Treats the reference photos as a style source (color palette, lighting, mood, composition, medium) and the prompt subject as what to render",
+    "Runs the bundled scripts/gen-image.sh with the sources directory and subject rather than hand-rolling an image API call",
+    "Reports where the generated image was written and does not claim to have produced an image it did not generate",
+    "Asks for the missing inputs (subject or a sources folder) if the request lacks them rather than guessing"
+  ]
+}

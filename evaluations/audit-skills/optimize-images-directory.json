@@ -1,0 +1,11 @@
+{
+  "skills": ["optimize-images"],
+  "query": "These PNGs in ./assets are too large - compress them for web.",
+  "files": ["assets/"],
+  "expected_behavior": [
+    "Resolves ./assets as the target set of images to optimize",
+    "Delegates the run to the optimize-images-runner subagent via the Task tool rather than running pngquant, cwebp, or jpegoptim directly in the main session",
+    "Stays orchestration-only (haiku tier): resolves the target, hands off, and relays - it does not inline the tool run or add compression judgment the runner owns",
+    "Relays the runner's per-file savings report (or a clean tool-not-installed message with the install hint) rather than re-doing the work"
+  ]
+}

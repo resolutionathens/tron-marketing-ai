@@ -1,0 +1,12 @@
+{
+  "skills": ["onesheet"],
+  "query": "Make a one-pager sell sheet for our Streaming product.",
+  "files": [],
+  "expected_behavior": [
+    "Asks for the load-bearing facts (audience, top value props, proof points, CTA) via AskUserQuestion before drafting",
+    "Produces structured single-page markdown with headline, value props, proof points, how-it-works, and CTA sized for a branded PDF",
+    "Uses > TODO: placeholders instead of fabricating stats or customer numbers",
+    "Produces copy with no em dashes (Facilitron voice)",
+    "Stays git-free and hands the PDF render off to tron:md-to-pdf as a separate step"
+  ]
+}
