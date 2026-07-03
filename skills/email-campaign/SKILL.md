@@ -60,5 +60,5 @@ newsletter, District Launch Emails, Onboarding Emails, announcements).
 
 ## Handoff
 
-Write to `/tmp/content/<slug>-email.md`. Offer `tron:grill` for a copy pass. Note: the copy is pasted
+Write to `/tmp/content/<slug>-email.md` (slug = kebab-case of the title). Offer `tron:grill` for a copy pass. Note: the copy is pasted
 into the ESP (Customer.io / HubSpot / etc.) by the owner; this skill stops at approved copy.

@@ -78,7 +78,7 @@ Resize target: 1280px for 2x retina at 640px display, 1600px for hero images. Th
 ## 4. Upload to ImageKit
 
 ```bash
-IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
+IK="${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"   # $SKILL_DIR from the fast-path resolver above
 node "$IK" upload /tmp/optimized/filename.png --folder product/works/main --name filename.png
 ```
 

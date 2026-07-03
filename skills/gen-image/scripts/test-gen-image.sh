@@ -17,8 +17,8 @@ contains() { if printf '%s' "$3" | grep -qF -- "$2"; then echo "ok  : $1"; else 
 
 refdir="$TMP/refs"; mkdir -p "$refdir"
 printf 'x' > "$refdir/a.jpg"; printf 'x' > "$refdir/b.png"
-logo="$(ls ~/.claude/plugins/marketplaces/*/skills/md-to-pdf/facilitron-logo.png 2>/dev/null | head -1)"
-[ -f "$logo" ] || logo="$HERE/../../md-to-pdf/facilitron-logo.png"
+logo="$HERE/../../md-to-pdf/facilitron-logo.png"
+[ -f "$logo" ] || logo="$(ls ~/.claude/plugins/marketplaces/*/skills/md-to-pdf/facilitron-logo.png 2>/dev/null | head -1 || true)"
 [ -f "$logo" ] || { echo "SKIP: no sample PNG"; exit 0; }
 
 # ========================================================================================

@@ -124,16 +124,7 @@ Apply these when reformatting the raw source into the body:
 ## Internal-link reference
 
 Verify each internal link before saving — this is the #1 build-breaking pitfall.
-Common landing pages:
-
-| Want to link to                   | Correct path                                      | Notes                                                                                                |
-| --------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Facilitron Works product          | `/product/works`                                  | has `index.vue`                                                                                      |
-| Scheduling & Reservations product | `/product/facilitron-scheduling-and-reservations` | the directory `/product/scheduling-and-reservations/` has **no index page** — linking there is a 404 |
-| Building Automation Systems       | `/product/scheduling-and-reservations/bas`        | exists                                                                                               |
-| Facilitron FIT                    | `/product/facilitron-fit`                         |                                                                                                      |
-| Other toolkit items               | `/resources/toolkit/<slug>`                       |                                                                                                      |
-
-When unsure, run `find pages -type f -name "*.vue" | grep -i <keyword>` against the
-marketing-pages repo to confirm. Convert any `https://www.facilitron.com/...` URLs in
-the source to relative paths.
+One-line rule: `/product/scheduling-and-reservations/` has **no index page** — link to
+`/product/facilitron-scheduling-and-reservations`. The full path table and the
+`rewrite-links`/`check-link` flow live in `tools/content/internal-links.md` (linked
+from SKILL.md, step 2).

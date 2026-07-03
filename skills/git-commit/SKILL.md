@@ -15,9 +15,13 @@ Analyze changes, group them into atomic commits by logical concern, get user app
 
 ## Guard: never commit to master/main
 
-Check the current branch name. If it's `master` or `main`, block immediately:
+Check the current branch name with `git branch --show-current`. If it's `master` or `main`, block immediately:
 
 > You're on the default branch. Use `tron:start-ticket` to create a feature branch first.
+
+If the output is **empty**, HEAD is detached — stop and tell the user to create or
+check out a branch first (e.g. `git checkout -b <branch>`); never commit on a
+detached HEAD.
 
 If the branch name doesn't contain a Jira key (`[A-Z]+-\d+`), ask the user:
 
@@ -64,7 +68,14 @@ Show each commit's message and files. The user can approve, edit messages, regro
 For each group in order:
 
 1. `git add <files>`
-2. `git commit -m "$(cat <<'EOF'\n<message>\nEOF\n)"` — no Co-Authored-By line, no credits
+2. Commit with a real multi-line heredoc (same pattern as `tron:git-pr` Step 6) — no Co-Authored-By line, no credits:
+
+```bash
+git commit -m "$(cat <<'EOF'
+<message>
+EOF
+)"
+```
 
 If a commit fails (pre-commit hook), report and stop.
 

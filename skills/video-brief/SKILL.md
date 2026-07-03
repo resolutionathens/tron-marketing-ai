@@ -42,7 +42,7 @@ plans (brief + script + shot list); the edit happens in the editor. Most video w
 
 ## Output: brief + script + shot list
 
-Write `/tmp/video/<slug>-brief.md`:
+Write `/tmp/video/<slug>-brief.md` (slug = kebab-case of the title):
 
 ```markdown
 # <title> — video brief

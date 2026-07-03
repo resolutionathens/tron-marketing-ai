@@ -53,7 +53,6 @@ See [`reference/schema.md`](reference/schema.md) for: front-matter options, per-
 
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
-bash "$C" check-repo                       # must succeed
 bash "$C" slug "<title>"
 bash "$C" rewrite-links content/resources/toolkit/<slug>.md
 bash "$C" check-link /product/<path>
@@ -75,7 +74,7 @@ Find and read the source markdown. Note title, audience, links, category.
 ### 2. Reformat into toolkit schema
 Write `content/resources/toolkit/<slug>.md`. Four required front-matter fields: `title`, `description`, `date`, `category`. Follow the per-category skeleton in `reference/schema.md`.
 
-**Internal links — verify each before saving.** Convert `facilitron.com` URLs to relative paths. Use `find pages` or `check-link` to confirm each target exists. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`.
+**Internal links — rewrite, then verify each before saving:** run `bash "$C" rewrite-links content/resources/toolkit/<slug>.md` (facilitron.com → relative), then `bash "$C" check-link` each internal path. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 
 ### 2.5. Lint links
 ```bash
@@ -106,18 +105,7 @@ CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest toolkit)
 # CARD: {"<slug>.webp": "https://ik.imagekit.io/facilitron/toolkit/<slug>.webp"}
 ```
 
-If no image was provided, generate one from existing toolkit cards as style references:
-
-```bash
-RESULT=$(bash "$GENCARD" \
-  --folder toolkit \
-  --name "<slug>.webp" \
-  --size 1536x1024 \
-  --prompt "<subject prompt describing this item's content>" )
-FILE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['file'])")
-```
-
-Toolkit cards are landscape (1600×901 after webp conversion from the 1536×1024 generation size). See `../../tools/image/images-to-imagekit.md` for convert/upload mechanics.
+If no image was provided, generate one from existing toolkit cards as style references: `"$GENCARD"` with `--folder toolkit --name "<slug>.webp" --size 1536x1024` (toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size). Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
 
 ### 6. Clean up
 Remove source markdown and source image files. Don't touch `content/resources/toolkit/`.

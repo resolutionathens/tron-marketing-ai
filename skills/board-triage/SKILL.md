@@ -8,7 +8,6 @@ allowed-tools:
   - Read
   - AskUserQuestion
   - Skill
-  - WebFetch
 ---
 
 # /board-triage — Marketing board triage
@@ -22,13 +21,35 @@ after you confirm.
 Default board: **MCR** (the marketing master board). Hierarchy: Marketing Theme → Initiative →
 Campaign/Epic/Story/Task/Sub-task.
 
-## Pull the board
+## Fast path (scripted)
+
+The mechanical pull (search, per-key enrichment, bucket math) is one script — it emits the five
+lenses below as pre-digested JSON, so you never read raw per-ticket JSON:
+
+```bash
+name=board-triage
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/board-triage.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || { echo "tron:$name: scripts/board-triage.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/board-triage.sh" fetch                    # MCR, --limit 500, 14-day staleness
+bash "$SKILL_DIR/scripts/board-triage.sh" fetch --project ABC --stale-days 7
+```
+
+Output is one JSON object: `{project, total, truncated, unassigned, stale, missing_metadata,
+blocked, wip_load}` — each bucket a list of `{key, summary, status, assignee, priority, duedate,
+updated, parent, parent_summary}`. If `truncated` is true the board is larger than `--limit`;
+paginate or raise the limit. The raw enriched array is saved to `/tmp/manager/triage-enriched.json`
+for any follow-up query. If the script exits non-zero on Jira, surface the auth error and stop.
+
+## Manual fallback (if script unavailable)
 
 `acli jira workitem search` only returns a fixed set of fields and **rejects `--fields updated`,
 `duedate`, or `parent`** — so the bare search can't compute the stale / overdue / orphaned lenses.
 Pull the candidate keys with search, then **enrich each with `view`** (where those fields resolve):
 
 ```bash
+mkdir -p /tmp/manager
+
 # 1. Candidate set (keys + the fields search does return). Raise the limit / paginate — MCR has
 #    more than 200 non-Done items, and --limit 200 silently truncates.
 acli jira workitem search --jql 'project = MCR AND statusCategory != Done ORDER BY updated ASC' \
@@ -64,9 +85,13 @@ PROPOSED ACTIONS
   - nudge MCR-310 owner for status
 ```
 
-Use the team→role map to suggest _who_ fits (designer/content/seo). Use **AskUserQuestion** to batch
-the decisions. Apply approved assignments/priorities/transitions via `acli` and notes via
-`tron:jira-comment` — **only after confirmation**. Never mass-transition without a yes.
+For unassigned tickets, suggest a **role** (not a person) inferred from the ticket type:
+asset/Figma/swag/collateral work → **designer**; copy, page content, or resources items →
+**content**; keyword, meta, or ranking work → **seo**; build/deploy/navigation/code changes →
+**dev**. Leave the specific assignee to the user — they know the team's load and roster. Use
+**AskUserQuestion** to batch the decisions. Apply approved assignments/priorities/transitions via
+`acli` and notes via `tron:jira-comment` — **only after confirmation**. Never mass-transition
+without a yes.
 
 End with: counts (unassigned / stale / blocked), the top 3 things needing a human, and what you
 applied (if anything).

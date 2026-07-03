@@ -30,7 +30,7 @@ Detect from path: news article (`content/resources/news/`), guide (`pages/resour
 
 ### Step 2 — Apply the Grill-Me framework (4 dimensions)
 
-Use the per-type checklist from `references/grill-me.md`:
+Use the per-type checklist from `reference/grill-me.md`:
 
 | Dimension | What it surfaces |
 |-----------|-----------------|
@@ -75,7 +75,13 @@ Save to `/tmp/grill-<slug>.md`. This skill writes the memo only — it does not 
 {Right skill to move to.}
 ```
 
-### Verdict rules: Ship-ready = 0 blockers, ≤3 concerns. Needs Iteration = 1+ blockers or 4+ concerns. Pull Back = fundamental framing issue — reframe with `/brainstorm`.
+### Verdict rules
+
+| Verdict             | Threshold                                              |
+|---------------------|--------------------------------------------------------|
+| **Ship-ready**      | 0 blockers, ≤3 concerns                                |
+| **Needs Iteration** | 1+ blockers or 4+ concerns                             |
+| **Pull Back**       | Fundamental framing issue — reframe with `/brainstorm` |
 
 ## Anti-patterns
 

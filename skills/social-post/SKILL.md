@@ -58,6 +58,6 @@ happens in the social tools. For spotlights (new-hire / district / facility / pe
 
 ## Handoff
 
-Write `/tmp/social/<slug>-post.md`. Source imagery from the designer (`tron:gen-image` /
+Write `/tmp/social/<slug>-post.md` (slug = kebab-case of the title). Source imagery from the designer (`tron:gen-image` /
 `tron:figma-to-imagekit`); video cutdowns from `tron:video-publish`. The per-platform sub-tasks can
 be filed via the manager's `tron:board-scaffold`. Scheduling is done by the owner in the social tools.

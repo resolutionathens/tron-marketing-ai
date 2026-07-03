@@ -6,8 +6,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DS="$SCRIPT_DIR/dev-server.sh"
 
-pass() { printf "  \033[32m✓\033[0m %s\n" "$1"; }
+pass() { printf "  \033[32m✓\033[0m %s\n" "$1"; PASSES=$(( PASSES + 1 )); }
 fail() { printf "  \033[31m✗\033[0m %s\n" "$1"; FAILURES=$(( FAILURES + 1 )); }
+PASSES=0
 FAILURES=0
 
 # ---- stop on an unused port (idempotent) --------------------------------
@@ -66,7 +67,7 @@ if echo "$out_no_repo" | grep -q "marketing-pages"; then pass "start outside rep
 
 echo ""
 if [[ $FAILURES -eq 0 ]]; then
-  printf "\033[32mall %d tests passed\033[0m\n" "$(grep -c "^if " "$0" || true)"
+  printf "\033[32mall %d tests passed\033[0m\n" "$PASSES"
 else
   printf "\033[31m%d test(s) FAILED\033[0m\n" "$FAILURES"
   exit 1

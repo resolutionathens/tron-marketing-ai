@@ -8,7 +8,12 @@
 // - Runs pandoc with xelatex to produce a PDF
 //
 // Usage:
-//   bun "$CLAUDE_SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>]
+//   bun "$CLAUDE_SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>] [--emit-md]
+//
+// --emit-md stops after the parse/clean stage: it writes the intermediate
+// markdown (front matter stripped, ::faq expanded, checklists converted, logo +
+// title prepended) to <out>/<slug>.md and skips the pandoc/xelatex render.
+// Used by test-build.sh to test the parsing without a TeX toolchain.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, basename, dirname, resolve } from "node:path";
@@ -21,10 +26,13 @@ const LOGO_PATH = join(SKILL_DIR, "facilitron-logo.png");
 
 const args = process.argv.slice(2);
 let outDir = "/tmp/facilitron-md-to-pdf";
+let emitMdOnly = false;
 const files: string[] = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--out") {
     outDir = resolve(args[++i]);
+  } else if (args[i] === "--emit-md") {
+    emitMdOnly = true;
   } else {
     files.push(resolve(args[i]));
   }
@@ -99,8 +107,8 @@ function maybeWarnTableHeavy(md: string, slug: string): void {
       `⚠️  Heads up: this markdown has ${reason}.`,
       `   Pandoc/xelatex tables can break across pages awkwardly and squish wide columns.`,
       `   For better tabular layout, escalate to raw LaTeX:`,
-      `     cp ${SKILL_DIR}/template.tex /tmp/facilitron-md-to-pdf/${slug}.tex`,
-      `   See SKILL.md → "Escalating to LaTeX for table-heavy PDFs".`,
+      `     sed "s|@@SKILLDIR@@|${SKILL_DIR}|g" ${SKILL_DIR}/template.tex > /tmp/facilitron-md-to-pdf/${slug}.tex`,
+      `   See SKILL.md → "Two paths — default to LaTeX".`,
       ``,
     ].join("\n"),
   );
@@ -153,6 +161,11 @@ for (const file of files) {
   const mdPath = join(outDir, `${slug}.md`);
   const pdfPath = join(outDir, `${slug}.pdf`);
   writeFileSync(mdPath, fullMd);
+
+  if (emitMdOnly) {
+    console.log(`→ ${mdPath} (parse stage only, --emit-md)`);
+    continue;
+  }
 
   console.log(`→ ${pdfPath}`);
   // execFileSync (no shell) so a filename with shell metacharacters can't be

@@ -8,7 +8,6 @@ allowed-tools:
   - Read
   - Write
   - Skill
-  - WebFetch
 ---
 
 # /initiative-report — Initiative / theme progress roll-up
@@ -21,7 +20,30 @@ writes a status summary for sharing up.
 Given a parent key (Initiative/Theme/Epic/Campaign), pull it **plus every descendant** — not just
 direct children. `parent = <PARENT>` is **single-level**: on MCR an Initiative's real subtree is
 Initiative → Epic → Task → Sub-task (often 100+ items), so a one-level query computes % complete on
-the wrong denominator. Walk the tree breadth-first until no new children appear:
+the wrong denominator. Do **not** use `"Epic Link" = <PARENT>` — MCR's marketing hierarchy is
+`parent`-based and Epic Link adds zero rows.
+
+### Fast path (scripted)
+
+The mechanical walk (csv helper, breadth-first frontier loop, JQL assembly, status pull) is one
+script — it returns the parent, every descendant with status fields, and pre-computed counts:
+
+```bash
+name=initiative-report
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+[ -e "$SKILL_DIR/scripts/initiative-report.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/initiative-report.sh" ] && echo "$d"; done | sort -V | tail -1)"
+[ -e "$SKILL_DIR/scripts/initiative-report.sh" ] || { echo "tron:$name: scripts/initiative-report.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+bash "$SKILL_DIR/scripts/initiative-report.sh" fetch <PARENT-KEY>
+```
+
+Output is one JSON object: `{parent, counts: {total, done, in_progress, to_do}, descendants,
+truncated}`. If `truncated` is true, some level returned exactly `--limit` rows (default 200) —
+re-run with a higher `--limit` and note the board is larger than one page. The full descendant
+detail is also saved to `/tmp/manager/<PARENT>-descendants.json`. For a Theme the same walk applies
+(its Initiatives are just the first level down); optionally summarize per-Initiative as well as
+the rollup.
+
+### Manual fallback (if script unavailable)
 
 ```bash
 acli jira workitem view <PARENT> --json   # the parent itself
@@ -43,10 +65,8 @@ acli jira workitem search --jql "key in ($keys)" \
   --fields key,summary,status,assignee,duedate,updated --limit 1000 --json
 ```
 
-Do **not** use `"Epic Link" = <PARENT>` — MCR's marketing hierarchy is `parent`-based and Epic Link
-adds zero rows. For a Theme, the same BFS applies (its Initiatives are just the first level down);
-optionally summarize per-Initiative as well as the rollup. If any level hits the 200 cap, paginate
-(`--limit`/offset) and note the board is larger than one page.
+If any level hits the 200 cap, paginate (`--limit`/offset) and note the board is larger than one
+page.
 
 ## Compute
 
@@ -64,8 +84,8 @@ optionally summarize per-Initiative as well as the rollup. If any level hits the
 
 **Progress:** 12/20 done (60%) · 3 in progress · 5 to do
 **Shipped recently:** <bullets>
-**In flight:** <ticket — owner — note>
-**At risk:** <ticket — why>
+**In flight:** <ticket · owner · note>
+**At risk:** <ticket · why>
 **Next up:** <the few that should start>
 **Ask:** <any decision/resource needed from leadership>
 ```
@@ -75,5 +95,12 @@ optionally summarize per-Initiative as well as the rollup. If any level hits the
 - Lead with the percent + the one-line health (on track / at risk / blocked).
 - Plain prose, no em dashes, exec-readable. Don't editorialize beyond what the tickets show.
 
-Write `/tmp/manager/<slug>-status.md`. Offer `tron:md-to-pdf` for a polished version, or fold into
-the manager's `weekly-update`. Summarize health + the single most important ask.
+Write the summary:
+
+```bash
+mkdir -p /tmp/manager
+# then write /tmp/manager/<slug>-status.md
+```
+
+Offer `tron:md-to-pdf` for a polished version, or fold into the manager's `weekly-update`.
+Summarize health + the single most important ask.

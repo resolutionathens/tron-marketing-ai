@@ -9,7 +9,7 @@ allowed-tools:
 
 # Jira Interaction via acli
 
-Use the `acli` CLI tool (installed at `/opt/homebrew/bin/acli`) to interact with Jira.
+Use the `acli` CLI tool (locate it with `command -v acli`) to interact with Jira.
 
 ## Auto-trigger behavior
 
@@ -63,27 +63,7 @@ acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>
 
 ### Rich descriptions (markdown → ADF)
 
-**Key fact:** `acli` sends `--description` as plain text wrapped in a single ADF paragraph node. Jira Cloud's REST API v3 requires Atlassian Document Format (ADF) JSON for any structured content. **Markdown passed via `--description` renders literally** — `##`, `**bold**`, backticks, bullets all show up as raw characters.
-
-**Don't ask the user to paste into the Jira UI as a workaround.** Use the bundled helper (vendored in the plugin at `tools/md-to-adf/`, lazy-installs its dep on first run) to convert markdown → ADF and pass it via `--description-file`:
-
-```bash
-# Write the description as markdown, then convert (default preset: story):
-node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs" < /tmp/desc.md > /tmp/desc.adf.json
-
-# Create with rich formatting
-acli jira workitem create \
-  --project MD --type Task \
-  --summary "Your summary" \
-  --description-file /tmp/desc.adf.json
-
-# Or edit an existing ticket's description
-acli jira workitem edit --key MD-1234 --description-file /tmp/desc.adf.json --yes
-```
-
-The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support). It handles: headings, **bold**, _italic_, fenced code blocks, bullet/numbered lists, links, blockquotes, horizontal rules. Inline `code` (backtick) spans are flattened to plain text — `acli` rejects the ADF `code` mark with `INVALID_INPUT`, so the helper strips it (the text is kept, just unstyled); use a fenced code block when you need monospace. Tables and images aren't supported — if you need them, edit in the UI afterwards.
-
-**Rule:** any time the ticket description is more than a line or two, or uses any markdown formatting, go through the helper. Never pass markdown directly via `-d`/`--description`.
+**Rule:** any description more than a line or two, or with any markdown formatting, must go through the bundled `tools/md-to-adf` helper and `--description-file` — never pass raw markdown to `-d`/`--description` (it renders literally). Invocation, the acli plain-text gotcha, and the code-mark caveat: [tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md).
 
 ## Creating tickets
 
@@ -92,17 +72,13 @@ When creating a ticket in the MD project, prefix the summary per
 canonical (it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT repo). If the target
 repo isn't clear from context, ask the user which repo the ticket is for rather than guessing.
 
-## Project naming conventions
-
-See [tools/jira/conventions.md](../../tools/jira/conventions.md) for summary prefix rules by repo.
-
 ## Presentation guidelines
 
 - Lead with the ticket summary as a heading, then status and assignee
 - Format description text cleanly — Jira descriptions often have markup that needs tidying
 - When showing search results, use a compact table or list format
 - Use `--json` when you need to extract specific fields programmatically
-- If a command fails, check that `acli` is available at `/opt/homebrew/bin/acli` and report the error clearly
+- If a command fails, check that `acli` is on PATH (`command -v acli`) and report the error clearly
 
 ## When to delegate to a subagent
 

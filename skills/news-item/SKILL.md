@@ -47,10 +47,16 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
-bash "$C" check-repo                       # → must succeed (marketing-pages guard)
 bash "$C" slug "<summary>"                 # → {"ok":true,"slug":"…"}
 bash "$C" rewrite-links content/resources/news/<slug>.md
 bash "$C" check-link /product/<path>
+```
+
+## Preflight — marketing-pages repo guard
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo | grep -q '"isMarketingPages":true' \
+  || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
 ```
 
 ## Stage 1 — Intake
@@ -72,7 +78,10 @@ This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per r
 
 ## Stage 2 — Images
 
-Name each image after the section it illustrates. Naming + paths: [`reference/images.md`](reference/images.md)
+Name each image after the section it illustrates.
+
+- News-specific naming + paths: [`reference/images.md`](reference/images.md)
+- Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
 
 Run the image pipeline to convert and upload all body images in one shot — no per-image subagents needed:
 
@@ -81,8 +90,6 @@ PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.
 IMAGES=$(bash "$PIPE" --src /tmp/news-<slug>/raw --dest blog-posts/<slug>)
 # IMAGES: {"pm-plan-intro.webp": "https://ik.imagekit.io/facilitron/blog-posts/<slug>/pm-plan-intro.webp", ...}
 ```
-
-Parse the JSON to get each image's URL: `python3 -c "import sys,json; d=json.load(sys.stdin); print(d['pm-plan-intro.webp'])" <<< "$IMAGES"`
 
 The featured image has a different output name (`<slug>.webp`, not `featuredimg.webp`) — handle it directly:
 
@@ -99,13 +106,14 @@ Create `content/resources/news/<slug>.md`. Front-matter (`news` collection schem
 
 See `reference/components.md` for the full palette, front-matter shape, and MDC block syntax.
 
-**Internal links — verify each before saving.** Convert `https://www.facilitron.com/...` to relative paths:
+**Internal links — rewrite, then verify each before saving:**
 
 ```bash
-find pages -type f -name "*.vue" | grep -i <keyword>
+bash "$C" rewrite-links content/resources/news/<slug>.md   # facilitron.com → relative, in place
+bash "$C" check-link /product/<path>                       # once per internal path
 ```
 
-Known trap: `/product/scheduling-and-reservations/` has no index page — link to `/product/facilitron-scheduling-and-reservations`. Sub-paths like `/product/scheduling-and-reservations/automated-work-orders` are fine.
+Known trap: `/product/scheduling-and-reservations/` has no index page — link to `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 
 Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels source filename.
 
@@ -120,7 +128,7 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
    ```
    If no server is running yet (or ports are bound by siblings), start one:
    ```bash
-   DS="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/tron/tron/*/. 2>/dev/null | sort -V | tail -1 | sed 's|/\.$||')}/tools/content/dev-server.sh"
+   DS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/dev-server.sh"
    [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
    PORT="$(bash "$DS" start --route /resources/news/<slug>)"
    ```

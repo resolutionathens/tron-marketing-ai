@@ -42,13 +42,22 @@ quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and con
 ```markdown
 # Keyword map — <topic/page>
 
-## Primary targets | page | primary kw | intent | est. difficulty | current pos |
+## Primary targets
 
-## Clusters grouped supporting terms per page
+| page | primary kw | intent | est. difficulty | current pos |
+|------|------------|--------|-----------------|-------------|
 
-## Quick wins page-2 queries to push (pos 11–20)
+## Clusters
 
-## Gaps intents/terms with no page yet → content ideas
+Grouped supporting terms per page.
+
+## Quick wins
+
+Page-2 queries to push (pos 11–20).
+
+## Gaps
+
+Intents/terms with no page yet → content ideas.
 ```
 
 Write `/tmp/seo/keyword-map-<slug>.md`. Hand quick wins to `tron:landing-page-seo`; hand content
