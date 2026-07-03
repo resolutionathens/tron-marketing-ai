@@ -30,7 +30,8 @@ instead of reassembling `curl … | jq …` by hand.
 | **marketing-pages** per-branch URL              | `circleci.sh deploy-url <dev\|staging\|production>`          |
 | Config validate / process / local run           | `circleci.sh validate` · `process` · `local --job-name NAME` |
 
-It resolves the token from `$CIRCLECI_TOKEN` (else `~/.circleci/cli.yml`), defaults
+It authenticates through the org-secret broker (`secrets.facilitron.work/circleci/*`)
+via a `cloudflared`-minted Access token — no local `$CIRCLECI_TOKEN` needed — defaults
 the slug from `git remote origin` and the branch from `HEAD`, and emits one JSON
 line per verdict (`logs`/`process`/`validate`/`local` print raw text). Exit `0`
 success / `1` logical failure / `2` usage error. For `watch`, run it with
@@ -40,9 +41,16 @@ deploy-url table, the usage contract) with `bash "$SKILL_DIR/scripts/test-circle
 
 The recipes below are the reference for what each subcommand does under the hood.
 
-## Common harness recipes (raw v2 API)
+## Common harness recipes (raw v2 API via the broker)
 
-For curl calls, use `Circle-Token: $CIRCLECI_TOKEN`.
+Every recipe below routes through the org-secret broker, not `circleci.com` directly.
+Mint the Access token once per session and reuse it:
+
+```bash
+TOKEN="$(cloudflared access token --app=https://secrets.facilitron.work)"
+```
+
+For curl calls, use `CF-Access-Token: $TOKEN`.
 
 ### Latest pipeline for the current branch
 
@@ -50,20 +58,20 @@ For curl calls, use `Circle-Token: $CIRCLECI_TOKEN`.
 SLUG="gh/Facilitron/marketing-pages"
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/project/$SLUG/pipeline?branch=$BRANCH" \
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/project/$SLUG/pipeline?branch=$BRANCH" \
   | jq -r '.items[0] | {id, number, state, "vcs.revision": .vcs.revision}'
 ```
 
 ### Workflows in that pipeline (the green/red dots)
 
 ```bash
-PIPELINE_ID="$(curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/project/$SLUG/pipeline?branch=$BRANCH" \
+PIPELINE_ID="$(curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/project/$SLUG/pipeline?branch=$BRANCH" \
   | jq -r '.items[0].id')"
 
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/pipeline/$PIPELINE_ID/workflow" \
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/pipeline/$PIPELINE_ID/workflow" \
   | jq '.items[] | {name, status, id, created_at, stopped_at}'
 ```
 
@@ -72,8 +80,8 @@ curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
 ```bash
 WORKFLOW_ID="<workflow-id-from-above>"
 
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/job" \
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/workflow/$WORKFLOW_ID/job" \
   | jq '.items[] | {name, status, job_number, started_at, stopped_at}'
 ```
 
@@ -84,8 +92,8 @@ The CLI has no `watch` command — poll the API:
 ```bash
 WORKFLOW_ID="<id>"
 while true; do
-  STATUS="$(curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-    "https://circleci.com/api/v2/workflow/$WORKFLOW_ID" | jq -r .status)"
+  STATUS="$(curl -s -H "CF-Access-Token: $TOKEN" \
+    "https://secrets.facilitron.work/circleci/v2/workflow/$WORKFLOW_ID" | jq -r .status)"
   echo "$(date +%H:%M:%S) $STATUS"
   case "$STATUS" in
     success|failed|canceled|error|unauthorized|not_run) break ;;
@@ -101,12 +109,12 @@ Run this via `run_in_background: true` and use `Monitor` to stream the status li
 ```bash
 JOB_NUMBER="<number-from-above>"
 
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/project/$SLUG/$JOB_NUMBER/artifacts" \
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/project/$SLUG/$JOB_NUMBER/artifacts" \
   | jq '.items[] | {path, url}'
 
 # Download a single artifact (e.g., a deploy-url.txt that the deploy step writes)
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" -L "<artifact-url>"
+curl -s -H "CF-Access-Token: $TOKEN" -L "<artifact-url>"
 ```
 
 If the deploy step doesn't write a `deploy-url.txt` artifact (common case — most configs don't), the URL is wherever the deploy step printed it in the log. See next recipe.
@@ -116,8 +124,8 @@ If the deploy step doesn't write a `deploy-url.txt` artifact (common case — mo
 `circleci`'s CLI doesn't expose logs. The v2 API exposes them via `GET /api/v2/project/.../{job-number}` — but it's spread across nested step objects:
 
 ```bash
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/project/$SLUG/job/$JOB_NUMBER" \
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/project/$SLUG/job/$JOB_NUMBER" \
   | jq '.steps[].actions[] | select(.status=="failed" or .status=="success") | {name, output_url}' \
   | tail -20
 ```
@@ -140,21 +148,21 @@ curl -s -L "<deploy-step-output-url>" | grep -iE 'https?://[a-z0-9.-]+' | tail -
 WORKFLOW_ID="<id>"
 
 # Rerun everything
-curl -s -X POST -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/rerun" \
+curl -s -X POST -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/workflow/$WORKFLOW_ID/rerun" \
   -H "Content-Type: application/json" -d '{}'
 
 # Rerun only failed jobs (much faster)
-curl -s -X POST -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/workflow/$WORKFLOW_ID/rerun" \
+curl -s -X POST -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/workflow/$WORKFLOW_ID/rerun" \
   -H "Content-Type: application/json" -d '{"from_failed": true}'
 ```
 
 ### Trigger a fresh pipeline on a branch
 
 ```bash
-curl -s -X POST -H "Circle-Token: $CIRCLECI_TOKEN" \
-  "https://circleci.com/api/v2/project/$SLUG/pipeline" \
+curl -s -X POST -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/circleci/v2/project/$SLUG/pipeline" \
   -H "Content-Type: application/json" \
   -d "{\"branch\": \"$BRANCH\"}"
 ```
@@ -202,10 +210,10 @@ The v2 API returns JSON by default. Common idioms:
 
 ```bash
 # Just the field you care about
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" "<url>" | jq -r '.items[].status'
+curl -s -H "CF-Access-Token: $TOKEN" "<url>" | jq -r '.items[].status'
 
 # Paginate (default page-size is 25; max is 1000 for most endpoints)
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" "<url>?page-token=$NEXT" | jq .next_page_token
+curl -s -H "CF-Access-Token: $TOKEN" "<url>?page-token=$NEXT" | jq .next_page_token
 ```
 
 For UI tasks, `circleci open` opens the current project in the browser (no token needed for that).
