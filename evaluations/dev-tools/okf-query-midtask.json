@@ -1,0 +1,12 @@
+{
+  "skills": ["okf-query"],
+  "query": "I'm mid-task in the marketing-pages worktree and about to do the git flow, but I'm not sure this org's convention was in my standing rules. Is there a playbook for how we handle git flow here?",
+  "files": [],
+  "expected_behavior": [
+    "Recognizes this as an on-demand OKF playbook lookup and reaches for tron:okf-query rather than guessing the convention or reading a local bundle from disk",
+    "Uses the bundled tools/okf/okf.mjs CLI against TRON_API_URL, not a reimplemented query or a knowledge/ file read (the bundle does not travel into the worker's worktree)",
+    "Follows select-then-load: filters the manifest first with select (by type/tags/id-prefix, e.g. --tags git), then loads only the chosen concept bodies — never pulls the whole bundle",
+    "Stays read-only orchestration (haiku tier): resolves the query, shells out to the CLI, relays the returned playbook; it does not branch, commit, or write",
+    "Degrades gracefully if TRON_API_URL is unset or the API is unreachable — falls back to the front-loaded standing rules instead of blocking"
+  ]
+}

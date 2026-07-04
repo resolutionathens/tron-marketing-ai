@@ -1,0 +1,11 @@
+{
+  "name": "tron-okf-cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "OKF query CLI for the tron plugin. Lets a running worker pull OKF playbooks by type/tags mid-task over the control-plane API (TRON_API_URL). Client half of MD-1997; calls the MD-1988 select/load HTTP surface. Zero deps — Node 18+ global fetch.",
+  "type": "module",
+  "bin": { "okf": "./okf.mjs" },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
