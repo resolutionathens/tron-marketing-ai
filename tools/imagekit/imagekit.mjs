@@ -92,7 +92,7 @@ function die(msg) {
 
 async function cmdUpload(flags, positional) {
   const filePath = positional[0];
-  if (!filePath) die('Usage: upload <file-path> [--name <name>] [--folder <path>] [--tags <t1,t2>]');
+  if (!filePath) die('Usage: upload <file-path> [--name <name>] [--folder <path>] [--tags <t1,t2>] [--useUniqueFileName <true|false>]');
   if (!fs.existsSync(filePath)) die(`File not found: ${filePath}`);
 
   const fd = new (await import('node:buffer')).File(
@@ -104,10 +104,14 @@ async function cmdUpload(flags, positional) {
   if (flags.folder) form.append('folder', flags.folder);
   if (flags.tags) form.append('tags', flags.tags);
 
-  // Always keep exact filenames and overwrite existing files — without these
+  // Default to exact filenames and overwrite existing files — without these
   // ImageKit appends a random suffix (e.g. file_aB3xK.pdf) by default, which
-  // breaks the exact-filename lookups the content skills rely on.
-  form.append('useUniqueFileName', 'false');
+  // breaks the exact-filename lookups the content skills rely on. Pass
+  // --useUniqueFileName true to opt back into ImageKit's unique-suffix behavior.
+  const useUniqueFileName = flags.useUniqueFileName !== undefined
+    ? String(flags.useUniqueFileName) === 'true'
+    : false;
+  form.append('useUniqueFileName', String(useUniqueFileName));
   form.append('overwriteFile', 'true');
 
   const b = broker();
