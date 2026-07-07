@@ -13,10 +13,12 @@ scout:
   category: media
   effects: [local]
   inputs:
-    - key: target
-      label: "Files or folder"
+    - key: path
+      label: "Images path"
       type: path
       required: true
+      placeholder: "Pick a folder/PNG, or type a glob"
+      accept: ".png"
 ---
 
 # /optimize-images — image compression (pngquant · cwebp · jpegoptim)

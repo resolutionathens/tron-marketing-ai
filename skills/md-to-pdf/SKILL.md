@@ -15,10 +15,12 @@ scout:
   category: media
   effects: [local]
   inputs:
-    - key: file
+    - key: source
       label: "Markdown file"
       type: path
       required: true
+      placeholder: "Pick the markdown to render to PDF"
+      accept: ".md,.markdown"
 ---
 
 # Facilitron Markdown → PDF

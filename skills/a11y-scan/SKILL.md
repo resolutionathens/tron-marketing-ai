@@ -9,6 +9,11 @@ allowed-tools:
 scout:
   surface: developer
   effects: [report]
+  inputs:
+    - key: url
+      label: "Page URL"
+      type: text
+      required: true
 ---
 
 # /a11y-scan — Accessibility scan (pa11y + axe)

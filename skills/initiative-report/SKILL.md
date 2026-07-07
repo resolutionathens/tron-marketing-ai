@@ -16,10 +16,11 @@ scout:
   category: tickets
   effects: [draft]
   inputs:
-    - key: initiative
-      label: "Initiative, epic, or theme"
+    - key: parent
+      label: "Initiative / Theme / Epic"
       type: text
       required: true
+      placeholder: "Parent key, e.g. MCR-1200"
 ---
 
 # /initiative-report — Initiative / theme progress roll-up

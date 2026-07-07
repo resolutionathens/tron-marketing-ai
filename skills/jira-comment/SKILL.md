@@ -15,11 +15,12 @@ scout:
   effects: [jira]
   inputs:
     - key: ticket
-      label: "Ticket key"
+      label: "Ticket"
       type: text
       required: true
-    - key: update
-      label: "What happened"
+      placeholder: "e.g. MCR-1801"
+    - key: comment
+      label: "Comment"
       type: textarea
       required: true
 ---

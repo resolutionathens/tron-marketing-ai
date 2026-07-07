@@ -18,10 +18,10 @@ scout:
   effects: [draft]
   inputs:
     - key: period
-      label: "Reporting period"
+      label: "Period"
       type: text
       required: false
-      placeholder: "e.g. June 2026 — defaults to last month"
+      placeholder: "e.g. last-30-days (optional)"
 ---
 
 # /seo-report — work with the Search Console report

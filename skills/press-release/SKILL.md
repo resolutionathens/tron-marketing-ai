@@ -19,9 +19,10 @@ scout:
   effects: [draft]
   inputs:
     - key: announcement
-      label: "What's being announced"
+      label: "Announcement"
       type: textarea
       required: true
+      help: "What's being announced — the news, the who/what/when."
 ---
 
 # /press-release — Press release drafter

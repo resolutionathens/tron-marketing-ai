@@ -18,11 +18,11 @@ scout:
   category: qa
   effects: [report]
   inputs:
-    - key: asset
-      label: "Image, Figma frame, or URL"
+    - key: target
+      label: "Asset or page"
       type: text
       required: true
-      placeholder: "A file path, Figma link, or page URL"
+      help: "A URL, a route, or a path to the asset to audit against the brand."
 ---
 
 # /brand-check — Brand & contrast audit

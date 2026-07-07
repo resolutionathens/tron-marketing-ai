@@ -17,10 +17,11 @@ scout:
   category: seo
   effects: [draft]
   inputs:
-    - key: topic
-      label: "Topic or page"
-      type: text
+    - key: seed
+      label: "Seed topics"
+      type: textarea
       required: true
+      help: "Seed keywords / topics to research and cluster."
 ---
 
 # /keyword-research — Keyword research + clustering

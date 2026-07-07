@@ -26,6 +26,7 @@ scout:
       label: "Target queries"
       type: text
       required: false
+      help: "The search queries this page should rank for (optional)."
 ---
 
 # /seo-audit — On-page + technical SEO audit

@@ -7,6 +7,12 @@ allowed-tools:
   - Bash
 scout:
   surface: false
+  inputs:
+    - key: query
+      label: "Page or query"
+      type: text
+      required: true
+      placeholder: "Page title or what to pull from Confluence"
 ---
 
 # Confluence Page Fetcher

@@ -18,15 +18,15 @@ scout:
   category: drafting
   effects: [draft]
   inputs:
-    - key: source
-      label: "Source material"
-      type: textarea
-      required: true
-      placeholder: "Notes, metrics, a ticket key, or a Confluence link"
-    - key: customer
+    - key: subject
       label: "Customer / district"
       type: text
-      required: false
+      required: true
+    - key: notes
+      label: "Notes & metrics"
+      type: textarea
+      required: true
+      help: "Raw notes, quotes, and numbers to build the case study from."
 ---
 
 # /case-study — Customer / district case study drafter
