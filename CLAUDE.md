@@ -15,9 +15,10 @@ consumer-facing install/dependency docs; this file is for editing the plugin.
 
 ## SKILL.md frontmatter
 
-Every skill declares `name`, `description`, `model`, `effort`, and (when it needs more than the
-default) `allowed-tools`. The `description` is the **only** thing the router sees — it must carry
-the trigger phrases, so keep it dense and example-heavy.
+Every skill declares `name`, `description`, `model`, `effort`, a `scout:` display block (see
+below), and (when it needs more than the default) `allowed-tools`. The `description` is the
+**only** thing the router sees — it must carry the trigger phrases, so keep it dense and
+example-heavy.
 
 ### Model + effort routing (deliberate — match the tier to the work)
 
@@ -30,6 +31,43 @@ the trigger phrases, so keep it dense and example-heavy.
 When you add or edit a skill, pick the cheapest tier that does the job. An orchestration-only
 skill set to `sonnet` is a routing bug (this is what was wrong with `a11y-scan`). If a skill says
 "runs on Haiku to keep cost low," its frontmatter must agree.
+
+### The `scout:` block (required on every skill — MD-2006/MD-2007)
+
+The Scout desktop app (tron-os) derives its user-facing skills catalog from this frontmatter.
+The `description` is written for the agent router; `scout:` is written for a human reading a
+card. **A skill without a scout block defaults to user-surfaced with auto-derived card text** —
+the agent-prose-on-a-card problem this block exists to prevent — so every new skill must declare
+one.
+
+```yaml
+scout:
+  surface: true            # true | developer | false — see the tier rule below
+  title: "Get a ticket dev-ready"        # verb-first human title; the card's headline
+  blurb: "Fleshes out thin tickets with background, links, and acceptance criteria."
+  when: "A ticket is just a title and someone needs to actually build it."
+  category: tickets        # tickets | drafting | qa | seo | media → Scout's task groups
+  effects: [jira]          # draft | report | jira | publish | cdn | local
+  inputs:                  # the run form Scout renders before launching
+    - key: tickets
+      label: "Ticket key(s)"
+      type: text           # text | textarea | path (path gets a Browse picker)
+      required: true
+      placeholder: "MD-1234, MD-1235"   # optional; also: help, accept (e.g. ".md,.png")
+```
+
+**Surface tier rule:** anything that touches the website (publishing pipelines, live-page QA
+scanners, CDN uploads, CI, the git lifecycle) is `developer` — visible only in Scout's developer
+mode; end users draft, plan, research, and report. Pure agent plumbing (`okf-query`,
+`confluence`, `jira`) is `false` — never shown. Everything else is `true` with full display
+copy (title, blurb, when, category, effects, inputs).
+
+**Effects are load-bearing, not just badges:** `publish` is what routes a Scout run through the
+git lifecycle (branch → PR → parked at the gate); everything else stops for review with no PR.
+Scout also enforces tiers server-side (a locked instance 403s developer-tier runs), and tron-os
+pins the schema with hermetic fixtures in `test/fixtures/plugin-skills/` — if you change a
+pinned skill's scout block shape, sync the fixture. Only user-tier skills need full display
+copy; `developer`/`false` blocks can stay minimal (surface + effects + inputs).
 
 ## Deterministic scripts
 
