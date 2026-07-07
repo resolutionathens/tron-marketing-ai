@@ -15,9 +15,11 @@ scout:
   effects: [report]
   inputs:
     - key: target
-      label: "File or folder"
+      label: "Draft path"
       type: path
       required: true
+      placeholder: "Pick the markdown / draft to lint"
+      accept: ".md,.markdown,.txt"
 ---
 
 # /prose-lint — Prose / style lint

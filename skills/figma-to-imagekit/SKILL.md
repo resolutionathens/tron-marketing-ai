@@ -10,6 +10,12 @@ allowed-tools:
 scout:
   surface: developer
   effects: [cdn]
+  inputs:
+    - key: figmaUrl
+      label: "Figma URL"
+      type: text
+      required: true
+      placeholder: "Figma file or frame URL to export"
 ---
 
 # Figma to ImageKit Export Pipeline

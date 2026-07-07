@@ -7,6 +7,11 @@ allowed-tools:
   - Bash
 scout:
   surface: false
+  inputs:
+    - key: query
+      label: "JQL or ticket key"
+      type: text
+      required: true
 ---
 
 # Jira Interaction via acli

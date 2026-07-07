@@ -15,11 +15,11 @@ scout:
   category: drafting
   effects: [draft]
   inputs:
-    - key: idea
-      label: "The idea"
+    - key: topic
+      label: "Topic"
       type: textarea
       required: true
-      placeholder: "A topic, campaign, name, or hunch — rough is fine"
+      help: "The subject to brainstorm angles / ideas for."
 ---
 
 # /brainstorm — Ideation Workshop

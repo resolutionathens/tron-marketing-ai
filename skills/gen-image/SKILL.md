@@ -13,14 +13,18 @@ scout:
   category: media
   effects: [local]
   inputs:
-    - key: prompt
-      label: "What to create"
-      type: textarea
-      required: true
-    - key: references
-      label: "Reference images folder"
+    - key: sources
+      label: "Reference images"
       type: path
+      required: true
+      help: "Folder or image files whose visual style the new image should match."
+      placeholder: "Pick a folder of reference images"
+      accept: ".jpg,.jpeg,.png,.webp"
+    - key: subject
+      label: "Subject (optional)"
+      type: textarea
       required: false
+      help: "What the new image should depict. Omit to match the references' subject matter."
 ---
 
 # gen-image

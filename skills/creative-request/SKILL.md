@@ -20,11 +20,16 @@ scout:
   category: drafting
   effects: [draft]
   inputs:
-    - key: ticket
-      label: "Jira ticket key"
-      type: text
+    - key: brief
+      label: "Brief"
+      type: textarea
       required: true
-      placeholder: "MCR-123"
+      help: "What to design and why — the creative ask in your words."
+    - key: references
+      label: "References"
+      type: text
+      required: false
+      placeholder: "Links or ticket keys for inspiration / source assets"
 ---
 
 # /creative-request — Creative intake → design brief

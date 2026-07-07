@@ -20,11 +20,7 @@ scout:
   effects: [draft]
   inputs:
     - key: url
-      label: "Page URL"
-      type: text
-      required: true
-    - key: keywords
-      label: "Target keywords"
+      label: "Landing page URL"
       type: text
       required: true
 ---

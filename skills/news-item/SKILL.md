@@ -12,6 +12,15 @@ allowed-tools:
 scout:
   surface: developer
   effects: [publish, cdn]
+  inputs:
+    - key: topic
+      label: "Topic / headline"
+      type: text
+      required: true
+    - key: notes
+      label: "Notes"
+      type: textarea
+      required: false
 ---
 
 # Facilitron News Item

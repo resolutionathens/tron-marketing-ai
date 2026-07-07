@@ -17,10 +17,10 @@ scout:
   effects: [report]
   inputs:
     - key: draft
-      label: "The draft"
-      type: path
+      label: "Draft to stress-test"
+      type: textarea
       required: true
-      placeholder: "Browse to the draft file, or paste the text"
+      help: "Paste the draft (or a path to it) whose claims to pressure-test."
 ---
 
 # /grill — Critical Interrogation Pass

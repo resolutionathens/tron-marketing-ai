@@ -12,6 +12,15 @@ description: Add a new item (checklist, SOP, or template) to the Facilitron mark
 scout:
   surface: developer
   effects: [publish, cdn]
+  inputs:
+    - key: topic
+      label: "Toolkit item"
+      type: text
+      required: true
+    - key: notes
+      label: "Notes"
+      type: textarea
+      required: false
 ---
 
 # Facilitron Toolkit Item

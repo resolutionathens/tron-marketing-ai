@@ -8,6 +8,11 @@ allowed-tools:
 scout:
   surface: developer
   effects: [report]
+  inputs:
+    - key: url
+      label: "Site / page URL"
+      type: text
+      required: true
 ---
 
 # /site-audit — Site-wide Lighthouse audit

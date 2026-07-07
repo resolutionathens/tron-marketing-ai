@@ -9,6 +9,12 @@ allowed-tools:
 scout:
   surface: developer
   effects: [report]
+  inputs:
+    - key: target
+      label: "URL or path"
+      type: path
+      required: true
+      placeholder: "Type a URL, or browse to a markdown file/glob"
 ---
 
 # /link-check — Broken-link check

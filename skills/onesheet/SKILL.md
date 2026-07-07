@@ -19,9 +19,14 @@ scout:
   effects: [draft]
   inputs:
     - key: product
-      label: "Product or feature"
+      label: "Product / feature"
       type: text
       required: true
+    - key: highlights
+      label: "Highlights"
+      type: textarea
+      required: false
+      help: "Key benefits or points to lead with (optional)."
 ---
 
 # /onesheet — Product onesheet drafter

@@ -18,8 +18,13 @@ scout:
   category: drafting
   effects: [draft]
   inputs:
-    - key: topic
-      label: "Topic or ticket"
+    - key: kind
+      label: "Email type"
+      type: text
+      required: true
+      placeholder: "newsletter · launch · onboarding · announcement"
+    - key: goal
+      label: "Goal & key points"
       type: textarea
       required: true
 ---

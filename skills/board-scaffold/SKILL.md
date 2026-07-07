@@ -17,10 +17,10 @@ scout:
   effects: [jira]
   inputs:
     - key: parent
-      label: "Parent ticket key"
+      label: "Parent ticket"
       type: text
       required: true
-      placeholder: "MCR-123"
+      placeholder: "Parent key to scaffold sub-tasks under"
 ---
 
 # /board-scaffold — Templated sub-task scaffolding
