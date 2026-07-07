@@ -6,6 +6,19 @@ description: Enrich existing Jira tickets with implementation-ready descriptions
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: true
+  title: "Get a ticket dev-ready"
+  blurb: "Fleshes out thin tickets with background, source links, acceptance criteria, and implementation notes — pulled from parents, links, and comments."
+  when: "A ticket is just a title and someone needs to actually build it."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: tickets
+      label: "Ticket key(s)"
+      type: text
+      required: true
+      placeholder: "MD-1234, MD-1235"
 ---
 
 # Enrich Jira Ticket

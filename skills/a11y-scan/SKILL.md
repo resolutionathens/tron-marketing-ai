@@ -6,6 +6,9 @@ description: "Run automated accessibility (WCAG) scans against a URL or sitemap 
 allowed-tools:
   - Task
   - Bash
+scout:
+  surface: developer
+  effects: [report]
 ---
 
 # /a11y-scan — Accessibility scan (pa11y + axe)

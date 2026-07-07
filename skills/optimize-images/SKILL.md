@@ -5,6 +5,18 @@ effort: low
 description: "Compress and convert raster images (PNG, JPEG/JPG, WebP) to reduce file size while preserving visual quality, using pngquant, cwebp, and jpegoptim. Use this skill whenever the user wants to compress, optimize, shrink, or reduce the size of images or photos. Also trigger when the user mentions pngquant, cwebp, image optimization, image compression, 'convert to webp', or says things like 'these PNGs/JPGs are too large', 'compress these images', 'compress these photos', 'optimize for web', 'reduce image file size', or 'make these images smaller'. Even if the user just says 'optimize these images/photos' near image files, this skill applies."
 allowed-tools:
   - Task
+scout:
+  surface: true
+  title: "Compress images"
+  blurb: "Shrinks PNGs and JPEGs for the web without visible quality loss, and reports the savings."
+  when: "Image files are too heavy to upload or ship."
+  category: media
+  effects: [local]
+  inputs:
+    - key: target
+      label: "Files or folder"
+      type: path
+      required: true
 ---
 
 # /optimize-images — image compression (pngquant · cwebp · jpegoptim)

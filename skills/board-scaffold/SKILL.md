@@ -8,6 +8,19 @@ allowed-tools:
   - Read
   - AskUserQuestion
   - Skill
+scout:
+  surface: true
+  title: "Scaffold creative sub-tasks"
+  blurb: "Creates the standard Design → Approval → Order → Delivered sub-task chain under a parent ticket."
+  when: "A new swag or collateral request needs its standard sub-tasks."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: parent
+      label: "Parent ticket key"
+      type: text
+      required: true
+      placeholder: "MCR-123"
 ---
 
 # /board-scaffold — Templated sub-task scaffolding

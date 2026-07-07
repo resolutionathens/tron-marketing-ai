@@ -6,6 +6,8 @@ description: "Merge the current feature branch into the dev branch and push. Use
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Merge to Dev Assistant

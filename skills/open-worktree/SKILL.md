@@ -6,6 +6,8 @@ description: "Open a git worktree in a new tmux session with vim and a terminal,
 allowed-tools:
   - Bash
   - Read
+scout:
+  surface: developer
 ---
 
 # Open Worktree

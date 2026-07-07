@@ -8,6 +8,19 @@ allowed-tools:
   - AskUserQuestion
   - Read
   - Skill
+scout:
+  surface: true
+  title: "Write my weekly update"
+  blurb: "Pulls your week's activity from Jira, asks three quick questions, and copies a ready-to-send status email to your clipboard."
+  when: "It's Monday and the weekly update is due Tuesday morning."
+  category: tickets
+  effects: [local]
+  inputs:
+    - key: window
+      label: "Time window"
+      type: text
+      required: false
+      placeholder: "since last Monday (default)"
 ---
 
 # Weekly Update Generator

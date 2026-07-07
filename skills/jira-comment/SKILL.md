@@ -6,6 +6,22 @@ description: Add a short, plain-language progress or summary comment to a Jira t
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: true
+  title: "Post a ticket update"
+  blurb: "Writes a short, plain-language progress note on a ticket — in your voice, not robot voice."
+  when: "A ticket needs a status note and you don't want to write it."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: ticket
+      label: "Ticket key"
+      type: text
+      required: true
+    - key: update
+      label: "What happened"
+      type: textarea
+      required: true
 ---
 
 # Jira Comment

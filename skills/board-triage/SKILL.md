@@ -8,6 +8,14 @@ allowed-tools:
   - Read
   - AskUserQuestion
   - Skill
+scout:
+  surface: true
+  title: "Triage the board"
+  blurb: "Reviews the marketing board for stale, unassigned, or blocked tickets and suggests what to do with each."
+  when: "Start of the week, or the board feels out of control."
+  category: tickets
+  effects: [jira]
+  inputs: []
 ---
 
 # /board-triage — Marketing board triage

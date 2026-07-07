@@ -10,6 +10,18 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft a spotlight"
+  blurb: "Writes a people, district, or facility spotlight in the house structure — who/what, quote, CTA — with per-platform variants."
+  when: "You're featuring a person, district, or facility on social."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: subject
+      label: "Who or what to spotlight"
+      type: textarea
+      required: true
 ---
 
 # /spotlight — Spotlight post drafter

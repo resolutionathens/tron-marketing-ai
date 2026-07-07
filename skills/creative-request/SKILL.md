@@ -12,6 +12,19 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Prep a creative brief"
+  blurb: "Reads a design ticket and its Figma/Confluence links, then produces a review-ready brief and asset plan."
+  when: "A creative ticket landed and you want the brief written before design starts."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: ticket
+      label: "Jira ticket key"
+      type: text
+      required: true
+      placeholder: "MCR-123"
 ---
 
 # /creative-request — Creative intake → design brief
