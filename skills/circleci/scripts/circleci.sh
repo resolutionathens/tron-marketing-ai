@@ -7,7 +7,9 @@
 # Usage:
 #   circleci.sh <subcommand> [flags]
 #
-# Network subcommands (need a token: $CIRCLECI_TOKEN, else ~/.circleci/cli.yml):
+# Network subcommands (routed through the org-secret broker at
+# secrets.facilitron.work/circleci/* — auth via `cloudflared access token`,
+# no local $CIRCLECI_TOKEN required):
 #   me                                  auth check → {"ok":true,"login":…}
 #   pipelines  [--slug S][--branch B]   latest pipelines on a branch
 #   workflows  [--slug S][--branch B]   workflows in the branch's latest pipeline
@@ -35,7 +37,7 @@
 # failure / 2 usage error.
 set -euo pipefail
 
-API="https://circleci.com/api/v2"
+API="https://secrets.facilitron.work/circleci/v2"
 log() { echo "circleci: $*" >&2; }
 usage_err() { echo "circleci.sh: $*" >&2; exit 2; }
 
@@ -68,21 +70,23 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ---- token + http -----------------------------------------------------------
+# ---- broker auth + http ------------------------------------------------------
 resolve_token() {
-  if [[ -n "${CIRCLECI_TOKEN:-}" ]]; then printf '%s' "$CIRCLECI_TOKEN"; return; fi
-  local cfg="${CIRCLECI_CLI_CONFIG:-$HOME/.circleci/cli.yml}"
-  [[ -f "$cfg" ]] && awk -F': *' '/^token:/{gsub(/"/,"",$2); print $2; exit}' "$cfg"
+  local token
+  token="$(cloudflared access token --app=https://secrets.facilitron.work 2>/dev/null)" || true
+  [[ -n "$token" ]] && printf '%s' "$token"
 }
 
 http() { # METHOD PATH [DATA]
   local m="$1" p="$2" d="${3:-}" token
+  command -v cloudflared >/dev/null 2>&1 \
+    || { jq -nc '{ok:false,error:"cloudflared not found — required for broker auth"}'; exit 1; }
   token="$(resolve_token)"
-  [[ -z "$token" ]] && { jq -nc '{ok:false,error:"no token — export CIRCLECI_TOKEN or run: circleci setup"}'; exit 1; }
+  [[ -z "$token" ]] && { jq -nc '{ok:false,error:"no Cloudflare Access token — run: cloudflared access login https://secrets.facilitron.work"}'; exit 1; }
   if [[ -n "$d" ]]; then
-    curl -fsS -X "$m" -H "Circle-Token: $token" -H "Content-Type: application/json" -d "$d" "$API/$p"
+    curl -fsS -X "$m" -H "CF-Access-Token: $token" -H "Content-Type: application/json" -d "$d" "$API/$p"
   else
-    curl -fsS -X "$m" -H "Circle-Token: $token" "$API/$p"
+    curl -fsS -X "$m" -H "CF-Access-Token: $token" "$API/$p"
   fi
 }
 
