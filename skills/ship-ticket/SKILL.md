@@ -8,6 +8,8 @@ allowed-tools:
   - Bash
   - Read
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Ship Ticket — Whole-Lifecycle Orchestrator

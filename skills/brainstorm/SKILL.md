@@ -7,6 +7,19 @@ allowed-tools:
   - AskUserQuestion
   - Read
   - Write
+scout:
+  surface: true
+  title: "Brainstorm an idea"
+  blurb: "A guided back-and-forth that pressure-tests a fuzzy idea one question at a time, then writes it up as a structured ideation note."
+  when: "You have a topic, campaign, or name in your head but no plan yet."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: idea
+      label: "The idea"
+      type: textarea
+      required: true
+      placeholder: "A topic, campaign, name, or hunch — rough is fine"
 ---
 
 # /brainstorm — Ideation Workshop

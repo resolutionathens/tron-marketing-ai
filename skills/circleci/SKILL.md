@@ -7,6 +7,8 @@ allowed-tools:
   - Bash
   - Read
   - WebFetch
+scout:
+  surface: developer
 ---
 
 # CircleCI

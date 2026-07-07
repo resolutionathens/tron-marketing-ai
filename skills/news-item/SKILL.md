@@ -9,6 +9,9 @@ allowed-tools:
   - Write
   - Task
   - AskUserQuestion
+scout:
+  surface: developer
+  effects: [publish, cdn]
 ---
 
 # Facilitron News Item

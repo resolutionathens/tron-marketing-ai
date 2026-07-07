@@ -10,6 +10,18 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft social posts"
+  blurb: "Writes a master caption plus Instagram, Facebook, and LinkedIn variants from a topic, link, or asset."
+  when: "Something's worth posting and you want platform-ready copy."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: topic
+      label: "Topic, link, or asset"
+      type: textarea
+      required: true
 ---
 
 # /social-post — Social post + per-platform variants

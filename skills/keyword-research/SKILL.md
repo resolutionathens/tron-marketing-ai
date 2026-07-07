@@ -9,6 +9,18 @@ allowed-tools:
   - Write
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Research keywords"
+  blurb: "Finds and clusters the searches people actually make around a topic, mapped to the pages that should win them."
+  when: "Planning content or a landing page and deciding what it should target."
+  category: seo
+  effects: [draft]
+  inputs:
+    - key: topic
+      label: "Topic or page"
+      type: text
+      required: true
 ---
 
 # /keyword-research — Keyword research + clustering

@@ -10,6 +10,23 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft a case study"
+  blurb: "Turns interview notes, metrics, or a brief into a Challenge → Solution → Results customer story with a pull quote."
+  when: "You have raw material from a district win and need it shaped into a publishable story."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: source
+      label: "Source material"
+      type: textarea
+      required: true
+      placeholder: "Notes, metrics, a ticket key, or a Confluence link"
+    - key: customer
+      label: "Customer / district"
+      type: text
+      required: false
 ---
 
 # /case-study — Customer / district case study drafter

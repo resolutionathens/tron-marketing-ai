@@ -5,6 +5,22 @@ effort: low
 description: "Generate a new image, optionally matching the visual style of reference photos — color palette, lighting, mood, composition, medium. Use when the user wants to create, generate, or make an image, illustration, or graphic. Trigger on: 'generate an image', 'create an image', 'make an image of X', 'generate an image like these', 'create an image in this style', 'make something that looks like these photos', '/gen-image', 'gen image from folder', or 'generate image like [folder]'."
 allowed-tools:
   - Bash
+scout:
+  surface: true
+  title: "Generate an image"
+  blurb: "Creates a new image or illustration, optionally matching the look of reference photos."
+  when: "You need a visual and don't have one."
+  category: media
+  effects: [local]
+  inputs:
+    - key: prompt
+      label: "What to create"
+      type: textarea
+      required: true
+    - key: references
+      label: "Reference images folder"
+      type: path
+      required: false
 ---
 
 # gen-image

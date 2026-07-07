@@ -7,6 +7,9 @@ allowed-tools:
   - Bash
   - Read
   - Write
+scout:
+  surface: developer
+  effects: [cdn]
 ---
 
 # Figma to ImageKit Export Pipeline

@@ -9,6 +9,8 @@ allowed-tools:
   - Glob
   - Read
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Pull Request Assistant

@@ -11,6 +11,22 @@ allowed-tools:
   - Grep
   - WebFetch
   - Skill
+scout:
+  surface: true
+  title: "Spec SEO fixes for a page"
+  blurb: "Turns an audit into a concrete change list a developer can implement — title, headings, content, links, schema."
+  when: "You know a page needs SEO work and want the exact to-do list."
+  category: seo
+  effects: [draft]
+  inputs:
+    - key: url
+      label: "Page URL"
+      type: text
+      required: true
+    - key: keywords
+      label: "Target keywords"
+      type: text
+      required: true
 ---
 
 # /landing-page-seo — Landing-page optimization spec

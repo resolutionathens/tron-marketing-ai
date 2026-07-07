@@ -10,6 +10,18 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Prep a video for publishing"
+  blurb: "Builds the publishing kit for a finished video: title, description, chapters, tags, and a thumbnail brief."
+  when: "The edit is done and it needs everything but the upload."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: video
+      label: "Video link or reference"
+      type: text
+      required: true
 ---
 
 # /video-publish — Video publishing kit

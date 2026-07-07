@@ -6,6 +6,8 @@ description: "Promote master to production — merging through staging first whe
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Deploy to Production Assistant

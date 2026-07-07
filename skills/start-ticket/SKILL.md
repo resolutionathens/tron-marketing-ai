@@ -7,6 +7,8 @@ allowed-tools:
   - Bash
   - Read
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Start Ticket

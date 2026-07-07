@@ -6,6 +6,8 @@ description: "Close and clean up git worktrees and their associated tmux session
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Close Worktree

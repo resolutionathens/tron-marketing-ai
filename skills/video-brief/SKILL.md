@@ -10,6 +10,18 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Plan a video"
+  blurb: "Turns a video request into a production brief: purpose, audience, script/voiceover, and shot list."
+  when: "A video's been requested and production needs a plan."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: request
+      label: "Request or ticket"
+      type: textarea
+      required: true
 ---
 
 # /video-brief — Video brief, script & shot list
