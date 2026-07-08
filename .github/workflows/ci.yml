@@ -1,0 +1,15 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  fastpath-resolvers:
+    name: Fast-path SKILL_DIR resolver lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tools/lint/check-fastpath-resolvers.sh
+      - run: bash tools/lint/test-check-fastpath-resolvers.sh

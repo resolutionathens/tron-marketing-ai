@@ -47,6 +47,22 @@ These tests cover the script **in isolation** — they do not exercise the full 
 Each test script's header should describe how to run the full skill manually as an integration
 spec. The skill-level behavior is covered by the evaluations in layer 3.
 
+### Fast-path SKILL_DIR resolver lint (CI-enforced)
+
+A scripted skill's SKILL.md (or, for the runner-delegated audit skills, the matching
+`agents/*-runner.md`) resolves the bundled script's absolute path with the
+`CLAUDE_SKILL_DIR` → `CLAUDE_PLUGIN_ROOT` → cache/marketplace `SKILL_DIR` fallback described
+in [CLAUDE.md](CLAUDE.md) → Path resolution. Losing that fallback breaks the skill under the
+headless worker, where `$CLAUDE_SKILL_DIR` isn't always exported — it happened once already
+(trimmed from 16 skills, restored in PR #29). `tools/lint/check-fastpath-resolvers.sh` checks
+every `skills/*/scripts/*.sh` against the doc that resolves it and fails if the fallback is
+missing; it runs in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+```bash
+bash tools/lint/check-fastpath-resolvers.sh       # lint the real repo
+bash tools/lint/test-check-fastpath-resolvers.sh  # the lint's own smoke test
+```
+
 ---
 
 ## 2. Audit-skill delegation smoke (the delegate → runner chain)
