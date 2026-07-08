@@ -25,7 +25,7 @@ Export design assets from Figma, optimize with pngquant, upload to ImageKit.
 ## Requirements
 
 - `cloudflared` (broker auth), `pngquant` (local), ImageKit CLI at `tools/imagekit/imagekit.mjs`
-- **Figma MCP plugin** (primary path, no token) **or** `FIGMA_ACCESS_TOKEN` (REST fallback)
+- **Figma MCP plugin** (primary path, no token) **or** the org-secret broker's `/figma/*` proxy (REST fallback — no local `FIGMA_ACCESS_TOKEN` needed)
 
 ## Fast path (scripted — per-node pipeline)
 
@@ -66,12 +66,13 @@ From a Figma URL, extract: `https://figma.com/design/:fileKey/:fileName?node-id=
 curl -s -o /tmp/hero-raw.png "https://www.figma.com/api/mcp/asset/<uuid>"
 ```
 
-**Fallback (REST, requires token):**
+**Fallback (REST, via the org-secret broker):**
 ```bash
-curl -s -H "X-Figma-Token: $FIGMA_ACCESS_TOKEN" \
-  "https://api.figma.com/v1/images/FILE_KEY?ids=NODE_ID&format=png&scale=2"
+TOKEN="$(cloudflared access token --app=https://secrets.facilitron.work)"
+curl -s -H "CF-Access-Token: $TOKEN" \
+  "https://secrets.facilitron.work/figma/v1/images/FILE_KEY?ids=NODE_ID&format=png&scale=2"
 ```
-Returns temporary S3 URLs. For batch, comma-separate node IDs.
+Returns temporary S3 URLs. For batch, comma-separate node IDs. The broker injects the Figma token server-side — no local `FIGMA_ACCESS_TOKEN` needed.
 
 ## 3. Resize + optimize
 

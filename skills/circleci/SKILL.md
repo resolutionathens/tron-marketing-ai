@@ -13,7 +13,7 @@ scout:
 
 # CircleCI
 
-Use the `circleci` CLI for config tasks and local execution. For everything else, hit the v2 API with `curl`.
+Use the `circleci` CLI for config tasks and local execution. For everything else, hit the v2 API through the org-secret broker with `curl` (see `reference/commands.md`).
 
 ## Fast path (scripted)
 
@@ -25,7 +25,7 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 bash "$SKILL_DIR/scripts/circleci.sh" <subcommand> [flags]
 ```
 
-For the full subcommand table and raw v2 API curl recipes, see `reference/commands.md`. The script resolves the token from `$CIRCLECI_TOKEN` (else `~/.circleci/cli.yml`), defaults the slug from `git remote origin` and the branch from `HEAD`.
+For the full subcommand table and raw v2 API curl recipes, see `reference/commands.md`. The script routes network calls through the org-secret broker (`secrets.facilitron.work/circleci/*`), authenticating via a `cloudflared`-minted Access token — no local `$CIRCLECI_TOKEN` needed. It defaults the slug from `git remote origin` and the branch from `HEAD`.
 
 ### Common subcommands
 
@@ -42,14 +42,14 @@ validate/process/local) lives in `reference/commands.md`.
 
 ## Setup — auth
 
-The token lives at `app.circleci.com/settings/user/tokens`. Export as `$CIRCLECI_TOKEN` or configure via `circleci setup`.
+Network subcommands go through the org-secret broker at `secrets.facilitron.work/circleci/*` — the CircleCI token lives in Cloudflare Secrets Store, never on your machine. Auth is your Facilitron Google identity via Cloudflare Access:
 
 ```bash
-# Verify auth
-curl -s -H "Circle-Token: $CIRCLECI_TOKEN" https://circleci.com/api/v2/me | jq .login
+cloudflared access login https://secrets.facilitron.work   # one-time SSO, cached + auto-refreshed
+circleci.sh me                                              # verify auth → {"ok":true,"login":…}
 ```
 
-Unauthenticated requests return `{"message": "Project not found"}`.
+`circleci config validate`/`process`/`local` still use the local `circleci` CLI (no token involved). Unauthenticated broker requests return `{"ok":false,"error":"..."}`.
 
 ## Facilitron deploy URLs (marketing-pages)
 
@@ -71,7 +71,7 @@ circleci local execute --job <job-name>   # run job locally (no project env vars
 
 | Symptom | Fix |
 |---------|-----|
-| `{"message": "Project not found"}` | Missing/wrong `Circle-Token`. Re-mint the token. |
-| Same, with valid token | Slug case mismatch — use `gh/Facilitron/...` (capital F). |
+| `{"ok":false,"error":"no Cloudflare Access token…"}` | Run `cloudflared access login https://secrets.facilitron.work`. |
+| `{"message": "Project not found"}` | Slug case mismatch — use `gh/Facilitron/...` (capital F). |
 | Workflow stuck in `running` >1h | A job is hung or on hold. `curl .../workflow/<id>/job` to find it. |
 | `config validate` ok but cloud fails | Cloud has version constraints local doesn't enforce. Push to throwaway branch. |
