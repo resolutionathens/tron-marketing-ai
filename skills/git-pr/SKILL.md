@@ -67,11 +67,15 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 `$BASE` is the default branch resolved in Step 3 — if this runs in a fresh shell,
 re-run the Step 3 resolver line first.
 
+Write the body to a temp file first, then pass it via `--body-file` — this avoids
+silent `gh pr create` failures when the body contains single quotes, backticks, or
+other shell-sensitive characters (see MD-1907 retro):
+
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+cat > /tmp/.pr-body.md <<'EOF'
 <body>
 EOF
-)" --base "$BASE"
+gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE"
 ```
 
 ## Steps 7–8: Copilot review + retro comment (scripted)
