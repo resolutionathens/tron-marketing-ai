@@ -1,5 +1,8 @@
-# Dependencies installed on first use (preview-page, md-to-pdf)
-node_modules/
+# Dependencies installed on first use (preview-page, md-to-pdf).
+# No trailing slash: tron:start-ticket symlinks node_modules into bundled tool
+# dirs (tools/imagekit, tools/md-to-adf, skills/md-to-pdf) when scaffolding a
+# worktree, and a directory-only pattern doesn't match those symlinks.
+node_modules
 
 # Build/scratch artifacts
 *.tsbuildinfo
