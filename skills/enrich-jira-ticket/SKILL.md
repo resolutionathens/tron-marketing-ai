@@ -156,7 +156,7 @@ If a source is not directly accessible, still enrich the ticket with its URL and
 
 Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. Keep it practical and implementation-ready: add only the sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
 
-When the destination repo is known, emit the `Destination repo:` and `Destination path or route:` lines under `## Sources` **verbatim** — the literal label text and backtick-wrapped value, exactly as shown in the template. Do not paraphrase them into a different heading (e.g. `## Repo / implementation guidance (marketing-pages)`) or fold the repo name into prose elsewhere instead. These are not freeform prose the model rephrases — they are a fixed, machine-parsed line: tron-os's dispatch router (`lib/triage.ts`) greps the literal `Destination repo:` marker to route work to the correct repo, and a paraphrased heading will not match it.
+When the destination repo is known, emit the `Destination repo:` and `Destination path or route:` lines under `## Sources` **verbatim**: the literal label text and backtick-wrapped value, exactly as shown in the template. Do not paraphrase them into a different heading (e.g. `## Repo / implementation guidance (marketing-pages)`) or fold the repo name into prose elsewhere instead. These are not freeform prose the model rephrases; they are a fixed, machine-parsed line. tron-os's dispatch router (`lib/triage.ts`) greps the literal `Destination repo:` marker to route work to the correct repo, and a paraphrased heading will not match it.
 
 ## Playbooks
 
