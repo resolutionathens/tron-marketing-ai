@@ -41,6 +41,35 @@ img_wh() { # <file> -> "W H" (empty when no reader is available)
   fi
 }
 
+# --- CCAL-2092: rows=() must expand safely when empty under set -u ----------------------
+# The savings-table `rows` stays an empty array whenever every input is skipped (no gain) —
+# an unguarded "${rows[@]}" expansion there throws "unbound variable" on macOS system bash 3.2
+# (bash < 4.4). (do_cwebp's `resize` array has the identical unguarded-empty-array shape but
+# always runs inside the per-file `xargs -P ... bash -c` worker, which does NOT inherit this
+# script's `set -u` — so it's hardened defensively but isn't reachable as a live crash today.)
+# Runs on its own tiny fixture, ahead of the base64-embedded one below, so it isn't gated on
+# that fixture's tooling. Explicitly invokes /bin/bash (macOS system bash) since the smoke
+# test's own `bash "$SCRIPT"` calls elsewhere may resolve a newer Homebrew bash on PATH.
+if [ -n "$IM" ]; then
+  ccaldir="$TMP/ccal2092"; mkdir -p "$ccaldir"
+  tiny="$ccaldir/tiny.png"
+  $IM -size 8x8 xc:red "$tiny" 2>/dev/null
+  # Pre-quantize once so the second pass below is a guaranteed no-gain (rc=0, n>=o) skip —
+  # i.e. every file is skipped and `rows` never gets an element.
+  pngquant --quality=65-80 --speed 1 --strip --force --output "$ccaldir/nogain.png" "$tiny" >/dev/null 2>&1
+
+  rc=0; out="$(/bin/bash "$SCRIPT" "$ccaldir/nogain.png" --mode same-format 2>&1)" || rc=$?
+  if printf '%s' "$out" | grep -q 'unbound variable'; then
+    echo "FAIL: CCAL-2092 rows=() — unbound variable under bash 3.2 (all files skipped)"; fail=1
+  elif [ "$rc" -ne 0 ]; then
+    echo "FAIL: CCAL-2092 rows=() — script exited $rc: $out"; fail=1
+  else
+    echo "ok  : CCAL-2092 rows=() expands safely under set -u when every file is skipped"
+  fi
+else
+  echo "SKIP: CCAL-2092 rows=() check — no ImageMagick to build the fixture"
+fi
+
 # --- embedded PNG fixture (48x48 RGB gradient + noise, ~7 KB) -----------------------------
 cat > "$TMP/fixture.b64" <<'B64'
 iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAIGNIUk0AAHomAACAhAAA+gAAAIDo

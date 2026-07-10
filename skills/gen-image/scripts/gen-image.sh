@@ -290,7 +290,7 @@ EOF
   TO=(); command -v timeout >/dev/null 2>&1 && TO=(timeout "$GENIMG_TIMEOUT")
   log "generating (codex exec built-in, timeout ${GENIMG_TIMEOUT}s)…"
   # -c features.image_generation=true ensures exec actually OFFERS the tool to the model.
-  printf '%s' "$exec_prompt" | "${TO[@]}" codex exec \
+  printf '%s' "$exec_prompt" | ${TO[@]+"${TO[@]}"} codex exec \
     --skip-git-repo-check \
     -c features.image_generation=true \
     --sandbox workspace-write \
