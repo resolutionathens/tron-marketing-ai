@@ -36,6 +36,13 @@ Add only the sections a ticket needs. For content/SEO work, add a `## Source SEO
 with meta title, meta description, and slug. For a Figma-driven ticket, list the Figma file, the
 page being replaced, and the asset location under `## Sources`. Do not include empty sections.
 
+The `Destination repo:` and `Destination path or route:` lines are a fixed, machine-parsed
+marker, not prose to paraphrase. When the repo is known, emit them exactly as written above:
+literal label, backtick-wrapped value, under `## Sources`. Do not rename them into a heading
+(e.g. `## Repo / implementation guidance (marketing-pages)`), reword the label, or move the repo
+name into a sentence instead. tron-os greps this literal string to route dispatches to the
+correct repo; anything else fails to match and falls back to a weaker heuristic.
+
 ## Worked example
 
 For a webdev or navigation ticket sourced from a linked Figma design, the enriched description
