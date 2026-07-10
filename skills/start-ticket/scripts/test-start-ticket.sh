@@ -78,6 +78,25 @@ eq "$LINKED" "control-plane/web/node_modules node_modules " "links root + nested
 rm -rf "$N"
 pass "tl_link_node_modules symlinks root + nested node_modules, skips too-deep + existing"
 
+# ── node_modules symlinks must be invisible to git (MD-2028) ────────────────
+# A directory-only ignore pattern ("node_modules/") does not match a symlink
+# named node_modules, so git add -A would stage it. Prove the repo's actual
+# .gitignore (no trailing slash) covers the symlinks tl_link_node_modules creates.
+G2="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-gi.XXXXXX")"
+mkdir -p "$G2/main/tools/imagekit/node_modules/dep"
+git init -q "$G2/wt"
+cp "$CLAUDE_PLUGIN_ROOT/.gitignore" "$G2/wt/.gitignore"
+git -C "$G2/wt" add .gitignore
+git -C "$G2/wt" -c user.email=s@t.local -c user.name=t commit -q -m "gitignore"
+mkdir -p "$G2/wt/tools/imagekit"
+tl_link_node_modules "$G2/main" "$G2/wt" >/dev/null
+[[ -L "$G2/wt/tools/imagekit/node_modules" ]] || fail "gi: symlink not created"
+git -C "$G2/wt" add -A
+STAGED="$(git -C "$G2/wt" status --porcelain)"
+[[ -z "$STAGED" ]] || fail "gi: .gitignore should hide node_modules symlinks from git add -A, got: $STAGED"
+rm -rf "$G2"
+pass "repo .gitignore matches node_modules symlinks, not just real directories"
+
 # ── default-branch detection + ff-only base freshening (real git) ────────────
 # Builds a throwaway bare origin + clone, pushes the default, advances origin
 # beyond the clone, then proves tl_freshen_default fast-forwards the local
