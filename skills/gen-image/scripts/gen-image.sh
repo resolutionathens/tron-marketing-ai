@@ -98,7 +98,7 @@ fi
 log "using ${#refs[@]} reference image(s)."
 
 # --- 2. Build the prompt: subject mandatory, medium pinned, composition distinct ---------
-medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration vs abstract graphic — do NOT switch media), lighting, color treatment, contrast, composition, and texture. Do NOT copy their specific subjects or scenes. If the references are abstract, produce a purely abstract composition: no text, no literal objects, no clipboards, no labels."
+medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration vs abstract graphic — do NOT switch media), lighting, color treatment, contrast, and texture. Do NOT copy their specific subjects, scenes, or composition. If the references are abstract, produce a purely abstract image: no text, no literal objects, no clipboards, no labels."
 # Anti near-duplication: the references define a FAMILY, not a template. The model must stay
 # in the same visual family (subject, palette, motifs) while producing a visibly distinct
 # composition — never a re-skin of any single reference. This is prompt-first (MD-2014): a
