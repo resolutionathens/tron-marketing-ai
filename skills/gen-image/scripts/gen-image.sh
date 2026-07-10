@@ -97,14 +97,19 @@ fi
 [ "${#refs[@]}" -gt 0 ] || { log "error: no reference images found in $SOURCES"; exit 2; }
 log "using ${#refs[@]} reference image(s)."
 
-# --- 2. Build the prompt: subject mandatory, medium pinned from the references -----------
-medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration vs abstract graphic — do NOT switch media), lighting, color treatment, contrast, composition, and texture. Do NOT copy their specific subjects or scenes. If the references are abstract, produce a purely abstract composition: no text, no literal objects, no clipboards, no labels."
+# --- 2. Build the prompt: subject mandatory, medium pinned, composition distinct ---------
+medium_line="Use the attached image(s) as STYLE/MOOD references ONLY — match their medium (infer it: real photography vs illustration vs abstract graphic — do NOT switch media), lighting, color treatment, contrast, and texture. Do NOT copy their specific subjects, scenes, or composition. If the references are abstract, produce a purely abstract image: no text, no literal objects, no clipboards, no labels."
+# Anti near-duplication: the references define a FAMILY, not a template. The model must stay
+# in the same visual family (subject, palette, motifs) while producing a visibly distinct
+# composition — never a re-skin of any single reference. This is prompt-first (MD-2014): a
+# strong distinctness instruction stops the near-duplicate at generation time, at no extra cost.
+distinct_line="Stay in the same visual family as the references (subject matter, palette, and motifs), but produce a VISIBLY DISTINCT composition: a different layout, arrangement, camera angle, or focal point. Do NOT reproduce, mirror, or lightly re-skin any single reference's composition — the result must read as a fresh variation in the family, not a near-duplicate of one reference."
 if [ -n "$SUBJECT" ]; then
   subj_line="Create a NEW image whose primary, mandatory subject is: ${SUBJECT}."
 else
   subj_line="Create a NEW scene similar in subject matter and feel to the references."
 fi
-prompt="${subj_line} ${medium_line}"
+prompt="${subj_line} ${medium_line} ${distinct_line}"
 
 SIZE="${GENIMG_SIZE:-1024x1024}"
 QUALITY="${GENIMG_QUALITY:-high}"

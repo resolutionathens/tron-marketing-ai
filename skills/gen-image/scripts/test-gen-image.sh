@@ -38,6 +38,8 @@ if [ -n "$cmd" ]; then
   contains "CLI: subject in prompt"            "an empty wooden park bench" "$cmd"
   contains "CLI: medium pinned (style only)"   "STYLE/MOOD references ONLY" "$cmd"
   contains "CLI: forbids copying subjects"     "Do NOT copy their specific subjects" "$cmd"
+  contains "CLI: demands distinct composition" "VISIBLY DISTINCT composition" "$cmd"
+  contains "CLI: forbids near-duplicate re-skin" "near-duplicate of one reference" "$cmd"
 else
   echo "note: CLI path not selected (image_gen.py or python missing) — skipping CLI assertions"
 fi
