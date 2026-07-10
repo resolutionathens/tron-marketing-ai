@@ -69,6 +69,10 @@ pins the schema with hermetic fixtures in `test/fixtures/plugin-skills/` — if 
 pinned skill's scout block shape, sync the fixture. Only user-tier skills need full display
 copy; `developer`/`false` blocks can stay minimal (surface + effects + inputs).
 
+CI lints every `scout:` block against this shape — `tools/lint/check-scout-frontmatter.sh`
+(MD-2027) — since `parseScoutMeta()` in tron-os degrades a malformed block silently instead of
+erroring.
+
 ## Deterministic scripts
 
 Mechanical flows live in `skills/<name>/scripts/<name>.sh`, and the SKILL.md's "Fast path"
