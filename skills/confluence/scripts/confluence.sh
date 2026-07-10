@@ -71,7 +71,7 @@ cmd_fetch() {
   local in="${ARGS[0]:-}"; [[ -z "$in" ]] && usage_err "fetch requires <url-or-id>"
   local id; id="$(resolve_id "$in")" || { jq -nc --arg in "$in" '{ok:false,error:"could-not-resolve",input:$in}'; exit 1; }
   local out
-  out="$(acli confluence page view --id "$id" --body-format storage --json "${EXTRA[@]}")" \
+  out="$(acli confluence page view --id "$id" --body-format storage --json ${EXTRA[@]+"${EXTRA[@]}"})" \
     || { jq -nc --arg id "$id" '{ok:false,error:"acli-fetch-failed","pageId":$id}'; exit 1; }
   log "title: $(jq -r '.title // "?"' <<<"$out")  (v$(jq -r '.version.number // .version // "?"' <<<"$out"))  pageId=$id"
   jq -r '.body.storage.value // ""' <<<"$out"

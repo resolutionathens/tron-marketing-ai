@@ -70,6 +70,32 @@ O="$(bash "$SCRIPT" images "$ROOT/body.html")"
 has "$O" 'diagram.png' "images subcommand lists referenced files"
 pass "images <body.html> → referenced filenames"
 
+# --- script: fetch (mocked acli, no network/auth) ----------------------------
+# Regression for CCAL-2091: EXTRA[@] must not throw "unbound variable" under
+# set -u on bash 3.2 (macOS system bash) when no --children/--labels flags
+# are passed, i.e. EXTRA is an empty array.
+MOCKBIN="$ROOT/mockbin"
+mkdir -p "$MOCKBIN"
+cat > "$MOCKBIN/acli" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >&2
+echo '{"title":"Mock Page","version":{"number":1},"body":{"storage":{"value":"<p>mock body</p>"}}}'
+EOF
+chmod +x "$MOCKBIN/acli"
+
+O="$(PATH="$MOCKBIN:$PATH" bash "$SCRIPT" fetch 3851517965 2>/dev/null)"
+has "$O" 'mock body' "fetch with no flags (empty EXTRA) should not throw unbound variable"
+pass "fetch <id> with no flags → empty EXTRA[@] expands safely under set -u"
+
+O="$(PATH="$MOCKBIN:$PATH" bash "$SCRIPT" fetch 3851517965 --children --labels 2>/dev/null)"
+has "$O" 'mock body' "fetch with --children --labels should still succeed"
+pass "fetch <id> --children --labels → succeeds"
+
+ERR="$(PATH="$MOCKBIN:$PATH" bash "$SCRIPT" fetch 3851517965 --children --labels 2>&1 1>/dev/null)"
+[[ "$ERR" == *"--include-direct-children"* ]] || fail "EXTRA flags should reach the acli invocation — got: $ERR"
+[[ "$ERR" == *"--include-labels"* ]] || fail "EXTRA flags should reach the acli invocation — got: $ERR"
+pass "fetch --children --labels → flags passed through to acli"
+
 # --- usage / error contract --------------------------------------------------
 rc=0; bash "$SCRIPT" resolve >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "resolve without input should exit 2 (got $rc)"
