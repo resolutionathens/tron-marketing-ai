@@ -53,7 +53,7 @@ OUT="$(bash "$SKILL_DIR/scripts/gen-image.sh" "<sources>" "<subject>" "<output.p
 ```
 
 The script:
-1. Samples up to 5 references, builds a prompt that makes the **subject mandatory** and pins the **medium from references**.
+1. Samples up to 5 references, builds a prompt that makes the **subject mandatory**, pins the **medium from references**, and demands a **visibly distinct composition** (same visual family, not a re-skin of any single reference).
 2. Uses the deterministic CLI path (`image_gen.py` with `OPENAI_API_KEY`, or OpenRouter with `OPENROUTER_API_KEY`) — fails to the built-in tool only if neither key is available.
 3. Verifies a real, fresh, non-trivial image landed (exit 1 otherwise).
 
@@ -63,7 +63,12 @@ The script:
 open -a Preview "$OUT"   # macOS
 ```
 
-If the result is clearly off (wrong subject or medium), retry once with a tighter subject string, then hand to the user.
+When you glance at the result to judge it, check three things in one look:
+1. **Subject** — does it depict what you asked for?
+2. **Medium** — does it match the references' medium (photo vs illustration vs abstract)?
+3. **Not a near-duplicate** — is it a fresh variation, or is it visually almost identical to one specific reference (same composition, same palette, just a relabel)? The prompt already instructs the model to stay in the family while varying the composition, so this should be rare — but the glance costs nothing and catches the case where it slipped through (MD-2014).
+
+If the result is clearly off (wrong subject or medium) **or too close to a single reference**, retry once with a tighter subject string — for the near-duplicate case, add "a visually distinct composition, do not reproduce any single reference's layout" — then hand to the user.
 
 ## Generating a card from ImageKit references
 
@@ -86,6 +91,8 @@ for f in json.load(sys.stdin):
 - **Abstract backgrounds** (geometric shapes, gradients, no literal objects): describe a new abstract variation with the same palette and motifs.
 - **Editorial/flat illustrations** (icons, isometric scenes, characters): describe a new scene in the same style.
 - **Photographs**: describe a new photograph — same lighting/mood, distinct scene.
+
+In every case, the references are a **family, not a template**. Word the subprompt so the new card is "similar in subject, palette, and motifs to the references, but a visually distinct composition — do not reproduce any single reference's layout." The script bakes this distinctness instruction into every reference-based prompt, so the near-duplicate is stopped at generation time; still glance at the result against the downloaded refs before shipping (see the self-verify above) — this path is exactly where the near-duplicate on CCAL-1469 slipped through to human review (MD-2014).
 
 Toolkit cards are 1600×901 (landscape). Generate matching aspect:
 
