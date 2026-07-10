@@ -179,5 +179,21 @@ description: "No scout block yet."
 bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "should not fail a skill with no scout: block"
 pass "skips a skill with no scout: block"
 
+# --- CCAL-2092: effects: [] must not crash the linter under set -u -----------
+# `effects: []` parses to a non-empty effects_raw string ("[]") but strips down to an empty
+# `effs` array — an unguarded "${effs[@]}" there throws "unbound variable" on macOS system
+# bash 3.2 (bash < 4.4). An empty effects list isn't itself an error (only surface: true
+# requires a non-empty one), so this should pass clean, not crash.
+reset_fixture
+write_skill empty-effects '---
+name: empty-effects
+scout:
+  surface: developer
+  effects: []
+---
+'
+bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "effects: [] should not crash the linter (CCAL-2092 effs[@] regression)"
+pass "effects: [] parses to an empty effs[@] safely under set -u (CCAL-2092)"
+
 rm -f /tmp/scout-smoke-out.$$
 echo "check-scout-frontmatter smoke: $PASS passed"

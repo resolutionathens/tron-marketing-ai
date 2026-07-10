@@ -140,7 +140,7 @@ do_cwebp() { # <in> <out.webp> — applies the web longest-edge cap (MAXDIM) whe
       elif [ "$h" -gt "$w" ] && [ "$h" -gt "$MAXDIM" ]; then resize=(-resize 0 "$MAXDIM"); fi
     fi
   fi
-  cwebp -quiet -q "$WEBP_Q" "${resize[@]}" "$1" -o "$2" 2>/dev/null
+  cwebp -quiet -q "$WEBP_Q" ${resize[@]+"${resize[@]}"} "$1" -o "$2" 2>/dev/null
 }
 do_jpegoptim() { # <in> <out.jpg> — --stdout avoids the --dest basename-collision dance
   [ "$HAVE_JPEGOPTIM" -eq 0 ] && return 90
@@ -226,7 +226,7 @@ done < <(cat "$WORKDIR"/*.rec 2>/dev/null | sort -t"$US" -k2,2)
 {
   echo "| File | Format | Output | Original | Optimized | Savings |"
   echo "|------|--------|--------|---------:|----------:|--------:|"
-  for r in "${rows[@]}"; do
+  for r in ${rows[@]+"${rows[@]}"}; do
     IFS="$US" read -r name infmt outfmt o n <<< "$r"
     # escape any literal '|' in the filename so it can't break the markdown table
     printf '| %s | %s | %s | %s B | %s B | %s |\n' "${name//|/\\|}" "$infmt" "$outfmt" "$o" "$n" "$(pct "$o" "$n")"

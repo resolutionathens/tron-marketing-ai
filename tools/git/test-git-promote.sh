@@ -94,5 +94,36 @@ rc=0; OUT="$(gp_merge_into "$MAIN" no-such-branch feat)" || rc=$?
 [[ "$(gx "$MAIN" rev-parse --abbrev-ref HEAD)" == master ]] || fail "main checkout left off master after failed checkout"
 pass "gp_merge_into → error:checkout-<target> + rc 1 on a nonexistent target (HEAD unmoved)"
 
+# --- gp_merge_into resolved_arr[@]: unbound variable on bash 3.2 (CCAL-2092) -
+# Regression for CCAL-2092: when `git merge` fails for a reason OTHER than a
+# conflict (e.g. a hook rejection), `git diff --name-only --diff-filter=U`
+# comes back empty, so resolved_arr stays an empty array. Expanding
+# "${resolved_arr[@]}" unguarded then throws "unbound variable" under set -u
+# on macOS system bash 3.2 — mock git so merge fails and diff reports no
+# unmerged paths, and assert gp_merge_into degrades to error:commit-<target>
+# instead of crashing.
+MOCKBIN="$ROOT/mockbin-git"
+mkdir -p "$MOCKBIN"
+cat > "$MOCKBIN/git" <<'EOF'
+#!/usr/bin/env bash
+# Minimal git mock for gp_merge_into: -C <dir> <subcmd> ...
+shift 2
+case "$1" in
+  checkout) exit 0 ;;
+  pull) exit 0 ;;
+  merge) exit 1 ;;   # fails for a non-conflict reason (e.g. hook rejection)
+  diff) exit 0 ;;    # no unmerged paths reported
+  add) exit 0 ;;
+  commit) exit 1 ;;
+  push) exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+chmod +x "$MOCKBIN/git"
+rc=0; OUT="$(PATH="$MOCKBIN:$PATH" bash -c "set -euo pipefail; source '$LIB'; gp_merge_into /tmp master feat" 2>&1)" || rc=$?
+[[ "$rc" -eq 1 ]] || fail "empty-resolved_arr merge failure should rc 1 (got $rc): $OUT"
+[[ "$OUT" == "error:commit-master" ]] || fail "expected error:commit-master, not a crash (got: $OUT)"
+pass "gp_merge_into → empty resolved_arr[@] expands safely under set -u when merge fails without conflicts"
+
 echo ""
 echo "✅ git-promote unit test PASSED ($PASS checks)"

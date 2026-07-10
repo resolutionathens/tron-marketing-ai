@@ -129,7 +129,7 @@ for doc in skills/*/SKILL.md; do
   if [ -n "$effects_raw" ]; then
     list="${effects_raw#\[}"; list="${list%\]}"
     IFS=',' read -ra effs <<<"$list"
-    for e in "${effs[@]}"; do
+    for e in ${effs[@]+"${effs[@]}"}; do
       e="$(trim "$e")"
       [ -n "$e" ] || continue
       in_list "$e" "$VALID_EFFECTS" || errs+=("effects entry '$e' is not one of draft | report | jira | publish | cdn | local")
