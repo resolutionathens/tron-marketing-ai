@@ -231,13 +231,16 @@ async function brokerSelect(token, filters, ms) {
 
 // Broker load: fetch each body by id. Ids look like "policy/git-flow"; bodies live at
 // {base}/{id}.md. A 404 → the id is simply omitted (same as the OS surface returning only
-// found ids), so the CLI's existing missing-id reporting still works.
+// found ids), so the CLI's existing missing-id reporting still works. Bodies are fetched
+// concurrently so the total wall-clock stays near a single request's timeout rather than
+// summing one timeout per id (with the default --limit 8 the sequential version could take
+// up to ~8× the timeout); each request still carries its own per-request timeout.
 async function brokerLoad(token, ids, ms) {
   const bodies = {};
-  for (const id of ids) {
-    const md = await brokerFetchText(`${BROKER_BASE}/${id}.md`, token, ms);
-    if (md !== null) bodies[id] = md;
-  }
+  const fetched = await Promise.all(
+    ids.map((id) => brokerFetchText(`${BROKER_BASE}/${id}.md`, token, ms).then((md) => [id, md])),
+  );
+  for (const [id, md] of fetched) if (md !== null) bodies[id] = md;
   return bodies;
 }
 
@@ -264,7 +267,8 @@ function resolveTransport(flags, ms) {
   die(
     "no reachable OKF source. Set TRON_API_URL (dispatched workers get it in their env) or pass " +
       "--api-url <url>; or, for the direct-broker fallback, make a Cloudflare Access token available " +
-      `(run: cloudflared access login ${BROKER_APP}, or set OKF_ACCESS_TOKEN). ` +
+      `(install cloudflared if it is missing, then run: cloudflared access login ${BROKER_APP}; ` +
+      "or set OKF_ACCESS_TOKEN directly). " +
       "Without any of these, fall back to the playbooks front-loaded at launch.",
     3,
   );
