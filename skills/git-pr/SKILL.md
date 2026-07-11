@@ -17,6 +17,17 @@ scout:
 
 Create a PR from the current feature branch with a clear, conventional title and structured body.
 
+## When dispatched (worker mode)
+
+If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
+call `AskUserQuestion`. Skip Step 5's approval prompt and proceed straight to Step 6 with the
+generated title and body as-is. If something genuinely blocks progress (e.g. the branch has no
+resolvable base, or a required detail is missing and can't be inferred from the diff), post ONE
+concise plain-text message stating what's needed and stop to wait for the reply, rather than using
+`AskUserQuestion`.
+
+Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
+
 ## Step 1: Validate branch and tree
 
 ```bash

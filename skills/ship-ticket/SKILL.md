@@ -22,6 +22,21 @@ scout:
 
 Walk the canonical Facilitron task lifecycle by **delegating to the existing per-stage skills** in sequence. This skill never reimplements stage logic — it routes.
 
+## When dispatched (worker mode)
+
+If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
+call `AskUserQuestion`. Skip Step 2's per-stage confirmation and advance through the lifecycle
+automatically, delegating to each stage's skill in turn — each delegated skill applies its own
+dispatch-mode behavior (see its SKILL.md), so approval prompts inside those stages are already
+handled. Step 5's first stop condition ("the user declines the next stage in Step 2") does not
+apply — there is no Step 2 gate to decline under dispatch. Its other two stop conditions still
+apply as written: stop and report on a non-recoverable stage failure (Step 8/CLEANUP completing is
+still the normal end of the loop), and if a genuinely risky or ambiguous decision comes up that no
+stage's default can resolve, post ONE concise plain-text message and stop to wait for the reply,
+rather than using `AskUserQuestion`.
+
+Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
+
 ## Lifecycle stages
 
 ```
