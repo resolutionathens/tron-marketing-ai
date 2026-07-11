@@ -225,13 +225,17 @@ grep -q '^api.atlassian.com$' "$HITLOG7" || fail "attachment download should sti
 ! grep -q '^facilitron.atlassian.net$' "$HITLOG7" || fail "page/listing should not have fallen back to direct when the broker succeeded (log: $(cat "$HITLOG7"))"
 pass "broker covers page+listing; attachment download still goes direct (MD-2011 boundary)"
 
-# --- 8. broker returns a non-2xx → falls back to direct Basic auth -----------
+# --- 8. broker returns a non-2xx → falls back to direct Basic auth, and stays
+#        down for the rest of the run (latched, not re-tried per call) --------
 OUT8="$ROOT/out-broker-401"
-STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-8 STUB_BROKER_CODE=401 \
+HITLOG8="$ROOT/hitlog8"; : > "$HITLOG8"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-8 STUB_BROKER_CODE=401 STUB_HITLOG="$HITLOG8" \
   cfetch 123 "$OUT8" > "$ROOT/stdout8" 2>"$ROOT/stderr8" || fail "broker-401 run should still succeed via fallback: $(cat "$ROOT/stderr8")"
 grep -qi 'falling back to direct Basic auth' "$ROOT/stderr8" || fail "should log the fallback notice (stderr: $(cat "$ROOT/stderr8"))"
 has "$(cat "$ROOT/stdout8")" 'TITLE: My Test Page' "broker-401 run still fetched the page via direct fallback"
-pass "broker non-2xx response → falls back to direct Basic auth"
+BROKER_HITS8="$(grep -c '^secrets.facilitron.work$' "$HITLOG8" || true)"
+[[ "$BROKER_HITS8" == 1 ]] || fail "broker should be attempted exactly once per run then latched off (got $BROKER_HITS8 hits: $(cat "$HITLOG8"))"
+pass "broker non-2xx response → falls back to direct Basic auth, latched off for the rest of the run (1 broker attempt, not re-tried per call)"
 
 # --- 9. broker unreachable (connection refused) → falls back to direct -------
 OUT9="$ROOT/out-broker-down"

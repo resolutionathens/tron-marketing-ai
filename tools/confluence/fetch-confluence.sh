@@ -87,13 +87,18 @@ ensure_direct_creds() {
 }
 
 # GET a /wiki path, broker-first with automatic direct-auth fallback. `path`
-# must start with "/" and is relative to $BASE (i.e. already under /wiki).
+# must start with "/" and is relative to $BASE (i.e. already under /wiki). Once
+# a broker call fails (non-2xx or unreachable), BROKER_DOWN latches so later
+# calls in the same run (page fetch, then attachment listing) go straight to
+# direct auth instead of re-trying — and re-failing — the broker each time.
+BROKER_DOWN=0
 cf_get() { # <path> <outfile>
   local path="$1" out="$2" code
-  if [[ -n "$BROKER_TOKEN" ]]; then
+  if [[ -n "$BROKER_TOKEN" && "$BROKER_DOWN" == 0 ]]; then
     code="$(curl -s -o "$out" -w '%{http_code}' -H "CF-Access-Token: $BROKER_TOKEN" "$BROKER_JIRA_BASE/wiki$path" || echo 000)"
     if [[ "$code" == 2* ]]; then return 0; fi
-    echo "NOTE: broker request for $path returned HTTP $code — falling back to direct Basic auth." >&2
+    BROKER_DOWN=1
+    echo "NOTE: broker request for $path returned HTTP $code — falling back to direct Basic auth for the rest of this run." >&2
   fi
   ensure_direct_creds
   curl -s --netrc-file "$NETRC" "$BASE$path" -o "$out"

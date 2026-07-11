@@ -168,8 +168,8 @@ your shell or add them to your `marketing-pages/.env.local`.
 
 | Var                   | Used for                                                                                                 |
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `ATLASSIAN_EMAIL`     | Confluence attachment **download** basic auth only; falls back to `git config user.email`                |
-| `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth only (`confluence`, `news-item`, `guide-item`)             |
+| `ATLASSIAN_EMAIL`     | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable; falls back to `git config user.email` |
+| `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable (`confluence`, `news-item`, `guide-item`) |
 | `CONFLUENCE_CLOUD_ID` | _(optional)_ override the Confluence cloud ID — defaults to Facilitron's instance                        |
 | `CONFLUENCE_BASE`     | _(optional)_ override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 
