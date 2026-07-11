@@ -30,11 +30,33 @@ bash skills/optimize-images/scripts/test-optimize-images.sh
 Run every script test at once:
 
 ```bash
-for t in skills/*/scripts/test-*.sh; do
+bash tools/lint/run-layer1-tests.sh   # every test-*.sh under skills/ and tools/
+```
+
+This is the same suite CI runs (see below); the equivalent hand-rolled loop is:
+
+```bash
+for t in $(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort); do
   echo "=== $t ==="
   bash "$t" || echo "FAILED: $t"
 done
 ```
+
+### Layer-1 suite in CI (macOS / Apple Silicon)
+
+`.github/workflows/ci.yml` runs the whole layer-1 suite via `run-layer1-tests.sh`
+on **`macos-latest`**, not `ubuntu-latest`. That is deliberate: the plugin only ever
+runs on Apple-Silicon macOS, and the macOS runner ships `/bin/bash` 3.2 with BSD
+coreutils — the same runtime our users have. Running there is what catches the two
+bug classes an ubuntu runner masks and MD-1987 had to defer:
+
+- **bash-3.2 empty-array expansion** (`"${arr[@]}"` under `set -u` throws on bash < 4.4).
+  The CCAL-2091/CCAL-2092 regressions only reproduce under the 3.2 that macOS ships.
+- **BSD vs GNU coreutils divergence.** `base64` needs stdin/`-i` (not a positional file)
+  on BSD; `stat` uses `-f '%Lp'` not `-c '%a'`. Write test helpers to work on both.
+
+So when you add a `test-*.sh`, keep it portable across BSD/GNU or `command -v`-guard the
+divergent tool and SKIP — a test that quietly assumes GNU flags will go red on this job.
 
 The shared `tools/` have their own smoke tests — run them after touching shared tooling:
 

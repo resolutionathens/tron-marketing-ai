@@ -174,9 +174,13 @@ H/XhVZruY7yUq0uxagM25CEPGw+8Nr6DvBYRKiAA4UDAkioIsH4EBzx7CxDgKyCHmaC9gpRbhwQK
 ARKAcIcEuAUmjH5XV68BAngiiAZSA5GspdYmDaSmugb9Bhbp4QpmDBBRvAYIKGKC/L1CgXA6EUEA
 UsMIIAKzRO0FoxHIBFq52SH/H5vhmVDcnejdAAAAAElFTkSuQmCC
 B64
-# decode: GNU/base64 -d first, then BSD/macOS base64 -D
+# decode: feed the fixture on stdin, not as a positional arg. BSD/macOS base64
+# rejects a positional filename ("invalid argument", rc 64) and needs -i/stdin,
+# while GNU base64 accepts either — so a positional arg broke the fixture on
+# macOS (CCAL-2092). Both toolchains read stdin and accept -d for decode; the
+# -D fallback covers any build that only understands the BSD long spelling.
 logo="$TMP/fixture.png"
-base64 -d "$TMP/fixture.b64" > "$logo" 2>/dev/null || base64 -D "$TMP/fixture.b64" > "$logo" 2>/dev/null
+base64 -d < "$TMP/fixture.b64" > "$logo" 2>/dev/null || base64 -D < "$TMP/fixture.b64" > "$logo" 2>/dev/null
 [ -s "$logo" ] || { echo "FAIL: could not decode the embedded PNG fixture"; exit 1; }
 
 # fixture tree: a PNG + a JPEG + a WebP, plus a nested file to prove structure mirroring
