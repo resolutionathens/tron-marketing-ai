@@ -115,6 +115,6 @@ pointing the `*_BASE` var at a loopback server exercises the broker code path wi
   auth. Tools with a direct-API fallback will use it instead if a local credential is present.
 - **TLS handshake failure to the broker** (LibreSSL `tlsv1 alert protocol version`) — a known
   intermittent condition on some workers; see [tron-os broker known
-  issues](https://github.com/Facilitron/tron-os/blob/master/knowledge/playbooks/org-secret-broker.md#known-issues)
-  for details. The fallback path exists precisely for this. Skills run identically under the
-  experimental pi harness.
+  issues](https://github.com/Facilitron/tron-os/blob/3086c8402611369e59af12cbbcf5e5de2f00ded0/knowledge/playbooks/org-secret-broker.md#known-issues)
+  for details. The fallback path exists precisely for this.
+- **Pi harness behavior** — skills run identically under the experimental pi harness.
