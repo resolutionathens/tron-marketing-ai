@@ -13,6 +13,15 @@
 #       [--no-upload] [--overwrite]
 #       → {"ok":true,"name":"hero.png","original":12345,"optimized":3456,
 #          "savings":"72%","path":"product/works/main/hero.png","url":"https://ik…"}
+#   figma-export.sh oauth-status
+#       → {"ok":true,"connected":true,"expiresAt":1234567890}
+#          {"ok":true,"connected":false,"prompt":"…open /figma/oauth/start…"}
+#          {"ok":true,"connected":null,"note":"broker unreachable — skipping connect check"}
+#       Checks GET /figma/oauth/status on the org-secret broker (MD-1991) and,
+#       when the caller has not connected their own Figma account, returns a
+#       one-line nudge to run /figma/oauth/start. Never fails the pipeline —
+#       an unreachable broker just skips the check (the shared-token fallback
+#       still works server-side).
 #
 # Output: one JSON line on stdout (verbose sips/pngquant/curl on stderr). Exit
 # 0 success / 1 logical failure / 2 usage error.
@@ -21,6 +30,8 @@ set -euo pipefail
 log() { echo "figma-export: $*" >&2; }
 usage_err() { echo "figma-export.sh: $*" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || usage_err "jq is required but not on PATH"
+
+BROKER_APP="${FIGMA_BROKER_APP:-https://secrets.facilitron.work}"
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 URL=""; FILE=""; NAME=""; FOLDER=""; RESIZE=1280; QUALITY="65-80"; NO_UPLOAD=0; OVERWRITE=0
@@ -35,7 +46,7 @@ while [[ $# -gt 0 ]]; do
     --quality) QUALITY="${2:-}"; shift ;;
     --no-upload) NO_UPLOAD=1 ;;
     --overwrite) OVERWRITE=1 ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) ARGS+=("$1") ;;
   esac
@@ -108,9 +119,51 @@ cmd_run() {
     '{ok:true,name:$n,original:$o,optimized:$p,savings:$s,path:$path,url:($url|select(.!="")//null),uploaded:true}'
 }
 
+# Check the caller's per-user Figma connection state (MD-1991 broker route)
+# and, when unconnected, hand back a one-line nudge to connect. Env overrides
+# for tests mirror the rest of the plugin's broker tools (tools/broker/README.md):
+#   FIGMA_BROKER_APP          base URL override (loopback stub in tests)
+#   FIGMA_OAUTH_ACCESS_TOKEN  skip `cloudflared` entirely with a dummy token
+cmd_oauth_status() {
+  local token resp
+  if [[ -n "${FIGMA_OAUTH_ACCESS_TOKEN:-}" ]]; then
+    token="$FIGMA_OAUTH_ACCESS_TOKEN"
+  else
+    command -v cloudflared >/dev/null 2>&1 || {
+      jq -nc '{ok:true,connected:null,note:"cloudflared not found — skipping connect check"}'
+      return
+    }
+    token="$(cloudflared access token --app="$BROKER_APP" 2>/dev/null)" || true
+  fi
+  if [[ -z "$token" ]]; then
+    jq -nc '{ok:true,connected:null,note:"no Cloudflare Access token — skipping connect check"}'
+    return
+  fi
+
+  resp="$(curl -fsS -H "CF-Access-Token: $token" "$BROKER_APP/figma/oauth/status" 2>/dev/null)" || {
+    jq -nc '{ok:true,connected:null,note:"broker unreachable — skipping connect check"}'
+    return
+  }
+  jq -e . >/dev/null 2>&1 <<<"$resp" || {
+    jq -nc '{ok:true,connected:null,note:"broker returned a non-JSON response — skipping connect check"}'
+    return
+  }
+
+  local connected expiresAt
+  connected="$(jq -r '.connected // false' <<<"$resp")"
+  if [[ "$connected" == "true" ]]; then
+    expiresAt="$(jq -r '.expiresAt // null' <<<"$resp")"
+    jq -nc --argjson e "${expiresAt:-null}" '{ok:true,connected:true,expiresAt:$e}'
+  else
+    jq -nc --arg u "$BROKER_APP/figma/oauth/start" \
+      '{ok:true,connected:false,prompt:("Not connected to your own Figma account — open " + $u + " to connect it (using the shared org token for now).")}'
+  fi
+}
+
 case "$CMD" in
-  parse-url) cmd_parse_url ;;
-  run)       cmd_run ;;
-  ""|help|-h|--help) sed -n '2,20p' "$0" ;;
-  *) usage_err "unknown subcommand '$CMD' (try: parse-url, run)" ;;
+  parse-url)    cmd_parse_url ;;
+  run)          cmd_run ;;
+  oauth-status) cmd_oauth_status ;;
+  ""|help|-h|--help) sed -n '2,26p' "$0" ;;
+  *) usage_err "unknown subcommand '$CMD' (try: parse-url, run, oauth-status)" ;;
 esac
