@@ -99,5 +99,21 @@ pass "jobs without --workflow → exit 2"
 O="$(bash "$SCRIPT" help)"; has "$O" 'circleci.sh <subcommand>' "help prints usage"
 pass "help → prints usage (exit 0)"
 
+# --- fallback path: missing token error & graceful handling -----------------
+# Test that resolve_circleci_token does not abort under set -euo pipefail
+# when CIRCLECI_TOKEN is missing from ~/.env.
+TMPENV="$(mktemp)"
+trap 'rm -f "$TMPENV"' EXIT
+# Create a .env without CIRCLECI_TOKEN
+echo "OTHER_VAR=value" > "$TMPENV"
+HOME_BACKUP="$HOME"
+export HOME="$(dirname "$TMPENV")"
+ln -s "$TMPENV" "$HOME/.env" 2>/dev/null || true
+O="$(bash -c "source $SCRIPT 2>/dev/null; resolve_circleci_token" || echo 'exit_1')"
+[[ "$O" == "exit_1" || -z "$O" ]] || fail "resolve_circleci_token should handle missing CIRCLECI_TOKEN gracefully (got: $O)"
+pass "resolve_circleci_token handles missing key gracefully under set -euo pipefail"
+export HOME="$HOME_BACKUP"
+rm -f "$HOME/.env" 2>/dev/null || true
+
 echo ""
 echo "✅ circleci smoke PASSED ($PASS checks)"

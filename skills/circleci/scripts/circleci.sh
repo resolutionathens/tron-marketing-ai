@@ -38,7 +38,7 @@
 set -euo pipefail
 
 BROKER_API="https://secrets.facilitron.work/circleci/v2"
-DIRECT_API="https://api.circle.com/v2"
+DIRECT_API="https://circleci.com/api/v2"
 BROKER_DOWN=0
 log() { echo "circleci: $*" >&2; }
 usage_err() { echo "circleci.sh: $*" >&2; exit 2; }
@@ -82,7 +82,7 @@ resolve_broker_token() {
 resolve_circleci_token() {
   if [[ -n "${CIRCLECI_TOKEN:-}" ]]; then printf '%s' "$CIRCLECI_TOKEN"; return; fi
   if [[ -f "$HOME/.env" ]]; then
-    grep "^CIRCLECI_TOKEN=" "$HOME/.env" | head -1 | sed 's/^CIRCLECI_TOKEN=//' | sed "s/^['\"]//;s/['\"]$//"
+    grep "^CIRCLECI_TOKEN=" "$HOME/.env" 2>/dev/null | head -1 | sed 's/^CIRCLECI_TOKEN=//' | sed "s/^['\"]//;s/['\"]$//" || true
   fi
 }
 
