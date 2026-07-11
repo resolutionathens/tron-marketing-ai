@@ -114,4 +114,7 @@ pointing the `*_BASE` var at a loopback server exercises the broker code path wi
 - **`cloudflared not found`** — install `cloudflared`; it is the only local dependency for broker
   auth. Tools with a direct-API fallback will use it instead if a local credential is present.
 - **TLS handshake failure to the broker** (LibreSSL `tlsv1 alert protocol version`) — a known
-  intermittent condition on some workers; the fallback path exists precisely for this.
+  intermittent condition on some workers; see [tron-os broker known
+  issues](https://github.com/Facilitron/tron-os/blob/master/knowledge/playbooks/org-secret-broker.md#known-issues)
+  for details. The fallback path exists precisely for this. Skills run identically under the
+  experimental pi harness.
