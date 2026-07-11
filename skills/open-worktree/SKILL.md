@@ -2,17 +2,26 @@
 name: open-worktree
 model: sonnet
 effort: low
-description: "Open a git worktree in a new tmux session with vim and a terminal, opening any associated URL in your default browser. Use this skill when the user says 'open worktree', 'open that worktree', 'set up workspace for <branch>', 'open workspace for <ticket>', or wants to start working in a worktree that already exists. Also trigger when the user says 'open it in tmux', 'set up a session for that', or references a worktree path they want to work in."
+description: "Open a git worktree in a new tmux session with vim and a terminal, opening any associated URL in your default browser. Use this skill when the user says 'open worktree', 'open that worktree', 'set up workspace for <branch>', 'open workspace for <ticket>', or wants to start working in a worktree that already exists. Also trigger when the user says 'open it in tmux', 'set up a session for that', or references a worktree path they want to work in. IMPORTANT: Not suitable for dispatched/headless workers — requires interactive tmux+vim session and macOS open command."
 allowed-tools:
   - Bash
   - Read
 scout:
   surface: developer
+  title: "Open worktree in tmux+vim"
+  blurb: "Launches an existing worktree in a new tmux session with vim editor and terminal."
+  when: "You want to start interactive development in an existing worktree you created earlier."
+  category: tickets
+  effects: []
 ---
 
 # Open Worktree
 
 Open an existing git worktree in a new tmux session (vim top, terminal bottom), plus any URL in the default browser.
+
+## Important: Not for dispatched workers
+
+This skill **requires interactive terminal access** — it launches tmux+vim and uses `open` (macOS) to open URLs. It is **not compatible with dispatched/headless workers** and should only be invoked interactively by a user at a terminal.
 
 ## Fast path — resolve, fix env files, check node_modules
 
