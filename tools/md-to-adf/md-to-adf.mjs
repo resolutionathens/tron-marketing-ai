@@ -42,6 +42,8 @@ function addEmMark(node) {
     return;
   }
   if (node && typeof node === 'object') {
+    // codeBlock text nodes don't accept marks in ADF — leave quoted code blocks untouched.
+    if (node.type === 'codeBlock') return;
     if (node.type === 'text') {
       node.marks = Array.isArray(node.marks) ? node.marks : [];
       if (!node.marks.some((m) => m && m.type === 'em')) node.marks.push({ type: 'em' });

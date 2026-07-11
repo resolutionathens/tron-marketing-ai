@@ -43,7 +43,14 @@ printf '%s' "$out" | grep -q '"type":"blockQuote"' && bad "blockquote: a blockQu
 printf '%s' "$out" | grep -q '"type":"em"' && ok "blockquote: text is italicized" || bad "blockquote: em mark missing (got: $out)"
 printf '%s' "$out" | grep -q 'quoted text' && ok "blockquote: text content preserved" || bad "blockquote: text content lost (got: $out)"
 
-# --- 5) output is valid ADF JSON (doc node, version 1) ------------------------
+# --- 5) blockquoted fenced code blocks: no em mark leaks into codeBlock text --
+out="$(printf '> ```js\n> const x = 1;\n> ```\n' | node "$CLI")"; rc=$?
+[ "$rc" -eq 0 ] && ok "blockquoted codeBlock: exits 0" || bad "blockquoted codeBlock: exit $rc"
+printf '%s' "$out" | grep -q '"type":"blockQuote"' && bad "blockquoted codeBlock: a blockQuote node survived (got: $out)" || ok "blockquoted codeBlock: no blockQuote node in output"
+printf '%s' "$out" | grep -q '"type":"em"' && bad "blockquoted codeBlock: em mark leaked into codeBlock (got: $out)" || ok "blockquoted codeBlock: no em mark on codeBlock text"
+printf '%s' "$out" | grep -q 'const x = 1;' && ok "blockquoted codeBlock: code content preserved" || bad "blockquoted codeBlock: code content lost (got: $out)"
+
+# --- 6) output is valid ADF JSON (doc node, version 1) ------------------------
 out="$(printf 'Plain text with `inline code` and a heading.\n\n# Heading\n' | node "$CLI")"; rc=$?
 printf '%s' "$out" | node -e '
   let data = "";
