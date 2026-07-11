@@ -3,7 +3,10 @@
 This repo **is a Claude Code plugin**, not an app. There's nothing to build or serve — the
 deliverable is the instruction layer itself: `skills/*/SKILL.md`, `agents/*.md`, the bundled
 `tools/`, and `hooks/`. Editing those files _is_ the work. See [README.md](README.md) for the
-consumer-facing install/dependency docs; this file is for editing the plugin.
+consumer-facing install/dependency docs; this file is for editing the plugin. See
+[WORKER_CONTRACT.md](WORKER_CONTRACT.md) for what a dispatched (non-interactive) worker gets and
+is bound by when it runs a skill from this plugin — env vars, the PR-gate autonomy model,
+unavailable tools, and the broker credential-minting pattern.
 
 ## Layout
 
