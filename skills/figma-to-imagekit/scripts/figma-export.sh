@@ -140,7 +140,7 @@ cmd_oauth_status() {
     return
   fi
 
-  resp="$(curl -fsS -H "CF-Access-Token: $token" "$BROKER_APP/figma/oauth/status" 2>/dev/null)" || {
+  resp="$(curl -fsS --connect-timeout 5 --max-time 10 -H "CF-Access-Token: $token" "$BROKER_APP/figma/oauth/status" 2>/dev/null)" || {
     jq -nc '{ok:true,connected:null,note:"broker unreachable — skipping connect check"}'
     return
   }
@@ -152,8 +152,11 @@ cmd_oauth_status() {
   local connected expiresAt
   connected="$(jq -r '.connected // false' <<<"$resp")"
   if [[ "$connected" == "true" ]]; then
-    expiresAt="$(jq -r '.expiresAt // null' <<<"$resp")"
-    jq -nc --argjson e "${expiresAt:-null}" '{ok:true,connected:true,expiresAt:$e}'
+    # Capture expiresAt as a JSON literal (jq -c), not via -r + --argjson —
+    # a non-numeric broker response would otherwise make --argjson throw and,
+    # under set -e, take down the "never fails the pipeline" contract with it.
+    expiresAt="$(jq -c '.expiresAt // null' <<<"$resp")"
+    jq -nc --argjson e "$expiresAt" '{ok:true,connected:true,expiresAt:$e}'
   else
     jq -nc --arg u "$BROKER_APP/figma/oauth/start" \
       '{ok:true,connected:false,prompt:("Not connected to your own Figma account — open " + $u + " to connect it (using the shared org token for now).")}'

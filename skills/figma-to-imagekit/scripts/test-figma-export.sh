@@ -81,6 +81,14 @@ has "$O" '"connected":false' "connected:false surfaces"
 has "$O" '/figma/oauth/start' "prompt names the connect route"
 pass "oauth-status → connected:false includes a one-line connect prompt"
 
+# A non-numeric expiresAt must not crash the "never fails the pipeline"
+# contract (was: jq -r + --argjson would throw on a non-numeric value).
+rc=0; O="$(PATH="$STUB_BIN:$PATH" STUB_RESP='{"connected":true,"expiresAt":"2026-01-01T00:00:00Z"}' \
+     FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)" || rc=$?; echo "  → $O"
+[[ "$rc" == 0 ]] || fail "oauth-status should not exit non-zero on a non-numeric expiresAt (got $rc)"
+has "$O" '"connected":true' "connected:true still surfaces with a non-numeric expiresAt"
+pass "oauth-status → non-numeric expiresAt doesn't crash the pipeline"
+
 O="$(PATH="$STUB_BIN:$PATH" STUB_FAIL=1 \
      FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)"; echo "  → $O"
 has "$O" '"connected":null' "unreachable broker degrades to connected:null, not a failure"
