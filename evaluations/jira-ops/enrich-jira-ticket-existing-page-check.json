@@ -1,0 +1,13 @@
+{
+  "skills": ["enrich-jira-ticket"],
+  "query": "Enrich CCAL-1177, an Attendee Management page ticket in marketing-pages. It's a product landing page under pages/product/scheduling-and-reservations.",
+  "files": [],
+  "expected_behavior": [
+    "Identifies the work type as marketing-pages landing page content, routed under pages/**",
+    "Before drafting the description, searches the marketing-pages repo (local checkout or gh search code) and the live site for a page matching the ticket subject",
+    "Finds the existing live page at pages/facility-owners/attendee-management.vue and records it under Sources as a likely redesign/migration target, not net-new",
+    "Steers the implementation notes toward confirming scope as a redesign/migration rather than assuming a net-new build",
+    "Converts the description through tools/md-to-adf before writing it to Jira",
+    "Reports the existing-page match it found so the developer can confirm scope before starting"
+  ]
+}
