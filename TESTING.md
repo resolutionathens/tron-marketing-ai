@@ -202,6 +202,128 @@ run at and note any divergence in the PR.
 
 ---
 
+## 4. Testing under worker/dispatch mode (non-interactive)
+
+Skills are designed to run in two environments: **Claude Code's interactive terminal** (the user
+invokes `/skillname` in the IDE or web UI) and **headless worker mode** (the Tron control plane
+dispatches skills as non-interactive subagents). Testing dispatch-mode behavior is essential for
+skills that call out to the control-plane API, use environment variables set by the dispatcher,
+or need to handle non-interactive constraints (no `AskUserQuestion`, no menu prompts, no
+awaiting user input).
+
+### Environment setup for dispatch mode
+
+When the Tron control plane dispatches a skill, it sets two key environment variables:
+
+- **`TRON_DISPATCH_ID`** — a unique ID for this dispatch run (e.g., `2026-07-11T18-52-39Z-md-2088`)
+- **`TRON_API_URL`** — base URL for the control-plane API (e.g., `http://127.0.0.1:8787`)
+
+A skill can detect dispatch mode by checking whether `TRON_DISPATCH_ID` is set:
+
+```bash
+if [ -n "${TRON_DISPATCH_ID:-}" ]; then
+  # Running under dispatch — use TRON_API_URL and avoid interactive prompts
+else
+  # Running interactively in Claude Code
+fi
+```
+
+### Mocking the control-plane API
+
+To test dispatch mode locally without a real control plane, stand up a stub HTTP server
+that implements the control-plane surface. The `tools/okf/test-okf.sh` provides a complete
+example: it creates a minimal Node.js HTTP server on localhost, exports `TRON_API_URL`, and
+asserts the tool's behavior against it.
+
+**Minimal mock pattern:**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create a temporary directory for server state
+TMP="$(mktemp -d)"
+cleanup() { rm -rf "$TMP"; }
+trap cleanup EXIT
+
+# Stand up a minimal stub server
+cat > "$TMP/server.mjs" <<'EOF'
+import { createServer } from "node:http";
+const srv = createServer((req, res) => {
+  const u = new URL(req.url, "http://x");
+  if (req.method === "GET" && u.pathname === "/api/example") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+  res.writeHead(404);
+  res.end("{}");
+});
+srv.listen(0, "127.0.0.1", () => { process.stdout.write(String(srv.address().port) + "\n"); });
+EOF
+
+# Start server and capture its port
+node "$TMP/server.mjs" > "$TMP/port" &
+SERVER_PID=$!
+sleep 0.2
+PORT="$(cat "$TMP/port")"
+
+# Run the skill under simulated dispatch
+export TRON_DISPATCH_ID="test-dispatch-$(date +%s)"
+export TRON_API_URL="http://127.0.0.1:$PORT"
+
+# Invoke the skill and assert behavior
+# (Skill should use TRON_API_URL for API calls, not prompt the user)
+
+kill "$SERVER_PID" 2>/dev/null || true
+```
+
+### Non-interactive behavior checklist
+
+When testing under dispatch mode, verify the following:
+
+1. **No prompts:** The skill must not call `AskUserQuestion`, show `.` selects, or pause for user input.
+   Any user input should be resolved at dispatch time and injected via environment variables or
+   command-line args.
+
+2. **API fallback:** If the skill needs data (e.g., from Jira, Confluence, or the OKF), it should:
+   - Call the control-plane API (`TRON_API_URL/api/…`) if `TRON_API_URL` is set
+   - Fall back to interactive prompt or direct API auth if running interactively
+   - Exit with a clear error if neither path is available
+
+3. **No side-effects on API failure:** If an API call fails (network error, 404, 500), the skill
+   should report the error and stop cleanly, not hang or retry indefinitely.
+
+4. **Deterministic output:** The skill should produce the same output for the same inputs,
+   regardless of execution mode. This is especially important for skills that make decisions
+   based on API responses — mock those responses consistently in tests.
+
+### Integration testing a skill under dispatch
+
+To test a full skill flow under simulated dispatch:
+
+1. **Set environment variables** (`TRON_DISPATCH_ID`, `TRON_API_URL`, plus any
+   skill-specific secrets like tokens)
+2. **Run the skill** (directly or via the agent that invokes it)
+3. **Mock the control-plane API** with a stub server (use the `test-okf.sh` pattern above)
+4. **Assert behavior** — check exit codes, output content, and confirm no interactive
+   prompts were triggered
+
+**Example:** Testing `okf-query` under dispatch:
+
+```bash
+# Set up mock control-plane API (see tools/okf/test-okf.sh for the full server)
+export TRON_DISPATCH_ID="test-dispatch"
+export TRON_API_URL="http://127.0.0.1:5555"  # stub server
+
+# Invoke the skill
+node tools/okf/okf.mjs select --type Policy
+
+# Assert expected output (OKF manifest filtered by type, no user prompts)
+```
+
+---
+
 ## What to run when
 
 | You changed…                        | Run                                                                              |
