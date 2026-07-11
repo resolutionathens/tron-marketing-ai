@@ -27,6 +27,8 @@ fail() { echo "  ✗ $*" >&2; rm -rf "$ROOT"; exit 1; }
 trap 'rm -rf "$ROOT"' EXIT
 has()   { grep -qF -- "$2" <<<"$1" || fail "$3 — got: $1"; }
 hasnt() { grep -qF -- "$2" <<<"$1" && fail "$3 — unexpectedly got: $1"; return 0; }
+# Portable octal file mode: GNU stat uses -c '%a', BSD/macOS stat uses -f '%Lp'.
+filemode() { stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null; }
 
 echo "fetch-confluence smoke: root=$ROOT"
 
@@ -111,7 +113,7 @@ pass "raw id → body.html + only-referenced downloads (unused.png skipped)"
 
 # netrc: mode 600, holds creds for both hosts, and was removed from TMPDIR on exit
 [[ -f "$ROOT/netrc.snap" ]] || fail "netrc snapshot not captured (script never wrote one?)"
-[[ "$(stat -c '%a' "$ROOT/netrc.snap")" == 600 ]] || fail "netrc should be mode 600 (got $(stat -c '%a' "$ROOT/netrc.snap"))"
+[[ "$(filemode "$ROOT/netrc.snap")" == 600 ]] || fail "netrc should be mode 600 (got $(filemode "$ROOT/netrc.snap"))"
 grep -q 'machine facilitron.atlassian.net' "$ROOT/netrc.snap" || fail "netrc missing wiki host entry"
 grep -q 'machine api.atlassian.com' "$ROOT/netrc.snap" || fail "netrc missing gateway host entry"
 grep -q 'faketoken' "$ROOT/netrc.snap" || fail "netrc missing the token"
