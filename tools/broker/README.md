@@ -55,13 +55,12 @@ prefix in and every downstream path/query/body is unchanged.
 | `/imagekit/*` | ImageKit REST + upload API | `tools/imagekit/imagekit.mjs` (content image pipeline) |
 | `/figma/*` | Figma REST API | `tron:figma-to-imagekit` (asset export) |
 | `/circleci/*` | CircleCI v2 API | `tron:circleci` (`skills/circleci/scripts/circleci.sh`) |
-| `/jira/*` | Jira Cloud REST | `tools/confluence/fetch-confluence.sh` (page body + attachment listing) |
+| `/jira/*` | Jira Cloud REST + Confluence page body / listing | `tools/confluence/fetch-confluence.sh` (MD-1995) |
+| `/jira/confluence-attachments/*` | Confluence attachment downloads | `tools/confluence/fetch-confluence.sh` (MD-2085) |
 | `/knowledge/*` | OKF knowledge bundle | `tools/okf/okf.mjs` direct-broker fallback (MD-2066) |
 
-Not everything is proxied yet. `api.atlassian.com` (Confluence attachment **downloads**) is not,
-so that leg still uses `JIRA_API_TOKEN`/`ATLASSIAN_EMAIL` directly (tracked in MD-2011). `acli`'s
-Jira session stays on its own OAuth login and does **not** route through the broker — see
-[`tools/jira/broker-status.md`](../jira/broker-status.md) for why.
+Not everything is proxied yet. `acli`'s Jira session stays on its own OAuth login and does
+**not** route through the broker — see [`tools/jira/broker-status.md`](../jira/broker-status.md) for why.
 
 ## The broker-first-with-fallback pattern
 
