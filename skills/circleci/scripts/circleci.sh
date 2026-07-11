@@ -37,7 +37,9 @@
 # failure / 2 usage error.
 set -euo pipefail
 
-API="https://secrets.facilitron.work/circleci/v2"
+BROKER_API="https://secrets.facilitron.work/circleci/v2"
+DIRECT_API="https://api.circle.com/v2"
+BROKER_DOWN=0
 log() { echo "circleci: $*" >&2; }
 usage_err() { echo "circleci.sh: $*" >&2; exit 2; }
 
@@ -70,23 +72,45 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ---- broker auth + http ------------------------------------------------------
-resolve_token() {
+# ---- broker auth + http with fallback -----------------------------------------------
+resolve_broker_token() {
   local token
   token="$(cloudflared access token --app=https://secrets.facilitron.work 2>/dev/null)" || true
   [[ -n "$token" ]] && printf '%s' "$token"
 }
 
+resolve_circleci_token() {
+  if [[ -n "${CIRCLECI_TOKEN:-}" ]]; then printf '%s' "$CIRCLECI_TOKEN"; return; fi
+  if [[ -f "$HOME/.env" ]]; then
+    grep "^CIRCLECI_TOKEN=" "$HOME/.env" | head -1 | sed 's/^CIRCLECI_TOKEN=//' | sed "s/^['\"]//;s/['\"]$//"
+  fi
+}
+
 http() { # METHOD PATH [DATA]
-  local m="$1" p="$2" d="${3:-}" token
-  command -v cloudflared >/dev/null 2>&1 \
-    || { jq -nc '{ok:false,error:"cloudflared not found — required for broker auth"}'; exit 1; }
-  token="$(resolve_token)"
-  [[ -z "$token" ]] && { jq -nc '{ok:false,error:"no Cloudflare Access token — run: cloudflared access login https://secrets.facilitron.work"}'; exit 1; }
+  local m="$1" p="$2" d="${3:-}" token url
+
+  if [[ "$BROKER_DOWN" == 0 ]]; then
+    command -v cloudflared >/dev/null 2>&1 && {
+      token="$(resolve_broker_token)"
+      if [[ -n "$token" ]]; then
+        url="$BROKER_API/$p"
+        if [[ -n "$d" ]]; then
+          curl -fsS -X "$m" -H "CF-Access-Token: $token" -H "Content-Type: application/json" -d "$d" "$url" 2>/dev/null && return 0
+        else
+          curl -fsS -X "$m" -H "CF-Access-Token: $token" "$url" 2>/dev/null && return 0
+        fi
+      fi
+    }
+    BROKER_DOWN=1
+  fi
+
+  token="$(resolve_circleci_token)"
+  [[ -z "$token" ]] && { jq -nc '{ok:false,error:"CIRCLECI_TOKEN not set (checked env and ~/.env) — needed for direct CircleCI API fallback"}'; exit 1; }
+  url="$DIRECT_API/$p"
   if [[ -n "$d" ]]; then
-    curl -fsS -X "$m" -H "CF-Access-Token: $token" -H "Content-Type: application/json" -d "$d" "$API/$p"
+    curl -fsS -X "$m" -H "Circle-Token: $token" -H "Content-Type: application/json" -d "$d" "$url"
   else
-    curl -fsS -X "$m" -H "CF-Access-Token: $token" "$API/$p"
+    curl -fsS -X "$m" -H "Circle-Token: $token" "$url"
   fi
 }
 
