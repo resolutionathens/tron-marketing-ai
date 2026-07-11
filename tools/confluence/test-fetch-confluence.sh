@@ -101,7 +101,14 @@ case "$url" in
     [[ "$hasw" == 1 ]] && printf '%s' "${STUB_BROKER_CODE:-200}"
     exit 0
     ;;
-  *api.atlassian.com*) printf 'IMGDATA:%s' "$(basename "$out")" > "$out" ;;  # attachment download
+  *secrets.facilitron.work/jira/confluence-attachments*)
+    [[ "${STUB_BROKER_DOWN:-0}" == 1 ]] && exit 7   # simulate connection refused
+    [[ "${STUB_BROKER_ATTACH_CODE:-0}" != 0 ]] && [[ "$hasw" == 1 ]] && printf '%s' "${STUB_BROKER_ATTACH_CODE}" && exit 0
+    printf 'IMGDATA:%s' "$(basename "$out")" > "$out"  # attachment download via broker
+    [[ "$hasw" == 1 ]] && printf '%s' "${STUB_BROKER_ATTACH_CODE:-200}"
+    exit 0
+    ;;
+  *api.atlassian.com*) printf 'IMGDATA:%s' "$(basename "$out")" > "$out" ;;  # attachment download (fallback)
   *"/attachments"*)    cp "${STUB_ATTACH:?}" "$out" ;;                        # attachment listing
   *"/api/v2/pages/"*)  cp "${STUB_PAGE:?}"   "$out" ;;                        # page body
   *) echo "curl stub: unhandled url: $url" >&2; exit 1 ;;
@@ -214,43 +221,55 @@ has "$(cat "$ROOT/stdout6")" 'TITLE: No Image Page' "broker-only run fetched the
 [[ ! -d "$OUT6/raw" ]] || [[ -z "$(ls -A "$OUT6/raw" 2>/dev/null)" ]] || fail "no attachments should have been downloaded"
 pass "broker success + no referenced attachments → succeeds with zero local Jira credentials"
 
-# --- 7. broker covers page+listing; attachment DOWNLOAD still needs direct auth (MD-2011) ---
-OUT7="$ROOT/out-broker-mixed"
+# --- 7. broker covers page+listing+attachment-download (MD-2085) ---
+OUT7="$ROOT/out-broker-full"
 HITLOG7="$ROOT/hitlog7"; : > "$HITLOG7"
 STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-7 STUB_HITLOG="$HITLOG7" \
-  cfetch 123 "$OUT7" > "$ROOT/stdout7" 2>"$ROOT/stderr7" || fail "mixed broker/direct run failed: $(cat "$ROOT/stderr7")"
-[[ -f "$OUT7/raw/hero.png" && -f "$OUT7/raw/diagram.png" ]] || fail "referenced attachments not downloaded in mixed run"
-grep -q '^secrets.facilitron.work$' "$HITLOG7" || fail "page/listing calls should have hit the broker host (log: $(cat "$HITLOG7"))"
-grep -q '^api.atlassian.com$' "$HITLOG7" || fail "attachment download should still hit api.atlassian.com directly (log: $(cat "$HITLOG7"))"
-! grep -q '^facilitron.atlassian.net$' "$HITLOG7" || fail "page/listing should not have fallen back to direct when the broker succeeded (log: $(cat "$HITLOG7"))"
-pass "broker covers page+listing; attachment download still goes direct (MD-2011 boundary)"
+  cfetch 123 "$OUT7" > "$ROOT/stdout7" 2>"$ROOT/stderr7" || fail "broker-full run failed: $(cat "$ROOT/stderr7")"
+[[ -f "$OUT7/raw/hero.png" && -f "$OUT7/raw/diagram.png" ]] || fail "referenced attachments not downloaded in broker-full run"
+BROKER_HITS7="$(grep -c '^secrets.facilitron.work$' "$HITLOG7" || true)"
+[[ "$BROKER_HITS7" -ge 3 ]] || fail "broker should handle page/listing/attachment downloads (got $BROKER_HITS7 broker hits: $(cat "$HITLOG7"))"
+! grep -q '^facilitron.atlassian.net$' "$HITLOG7" || fail "should not have fallen back to direct when the broker succeeded (log: $(cat "$HITLOG7"))"
+! grep -q '^api.atlassian.com$' "$HITLOG7" || fail "attachment download should now go through broker, not direct to api.atlassian.com (log: $(cat "$HITLOG7"))"
+pass "broker covers page+listing+attachment-download via /jira/confluence-attachments (MD-2085)"
 
-# --- 8. broker returns a non-2xx → falls back to direct Basic auth, and stays
-#        down for the rest of the run (latched, not re-tried per call) --------
-OUT8="$ROOT/out-broker-401"
+# --- 8. broker attachment download fails → falls back to direct auth ------
+OUT8="$ROOT/out-broker-attach-fail"
 HITLOG8="$ROOT/hitlog8"; : > "$HITLOG8"
-STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-8 STUB_BROKER_CODE=401 STUB_HITLOG="$HITLOG8" \
-  cfetch 123 "$OUT8" > "$ROOT/stdout8" 2>"$ROOT/stderr8" || fail "broker-401 run should still succeed via fallback: $(cat "$ROOT/stderr8")"
-grep -qi 'falling back to direct Basic auth' "$ROOT/stderr8" || fail "should log the fallback notice (stderr: $(cat "$ROOT/stderr8"))"
-has "$(cat "$ROOT/stdout8")" 'TITLE: My Test Page' "broker-401 run still fetched the page via direct fallback"
-BROKER_HITS8="$(grep -c '^secrets.facilitron.work$' "$HITLOG8" || true)"
-[[ "$BROKER_HITS8" == 1 ]] || fail "broker should be attempted exactly once per run then latched off (got $BROKER_HITS8 hits: $(cat "$HITLOG8"))"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-8 STUB_BROKER_ATTACH_CODE=401 STUB_HITLOG="$HITLOG8" \
+  cfetch 123 "$OUT8" > "$ROOT/stdout8" 2>"$ROOT/stderr8" || fail "broker-attach-401 run should still succeed via fallback: $(cat "$ROOT/stderr8")"
+[[ -f "$OUT8/raw/hero.png" && -f "$OUT8/raw/diagram.png" ]] || fail "referenced attachments not downloaded after broker attachment failure"
+grep -qi 'falling back to direct Basic auth' "$ROOT/stderr8" || fail "should log the fallback notice for attachment download (stderr: $(cat "$ROOT/stderr8"))"
+grep -q '^api.atlassian.com$' "$HITLOG8" || fail "attachment download should fall back to direct api.atlassian.com when broker fails (log: $(cat "$HITLOG8"))"
+pass "broker attachment download returns non-2xx → falls back to direct api.atlassian.com"
+
+# --- 9. broker page-fetch returns a non-2xx → falls back to direct Basic auth, and stays
+#        down for the rest of the run (latched, not re-tried per call) --------
+OUT9="$ROOT/out-broker-401"
+HITLOG9="$ROOT/hitlog9"; : > "$HITLOG9"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-9 STUB_BROKER_CODE=401 STUB_HITLOG="$HITLOG9" \
+  cfetch 123 "$OUT9" > "$ROOT/stdout9" 2>"$ROOT/stderr9" || fail "broker-401 run should still succeed via fallback: $(cat "$ROOT/stderr9")"
+grep -qi 'falling back to direct Basic auth' "$ROOT/stderr9" || fail "should log the fallback notice (stderr: $(cat "$ROOT/stderr9"))"
+has "$(cat "$ROOT/stdout9")" 'TITLE: My Test Page' "broker-401 run still fetched the page via direct fallback"
+BROKER_HITS9="$(grep -c '^secrets.facilitron.work$' "$HITLOG9" || true)"
+[[ "$BROKER_HITS9" == 1 ]] || fail "broker should be attempted exactly once per run then latched off (got $BROKER_HITS9 hits: $(cat "$HITLOG9"))"
 pass "broker non-2xx response → falls back to direct Basic auth, latched off for the rest of the run (1 broker attempt, not re-tried per call)"
 
-# --- 9. broker unreachable (connection refused) → falls back to direct -------
-OUT9="$ROOT/out-broker-down"
-STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-9 STUB_BROKER_DOWN=1 \
-  cfetch 123 "$OUT9" > "$ROOT/stdout9" 2>"$ROOT/stderr9" || fail "broker-down run should still succeed via fallback: $(cat "$ROOT/stderr9")"
-has "$(cat "$ROOT/stdout9")" 'TITLE: My Test Page' "broker-down run still fetched the page via direct fallback"
+# --- 10. broker unreachable (connection refused) → falls back to direct -------
+OUT10="$ROOT/out-broker-down"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-10 STUB_BROKER_DOWN=1 \
+  cfetch 123 "$OUT10" > "$ROOT/stdout10" 2>"$ROOT/stderr10" || fail "broker-down run should still succeed via fallback: $(cat "$ROOT/stderr10")"
+has "$(cat "$ROOT/stdout10")" 'TITLE: My Test Page' "broker-down run still fetched the page via direct fallback"
 pass "broker unreachable → falls back to direct Basic auth"
 
-# --- 10. CONFLUENCE_ACCESS_TOKEN override skips cloudflared entirely ---------
-OUT10="$ROOT/out-broker-override"
-HITLOG10="$ROOT/hitlog10"; : > "$HITLOG10"
-STUB_CF_FAIL=1 CF_TOKEN_OVR=explicit-token STUB_HITLOG="$HITLOG10" \
-  cfetch 123 "$OUT10" > "$ROOT/stdout10" 2>"$ROOT/stderr10" || fail "access-token override run failed: $(cat "$ROOT/stderr10")"
-grep -q '^secrets.facilitron.work$' "$HITLOG10" || fail "override token should have gone straight to the broker (log: $(cat "$HITLOG10"))"
+# --- 11. CONFLUENCE_ACCESS_TOKEN override skips cloudflared entirely ---------
+OUT11="$ROOT/out-broker-override"
+HITLOG11="$ROOT/hitlog11"; : > "$HITLOG11"
+STUB_CF_FAIL=1 CF_TOKEN_OVR=explicit-token STUB_HITLOG="$HITLOG11" \
+  cfetch 123 "$OUT11" > "$ROOT/stdout11" 2>"$ROOT/stderr11" || fail "access-token override run failed: $(cat "$ROOT/stderr11")"
+grep -q '^secrets.facilitron.work$' "$HITLOG11" || fail "override token should have gone straight to the broker (log: $(cat "$HITLOG11"))"
 pass "CONFLUENCE_ACCESS_TOKEN override reaches the broker without calling cloudflared"
 
 echo ""
+[[ "$PASS" -ge 11 ]] || echo "⚠ WARNING: expected 11 test checks, got $PASS"
 echo "✅ fetch-confluence smoke PASSED ($PASS checks)"

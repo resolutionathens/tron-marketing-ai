@@ -13,8 +13,8 @@
 # short-lived Cloudflare Access token, with no local token/email needed. Falls
 # back automatically to direct Basic auth (JIRA_API_TOKEN/ATLASSIAN_EMAIL) if the
 # broker is unreachable or a caller overrides CONFLUENCE_BASE to a non-Facilitron
-# site. The attachment *download* leg still hits api.atlassian.com, a host the
-# broker doesn't proxy yet (blocked on MD-2011) — it always uses direct auth.
+# site. The attachment *download* leg also routes through the broker now (MD-2085)
+# at /jira/confluence-attachments, with the same fallback to direct auth.
 # See tools/jira/broker-status.md for the full picture.
 #
 # Handles the two auth gotchas that waste time otherwise:
@@ -39,9 +39,10 @@ BASE="${CONFLUENCE_BASE:-https://facilitron.atlassian.net/wiki}"
 BASE_HOST="${BASE#*://}"; BASE_HOST="${BASE_HOST%%/*}"
 
 # Broker (org-shared, no local credential needed) — only valid for the default
-# Facilitron host; only covers /wiki paths under facilitron.atlassian.net.
+# Facilitron host; covers /wiki paths and /confluence-attachments under facilitron.atlassian.net.
 BROKER_APP="${CONFLUENCE_BROKER_APP:-https://secrets.facilitron.work}"
 BROKER_JIRA_BASE="${CONFLUENCE_BROKER_BASE:-https://secrets.facilitron.work/jira}"
+BROKER_ATTACHMENTS_BASE="${CONFLUENCE_BROKER_ATTACHMENTS_BASE:-https://secrets.facilitron.work/jira/confluence-attachments}"
 
 broker_token() {
   [[ "$BASE_HOST" == "facilitron.atlassian.net" ]] || return 1
@@ -104,6 +105,24 @@ cf_get() { # <path> <outfile>
   curl -s --netrc-file "$NETRC" "$BASE$path" -o "$out"
 }
 
+# Download an attachment, broker-first with automatic direct-auth fallback.
+# The broker mirrors the gateway API, so the path is the downloadLink from the
+# attachments API response (e.g. /download/attachments/123/hero.png?version=1).
+# Follows the same BROKER_DOWN latch pattern as cf_get.
+cf_download() { # <downloadlink> <outfile>
+  local link="$1" out="$2" code
+  if [[ -n "$BROKER_TOKEN" && "$BROKER_DOWN" == 0 ]]; then
+    code="$(curl -s -L --location-trusted -o "$out" -w '%{http_code}' -H "CF-Access-Token: $BROKER_TOKEN" "$BROKER_ATTACHMENTS_BASE$link" || echo 000)"
+    if [[ "$code" == 2* ]]; then return 0; fi
+    BROKER_DOWN=1
+    echo "NOTE: broker attachment download for $link returned HTTP $code — falling back to direct Basic auth for the rest of this run." >&2
+  fi
+  ensure_direct_creds
+  curl -s -L --location-trusted --netrc-file "$NETRC" \
+    "https://api.atlassian.com/ex/confluence/$CLOUD_ID/wiki$link" \
+    -o "$out"
+}
+
 mkdir -p "$OUTDIR/raw"
 
 # 2. Resolve to a numeric page ID. confluence-lib resolves raw ids and full
@@ -157,17 +176,13 @@ with open(f"{outdir}/_dl.tsv", "w") as f:
             f.write(f"{name}\t{atts[name]['downloadLink']}\n")
 PY
 
-# 5. Download each referenced attachment via the gateway route. This hits
-#    api.atlassian.com, a host the broker doesn't proxy yet (MD-2011), so it
-#    always uses direct Basic auth regardless of how steps 3-4 went. Only
+# 5. Download each referenced attachment via the broker route (MD-2085), or
+#    fall back to direct api.atlassian.com if the broker is unavailable. Only
 #    required when there's actually something to download.
 #    --location-trusted is required: the gateway 302s to api.media.atlassian.com
 #    and curl drops credentials on a cross-host redirect without it.
-if [[ -s "$OUTDIR/_dl.tsv" ]]; then ensure_direct_creds; fi
 while IFS=$'\t' read -r name link; do
-  curl -s -L --location-trusted --netrc-file "$NETRC" \
-    "https://api.atlassian.com/ex/confluence/$CLOUD_ID/wiki$link" \
-    -o "$OUTDIR/raw/$name"
+  cf_download "$link" "$OUTDIR/raw/$name"
 done < "$OUTDIR/_dl.tsv"
 rm -f "$OUTDIR/_dl.tsv"
 

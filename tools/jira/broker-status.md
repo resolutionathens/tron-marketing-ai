@@ -26,6 +26,6 @@ read. So the six `acli`-based skills (`jira`, `jira-comment`,
 What *did* cut over under MD-1995: `tools/confluence/fetch-confluence.sh`'s page-body
 and attachment-listing calls, which hit `facilitron.atlassian.net` directly (not
 through `acli`) and so could be pointed at the broker's `/jira/*` proxy. The
-attachment *download* leg still reads `JIRA_API_TOKEN`/`ATLASSIAN_EMAIL` directly —
-it hits `api.atlassian.com`, a host the broker doesn't proxy yet (tracked as a
-prerequisite in MD-2011).
+attachment *download* leg also cut over under MD-2085 — it now routes through the
+broker's `/jira/confluence-attachments/*` proxy (instead of hitting `api.atlassian.com`
+directly with `JIRA_API_TOKEN`/`ATLASSIAN_EMAIL`).
