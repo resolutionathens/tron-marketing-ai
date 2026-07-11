@@ -39,16 +39,43 @@ node "$OKF" help
 Global flags: `--api-url <url>` (overrides `TRON_API_URL`), `--timeout <ms>` (default 15000),
 `--json` (raw JSON instead of the formatted table / bodies).
 
-Exit codes: `0` ok · `2` usage error · `3` no API base URL (`TRON_API_URL` unset and no `--api-url`)
-· `4` HTTP / network error.
+Exit codes: `0` ok · `2` usage error · `3` no reachable OKF source (`TRON_API_URL`/`--api-url`
+unset **and** no usable broker token) · `4` HTTP / network error.
 
 `query` requires at least one filter (`--type`, `--tags`, or `--id-prefix`) so it never pulls the
 whole bundle, and caps loaded bodies at `--limit` (default 8), warning when it truncates.
 
+## Direct-broker fallback (MD-2066)
+
+The primary transport is the control-plane API (`TRON_API_URL`). If a worker's dispatch has **no**
+control-plane channel (`TRON_API_URL` and `--api-url` both unset) but does have direct access to
+the org-secret broker, the CLI falls back to querying the broker's `/knowledge/*` surface
+directly rather than failing outright. It mints a short-lived Cloudflare Access token the same way
+the other broker-backed tools do (`cloudflared access token`) and runs the **same** select/load
+filter locally over the fetched manifest — so the command shape, output, and exit codes are
+unchanged; only the transport differs. See [`tools/broker/README.md`](../broker/README.md) for the
+shared broker pattern this reuses.
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `OKF_BROKER_APP` | `https://secrets.facilitron.work` | `cloudflared` Access app for token minting |
+| `OKF_BROKER_BASE` | `https://secrets.facilitron.work/knowledge` | knowledge surface base (manifest + bodies) |
+| `OKF_ACCESS_TOKEN` | _(unset)_ | short-circuits `cloudflared` (tests, or a worker that already holds a token) |
+
+The fallback expects the broker to serve `${OKF_BROKER_BASE}/manifest.json` (the concept manifest,
+a `[{ id, type, tags, title, … }]` array or `{ concepts: [...] }`) and each body at
+`${OKF_BROKER_BASE}/<id>.md`. The base is env-overridable so this layout can be corrected in config
+rather than code if the OS-side broker path ever differs.
+
+> The broker path is only exercised when `TRON_API_URL` is absent — which no real dispatch does
+> today (`lib/tmux.ts` injects it into every worker). It is verified hermetically (see below); the
+> live `/knowledge/*` surface still needs a real-broker confirmation before it is relied on.
+
 ## Requirements
 
 - Node 18+ (global `fetch`, `AbortController`). Zero npm dependencies.
-- `TRON_API_URL` in the environment (dispatched workers have it) or `--api-url`.
+- `TRON_API_URL` in the environment (dispatched workers have it) or `--api-url`; **or**, for the
+  fallback, a reachable broker plus `cloudflared` (or a preset `OKF_ACCESS_TOKEN`).
 
 Node's `fetch` sends no `Origin` header, so `POST /api/okf/load` passes the control-plane CSRF
 guard (which only rejects cross-origin browser requests).

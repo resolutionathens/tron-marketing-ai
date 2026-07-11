@@ -86,6 +86,8 @@ playbook (unless your current ticket explicitly overrides it).
 - Reuses the MD-1943 select-then-load pattern and does not reimplement the OKF query logic that
   lives in tron-os `lib/okf-client.ts` — it calls the MD-1988 HTTP surface. See
   [tools/okf/README.md](../../tools/okf/README.md) for the endpoint contract.
-- If `TRON_API_URL` is unset (some dispatches don't pass it) or the API is unreachable, the CLI
-  exits non-zero with a clear message — degrade gracefully to your front-loaded rules rather
-  than blocking.
+- If `TRON_API_URL` is unset (some dispatches don't pass it), the CLI falls back to querying the
+  org-secret broker's `/knowledge` surface directly with a `cloudflared` Access token (MD-2066;
+  see [tools/broker/README.md](../../tools/broker/README.md)). Only if there's no control-plane
+  URL **and** no reachable broker (or the API/broker is unreachable) does it exit non-zero — then
+  degrade gracefully to your front-loaded rules rather than blocking.
