@@ -57,6 +57,56 @@ rc=0; bash "$SCRIPT" bogus >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "unknown subcommand should exit 2 (got $rc)"
 pass "unknown subcommand → exit 2"
 
+# --- oauth-status (curl PATH-stubbed, fully offline) -------------------------
+# Mirrors tools/confluence/test-fetch-confluence.sh: a fake `curl` ahead of the
+# real one on PATH, keyed off STUB_RESP / STUB_FAIL, so no real broker/network
+# is touched.
+STUB_BIN="$ROOT/bin"; mkdir -p "$STUB_BIN"
+cat > "$STUB_BIN/curl" <<'SH'
+#!/usr/bin/env bash
+if [[ "${STUB_FAIL:-0}" == 1 ]]; then exit 7; fi
+printf '%s' "${STUB_RESP:-}"
+SH
+chmod +x "$STUB_BIN/curl"
+
+O="$(PATH="$STUB_BIN:$PATH" STUB_RESP='{"connected":true,"expiresAt":1999999999}' \
+     FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)"; echo "  → $O"
+has "$O" '"connected":true' "connected:true passes through"
+has "$O" '"expiresAt":1999999999' "expiresAt passes through"
+pass "oauth-status → connected:true (stubbed broker response)"
+
+O="$(PATH="$STUB_BIN:$PATH" STUB_RESP='{"connected":false}' \
+     FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)"; echo "  → $O"
+has "$O" '"connected":false' "connected:false surfaces"
+has "$O" '/figma/oauth/start' "prompt names the connect route"
+pass "oauth-status → connected:false includes a one-line connect prompt"
+
+# A non-numeric expiresAt must not crash the "never fails the pipeline"
+# contract (was: jq -r + --argjson would throw on a non-numeric value).
+rc=0; O="$(PATH="$STUB_BIN:$PATH" STUB_RESP='{"connected":true,"expiresAt":"2026-01-01T00:00:00Z"}' \
+     FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)" || rc=$?; echo "  → $O"
+[[ "$rc" == 0 ]] || fail "oauth-status should not exit non-zero on a non-numeric expiresAt (got $rc)"
+has "$O" '"connected":true' "connected:true still surfaces with a non-numeric expiresAt"
+pass "oauth-status → non-numeric expiresAt doesn't crash the pipeline"
+
+O="$(PATH="$STUB_BIN:$PATH" STUB_FAIL=1 \
+     FIGMA_OAUTH_ACCESS_TOKEN=dummy bash "$SCRIPT" oauth-status)"; echo "  → $O"
+has "$O" '"connected":null' "unreachable broker degrades to connected:null, not a failure"
+has "$O" '"ok":true' "unreachable broker still exits ok — never blocks the export"
+pass "oauth-status → broker unreachable degrades gracefully"
+
+# Stub cloudflared as a no-session CLI (prints nothing, like a logged-out box)
+# so this doesn't depend on — or hit — whatever real Access session is cached
+# on the machine running the tests.
+cat > "$STUB_BIN/cloudflared" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+chmod +x "$STUB_BIN/cloudflared"
+O="$(PATH="$STUB_BIN:$PATH" FIGMA_OAUTH_ACCESS_TOKEN="" bash "$SCRIPT" oauth-status)"; echo "  → $O"
+has "$O" '"connected":null' "no token (cloudflared session absent and no override) → connected:null"
+pass "oauth-status → no Access token available degrades gracefully"
+
 # --- non-PNG source rejected -------------------------------------------------
 if command -v sips >/dev/null && command -v pngquant >/dev/null; then
   echo "not a png" > "$ROOT/fake.png"
