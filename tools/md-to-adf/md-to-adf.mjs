@@ -31,6 +31,43 @@ if (pi !== -1 && args[pi + 1]) preset = args[pi + 1];
 const md = fs.readFileSync(0, 'utf8'); // fd 0 = stdin
 const adf = markdownToAdf(md, { preset });
 
+// Flatten `blockQuote` nodes. They are valid ADF per the Atlassian spec, but the `acli`
+// backend this output is fed to (`acli ... --description-file`) rejects any document
+// containing one with `InvalidPayloadException: INVALID_INPUT` (MD-2052). We replace
+// each blockQuote with its child paragraphs directly, italicized so the quoted text is
+// still visually distinguished, then splice them in place of the blockQuote node.
+function addEmMark(node) {
+  if (Array.isArray(node)) {
+    node.forEach(addEmMark);
+    return;
+  }
+  if (node && typeof node === 'object') {
+    if (node.type === 'text') {
+      node.marks = Array.isArray(node.marks) ? node.marks : [];
+      if (!node.marks.some((m) => m && m.type === 'em')) node.marks.push({ type: 'em' });
+    }
+    for (const value of Object.values(node)) addEmMark(value);
+  }
+}
+function flattenBlockquotes(node) {
+  if (Array.isArray(node)) {
+    node.forEach(flattenBlockquotes);
+    for (let i = node.length - 1; i >= 0; i--) {
+      const el = node[i];
+      if (el && typeof el === 'object' && el.type === 'blockQuote') {
+        const inner = Array.isArray(el.content) ? el.content : [];
+        addEmMark(inner);
+        node.splice(i, 1, ...inner);
+      }
+    }
+    return;
+  }
+  if (node && typeof node === 'object') {
+    for (const value of Object.values(node)) flattenBlockquotes(value);
+  }
+}
+flattenBlockquotes(adf);
+
 // Strip inline `code` marks. They are valid ADF per the Atlassian spec, but the `acli`
 // backend this output is fed to (`acli ... --description-file`) rejects them with
 // `InvalidPayloadException: INVALID_INPUT` — so any description with backticks (file
