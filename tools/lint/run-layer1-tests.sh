@@ -38,6 +38,12 @@ while IFS= read -r t; do
 done < <(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort)
 
 echo "----------------------------------------------------------------------"
+# Guard against a false green: if the find matched nothing (missing dirs in a
+# partial checkout, a broken pattern), fail loudly rather than report "All 0 …".
+if [ "$total" -eq 0 ]; then
+  echo "FAIL: found no test-*.sh under skills/ or tools/ — nothing ran." >&2
+  exit 1
+fi
 if [ "$fail" -ne 0 ]; then
   echo "FAILED layer-1 tests:"
   printf '%s' "$failed"

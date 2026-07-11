@@ -52,7 +52,10 @@ function getPrivateKey() {
 function directAuthHeader() {
   const key = getPrivateKey();
   if (!key) {
-    die('Broker unreachable and IMAGEKIT_PRIVATE_KEY is not set (checked env and ~/.env); cannot fall back to the direct ImageKit API.');
+    // Reached whenever we fall back to the direct API — whether the broker's TLS
+    // handshake failed OR the Cloudflare Access token was simply unavailable — so
+    // name the actual requirement rather than assuming the broker was unreachable.
+    die('Direct ImageKit API fallback needs IMAGEKIT_PRIVATE_KEY, which is not set (checked env and ~/.env).');
   }
   return 'Basic ' + Buffer.from(`${key}:`).toString('base64');
 }
@@ -129,7 +132,9 @@ function client() {
 async function handleResponse(res, method) {
   const text = await res.text();
   if (!res.ok) {
-    let msg = `Broker error (${res.status})`;
+    // Neutral wording: this response may come from the broker OR, after fallback,
+    // from the direct ImageKit API — so don't attribute it to the broker.
+    let msg = `ImageKit API error (${res.status})`;
     try { const j = JSON.parse(text); msg = j.message || j.error || msg; } catch {}
     die(msg);
   }
