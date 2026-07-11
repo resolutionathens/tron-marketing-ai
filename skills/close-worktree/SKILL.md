@@ -14,6 +14,17 @@ scout:
 
 Remove git worktrees that are no longer needed, along with their tmux sessions and optionally branches.
 
+## When dispatched (worker mode)
+
+If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
+call `AskUserQuestion`. A dispatched worker almost always already knows which branch to close (it's
+the branch it was working in), so the "don't know which branch" case below should rarely trigger.
+If it does — the list is ambiguous and picking wrong risks deleting the wrong worktree or unsaved
+work — post ONE concise plain-text message listing the candidate branches and stop to wait for the
+reply, rather than using `AskUserQuestion`.
+
+Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
+
 ## Fast path — when you already know the branch
 
 ```bash
