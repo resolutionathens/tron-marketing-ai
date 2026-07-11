@@ -4,7 +4,12 @@
 # leg is faked:
 #   • curl is PATH-stubbed to serve canned storage-XML page JSON, an attachment
 #     listing, tiny-link redirect headers, and per-attachment download bytes,
-#     keyed off the request URL + flags (a -sIL HEAD vs a -o GET).
+#     keyed off the request URL + flags (a -sIL HEAD vs a -o GET). It also
+#     routes broker (secrets.facilitron.work/jira/wiki/*) requests, controllable
+#     via STUB_BROKER_CODE / STUB_BROKER_DOWN, and logs every host it sees to
+#     STUB_HITLOG so tests can assert which path (broker vs direct) was taken.
+#   • cloudflared is PATH-stubbed too (STUB_CF_FAIL / STUB_CF_TOKEN), so the
+#     org-secret-broker token mint (MD-1995) never shells out for real.
 #   • credentials come from the environment (JIRA_API_TOKEN / ATLASSIAN_EMAIL)
 #     so ~/.env is never touched; HOME points at an empty dir to prove that.
 #   • python3 (body extraction + referenced/unused split) runs for real, offline.
@@ -12,8 +17,11 @@
 #
 # Asserts: the three page-id resolution paths (raw id / full URL offline, tiny
 # link via the redirect follow), referenced-vs-unused attachment filtering (only
-# referenced files are downloaded), netrc temp-file mode 600 + trap cleanup, and
-# that a missing credential fails fast.
+# referenced files are downloaded), netrc temp-file mode 600 + trap cleanup, a
+# missing credential fails fast when the broker is unavailable, the broker path
+# covers a no-attachment page with zero local credentials, the broker still
+# defers the attachment *download* leg to direct auth (MD-2011), and both broker
+# failure modes (non-2xx response, connection refused) fall back to direct auth.
 #
 #   bash tools/confluence/test-fetch-confluence.sh
 set -euo pipefail
@@ -51,13 +59,15 @@ JSON
 # --- curl stub: route by URL + flags -----------------------------------------
 cat > "$BIN/curl" <<'SH'
 #!/usr/bin/env bash
-out=""; url=""; nf=""; head=0
+out=""; url=""; nf=""; head=0; hasw=0
 args=("$@"); n=${#args[@]}
 for ((i=0;i<n;i++)); do
   a="${args[$i]}"
   case "$a" in
     -o)          out="${args[$((i+1))]}"; i=$((i+1)) ;;
     --netrc-file) nf="${args[$((i+1))]}"; i=$((i+1)) ;;
+    -w)          hasw=1; i=$((i+1)) ;;
+    -H)          i=$((i+1)) ;;           # header value not needed for routing
     -*I*)        head=1 ;;               # combined short flags with I (e.g. -sIL) = HEAD
     http://*|https://*) url="$a" ;;
   esac
@@ -74,7 +84,23 @@ if [[ "$head" == 1 ]]; then
   exit 0
 fi
 
+# Log every host this stub sees, so tests can assert broker-vs-direct routing.
+if [[ -n "${STUB_HITLOG:-}" ]]; then
+  host="${url#*://}"; host="${host%%/*}"
+  echo "$host" >> "$STUB_HITLOG"
+fi
+
 case "$url" in
+  *secrets.facilitron.work/jira/wiki*)
+    [[ "${STUB_BROKER_DOWN:-0}" == 1 ]] && exit 7   # simulate connection refused
+    case "$url" in
+      *"/attachments"*)   cp "${STUB_ATTACH:?}" "$out" ;;
+      *"/api/v2/pages/"*) cp "${STUB_PAGE:?}"   "$out" ;;
+      *) echo "curl stub: unhandled broker url: $url" >&2; exit 1 ;;
+    esac
+    [[ "$hasw" == 1 ]] && printf '%s' "${STUB_BROKER_CODE:-200}"
+    exit 0
+    ;;
   *api.atlassian.com*) printf 'IMGDATA:%s' "$(basename "$out")" > "$out" ;;  # attachment download
   *"/attachments"*)    cp "${STUB_ATTACH:?}" "$out" ;;                        # attachment listing
   *"/api/v2/pages/"*)  cp "${STUB_PAGE:?}"   "$out" ;;                        # page body
@@ -83,13 +109,31 @@ esac
 SH
 chmod +x "$BIN/curl"
 
+# --- cloudflared stub: mints (or refuses to mint) the broker Access token ----
+cat > "$BIN/cloudflared" <<'SH'
+#!/usr/bin/env bash
+[[ "${STUB_CF_FAIL:-0}" == 1 ]] && exit 1
+if [[ "$1" == "access" && "$2" == "token" ]]; then
+  echo "${STUB_CF_TOKEN:-fake-cf-token}"
+  exit 0
+fi
+exit 1
+SH
+chmod +x "$BIN/cloudflared"
+
+# Default: broker unavailable (cloudflared "not logged in"), so the original
+# suite below exercises the direct-Basic-auth path exactly as before MD-1995.
 cfetch() { # <input> <outdir> ; env overridable: JIRA_API_TOKEN, HOME, TMPDIR_OVR, NETRC_COPY
   PATH="$BIN:$PATH" \
   HOME="${HOME_OVR:-$ROOT/home}" \
   JIRA_API_TOKEN="${TOK-faketoken}" ATLASSIAN_EMAIL="${EMAIL_OVR-smoke@tron.local}" \
   TMPDIR="${TMPDIR_OVR:-$ROOT/tmp}" \
-  STUB_PAGE="$ROOT/page.json" STUB_ATTACH="$ROOT/attachments.json" \
+  STUB_PAGE="${PAGE_OVR:-$ROOT/page.json}" STUB_ATTACH="${ATTACH_OVR:-$ROOT/attachments.json}" \
   STUB_REDIRECT_ID=123 STUB_NETRC_COPY="${NETRC_COPY:-}" \
+  STUB_CF_FAIL="${STUB_CF_FAIL-1}" STUB_CF_TOKEN="${STUB_CF_TOKEN:-}" \
+  STUB_BROKER_CODE="${STUB_BROKER_CODE:-}" STUB_BROKER_DOWN="${STUB_BROKER_DOWN:-0}" \
+  STUB_HITLOG="${STUB_HITLOG:-}" \
+  CONFLUENCE_ACCESS_TOKEN="${CF_TOKEN_OVR:-}" \
   bash "$SCRIPT" "$@"
 }
 
@@ -148,6 +192,65 @@ rc=0; PATH="$BIN:$PATH" bash "$SCRIPT" >/dev/null 2>&1 || rc=$?
 rc=0; PATH="$BIN:$PATH" bash "$SCRIPT" 123 >/dev/null 2>&1 || rc=$?
 [[ "$rc" -ne 0 ]] || fail "missing output-dir arg should exit nonzero (got $rc)"
 pass "usage: missing page-id/output-dir → nonzero exit"
+
+# --- broker fixtures (MD-1995) -------------------------------------------------
+# A page with no referenced images, so a fully-broker-served run needs zero
+# local Jira credentials (the attachment *download* leg never runs).
+cat > "$ROOT/page-noimg.json" <<'JSON'
+{"title":"No Image Page","body":{"storage":{"value":"<p>just text, no attachments</p>"}}}
+JSON
+cat > "$ROOT/attachments-empty.json" <<'JSON'
+{"results":[]}
+JSON
+
+# --- 6. broker success + no attachments → zero local credentials needed ------
+OUT6="$ROOT/out-broker-noimg"
+rc=0
+TOK= EMAIL_OVR= PAGE_OVR="$ROOT/page-noimg.json" ATTACH_OVR="$ROOT/attachments-empty.json" \
+  STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-6 \
+  cfetch 123 "$OUT6" > "$ROOT/stdout6" 2>"$ROOT/stderr6" || rc=$?
+[[ "$rc" -eq 0 ]] || fail "broker-only run (no images) should succeed with no credentials: $(cat "$ROOT/stderr6")"
+has "$(cat "$ROOT/stdout6")" 'TITLE: No Image Page' "broker-only run fetched the page body"
+[[ ! -d "$OUT6/raw" ]] || [[ -z "$(ls -A "$OUT6/raw" 2>/dev/null)" ]] || fail "no attachments should have been downloaded"
+pass "broker success + no referenced attachments → succeeds with zero local Jira credentials"
+
+# --- 7. broker covers page+listing; attachment DOWNLOAD still needs direct auth (MD-2011) ---
+OUT7="$ROOT/out-broker-mixed"
+HITLOG7="$ROOT/hitlog7"; : > "$HITLOG7"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-7 STUB_HITLOG="$HITLOG7" \
+  cfetch 123 "$OUT7" > "$ROOT/stdout7" 2>"$ROOT/stderr7" || fail "mixed broker/direct run failed: $(cat "$ROOT/stderr7")"
+[[ -f "$OUT7/raw/hero.png" && -f "$OUT7/raw/diagram.png" ]] || fail "referenced attachments not downloaded in mixed run"
+grep -q '^secrets.facilitron.work$' "$HITLOG7" || fail "page/listing calls should have hit the broker host (log: $(cat "$HITLOG7"))"
+grep -q '^api.atlassian.com$' "$HITLOG7" || fail "attachment download should still hit api.atlassian.com directly (log: $(cat "$HITLOG7"))"
+! grep -q '^facilitron.atlassian.net$' "$HITLOG7" || fail "page/listing should not have fallen back to direct when the broker succeeded (log: $(cat "$HITLOG7"))"
+pass "broker covers page+listing; attachment download still goes direct (MD-2011 boundary)"
+
+# --- 8. broker returns a non-2xx → falls back to direct Basic auth, and stays
+#        down for the rest of the run (latched, not re-tried per call) --------
+OUT8="$ROOT/out-broker-401"
+HITLOG8="$ROOT/hitlog8"; : > "$HITLOG8"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-8 STUB_BROKER_CODE=401 STUB_HITLOG="$HITLOG8" \
+  cfetch 123 "$OUT8" > "$ROOT/stdout8" 2>"$ROOT/stderr8" || fail "broker-401 run should still succeed via fallback: $(cat "$ROOT/stderr8")"
+grep -qi 'falling back to direct Basic auth' "$ROOT/stderr8" || fail "should log the fallback notice (stderr: $(cat "$ROOT/stderr8"))"
+has "$(cat "$ROOT/stdout8")" 'TITLE: My Test Page' "broker-401 run still fetched the page via direct fallback"
+BROKER_HITS8="$(grep -c '^secrets.facilitron.work$' "$HITLOG8" || true)"
+[[ "$BROKER_HITS8" == 1 ]] || fail "broker should be attempted exactly once per run then latched off (got $BROKER_HITS8 hits: $(cat "$HITLOG8"))"
+pass "broker non-2xx response → falls back to direct Basic auth, latched off for the rest of the run (1 broker attempt, not re-tried per call)"
+
+# --- 9. broker unreachable (connection refused) → falls back to direct -------
+OUT9="$ROOT/out-broker-down"
+STUB_CF_FAIL=0 STUB_CF_TOKEN=tok-9 STUB_BROKER_DOWN=1 \
+  cfetch 123 "$OUT9" > "$ROOT/stdout9" 2>"$ROOT/stderr9" || fail "broker-down run should still succeed via fallback: $(cat "$ROOT/stderr9")"
+has "$(cat "$ROOT/stdout9")" 'TITLE: My Test Page' "broker-down run still fetched the page via direct fallback"
+pass "broker unreachable → falls back to direct Basic auth"
+
+# --- 10. CONFLUENCE_ACCESS_TOKEN override skips cloudflared entirely ---------
+OUT10="$ROOT/out-broker-override"
+HITLOG10="$ROOT/hitlog10"; : > "$HITLOG10"
+STUB_CF_FAIL=1 CF_TOKEN_OVR=explicit-token STUB_HITLOG="$HITLOG10" \
+  cfetch 123 "$OUT10" > "$ROOT/stdout10" 2>"$ROOT/stderr10" || fail "access-token override run failed: $(cat "$ROOT/stderr10")"
+grep -q '^secrets.facilitron.work$' "$HITLOG10" || fail "override token should have gone straight to the broker (log: $(cat "$HITLOG10"))"
+pass "CONFLUENCE_ACCESS_TOKEN override reaches the broker without calling cloudflared"
 
 echo ""
 echo "✅ fetch-confluence smoke PASSED ($PASS checks)"

@@ -168,14 +168,22 @@ your shell or add them to your `marketing-pages/.env.local`.
 
 | Var                   | Used for                                                                                                 |
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
-| `ATLASSIAN_EMAIL`     | Confluence REST basic auth (attachment downloads); falls back to `git config user.email`                 |
-| `JIRA_API_TOKEN`      | Confluence/Jira REST + attachment downloads (`confluence`, `news-item`, `guide-item`)                    |
+| `ATLASSIAN_EMAIL`     | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable; falls back to `git config user.email` |
+| `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable (`confluence`, `news-item`, `guide-item`) |
 | `CONFLUENCE_CLOUD_ID` | _(optional)_ override the Confluence cloud ID — defaults to Facilitron's instance                        |
 | `CONFLUENCE_BASE`     | _(optional)_ override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 
 - **1Password** (app + optional `op` CLI, `brew install 1password-cli`) populates `~/.env`.
   If a skill reports a token is unset, the 1Password agent likely isn't running.
 - Tools with their own auth (`acli`, `gh`, `codex`) aren't env vars — log in separately.
+- As of MD-1995, `tools/confluence/fetch-confluence.sh`'s page-body fetch and attachment
+  *listing* go through the **org-secret broker** at `secrets.facilitron.work` first (same
+  Cloudflare Access token pattern as ImageKit above) — `ATLASSIAN_EMAIL`/`JIRA_API_TOKEN` are
+  only consulted as a fallback, or for the attachment *download* leg, which the broker doesn't
+  proxy yet (blocked on MD-2011). The six `acli`-based Jira skills (`jira`, `jira-comment`,
+  `enrich-jira-ticket`, `board-triage`, `start-ticket`, `weekly-update`) stay on `acli`'s own
+  OAuth session — `acli` has no way to point at a proxy; see
+  [tools/jira/broker-status.md](tools/jira/broker-status.md).
 
 ---
 

@@ -27,7 +27,9 @@ scout:
 
 # Jira Comment
 
-Post a short, plain-language comment to a Jira ticket via `acli`. The point of this skill is **voice**: most LLM-written comments are too long, too technical, or have AI tells (em dashes, bullet lists, conventional-commit prefixes leaking into prose). This skill is here to keep comments sounding like a human teammate dropping a quick note.
+Post a short, plain-language comment to a Jira ticket via `acli`. Auth is `acli`'s
+own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why. The point of this skill is **voice**: most LLM-written comments are too long, too technical, or have AI tells (em dashes, bullet lists, conventional-commit prefixes leaking into prose). This skill is here to keep comments sounding like a human teammate dropping a quick note.
 
 ## When to use
 
