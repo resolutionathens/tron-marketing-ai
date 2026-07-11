@@ -15,7 +15,7 @@ jobs:
       - run: bash tools/lint/test-check-fastpath-resolvers.sh
 
   scout-frontmatter:
-    name: scout: frontmatter shape lint
+    name: "scout: frontmatter shape lint"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
