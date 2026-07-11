@@ -33,8 +33,8 @@ displayed title often diverge:
 
 ```bash
 find "$MP_REPO/pages" -iname "*<keyword>*"
-grep -rliE "<keyword one>|<keyword two>" "$MP_REPO/pages" --include="*.vue"
-grep -rliE "<keyword one>|<keyword two>" "$MP_REPO/content" --include="*.md" 2>/dev/null
+find "$MP_REPO/pages" -name "*.vue" -exec grep -liE "<keyword one>|<keyword two>" {} +
+find "$MP_REPO/content" -name "*.md" -exec grep -liE "<keyword one>|<keyword two>" {} + 2>/dev/null
 ```
 
 ## 3. Fall back to a remote search when no local checkout exists
