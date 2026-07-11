@@ -13,7 +13,6 @@ scout:
   when: "You want to start interactive development in an existing worktree you created earlier."
   category: tickets
   effects: []
-  note: "Not for dispatched/headless workers — requires tmux, vim, and macOS open command. Use interactively only."
 ---
 
 # Open Worktree
