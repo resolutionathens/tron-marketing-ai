@@ -68,6 +68,7 @@ acli jira workitem assign <KEY> --assignee '<user>'
 
 # Create a new ticket
 acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>'
+# Add --assignee '@me' when the ticket is prefixed SCOUT: or TRON-PLUGIN: (see "Creating tickets" below)
 ```
 
 ### Rich descriptions (markdown → ADF)
@@ -80,6 +81,15 @@ When creating a ticket in the MD project, prefix the summary per
 [tools/jira/conventions.md](../../tools/jira/conventions.md) — the repo/prefix table there is
 canonical (it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT repo). If the target
 repo isn't clear from context, ask the user which repo the ticket is for rather than guessing.
+
+Tickets prefixed `SCOUT:` or `TRON-PLUGIN:` are the user's own OS/plugin work — self-assign them
+on creation with `--assignee '@me'`:
+
+```bash
+acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'
+```
+
+Every other prefix stays unassigned unless the user says otherwise.
 
 ## Presentation guidelines
 
