@@ -34,7 +34,10 @@ Use this base shape. Keep it practical and implementation-ready.
 
 Add only the sections a ticket needs. For content/SEO work, add a `## Source SEO fields` section
 with meta title, meta description, and slug. For a Figma-driven ticket, list the Figma file, the
-page being replaced, and the asset location under `## Sources`. Do not include empty sections.
+page being replaced, and the asset location under `## Sources`. For a marketing-pages landing
+page or content ticket, add the existing-page search result (match or no match) under
+`## Sources` per [reference/existing-page-search.md](existing-page-search.md). Do not include
+empty sections.
 
 The `Destination repo:` and `Destination path or route:` lines are a fixed, machine-parsed
 marker, not prose to paraphrase. When the repo is known, emit them exactly as written above:

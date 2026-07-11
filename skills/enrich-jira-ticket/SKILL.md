@@ -149,13 +149,22 @@ Infer from the summary, source, and user context. Common Facilitron patterns:
 
 When the user states the repo or destination type, trust that over inference.
 
-### 4. Pull source metadata
+### 4. Search for an existing matching page (marketing-pages content/landing pages)
+
+If step 3 lands on a marketing-pages landing page, product page, or content item with a route in
+`pages/**`, do not assume net-new. Search the target repo, and the live site, for a page that
+already matches the ticket subject before drafting the description — see
+[reference/existing-page-search.md](reference/existing-page-search.md) for the search steps and
+how to record the outcome (match found, or no match found) in `## Sources`. Skip this step for
+webdev/navigation, toolkit, and news/blog tickets, which don't carry this ambiguity.
+
+### 5. Pull source metadata
 
 Identify the source type from the links you gathered and capture whatever the implementer will need. A ticket often has more than one source (a spec plus a design, say) — capture each. What each type carries (Figma, page being replaced, asset location, Google Doc, Confluence spec, GitHub PR/issue/path, error link, chat/recording) is catalogued in [reference/source-types.md](reference/source-types.md).
 
 If a source is not directly accessible, still enrich the ticket with its URL and note that the implementer should use it as the reference.
 
-### 5. Draft the enriched description
+### 6. Draft the enriched description
 
 Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. Keep it practical and implementation-ready: add only the sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
 
