@@ -14,6 +14,8 @@ scout:
 # Start Ticket
 
 Look up a ticket, create a worktree, transition it, then move into the worktree and begin the work.
+Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Step 0: Detect ticket type
 

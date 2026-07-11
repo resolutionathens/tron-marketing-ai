@@ -27,6 +27,9 @@ Turn thin Jira tickets into implementation-ready tickets. This skill reads an ex
 
 Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the context and links a developer needs. It is type-agnostic: a webdev sub-task, a Figma-implementation ticket, a landing page, an SEO change, or a content item all enrich the same way. It does **not** implement the ticket, create branches, commit code, or move ticket status — Jira enrichment only.
 
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
+
 ## Where the source material lives
 
 A thin ticket rarely holds its own context. Look in this order and merge what you find:

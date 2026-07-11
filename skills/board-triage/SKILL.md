@@ -24,6 +24,9 @@ Give a manager a fast, prioritized read of the board and a proposed set of groom
 the orchestrator's `jira-morning-suggest`. Git-free: it reads and proposes; it writes to Jira only
 after you confirm.
 
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
+
 ## Scope
 
 Default board: **MCR** (the marketing master board). Hierarchy: Marketing Theme → Initiative →

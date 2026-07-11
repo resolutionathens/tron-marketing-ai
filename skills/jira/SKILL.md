@@ -17,6 +17,8 @@ scout:
 # Jira Interaction via acli
 
 Use the `acli` CLI tool (locate it with `command -v acli`) to interact with Jira.
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Auto-trigger behavior
 
