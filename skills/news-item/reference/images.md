@@ -16,7 +16,8 @@ text. Descriptive names beat numbered ones here because the article body is
 hand-assembled — a meaningful `src` is easier to place correctly than `-07`.
 
 The featured image is named after the slug (`<slug>.webp`), converted from the
-dropped-in `featuredimg.png`.
+dropped-in `featuredimg.png` — or, if none was dropped in, generated via
+`generate-card.sh` with `--name <slug>.webp` (see SKILL.md Stage 2).
 
 ## Destination folders
 

@@ -10,6 +10,19 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft a press release"
+  blurb: "Writes an AP-style press release — headline, dateline, quotes, boilerplate — from an announcement brief."
+  when: "There's news to announce and PR needs a first draft."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: announcement
+      label: "Announcement"
+      type: textarea
+      required: true
+      help: "What's being announced — the news, the who/what/when."
 ---
 
 # /press-release — Press release drafter

@@ -8,6 +8,19 @@ allowed-tools:
   - Grep
   - Glob
   - AskUserQuestion
+scout:
+  surface: true
+  title: "Stress-test a draft"
+  blurb: "Interrogates a draft or brief for weak claims, hidden assumptions, and the pushback a reviewer will have — before they have it."
+  when: "Something important is about to ship and you want the hard questions first."
+  category: qa
+  effects: [report]
+  inputs:
+    - key: draft
+      label: "Draft to stress-test"
+      type: textarea
+      required: true
+      help: "Paste the draft (or a path to it) whose claims to pressure-test."
 ---
 
 # /grill — Critical Interrogation Pass

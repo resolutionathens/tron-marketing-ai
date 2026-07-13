@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  fastpath-resolvers:
+    name: Fast-path SKILL_DIR resolver lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tools/lint/check-fastpath-resolvers.sh
+      - run: bash tools/lint/test-check-fastpath-resolvers.sh
+
+  scout-frontmatter:
+    name: "scout: frontmatter shape lint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash tools/lint/check-scout-frontmatter.sh
+      - run: bash tools/lint/test-check-scout-frontmatter.sh
+
+  layer-1-tests:
+    name: Layer-1 test-*.sh suite (macOS / Apple Silicon)
+    # Runs on macos-latest ON PURPOSE. The tron plugin only ever ships to
+    # Apple-Silicon macOS, and GitHub's macos-latest runners are arm64 with
+    # /bin/bash 3.2 + BSD coreutils — the same runtime the plugin's users have.
+    # That is what makes this suite catch the bugs the earlier CI scope (MD-1987)
+    # deferred: the bash-3.2 empty-array-expansion crashes (CCAL-2091/CCAL-2092)
+    # and BSD/GNU coreutils divergence (base64, stat). An ubuntu-latest runner
+    # would silently pass over both.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Cheap tool deps so the hermetic tests actually run instead of skipping
+      # (e.g. optimize-images needs ImageMagick/pngquant/cwebp to build its
+      # fixture and exercise the bash-3.2 CCAL-2092 guard). Tests for tools we
+      # do not install here (vale, lychee, unlighthouse, gh, acli, …) SKIP.
+      - name: Install test tool dependencies
+        run: brew install jq imagemagick pngquant webp jpegoptim
+      - name: Run the layer-1 test-*.sh suite
+        run: bash tools/lint/run-layer1-tests.sh

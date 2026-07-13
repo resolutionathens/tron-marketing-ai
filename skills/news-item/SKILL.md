@@ -9,6 +9,18 @@ allowed-tools:
   - Write
   - Task
   - AskUserQuestion
+scout:
+  surface: developer
+  effects: [publish, cdn]
+  inputs:
+    - key: topic
+      label: "Topic / headline"
+      type: text
+      required: true
+    - key: notes
+      label: "Notes"
+      type: textarea
+      required: false
 ---
 
 # Facilitron News Item
@@ -20,7 +32,7 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 ```
 - [ ] Preflight: confirm marketing-pages repo (content.sh check-repo)
 - [ ] Stage 1 — Intake: read ticket, fetch Confluence draft + images, confirm slug
-- [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit
+- [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
 - [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
 - [ ] Stage 4 — Verify: links, images resolve, served-HTML check on THIS worktree, prose-lint + a11y-scan
 - [ ] Verification loop: re-read against brief, no em-dashes, fix, repeat
@@ -40,7 +52,7 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 |-------|--------|
 | **Jira key** | Branch name (`<KEY>-<slug>`) |
 | **Confluence draft + SEO keywords** | Ticket description (inlineCard → Confluence URL) |
-| **Featured image** | User drops in repo root as `featuredimg.png` |
+| **Featured image** | User drops in repo root as `featuredimg.png`. If absent, generate one — see Stage 2. |
 | **Slug** | Derived from ticket summary, lowercase-hyphenated. Confirm before uploading. |
 
 ## Shared helper (plugin tools)
@@ -91,7 +103,11 @@ IMAGES=$(bash "$PIPE" --src /tmp/news-<slug>/raw --dest blog-posts/<slug>)
 # IMAGES: {"pm-plan-intro.webp": "https://ik.imagekit.io/facilitron/blog-posts/<slug>/pm-plan-intro.webp", ...}
 ```
 
-The featured image has a different output name (`<slug>.webp`, not `featuredimg.webp`) — handle it directly:
+The featured image has a different output name (`<slug>.webp`, not `featuredimg.webp`) and a
+different aspect (hero, not card) from the body images above.
+
+**A user-dropped `featuredimg.png` in the repo root always takes precedence.** If it's present,
+convert and upload it directly:
 
 ```bash
 TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"
@@ -99,6 +115,32 @@ IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
 bash "$TOWEBP" featuredimg.png /tmp/news-<slug>/<slug>.webp
 node "$IK" upload /tmp/news-<slug>/<slug>.webp --name <slug>.webp --folder blog-featured
 ```
+
+**If no `featuredimg.png` was dropped, generate one** — mirroring `tron:toolkit-item`'s card-generation
+fallback, but sampling `blog-featured/` for style references instead of `toolkit/`, and at a wider,
+hero aspect ratio (news featured images run wider than the 1536x1024 toolkit card):
+
+```bash
+GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
+RESULT=$(bash "$GENCARD" \
+  --folder blog-featured \
+  --name "<slug>.webp" \
+  --size 1792x1024 \
+  --prompt "<subject prompt for this article>")
+# RESULT → {"ok":true,"file":"/tmp/…/<slug>.webp","name":"<slug>.webp","folder":"blog-featured","url":"…"}
+```
+
+`generate-card.sh` samples recent `blog-featured/` images as style references automatically (via
+`--folder blog-featured`), so new heroes stay consistent with the existing house look. For
+editorial/policy posts, the house style is abstract navy with electric-blue/purple line art — say
+so explicitly in `--prompt` if the sampled references don't already carry it. Full mechanics
+(reference sampling, generation, webp conversion, upload) are in the "Generate an index/card
+thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md).
+
+**Dependency:** image generation needs `OPENROUTER_API_KEY` (or `OPENAI_API_KEY`) in `~/.env`.
+`generate-card.sh` → `gen-image.sh` already fails loudly and prints a clear diagnostic if both
+are missing or the key 401s — don't swallow that error or silently skip the featured image; surface
+it and ask the user to add the key, or fall back to asking for a manual `featuredimg.png`.
 
 ## Stage 3 — Write the article
 
@@ -133,7 +175,7 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
    PORT="$(bash "$DS" start --route /resources/news/<slug>)"
    ```
 4. **Prose & a11y:** Offer `tron:prose-lint` and `tron:a11y-scan` before publish.
-5. **Clean up:** Remove `featuredimg.png` from repo root, `/tmp/news-<slug>`.
+5. **Clean up:** Remove `featuredimg.png` from repo root if it was dropped in, and `/tmp/news-<slug>`.
 
 ## Verification loop
 

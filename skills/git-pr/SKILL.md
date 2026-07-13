@@ -9,11 +9,24 @@ allowed-tools:
   - Glob
   - Read
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Pull Request Assistant
 
 Create a PR from the current feature branch with a clear, conventional title and structured body.
+
+## When dispatched (worker mode)
+
+If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
+call `AskUserQuestion`. Skip Step 5's approval prompt and proceed straight to Step 6 with the
+generated title and body as-is. If something genuinely blocks progress (e.g. the branch has no
+resolvable base, or a required detail is missing and can't be inferred from the diff), post ONE
+concise plain-text message stating what's needed and stop to wait for the reply, rather than using
+`AskUserQuestion`.
+
+Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Step 1: Validate branch and tree
 
@@ -65,11 +78,15 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 `$BASE` is the default branch resolved in Step 3 — if this runs in a fresh shell,
 re-run the Step 3 resolver line first.
 
+Write the body to a temp file first, then pass it via `--body-file` — this avoids
+silent `gh pr create` failures when the body contains single quotes, backticks, or
+other shell-sensitive characters (see MD-1907 retro):
+
 ```bash
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+cat > /tmp/.pr-body.md <<'EOF'
 <body>
 EOF
-)" --base "$BASE"
+gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE"
 ```
 
 ## Steps 7–8: Copilot review + retro comment (scripted)

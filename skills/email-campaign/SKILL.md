@@ -10,6 +10,23 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft an email"
+  blurb: "Writes a newsletter, launch, or announcement email — subject-line options, preview text, body, and CTA."
+  when: "You need email copy ready to paste into the ESP."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: kind
+      label: "Email type"
+      type: text
+      required: true
+      placeholder: "newsletter · launch · onboarding · announcement"
+    - key: goal
+      label: "Goal & key points"
+      type: textarea
+      required: true
 ---
 
 # /email-campaign — Email & newsletter drafter

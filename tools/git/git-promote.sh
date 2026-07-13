@@ -88,8 +88,8 @@ gp_merge_into() {
   # Only the dependency files conflicted — keep the target branch's copies.
   # Touch just the files that actually conflicted (a repo may not carry every
   # lockfile in GP_DEP_FILES).
-  git -C "$main" checkout --ours "${resolved_arr[@]}" >/dev/null 2>&1 || true
-  git -C "$main" add "${resolved_arr[@]}" >/dev/null 2>&1 || true
+  git -C "$main" checkout --ours ${resolved_arr[@]+"${resolved_arr[@]}"} >/dev/null 2>&1 || true
+  git -C "$main" add ${resolved_arr[@]+"${resolved_arr[@]}"} >/dev/null 2>&1 || true
   git -C "$main" commit --no-edit >/dev/null 2>&1 || { echo "error:commit-$target"; return 1; }
   git -C "$main" push >/dev/null 2>&1 || { echo "error:push-$target"; return 1; }
   echo "ok:$resolved"; return 0

@@ -8,6 +8,19 @@ allowed-tools:
   - Read
   - Write
   - Skill
+scout:
+  surface: true
+  title: "Report on an initiative"
+  blurb: "Rolls up everything under an epic, theme, or campaign into a status summary you can share."
+  when: "Someone asks where we are on a big piece of work."
+  category: tickets
+  effects: [draft]
+  inputs:
+    - key: parent
+      label: "Initiative / Theme / Epic"
+      type: text
+      required: true
+      placeholder: "Parent key, e.g. MCR-1200"
 ---
 
 # /initiative-report — Initiative / theme progress roll-up

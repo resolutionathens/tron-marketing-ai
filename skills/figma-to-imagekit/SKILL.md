@@ -7,6 +7,15 @@ allowed-tools:
   - Bash
   - Read
   - Write
+scout:
+  surface: developer
+  effects: [cdn]
+  inputs:
+    - key: figmaUrl
+      label: "Figma URL"
+      type: text
+      required: true
+      placeholder: "Figma file or frame URL to export"
 ---
 
 # Figma to ImageKit Export Pipeline
@@ -31,6 +40,9 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 # Parse Figma URL → fileKey + nodeId
 bash "$SKILL_DIR/scripts/figma-export.sh" parse-url "<figma-design-url>"
 
+# Once per session: is the caller connected to their own Figma account?
+bash "$SKILL_DIR/scripts/figma-export.sh" oauth-status
+
 # Per-node pipeline (download → sips resize → pngquant → ImageKit upload)
 bash "$SKILL_DIR/scripts/figma-export.sh" run \
   --url "<asset-url>" --name hero.png \
@@ -44,6 +56,21 @@ bash "$SKILL_DIR/scripts/figma-export.sh" run \
 `--file <path>` for already-downloaded sources. `--no-upload` to stop after optimizing. Rejects non-PNG sources — for jpg/svg use the format options below.
 
 **For multi-node exports (common case), fan out to Haiku subagents** — one per node, each runs the `run` command with `{url, name, folder, resize}`. The orchestrator handles node discovery (judgment). Don't fan out a single-image export.
+
+## 0. Check the connection (once per session)
+
+The broker proxies `/figma/*` under the caller's own Figma OAuth token when they've connected
+(MD-1991); an unconnected caller silently falls back to the shared org token and still gets images
+— nothing breaks. Run `oauth-status` once at the start of an export session. If it comes back
+`"connected":false`, print its `prompt` field to the user as a single line before continuing (don't
+block the export on it — the shared-token fallback covers the rest of the run):
+
+```
+Not connected to your own Figma account — open https://secrets.facilitron.work/figma/oauth/start to connect it (using the shared org token for now).
+```
+
+`"connected":null` (broker/`cloudflared` unreachable, or the local Figma MCP path is being used
+instead) means the check couldn't run — say nothing and proceed.
 
 ## 1. Identify nodes
 

@@ -6,6 +6,15 @@ description: "Check for broken or dead links in markdown content, HTML pages, si
 allowed-tools:
   - Task
   - Bash
+scout:
+  surface: developer
+  effects: [report]
+  inputs:
+    - key: target
+      label: "URL or path"
+      type: path
+      required: true
+      placeholder: "Type a URL, or browse to a markdown file/glob"
 ---
 
 # /link-check — Broken-link check

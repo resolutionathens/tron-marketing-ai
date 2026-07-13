@@ -38,6 +38,8 @@ if [ -n "$cmd" ]; then
   contains "CLI: subject in prompt"            "an empty wooden park bench" "$cmd"
   contains "CLI: medium pinned (style only)"   "STYLE/MOOD references ONLY" "$cmd"
   contains "CLI: forbids copying subjects"     "Do NOT copy their specific subjects" "$cmd"
+  contains "CLI: demands distinct composition" "VISIBLY DISTINCT composition" "$cmd"
+  contains "CLI: forbids near-duplicate re-skin" "near-duplicate of one reference" "$cmd"
 else
   echo "note: CLI path not selected (image_gen.py or python missing) — skipping CLI assertions"
 fi
@@ -94,6 +96,29 @@ expect_exit "exec: happy path exits 0"       0 "$code"
 [ -s "$TMP/o3.png" ] && echo "ok  : exec: fresh image copied to target" || { echo "FAIL: exec no output"; fail=1; }
 prompt="$(cat "$TMP/last-prompt.txt" 2>/dev/null || true)"
 contains    "exec: subject mandatory in prompt" "school gymnasium" "$prompt"
+
+# --- CCAL-2092: TO=() must expand safely when `timeout` is absent, under set -u ---------
+# PATH C's `TO` array stays empty whenever `command -v timeout` fails (no coreutils timeout
+# on PATH). An unguarded "${TO[@]}" there throws "unbound variable" on macOS system bash 3.2
+# (bash < 4.4) — and since it's mid-pipeline (`printf ... | "${TO[@]}" codex exec ...`), the
+# error aborts word expansion silently: codex exec never actually runs, so the fallback path
+# is fully broken, not just noisy. Restrict PATH to exclude wherever `timeout` lives (e.g.
+# Homebrew coreutils) so TO resolves empty, and assert codex still runs and the image lands.
+mkfake ok
+narrowpath="$TMP/bin:/usr/bin:/bin"
+if ! PATH="$narrowpath" command -v timeout >/dev/null 2>&1; then
+  set +e
+  out="$(PATH="$narrowpath" HOME="$TMP/exec-home" /bin/bash "$SCRIPT" "$refdir" "an empty gym" "$TMP/o4.png" 2>&1)"; code=$?
+  set -e
+  if printf '%s' "$out" | grep -q 'unbound variable'; then
+    echo "FAIL: CCAL-2092 TO=() — unbound variable under bash 3.2 (no timeout on PATH)"; fail=1
+  else
+    expect_exit "CCAL-2092 TO=(): exec still runs without timeout on PATH" 0 "$code"
+    [ -s "$TMP/o4.png" ] && echo "ok  : CCAL-2092 TO=(): fresh image copied despite no timeout binary" || { echo "FAIL: CCAL-2092 TO=() — no output image"; fail=1; }
+  fi
+else
+  echo "SKIP: CCAL-2092 TO=() check — /usr/bin:/bin still resolve a timeout binary here"
+fi
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }

@@ -9,6 +9,18 @@ allowed-tools:
   - Task
   - AskUserQuestion
 description: Add a new item (checklist, SOP, or template) to the Facilitron marketing-pages toolkit at /resources/toolkit. Handles the full workflow — reformatting raw markdown into the Nuxt-Content toolkit schema, writing to content/resources/toolkit/, building the branded PDF, uploading the PDF and card image to ImageKit, verifying internal links resolve, and cleaning up source files. Trigger whenever the user wants to "add a toolkit item", "create a new checklist/SOP/template for the toolkit", "publish this checklist", "add this to /resources/toolkit", drops a raw markdown file and references the toolkit, or shares a Confluence/Google Doc-style draft.
+scout:
+  surface: developer
+  effects: [publish, cdn]
+  inputs:
+    - key: topic
+      label: "Toolkit item"
+      type: text
+      required: true
+    - key: notes
+      label: "Notes"
+      type: textarea
+      required: false
 ---
 
 # Facilitron Toolkit Item

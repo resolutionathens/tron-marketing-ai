@@ -6,6 +6,20 @@ description: "Lint prose, marketing copy, blog posts, SOPs, and other markdown c
 allowed-tools:
   - Task
   - Bash
+scout:
+  surface: true
+  title: "Check writing style"
+  blurb: "Runs copy against the Facilitron style guide — terminology, readability, and consistency — and lists what to fix."
+  when: "Copy is nearly final and needs a mechanical style pass."
+  category: qa
+  effects: [report]
+  inputs:
+    - key: target
+      label: "Draft path"
+      type: path
+      required: true
+      placeholder: "Pick the markdown / draft to lint"
+      accept: ".md,.markdown,.txt"
 ---
 
 # /prose-lint — Prose / style lint

@@ -9,6 +9,19 @@ allowed-tools:
   - Write
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Build the SEO report"
+  blurb: "Turns the monthly Search Console data into a shareable summary and leadership-ready talking points."
+  when: "It's reporting time, or someone asks what changed in search."
+  category: seo
+  effects: [draft]
+  inputs:
+    - key: period
+      label: "Period"
+      type: text
+      required: false
+      placeholder: "e.g. last-30-days (optional)"
 ---
 
 # /seo-report — work with the Search Console report

@@ -7,11 +7,27 @@ allowed-tools:
   - Bash
   - Read
   - AskUserQuestion
+scout:
+  surface: developer
 ---
 
 # Start Ticket
 
 Look up a ticket, create a worktree, transition it, then move into the worktree and begin the work.
+Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
+
+## When dispatched (worker mode)
+
+If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
+call `AskUserQuestion`. A dispatch normally names its ticket unambiguously, so Step 0's "ambiguous
+ref" case should rarely trigger. If it does, post ONE concise plain-text message stating the
+ambiguity and any inline choices, then stop to wait for the reply, rather than using
+`AskUserQuestion`. The same applies to the "ticket too thin to act on" case in Step 2 — relay the
+missing detail as a plain message instead of prompting interactively. See also the
+not-in-a-browser note at the end of Step 2, which already applies to dispatched workers.
+
+Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Step 0: Detect ticket type
 
@@ -102,7 +118,7 @@ Setup is done. Now actually start the ticket — do not stop at scaffolding.
 3. **If the ticket is too thin to act on** (empty or vague description, no implementation notes), enrich it first with `tron:enrich-jira-ticket`, or ask the user for the missing detail. Do not guess at scope.
 4. **State a short plan, then start.** Restate the first implementation steps in a line or two, then make the first changes in the worktree, working the acceptance criteria top to bottom.
 
-Open the ticket URL for reference: `open "<url>"`.
+Do not open the ticket URL in a browser — this includes dispatched/non-interactive workers, not just the `tron:ship-ticket` orchestrator. The ticket details were already fetched in Step 1; use `tron:jira` (or `tron:gh`) for any follow-up investigation.
 
 This skill begins the work; it does not finish it. Committing, dev promotion, PR, and prod stay with their own lifecycle skills (`tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`). Hand off once there is something to commit.
 

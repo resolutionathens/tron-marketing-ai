@@ -7,6 +7,8 @@ allowed-tools:
   - Bash
   - Read
   - WebFetch
+scout:
+  surface: developer
 ---
 
 # CircleCI
@@ -23,7 +25,7 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 bash "$SKILL_DIR/scripts/circleci.sh" <subcommand> [flags]
 ```
 
-For the full subcommand table and raw v2 API curl recipes, see `reference/commands.md`. The script routes network calls through the org-secret broker (`secrets.facilitron.work/circleci/*`), authenticating via a `cloudflared`-minted Access token — no local `$CIRCLECI_TOKEN` needed. It defaults the slug from `git remote origin` and the branch from `HEAD`.
+For the full subcommand table and raw v2 API curl recipes, see `reference/commands.md`. The script routes network calls through the org-secret broker (`secrets.facilitron.work/circleci/*`), authenticating via a `cloudflared`-minted Access token. If the broker is unreachable or `cloudflared` unavailable, it falls back to the direct CircleCI v2 API using `CIRCLECI_TOKEN` (from the environment or `~/.env`). It defaults the slug from `git remote origin` and the branch from `HEAD`.
 
 ### Common subcommands
 
@@ -40,14 +42,24 @@ validate/process/local) lives in `reference/commands.md`.
 
 ## Setup — auth
 
-Network subcommands go through the org-secret broker at `secrets.facilitron.work/circleci/*` — the CircleCI token lives in Cloudflare Secrets Store, never on your machine. Auth is your Facilitron Google identity via Cloudflare Access:
+Network subcommands primarily route through the org-secret broker at `secrets.facilitron.work/circleci/*` — auth is your Facilitron Google identity via Cloudflare Access:
 
 ```bash
 cloudflared access login https://secrets.facilitron.work   # one-time SSO, cached + auto-refreshed
 circleci.sh me                                              # verify auth → {"ok":true,"login":…}
 ```
 
-`circleci config validate`/`process`/`local` still use the local `circleci` CLI (no token involved). Unauthenticated broker requests return `{"ok":false,"error":"..."}`.
+If the broker is unreachable (network issues, TLS handshake flake in dispatched workers), the script falls back to the direct CircleCI v2 API, authenticated with `CIRCLECI_TOKEN`. Set it in your environment or in `~/.env`:
+
+```bash
+export CIRCLECI_TOKEN=<your-circleci-token>
+# or add to ~/.env:
+echo 'CIRCLECI_TOKEN=<your-circleci-token>' >> ~/.env
+```
+
+Get a token from https://app.circleci.com/settings/user/tokens.
+
+`circleci config validate`/`process`/`local` still use the local `circleci` CLI (no token involved). Unauthenticated broker requests or missing fallback token return `{"ok":false,"error":"..."}`.
 
 ## Facilitron deploy URLs (marketing-pages)
 
@@ -69,7 +81,8 @@ circleci local execute --job <job-name>   # run job locally (no project env vars
 
 | Symptom | Fix |
 |---------|-----|
-| `{"ok":false,"error":"no Cloudflare Access token…"}` | Run `cloudflared access login https://secrets.facilitron.work`. |
+| `{"ok":false,"error":"CIRCLECI_TOKEN not set…"}` | Set `CIRCLECI_TOKEN` in your environment or `~/.env` for fallback auth (broker is unreachable). Get one at https://app.circleci.com/settings/user/tokens. |
+| `{"ok":false,"error":"no Cloudflare Access token…"}` | Run `cloudflared access login https://secrets.facilitron.work` for broker auth. If broker is down, CIRCLECI_TOKEN fallback activates automatically. |
 | `{"message": "Project not found"}` | Slug case mismatch — use `gh/Facilitron/...` (capital F). |
 | Workflow stuck in `running` >1h | A job is hung or on hold. `curl .../workflow/<id>/job` to find it. |
 | `config validate` ok but cloud fails | Cloud has version constraints local doesn't enforce. Push to throwaway branch. |

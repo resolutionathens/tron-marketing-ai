@@ -6,11 +6,30 @@ description: Add a short, plain-language progress or summary comment to a Jira t
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: true
+  title: "Post a ticket update"
+  blurb: "Writes a short, plain-language progress note on a ticket — in your voice, not robot voice."
+  when: "A ticket needs a status note and you don't want to write it."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: ticket
+      label: "Ticket"
+      type: text
+      required: true
+      placeholder: "e.g. MCR-1801"
+    - key: comment
+      label: "Comment"
+      type: textarea
+      required: true
 ---
 
 # Jira Comment
 
-Post a short, plain-language comment to a Jira ticket via `acli`. The point of this skill is **voice**: most LLM-written comments are too long, too technical, or have AI tells (em dashes, bullet lists, conventional-commit prefixes leaking into prose). This skill is here to keep comments sounding like a human teammate dropping a quick note.
+Post a short, plain-language comment to a Jira ticket via `acli`. Auth is `acli`'s
+own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why. The point of this skill is **voice**: most LLM-written comments are too long, too technical, or have AI tells (em dashes, bullet lists, conventional-commit prefixes leaking into prose). This skill is here to keep comments sounding like a human teammate dropping a quick note.
 
 ## When to use
 

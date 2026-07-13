@@ -8,6 +8,14 @@ allowed-tools:
   - Read
   - AskUserQuestion
   - Skill
+scout:
+  surface: true
+  title: "Triage the board"
+  blurb: "Reviews the marketing board for stale, unassigned, or blocked tickets and suggests what to do with each."
+  when: "Start of the week, or the board feels out of control."
+  category: tickets
+  effects: [jira]
+  inputs: []
 ---
 
 # /board-triage — Marketing board triage
@@ -15,6 +23,9 @@ allowed-tools:
 Give a manager a fast, prioritized read of the board and a proposed set of grooming actions. Lineage:
 the orchestrator's `jira-morning-suggest`. Git-free: it reads and proposes; it writes to Jira only
 after you confirm.
+
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Scope
 

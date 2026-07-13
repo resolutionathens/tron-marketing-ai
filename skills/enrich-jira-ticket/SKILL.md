@@ -6,6 +6,19 @@ description: Enrich existing Jira tickets with implementation-ready descriptions
 allowed-tools:
   - Bash
   - AskUserQuestion
+scout:
+  surface: true
+  title: "Get a ticket dev-ready"
+  blurb: "Fleshes out thin tickets with background, source links, acceptance criteria, and implementation notes — pulled from parents, links, and comments."
+  when: "A ticket is just a title and someone needs to actually build it."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: tickets
+      label: "Ticket key(s)"
+      type: text
+      required: true
+      placeholder: "MD-1234, MD-1235"
 ---
 
 # Enrich Jira Ticket
@@ -13,6 +26,9 @@ allowed-tools:
 Turn thin Jira tickets into implementation-ready tickets. This skill reads an existing ticket along with its parent and linked issues, finds the real source material wherever it lives, drafts a structured description, converts it to Atlassian Document Format, and writes it back to Jira with `acli`.
 
 Use this for one ticket or a batch when the work is known but the ticket description is empty, vague, or missing the context and links a developer needs. It is type-agnostic: a webdev sub-task, a Figma-implementation ticket, a landing page, an SEO change, or a content item all enrich the same way. It does **not** implement the ticket, create branches, commit code, or move ticket status — Jira enrichment only.
+
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Where the source material lives
 
@@ -133,15 +149,26 @@ Infer from the summary, source, and user context. Common Facilitron patterns:
 
 When the user states the repo or destination type, trust that over inference.
 
-### 4. Pull source metadata
+### 4. Search for an existing matching page (marketing-pages content/landing pages)
+
+If step 3 lands on a marketing-pages landing page, product page, or content item with a route in
+`pages/**`, do not assume net-new. Search the target repo, and the live site, for a page that
+already matches the ticket subject before drafting the description — see
+[reference/existing-page-search.md](reference/existing-page-search.md) for the search steps and
+how to record the outcome (match found, or no match found) in `## Sources`. Skip this step for
+webdev/navigation, toolkit, and news/blog tickets, which don't carry this ambiguity.
+
+### 5. Pull source metadata
 
 Identify the source type from the links you gathered and capture whatever the implementer will need. A ticket often has more than one source (a spec plus a design, say) — capture each. What each type carries (Figma, page being replaced, asset location, Google Doc, Confluence spec, GitHub PR/issue/path, error link, chat/recording) is catalogued in [reference/source-types.md](reference/source-types.md).
 
 If a source is not directly accessible, still enrich the ticket with its URL and note that the implementer should use it as the reference.
 
-### 5. Draft the enriched description
+### 6. Draft the enriched description
 
 Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. Keep it practical and implementation-ready: add only the sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
+
+When the destination repo is known, emit the `Destination repo:` and `Destination path or route:` lines under `## Sources` **verbatim**: the literal label text and backtick-wrapped value, exactly as shown in the template. Do not paraphrase them into a different heading (e.g. `## Repo / implementation guidance (marketing-pages)`) or fold the repo name into prose elsewhere instead. These are not freeform prose the model rephrases; they are a fixed, machine-parsed line. tron-os's dispatch router (`lib/triage.ts`) greps the literal `Destination repo:` marker to route work to the correct repo, and a paraphrased heading will not match it.
 
 ## Playbooks
 

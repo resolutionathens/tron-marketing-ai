@@ -7,6 +7,20 @@ allowed-tools:
   - Bash
   - Read
   - Write
+scout:
+  surface: true
+  title: "Make a branded PDF"
+  blurb: "Turns a markdown document into a Facilitron-branded, print-ready PDF."
+  when: "A checklist, SOP, or onesheet needs to become a polished document."
+  category: media
+  effects: [local]
+  inputs:
+    - key: source
+      label: "Markdown file"
+      type: path
+      required: true
+      placeholder: "Pick the markdown to render to PDF"
+      accept: ".md,.markdown"
 ---
 
 # Facilitron Markdown → PDF

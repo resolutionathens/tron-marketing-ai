@@ -9,6 +9,18 @@ allowed-tools:
   - Write
   - Task
   - AskUserQuestion
+scout:
+  surface: developer
+  effects: [publish, cdn]
+  inputs:
+    - key: topic
+      label: "Guide topic"
+      type: text
+      required: true
+    - key: notes
+      label: "Notes"
+      type: textarea
+      required: false
 ---
 
 # Facilitron Guide Item

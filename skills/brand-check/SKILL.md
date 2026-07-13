@@ -10,6 +10,19 @@ allowed-tools:
   - Grep
   - WebFetch
   - Skill
+scout:
+  surface: true
+  title: "Check brand consistency"
+  blurb: "Audits an asset or design against the brand palette, typography, logo rules, and color contrast."
+  when: "Before handing off a design or a post visual."
+  category: qa
+  effects: [report]
+  inputs:
+    - key: target
+      label: "Asset or page"
+      type: text
+      required: true
+      help: "A URL, a route, or a path to the asset to audit against the brand."
 ---
 
 # /brand-check — Brand & contrast audit

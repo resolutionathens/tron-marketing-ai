@@ -5,11 +5,20 @@ effort: low
 description: "Look up, search, and interact with Jira tickets using the acli CLI. Use this skill whenever the user references a Jira ticket key (e.g., MD-1234, PROJ-456, ABC-78), mentions Jira, asks about work items, issues, or tickets, wants to search for tasks, or needs to transition or assign a ticket. Also trigger when the user says things like 'what's the status of that ticket', 'look up the issue', 'check my board', or references any KEY-NUMBER pattern that looks like a Jira identifier. To post a progress or status comment on a ticket use tron:jira-comment."
 allowed-tools:
   - Bash
+scout:
+  surface: false
+  inputs:
+    - key: query
+      label: "JQL or ticket key"
+      type: text
+      required: true
 ---
 
 # Jira Interaction via acli
 
 Use the `acli` CLI tool (locate it with `command -v acli`) to interact with Jira.
+Auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Auto-trigger behavior
 
@@ -58,7 +67,8 @@ acli jira workitem transition --key <KEY> --status '<status name>' --yes
 acli jira workitem assign <KEY> --assignee '<user>'
 
 # Create a new ticket
-acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>'
+acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'
+# Always assign the creator with --assignee '@me' (see "Creating tickets" below)
 ```
 
 ### Rich descriptions (markdown → ADF)
@@ -71,6 +81,14 @@ When creating a ticket in the MD project, prefix the summary per
 [tools/jira/conventions.md](../../tools/jira/conventions.md) — the repo/prefix table there is
 canonical (it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT repo). If the target
 repo isn't clear from context, ask the user which repo the ticket is for rather than guessing.
+
+Assign **every** MD-project ticket to its creator on creation with `--assignee '@me'` — this routes a
+ticket you create to you and a teammate's ticket to them, which is correct even in the repos shared
+with the wider team (`marketing-pages`, `marketing-dynamic-landing-pages`):
+
+```bash
+acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'
+```
 
 ## Presentation guidelines
 

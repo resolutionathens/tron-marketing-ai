@@ -10,6 +10,23 @@ allowed-tools:
   - AskUserQuestion
   - Skill
   - WebFetch
+scout:
+  surface: true
+  title: "Draft a onesheet"
+  blurb: "Builds a one-page sell sheet — headline, value props, proof points, CTA — ready to become a branded PDF."
+  when: "Sales or an event needs a single-page product summary."
+  category: drafting
+  effects: [draft]
+  inputs:
+    - key: product
+      label: "Product / feature"
+      type: text
+      required: true
+    - key: highlights
+      label: "Highlights"
+      type: textarea
+      required: false
+      help: "Key benefits or points to lead with (optional)."
 ---
 
 # /onesheet — Product onesheet drafter

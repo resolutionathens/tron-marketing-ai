@@ -36,10 +36,15 @@ acli jira workitem edit --key MD-1234 --description-file /tmp/desc.adf.json --ye
 
 The helper uses the `markdown-to-adf` npm package with the `story` preset (full heading support).
 It handles: headings, **bold**, _italic_, fenced code blocks, bullet/numbered lists, links,
-blockquotes, horizontal rules.
+horizontal rules.
 
 **Code-mark stripping:** inline `code` (backtick) spans are flattened to plain text — `acli`
 rejects the ADF `code` mark with `INVALID_INPUT`, so the helper strips it (the text is kept, just
 unstyled). Use a fenced code block when you need monospace.
+
+**Blockquote flattening:** `> quoted text` is rewritten as an italicized plain paragraph — `acli`
+rejects any ADF document containing a `blockQuote` node with `INVALID_INPUT` (MD-2052), so the
+helper drops the `blockQuote` wrapper and italicizes the inner text instead. The quote reads as
+plain (but visually distinct) text rather than an indented block.
 
 Tables and images aren't supported — if you need them, edit in the Jira UI afterwards.

@@ -5,6 +5,14 @@ effort: low
 description: Fetch and read Confluence pages by URL or page ID. Use this skill whenever the user shares a Confluence link (including tiny links like /wiki/x/XXXXX), mentions a Confluence page, asks to read or pull content from Confluence, or references facilitron.atlassian.net/wiki.
 allowed-tools:
   - Bash
+scout:
+  surface: false
+  inputs:
+    - key: query
+      label: "Page or query"
+      type: text
+      required: true
+      placeholder: "Page title or what to pull from Confluence"
 ---
 
 # Confluence Page Fetcher

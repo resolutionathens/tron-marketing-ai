@@ -8,11 +8,27 @@ allowed-tools:
   - AskUserQuestion
   - Read
   - Skill
+scout:
+  surface: true
+  title: "Write my weekly update"
+  blurb: "Pulls your week's activity from Jira, asks three quick questions, and copies a ready-to-send status email to your clipboard."
+  when: "It's Monday and the weekly update is due Tuesday morning."
+  category: tickets
+  effects: [local]
+  inputs:
+    - key: window
+      label: "Time window"
+      type: text
+      required: false
+      placeholder: "since last Monday (default)"
 ---
 
 # Weekly Update Generator
 
 Produces a plain-text email body in Kristina's 6-section template, copied to clipboard via `pbcopy`. Works Jira-only (GitHub optional). Never auto-sends.
+
+Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
+[tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
 ## Step 1 — Fetch the week's activity (scripted)
 

@@ -10,6 +10,23 @@ allowed-tools:
   - Grep
   - WebFetch
   - Skill
+scout:
+  surface: true
+  title: "Audit a page's SEO"
+  blurb: "Checks one page's titles, headings, schema, links, and speed against a target search, with prioritized fixes."
+  when: "A page isn't ranking and you want to know why."
+  category: seo
+  effects: [report]
+  inputs:
+    - key: url
+      label: "Page URL"
+      type: text
+      required: true
+    - key: queries
+      label: "Target queries"
+      type: text
+      required: false
+      help: "The search queries this page should rank for (optional)."
 ---
 
 # /seo-audit — On-page + technical SEO audit

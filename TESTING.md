@@ -30,11 +30,33 @@ bash skills/optimize-images/scripts/test-optimize-images.sh
 Run every script test at once:
 
 ```bash
-for t in skills/*/scripts/test-*.sh; do
+bash tools/lint/run-layer1-tests.sh   # every test-*.sh under skills/ and tools/
+```
+
+This is the same suite CI runs (see below); the equivalent hand-rolled loop is:
+
+```bash
+for t in $(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort); do
   echo "=== $t ==="
   bash "$t" || echo "FAILED: $t"
 done
 ```
+
+### Layer-1 suite in CI (macOS / Apple Silicon)
+
+`.github/workflows/ci.yml` runs the whole layer-1 suite via `run-layer1-tests.sh`
+on **`macos-latest`**, not `ubuntu-latest`. That is deliberate: the plugin only ever
+runs on Apple-Silicon macOS, and the macOS runner ships `/bin/bash` 3.2 with BSD
+coreutils — the same runtime our users have. Running there is what catches the two
+bug classes an ubuntu runner masks and MD-1987 had to defer:
+
+- **bash-3.2 empty-array expansion** (`"${arr[@]}"` under `set -u` throws on bash < 4.4).
+  The CCAL-2091/CCAL-2092 regressions only reproduce under the 3.2 that macOS ships.
+- **BSD vs GNU coreutils divergence.** `base64` needs stdin/`-i` (not a positional file)
+  on BSD; `stat` uses `-f '%Lp'` not `-c '%a'`. Write test helpers to work on both.
+
+So when you add a `test-*.sh`, keep it portable across BSD/GNU or `command -v`-guard the
+divergent tool and SKIP — a test that quietly assumes GNU flags will go red on this job.
 
 The shared `tools/` have their own smoke tests — run them after touching shared tooling:
 
@@ -46,6 +68,22 @@ bash tools/evaluate/test-evaluate.sh  # the evaluation harness itself (offline)
 These tests cover the script **in isolation** — they do not exercise the full skill flow.
 Each test script's header should describe how to run the full skill manually as an integration
 spec. The skill-level behavior is covered by the evaluations in layer 3.
+
+### Fast-path SKILL_DIR resolver lint (CI-enforced)
+
+A scripted skill's SKILL.md (or, for the runner-delegated audit skills, the matching
+`agents/*-runner.md`) resolves the bundled script's absolute path with the
+`CLAUDE_SKILL_DIR` → `CLAUDE_PLUGIN_ROOT` → cache/marketplace `SKILL_DIR` fallback described
+in [CLAUDE.md](CLAUDE.md) → Path resolution. Losing that fallback breaks the skill under the
+headless worker, where `$CLAUDE_SKILL_DIR` isn't always exported — it happened once already
+(trimmed from 16 skills, restored in PR #29). `tools/lint/check-fastpath-resolvers.sh` checks
+every `skills/*/scripts/*.sh` against the doc that resolves it and fails if the fallback is
+missing; it runs in CI on every push and PR ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+```bash
+bash tools/lint/check-fastpath-resolvers.sh       # lint the real repo
+bash tools/lint/test-check-fastpath-resolvers.sh  # the lint's own smoke test
+```
 
 ---
 
@@ -161,6 +199,128 @@ behaviors below.
 
 When a change makes a skill's behavior model-sensitive, run its evals under each tier it can
 run at and note any divergence in the PR.
+
+---
+
+## 4. Testing under worker/dispatch mode (non-interactive)
+
+Skills are designed to run in two environments: **Claude Code's interactive terminal** (the user
+invokes `/skillname` in the IDE or web UI) and **headless worker mode** (the Tron control plane
+dispatches skills as non-interactive subagents). Testing dispatch-mode behavior is essential for
+skills that call out to the control-plane API, use environment variables set by the dispatcher,
+or need to handle non-interactive constraints (no `AskUserQuestion`, no menu prompts, no
+awaiting user input).
+
+### Environment setup for dispatch mode
+
+When the Tron control plane dispatches a skill, it sets two key environment variables:
+
+- **`TRON_DISPATCH_ID`** — a unique ID for this dispatch run (e.g., `2026-07-11T18-52-39Z-md-2088`)
+- **`TRON_API_URL`** — base URL for the control-plane API (e.g., `http://127.0.0.1:8787`)
+
+A skill can detect dispatch mode by checking whether `TRON_DISPATCH_ID` is set:
+
+```bash
+if [ -n "${TRON_DISPATCH_ID:-}" ]; then
+  # Running under dispatch — use TRON_API_URL and avoid interactive prompts
+else
+  # Running interactively in Claude Code
+fi
+```
+
+### Mocking the control-plane API
+
+To test dispatch mode locally without a real control plane, stand up a stub HTTP server
+that implements the control-plane surface. The `tools/okf/test-okf.sh` provides a complete
+example: it creates a minimal Node.js HTTP server on localhost, exports `TRON_API_URL`, and
+asserts the tool's behavior against it.
+
+**Minimal mock pattern:**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create a temporary directory for server state
+TMP="$(mktemp -d)"
+cleanup() { rm -rf "$TMP"; }
+trap cleanup EXIT
+
+# Stand up a minimal stub server
+cat > "$TMP/server.mjs" <<'EOF'
+import { createServer } from "node:http";
+const srv = createServer((req, res) => {
+  const u = new URL(req.url, "http://x");
+  if (req.method === "GET" && u.pathname === "/api/example") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+  res.writeHead(404);
+  res.end("{}");
+});
+srv.listen(0, "127.0.0.1", () => { process.stdout.write(String(srv.address().port) + "\n"); });
+EOF
+
+# Start server and capture its port
+node "$TMP/server.mjs" > "$TMP/port" &
+SERVER_PID=$!
+sleep 0.2
+PORT="$(cat "$TMP/port")"
+
+# Run the skill under simulated dispatch
+export TRON_DISPATCH_ID="test-dispatch-$(date +%s)"
+export TRON_API_URL="http://127.0.0.1:$PORT"
+
+# Invoke the skill and assert behavior
+# (Skill should use TRON_API_URL for API calls, not prompt the user)
+
+kill "$SERVER_PID" 2>/dev/null || true
+```
+
+### Non-interactive behavior checklist
+
+When testing under dispatch mode, verify the following:
+
+1. **No prompts:** The skill must not call `AskUserQuestion`, show `.` selects, or pause for user input.
+   Any user input should be resolved at dispatch time and injected via environment variables or
+   command-line args.
+
+2. **API fallback:** If the skill needs data (e.g., from Jira, Confluence, or the OKF), it should:
+   - Call the control-plane API (`TRON_API_URL/api/…`) if `TRON_API_URL` is set
+   - Fall back to interactive prompt or direct API auth if running interactively
+   - Exit with a clear error if neither path is available
+
+3. **No side-effects on API failure:** If an API call fails (network error, 404, 500), the skill
+   should report the error and stop cleanly, not hang or retry indefinitely.
+
+4. **Deterministic output:** The skill should produce the same output for the same inputs,
+   regardless of execution mode. This is especially important for skills that make decisions
+   based on API responses — mock those responses consistently in tests.
+
+### Integration testing a skill under dispatch
+
+To test a full skill flow under simulated dispatch:
+
+1. **Set environment variables** (`TRON_DISPATCH_ID`, `TRON_API_URL`, plus any
+   skill-specific secrets like tokens)
+2. **Run the skill** (directly or via the agent that invokes it)
+3. **Mock the control-plane API** with a stub server (use the `test-okf.sh` pattern above)
+4. **Assert behavior** — check exit codes, output content, and confirm no interactive
+   prompts were triggered
+
+**Example:** Testing `okf-query` under dispatch:
+
+```bash
+# Set up mock control-plane API (see tools/okf/test-okf.sh for the full server)
+export TRON_DISPATCH_ID="test-dispatch"
+export TRON_API_URL="http://127.0.0.1:5555"  # stub server
+
+# Invoke the skill
+node tools/okf/okf.mjs select --type Policy
+
+# Assert expected output (OKF manifest filtered by type, no user prompts)
+```
 
 ---
 
