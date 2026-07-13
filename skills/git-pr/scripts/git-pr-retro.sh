@@ -22,6 +22,18 @@
 #   git-pr-retro.sh request-review --pr <N>
 #       Request @copilot as reviewer. Best-effort: an org without Copilot
 #       review still exits 0 with requested:false — never fails the lifecycle.
+#   git-pr-retro.sh await-review --pr <N> [--timeout <sec>] [--interval <sec>] [--repo-dir <path>]
+#       Poll until Copilot posts its review, then report what landed so the PR
+#       isn't declared approval-ready before the review exists. Prints
+#       {status, commentCount, comments[], reviewState, waitedSeconds, ...}
+#       where status is:
+#         commented   — Copilot left inline comments (comments[] carries them;
+#                       the worker addresses them, pushes, then reports done)
+#         no-comments — Copilot reviewed with no inline comments
+#         timeout     — no Copilot review within the window (degrade gracefully,
+#                       never hang forever)
+#       Defaults: timeout 600s, interval 20s. Best-effort — an API/read failure
+#       or a repo without Copilot review exits 0 with a benign status.
 #
 # Output contract: ONE JSON line on stdout; narration on stderr.
 # Exit 0 success / 1 logical failure / 2 usage error.
@@ -33,9 +45,9 @@ usage_err() { echo "git-pr-retro.sh: $*" >&2; exit 2; }
 command -v jq >/dev/null 2>&1 || usage_err "jq is required but not on PATH"
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
-case "$CMD" in ""|help|-h|--help) sed -n '2,32p' "$0"; exit 0 ;; esac
+case "$CMD" in ""|help|-h|--help) sed -n '2,39p' "$0"; exit 0 ;; esac
 
-PR=""; RANGE=""; DIR="$(pwd)"; MODEL=""; BODY=""; BODY_FILE=""
+PR=""; RANGE=""; DIR="$(pwd)"; MODEL=""; BODY=""; BODY_FILE=""; TIMEOUT=600; INTERVAL=20
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pr|--number|-n) PR="${2:-}"; shift ;;
@@ -44,6 +56,8 @@ while [[ $# -gt 0 ]]; do
     --model) MODEL="${2:-}"; shift ;;
     --body) BODY="${2:-}"; shift ;;
     --body-file) BODY_FILE="${2:-}"; shift ;;
+    --timeout) TIMEOUT="${2:-}"; shift ;;
+    --interval) INTERVAL="${2:-}"; shift ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) usage_err "unexpected argument '$1'" ;;
   esac
@@ -150,9 +164,75 @@ cmd_request_review() {
   fi
 }
 
+# ---- await-review ---------------------------------------------------------------
+# Poll for Copilot's PR review so the lifecycle doesn't report "approval-ready"
+# before the review actually lands. Copilot posts a submitted review (user login
+# matching /copilot/i) plus zero or more inline review comments. We wait for that
+# review, then classify by inline-comment count. Best-effort throughout: an
+# unreadable API, an org without Copilot, or a genuine timeout all exit 0 with a
+# status the caller can branch on — this step must never hang or fail the run.
+cmd_await_review() {
+  [[ -z "$PR" ]] && usage_err "await-review requires --pr <N>"
+  [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || usage_err "--timeout must be a non-negative integer of seconds"
+  [[ "$INTERVAL" =~ ^[0-9]+$ ]] || usage_err "--interval must be a non-negative integer of seconds"
+
+  # Honor --repo-dir so `gh` runs against the intended checkout even when invoked
+  # from elsewhere (this is the last subcommand, so cd'ing the process is fine).
+  cd "$DIR" 2>/dev/null || { jq -nc --arg d "$DIR" '{ok:true,status:"error",commentCount:0,waitedSeconds:0,reason:("repo-dir not accessible: " + $d)}'; return 0; }
+
+  # Resolve owner/repo once (from the worktree), so gh api paths are unambiguous.
+  local slug
+  if ! slug="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)" || [[ -z "$slug" ]]; then
+    jq -nc --arg n "$PR" '{ok:true,status:"error",commentCount:0,waitedSeconds:0,reason:"could not resolve owner/repo — skipping Copilot wait"}'
+    return 0
+  fi
+
+  local start now elapsed reviews review_json state review_url comments count
+  start="$(date +%s)"
+  while true; do
+    # A submitted (non-PENDING) review authored by Copilot, latest wins. `gh api
+    # --paginate` can emit one JSON array PER PAGE, so slurp (`-s`) and `add` the
+    # pages into a single array before filtering — parsing it as one array would
+    # miss matches on multi-page PRs and misclassify as timeout.
+    if reviews="$(gh api "repos/$slug/pulls/$PR/reviews" --paginate 2>/dev/null)"; then
+      review_json="$(jq -cs '(add // []) | [.[] | select((.user.login // "") | test("copilot";"i")) | select((.state // "") != "PENDING")] | last // empty' <<<"$reviews" 2>/dev/null || true)"
+    else
+      review_json=""
+    fi
+
+    if [[ -n "$review_json" ]]; then
+      state="$(jq -r '.state // "COMMENTED"' <<<"$review_json")"
+      review_url="$(jq -r '.html_url // ""' <<<"$review_json")"
+      # Inline review comments authored by Copilot — the actionable items. Same
+      # per-page slurp as the reviews query, so many-comment PRs aren't undercounted.
+      if comments="$(gh api "repos/$slug/pulls/$PR/comments" --paginate 2>/dev/null)"; then
+        comments="$(jq -cs '(add // []) | [.[] | select((.user.login // "") | test("copilot";"i")) | {path:.path, line:(.line // .original_line), body:.body, url:.html_url}]' <<<"$comments" 2>/dev/null || echo '[]')"
+      else
+        comments='[]'
+      fi
+      count="$(jq 'length' <<<"$comments")"
+      now="$(date +%s)"; elapsed=$((now - start))
+      local status; if (( count > 0 )); then status="commented"; else status="no-comments"; fi
+      jq -nc --arg s "$status" --arg st "$state" --arg u "$review_url" \
+        --argjson c "$count" --argjson cm "$comments" --argjson w "$elapsed" \
+        '{ok:true,status:$s,reviewState:$st,reviewUrl:$u,commentCount:$c,waitedSeconds:$w,comments:$cm}'
+      return 0
+    fi
+
+    now="$(date +%s)"; elapsed=$((now - start))
+    if (( elapsed >= TIMEOUT )); then
+      jq -nc --argjson w "$elapsed" --argjson t "$TIMEOUT" \
+        '{ok:true,status:"timeout",commentCount:0,waitedSeconds:$w,reason:("no Copilot review within " + ($t|tostring) + "s")}'
+      return 0
+    fi
+    (( INTERVAL > 0 )) && sleep "$INTERVAL"
+  done
+}
+
 case "$CMD" in
   skip-check)     cmd_skip_check ;;
   retro-comment)  cmd_retro_comment ;;
   request-review) cmd_request_review ;;
-  *) usage_err "unknown subcommand '$CMD' (try: skip-check, retro-comment, request-review)" ;;
+  await-review)   cmd_await_review ;;
+  *) usage_err "unknown subcommand '$CMD' (try: skip-check, retro-comment, request-review, await-review)" ;;
 esac

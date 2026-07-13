@@ -120,6 +120,40 @@ bash "$SKILL_DIR/scripts/git-pr-retro.sh" request-review --pr "<N>"
 Never fails the lifecycle (an org without Copilot review returns `requested:false`,
 exit 0). One request at PR open only.
 
+**Step 7b — wait for Copilot's review, then report status (MD-2112).** A PR is
+**not** approval-ready the instant it opens — if a Copilot review was requested
+(`requested:true` above), you must wait for that review to actually land before
+handing off to the human approval gate. Skip this step only when Step 7 skipped
+the request or returned `requested:false`.
+
+```bash
+bash "$SKILL_DIR/scripts/git-pr-retro.sh" await-review --pr "<N>"
+```
+
+Polls until Copilot posts its review (default: up to 10 min, every 20s; tune with
+`--timeout`/`--interval` seconds). It prints one JSON line — branch on `status`:
+
+- **`commented`** — Copilot left inline comments (in `comments[]`, each with
+  `path`/`line`/`body`). Read them, **address the valid ones in the worktree**,
+  then `tron:git-commit` the fixes so they push to the PR branch. Skip any that
+  are wrong or out of scope, and say which in your status. Then post a status
+  comment: `Copilot review: N comment(s), addressed in <short-sha>` (or note the
+  ones you deliberately left), ending with the `<!-- tron-note -->` marker.
+- **`no-comments`** — Copilot reviewed and had nothing to flag. Post a one-line
+  `Copilot review: no comments` status comment with the `<!-- tron-note -->`
+  marker. No code changes.
+- **`timeout`** — Copilot did not post within the window. Do **not** hang or
+  retry indefinitely; post `Copilot review: not posted within Nm, proceeding`
+  (with `<!-- tron-note -->`) so the human knows the gate advanced without it.
+- **`error`** — the wait could not run (e.g. owner/repo unresolvable). Treat like
+  `timeout`: note it and proceed. Never let this block the PR.
+
+Post the status comment with `gh pr comment "<N>" --body-file <tmp>` (write the
+body to a unique `mktemp` file first — never inline `--body` — per the retro
+note above). Only after this status is reported is the PR genuinely ready for the
+human approval gate. When dispatched (`TRON_DISPATCH_ID` set), this status comment
+is also how the tron-os dashboard learns the PR is review-resolved.
+
 **Step 8 — retro comment.** Write the filled-in retro sections (this is your
 judgment) to a fresh, unique temp file — never a fixed name, which risks
 posting a stale draft left over from a prior PR — then post and clean up:
@@ -149,6 +183,13 @@ Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-no
 **Manual fallback** (if the bundled script can't be resolved): skip the Copilot
 request only for doc-only diffs (`*.md`/`*.mdx`, ≤3 files, ≤40 changed lines from
 Step 3's `--stat`); else `gh pr edit "<N>" --add-reviewer "@copilot" || true`. For
+the Step 7b wait, poll `gh api repos/{owner}/{repo}/pulls/<N>/reviews` for a
+submitted review whose `user.login` matches `copilot` (case-insensitive), up to a
+bounded number of tries (e.g. ~10 min); if one lands, read Copilot's inline
+comments from `.../pulls/<N>/comments`, address the valid ones and commit, then
+post the `no comments`/`comments addressed` status (with `<!-- tron-note -->`); if
+none lands in the window, post `not posted within Nm, proceeding` and continue —
+never hang. For
 the retro, run `tools/git/token-usage.sh` into `$TOKENS`, write the assembled
 `<!-- tron-retro -->...` body (the sections above, a `---`, the literal model ID,
 and `$TOKENS`) to a unique `mktemp` file, and post with
@@ -158,3 +199,6 @@ breaks on backticks and other shell-sensitive characters in the retro text.
 ## Step 9: Report
 
 Give the user the PR URL. If Step 7 skipped the Copilot request, say so in one line.
+If Step 7b ran, report the Copilot outcome too — "no comments", "N comment(s)
+addressed", or "review not posted within Nm, proceeded" — since that is what makes
+the PR genuinely ready for the human approval gate.

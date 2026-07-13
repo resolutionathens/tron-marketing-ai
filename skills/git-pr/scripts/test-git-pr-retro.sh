@@ -29,9 +29,24 @@ cat >"$SHIM/gh" <<'EOF'
 #   GH_STUB_LOG      file that `pr comment` writes its --body/--body-file into
 #   GH_STUB_EDIT_RC  exit code for `pr edit` (default 0)
 #   GH_STUB_COMMENT_ERR  if set, `pr comment` prints this to stderr and exits 1
+#   GH_STUB_SLUG     nameWithOwner for `repo view` (default o/r)
+#   GH_STUB_SLUG_FAIL  if set, `repo view` exits 1 (owner/repo unresolvable)
+#   GH_STUB_REVIEWS  JSON array returned for `api .../pulls/N/reviews`
+#   GH_STUB_PR_COMMENTS  JSON array returned for `api .../pulls/N/comments`
 case "$1 $2" in
   "pr view")
     [[ -n "${GH_STUB_FILES:-}" ]] && printf '%s\n' "$GH_STUB_FILES"
+    exit 0 ;;
+  "repo view")
+    if [[ -n "${GH_STUB_SLUG_FAIL:-}" ]]; then exit 1; fi
+    printf '%s\n' "${GH_STUB_SLUG:-o/r}"
+    exit 0 ;;
+  "api "*)
+    case "$2" in
+      *"/reviews") printf '%s\n' "${GH_STUB_REVIEWS:-[]}" ;;
+      *"/comments") printf '%s\n' "${GH_STUB_PR_COMMENTS:-[]}" ;;
+      *) echo "[]" ;;
+    esac
     exit 0 ;;
   "pr comment")
     if [[ -n "${GH_STUB_COMMENT_ERR:-}" ]]; then
@@ -165,6 +180,57 @@ O="$(GH_STUB_EDIT_RC=1 bash "$SCRIPT" request-review --pr 7)"; rc=$?
 has "$O" '"requested":false' "failure degrades to requested:false"
 pass "request-review: gh failure → ok:true requested:false exit 0"
 
+# ---- await-review: Copilot left inline comments -------------------------------
+export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://github.com/o/r/pull/7#pullrequestreview-1"}]'
+export GH_STUB_PR_COMMENTS='[{"user":{"login":"Copilot"},"path":"skills/x/SKILL.md","line":12,"body":"Consider X.","html_url":"https://c/1"},{"user":{"login":"somehuman"},"path":"a","line":1,"body":"ignore me","html_url":"https://c/2"}]'
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+has "$O" '"status":"commented"' "review with inline comments → commented"
+has "$O" '"commentCount":1' "only Copilot's inline comment is counted"
+has "$O" 'Consider X.' "the comment body is returned for the worker to address"
+if grep -q 'ignore me' <<<"$O"; then fail "non-Copilot comments must not be included"; fi
+pass "await-review: Copilot inline comments → status commented, comments[] carried"
+
+# ---- await-review: Copilot reviewed with no inline comments -------------------
+export GH_STUB_REVIEWS='[{"user":{"login":"copilot-pull-request-reviewer[bot]"},"state":"APPROVED","html_url":"https://x"}]'
+export GH_STUB_PR_COMMENTS='[]'
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+has "$O" '"status":"no-comments"' "reviewed with 0 inline comments → no-comments"
+has "$O" '"commentCount":0' "no-comments carries commentCount 0"
+pass "await-review: Copilot review, no inline comments → status no-comments (bot login variant matched)"
+
+# ---- await-review: multi-page (--paginate) reviews are slurped, not misparsed -
+# gh api --paginate can emit one JSON array per page; Copilot's review may land on
+# a later page. Two concatenated array documents must still be found.
+export GH_STUB_REVIEWS=$'[{"user":{"login":"somehuman"},"state":"COMMENTED"}]\n[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://x"}]'
+export GH_STUB_PR_COMMENTS=$'[]\n[{"user":{"login":"Copilot"},"path":"a","line":2,"body":"page-two comment","html_url":"https://c/9"}]'
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+has "$O" '"status":"commented"' "Copilot review on page two is still found"
+has "$O" '"commentCount":1' "page-two inline comment is counted, not dropped"
+has "$O" 'page-two comment' "multi-page comment body is carried"
+pass "await-review: multi-page --paginate output slurped correctly (no misclassification)"
+
+# ---- await-review: Copilot never posts within the window ----------------------
+export GH_STUB_REVIEWS='[{"user":{"login":"somehuman"},"state":"COMMENTED"}]'
+export GH_STUB_PR_COMMENTS='[]'
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+has "$O" '"status":"timeout"' "no Copilot review before deadline → timeout"
+has "$O" 'no Copilot review within 0s' "timeout reason names the bound"
+pass "await-review: no Copilot review → status timeout (degrades gracefully, no hang)"
+
+# ---- await-review: PENDING Copilot review is not treated as landed ------------
+export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"PENDING"}]'
+export GH_STUB_PR_COMMENTS='[]'
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"
+has "$O" '"status":"timeout"' "a PENDING (unsubmitted) Copilot review does not count as landed"
+pass "await-review: PENDING review ignored → timeout"
+
+# ---- await-review: owner/repo unresolvable degrades to error, never hangs -----
+O="$(GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; rc=$?
+[[ "$rc" == 0 ]] || fail "await-review must never fail the lifecycle on slug resolution (rc=$rc)"
+has "$O" '"status":"error"' "unresolvable slug → benign error status"
+pass "await-review: slug resolution failure → ok:true status error, exit 0"
+unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
+
 # ---- usage / error contract ----------------------------------------------------
 rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; }
 [[ "$(rc_of bogus)" == 2 ]] || fail "unknown subcommand should exit 2"
@@ -172,12 +238,15 @@ rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; 
 [[ "$(rc_of retro-comment --pr 1 --model m)" == 2 ]] || fail "retro-comment without body should exit 2"
 [[ "$(rc_of retro-comment --pr 1 --body b)" == 2 ]] || fail "retro-comment without --model should exit 2"
 [[ "$(rc_of request-review)" == 2 ]] || fail "request-review without --pr should exit 2"
+[[ "$(rc_of await-review)" == 2 ]] || fail "await-review without --pr should exit 2"
+[[ "$(rc_of await-review --pr 1 --timeout x)" == 2 ]] || fail "await-review with non-numeric --timeout should exit 2"
 pass "usage errors → exit 2"
 
 O="$(bash "$SCRIPT" help)"
 has "$O" 'skip-check' "help lists skip-check"
 has "$O" 'retro-comment' "help lists retro-comment"
 has "$O" 'request-review' "help lists request-review"
+has "$O" 'await-review' "help lists await-review"
 pass "help → prints usage (exit 0)"
 
 echo ""
