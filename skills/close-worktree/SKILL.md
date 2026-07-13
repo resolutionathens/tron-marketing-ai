@@ -27,6 +27,17 @@ Interactive users are unaffected — this section only changes behavior when `TR
 
 ## Fast path — when you already know the branch
 
+**Step 1: Move to the main checkout** — this changes the invoking session's cwd so it survives worktree removal.
+
+```bash
+if ! GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
+  echo "close-worktree: not inside a git repository" >&2; exit 1
+fi
+cd "${GIT_COMMON_DIR%/.git}" || exit 1
+```
+
+**Step 2: Run the removal script** — after moving out, invoke the script with your branch name.
+
 ```bash
 name=close-worktree
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
