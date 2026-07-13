@@ -18,7 +18,14 @@ line or two, or uses any markdown formatting, go through this helper.
 ## Invocation (`--description-file`)
 
 ```bash
-# Write the description as markdown, then convert (default preset: story):
+# Write the description as markdown, then convert (default preset: story).
+# Two forms work — pass a file path directly, or pipe via stdin:
+
+# Form 1: File path argument
+node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs" \
+  /tmp/desc.md > /tmp/desc.adf.json
+
+# Form 2: Stdin (pipe or redirect)
 node "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs" \
   < /tmp/desc.md > /tmp/desc.adf.json
 

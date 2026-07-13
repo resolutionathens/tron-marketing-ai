@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// Convert Markdown (stdin) to Atlassian Document Format JSON (stdout) for Jira.
+// Convert Markdown to Atlassian Document Format JSON (stdout) for Jira.
 //
-// Usage:  md-to-adf.mjs [--preset story|task|comment] < input.md > out.adf.json
+// Usage:  md-to-adf.mjs [--preset story|task|comment] [FILE]
+//         md-to-adf.mjs [--preset story|task|comment] < input.md > out.adf.json
 //
+// Reads from FILE (positional arg) if provided, otherwise reads from stdin.
 // Wraps the `markdown-to-adf` npm package. Default preset is `story` (full
 // heading support), matching what the tron:jira skill needs for rich ticket
 // descriptions passed to `acli ... --description-file`.
@@ -25,10 +27,27 @@ const { markdownToAdf } = await import('markdown-to-adf');
 
 const args = process.argv.slice(2);
 let preset = 'story';
+let filePath = null;
 const pi = args.indexOf('--preset');
 if (pi !== -1 && args[pi + 1]) preset = args[pi + 1];
 
-const md = fs.readFileSync(0, 'utf8'); // fd 0 = stdin
+// Extract positional file argument, skipping --preset and its value
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  if (arg.startsWith('--')) {
+    if (arg === '--preset') i++; // skip the flag and its value
+  } else {
+    filePath = arg;
+    break;
+  }
+}
+
+let md;
+if (filePath) {
+  md = fs.readFileSync(filePath, 'utf8');
+} else {
+  md = fs.readFileSync(0, 'utf8'); // fd 0 = stdin
+}
 const adf = markdownToAdf(md, { preset });
 
 // Flatten `blockQuote` nodes. They are valid ADF per the Atlassian spec, but the `acli`

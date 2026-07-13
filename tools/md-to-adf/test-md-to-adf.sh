@@ -62,5 +62,23 @@ printf '%s' "$out" | node -e '
   });
 ' <<<"$out" && ok "valid ADF: root is a doc, version 1" || bad "valid ADF: malformed output (got: $out)"
 
+# --- 7) file argument form: passes file directly without hanging ----------------
+tmpfile="$(mktemp)"
+printf '**bold** file content\n' > "$tmpfile"
+out="$(node "$CLI" "$tmpfile")"; rc=$?
+rm -f "$tmpfile"
+[ "$rc" -eq 0 ] && ok "file argument: exits 0" || bad "file argument: exit $rc"
+printf '%s' "$out" | grep -q '"type":"strong"' && ok "file argument: marks preserved" || bad "file argument: marks missing (got: $out)"
+printf '%s' "$out" | grep -q 'bold' && ok "file argument: content preserved" || bad "file argument: content lost (got: $out)"
+
+# --- 8) file argument matches stdin form output (same content) -------------------
+tmpfile="$(mktemp)"
+testcontent=$'Run `npm install` now.\n\n## Setup\n\nFollow the steps.\n'
+printf '%s' "$testcontent" > "$tmpfile"
+piped="$(printf '%s' "$testcontent" | node "$CLI")"
+fromfile="$(node "$CLI" "$tmpfile")"
+rm -f "$tmpfile"
+[ "$piped" = "$fromfile" ] && ok "file vs stdin: identical output" || bad "file vs stdin: output differs (piped: $piped) (file: $fromfile)"
+
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }
