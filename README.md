@@ -14,7 +14,7 @@ Facilitron repos independently of any single project checkout.
 
 | Group                                | Skills                                                                                                                                                                                                                                                                                  |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:enrich-jira-ticket`, `tron:confluence`                                                                                                                                                                                                           |
+| **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:create-ticket` (new tickets, rubric-enforced), `tron:ticket-lint` (self-assess vs the rubric), `tron:enrich-jira-ticket`, `tron:confluence`                                                                                                       |
 | **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
 | **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
 | **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
@@ -140,6 +140,12 @@ first time, then runs offline):
 - **`md-to-adf`** (`tools/md-to-adf/md-to-adf.mjs`) — converts markdown → Atlassian Document
   Format JSON for rich Jira descriptions (`tron:jira`, `tron:enrich-jira-ticket`). Wraps
   `markdown-to-adf` (`story` preset).
+
+The plugin also carries a versioned **ticket rubric** at `tools/ticket/ticket-rubric.md` (the shared
+spec behind `tron:create-ticket`, `tron:ticket-lint`, and Scout triage) with a deterministic,
+offline parser (`tools/ticket/rubric-lint.sh` + `rubric-lib.sh`, tested by `test-rubric-lint.sh`).
+No install needed: pure bash, with `jq` required for the JSON output (all modes) and `acli`
+additionally for the `--key` (live-ticket) path.
 
 **ImageKit CLI**
 

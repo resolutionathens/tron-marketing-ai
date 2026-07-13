@@ -121,10 +121,12 @@ Never fails the lifecycle (an org without Copilot review returns `requested:fals
 exit 0). One request at PR open only.
 
 **Step 8 — retro comment.** Write the filled-in retro sections (this is your
-judgment) to a temp file, then post:
+judgment) to a fresh, unique temp file — never a fixed name, which risks
+posting a stale draft left over from a prior PR — then post and clean up:
 
 ```bash
-cat > /tmp/tron-retro-body.md <<'EOF'
+RETRO_BODY="$(mktemp /tmp/tron-retro-body.XXXXXX.md)"
+cat > "$RETRO_BODY" <<'EOF'
 **What went well:**
 **Friction / surprises:**
 **Follow-up (filed):**
@@ -132,7 +134,7 @@ cat > /tmp/tron-retro-body.md <<'EOF'
 FOLLOW-UP:
 EOF
 bash "$SKILL_DIR/scripts/git-pr-retro.sh" retro-comment --pr "<N>" \
-  --model "<your model ID>" --body-file /tmp/tron-retro-body.md
+  --model "<your model ID>" --body-file "$RETRO_BODY" && rm -f "$RETRO_BODY"
 ```
 
 The script adds the `<!-- tron-retro -->` marker (required for the OS reviewer),
@@ -147,9 +149,11 @@ Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-no
 **Manual fallback** (if the bundled script can't be resolved): skip the Copilot
 request only for doc-only diffs (`*.md`/`*.mdx`, ≤3 files, ≤40 changed lines from
 Step 3's `--stat`); else `gh pr edit "<N>" --add-reviewer "@copilot" || true`. For
-the retro, run `tools/git/token-usage.sh` into `$TOKENS` and, in the same shell,
-`gh pr comment "<N>" --body "<!-- tron-retro -->..."` with the sections above, a
-`---`, the literal model ID, and `$TOKENS`.
+the retro, run `tools/git/token-usage.sh` into `$TOKENS`, write the assembled
+`<!-- tron-retro -->...` body (the sections above, a `---`, the literal model ID,
+and `$TOKENS`) to a unique `mktemp` file, and post with
+`gh pr comment "<N>" --body-file "$RETRO_BODY"` — never inline `--body`, which
+breaks on backticks and other shell-sensitive characters in the retro text.
 
 ## Step 9: Report
 

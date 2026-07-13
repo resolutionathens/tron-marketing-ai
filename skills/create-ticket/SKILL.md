@@ -1,0 +1,144 @@
+---
+name: create-ticket
+model: sonnet
+effort: medium
+description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for the work type (engineering, design, or content), stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:enrich-jira-ticket; to check tickets against the rubric use tron:ticket-lint."
+allowed-tools:
+  - Bash
+  - Read
+---
+
+# Create Ticket
+
+File a new Jira ticket that is **actionable by construction**. The plugin's problem was thin,
+title-only tickets: triage can tell they are blocked but not what the work is. This skill fixes that
+upstream by enforcing the shared [ticket rubric](../../tools/ticket/ticket-rubric.md) at creation, so
+the ticket carries exactly the signals triage keys on (deliverable, work type, context link,
+decision/owner) and scores **high** the moment it exists.
+
+Read the rubric first: [tools/ticket/ticket-rubric.md](../../tools/ticket/ticket-rubric.md). It is the
+single source of truth for the spine, the per-work-type sections, the machine-readable markers, and the
+verdict ladder. This skill is the authoring front end; `tron:ticket-lint` is the checker; Scout triage
+is the third consumer. All three read that one file.
+
+This is a **Jira-write** skill. It creates a ticket only after you have gathered the required fields and
+(by default) shown the user the assembled ticket. It does not branch, commit, transition, or implement —
+use `tron:start-ticket` to begin the work once the ticket exists.
+
+## The one rule: no thin tickets
+
+Never invent field values to get to a green verdict. The rubric's whole point is that the required fields
+are real: a `Context:` link that resolves, a `Done:` line naming a concrete deliverable, acceptance
+criteria that are checkable. If the user cannot supply a required field, ask for it. Per the house rule,
+**fetch the source the user names** (a Figma frame, a Google Doc, a Confluence page) before drafting so the
+context line is real, not a guess. A ticket that lints `medium` because a genuine detail is still unknown
+is fine and honest; a ticket padded with `<placeholder>` values is not.
+
+## Workflow
+
+### 1. Pick the work type and target
+
+Determine `Type` = `engineering` | `design` | `content` from what the user is filing. Then:
+
+- **engineering** — which repo does the work land in? Map it to a summary `PREFIX:` from
+  [tools/jira/conventions.md](../../tools/jira/conventions.md) (`TRON-PLUGIN`, `SCOUT`, `PAGES`, `LLLP`,
+  `MABE`, `SUPPORT`, `UI`). If the repo is not clear, ask; do not guess a prefix.
+- **design / content** — no summary prefix; the `Deliverable type:` marker carries the routing.
+
+Also settle the `Deliverable type:` (the fine-grained class) from the allowed values for that `Type` in
+the rubric.
+
+### 2. Gather the rubric fields
+
+Walk the fields for the chosen `Type`, one at a time, in plain conversation. Collect:
+
+- **Spine (all types):** `Done`, `Type`, `Deliverable type`, `Context`, `Decision` (due date, sign-off
+  owner, constraints).
+- **The type's section markers:**
+  - engineering: `Repo`, `Affected paths`, `Acceptance criteria` (2+ checkable bullets).
+  - design: `Figma`, `Format`, `Brand refs`, `Lands`.
+  - content: `Destination`, `Format`, `SEO target`, `Draft`.
+
+Reject placeholders. If the user gives a source link, fetch it (Figma/Doc/Confluence) and use its real
+detail to fill `Context` and the section markers.
+
+### 3. Assemble the ticket
+
+**Summary:** `PREFIX: short imperative description` for engineering; a plain imperative summary for
+design/content.
+
+**Description:** the machine header (a fenced code block holding every marker) first, then the human prose.
+The fenced block is required, not cosmetic: `acli` stores descriptions as ADF and md-to-adf collapses
+ordinary consecutive lines into one paragraph and splits bare URLs off their `Key:`. A code block keeps
+one marker per line with literal URLs, so triage parses exactly what you wrote. See the worked example in
+the [rubric template](../../tools/ticket/ticket-rubric.md#the-template-body). Repeat any link you want
+clickable as a normal link in the prose below the block.
+
+Write the description markdown to a temp file, e.g. `/tmp/tron-create-ticket/<slug>.md`.
+
+### 4. Self-check against the rubric, then create
+
+Lint the assembled description **before** creating, and show the user the verdict. Iterate until it is
+`high` (or the user accepts a `medium` with a genuinely unknown detail). Then convert and create.
+
+## Fast path (scripted)
+
+Resolve the shared tools once, then lint and create:
+
+```bash
+TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
+ADF="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs"
+mkdir -p /tmp/tron-create-ticket
+
+# 1. Self-check the drafted description (offline) against the rubric.
+#    Pass --summary so a valid PREFIX satisfies engineering's Repo requirement.
+bash "$TICKET_DIR/rubric-lint.sh" --file /tmp/tron-create-ticket/<slug>.md \
+  --summary "TRON-PLUGIN: <summary>" | jq '{verdict, missing}'
+# → iterate on the markdown until .verdict == "high: actionable"
+
+# 2. Convert to ADF and create the ticket.
+node "$ADF" < /tmp/tron-create-ticket/<slug>.md > /tmp/tron-create-ticket/<slug>.adf.json
+acli jira workitem create \
+  --project MD --type Task \
+  --summary "TRON-PLUGIN: <summary>" \
+  --description-file /tmp/tron-create-ticket/<slug>.adf.json \
+  --assignee "@me"
+
+# 3. Verify the LIVE ticket lints high (round-trips through Jira's stored ADF).
+bash "$TICKET_DIR/rubric-lint.sh" --key <NEW-KEY> | jq '{verdict, missing}'
+```
+
+The `--project` and `--type` follow the target board (default `MD`, `Task`). The `--assignee` flag
+defaults to `"@me"` (current user); pass `"user@example.com"` or another value to assign to someone
+else. Report the new key and its verdict to the user.
+
+### Verifying the fix
+
+To verify a ticket was created with an assignee, run:
+
+```bash
+acli jira workitem view <NEW-KEY> --fields assignee
+```
+
+The output should include a non-empty `Assignee:` line. If no assignee appears, the acli invocation
+was missing the `--assignee` flag.
+
+## Quality rules
+
+- Markers in a fenced code block; prose (with clickable links) below. Always.
+- No em dashes in the prose you draft (Facilitron voice).
+- Never pass raw markdown to `acli --description`; always use md-to-adf + `--description-file`
+  ([tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md)).
+- Engineering tickets carry both the summary `PREFIX:` and the `Repo:` marker.
+- Do not include section markers for a `Type` other than the ticket's.
+- Verify the live ticket lints `high` after creating; if Jira's stored ADF changed anything, fix it with
+  `acli jira workitem edit --key <KEY> --description-file … --yes`.
+
+## Relationship to the other rubric consumers
+
+- **tron:enrich-jira-ticket** fixes an *existing* thin ticket by mining links; **create-ticket** prevents
+  thin tickets at the source. Same rubric shape.
+- **tron:ticket-lint** is the read-only checker (one ticket or a whole board). If a user asks "is this
+  ticket good enough," that is ticket-lint, not create-ticket.
+- **Scout triage** (tron-os) parses the same markers deterministically — that companion work is a separate
+  SCOUT ticket.
