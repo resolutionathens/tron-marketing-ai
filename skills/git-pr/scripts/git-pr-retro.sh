@@ -125,10 +125,15 @@ $body
 *$MODEL*"
   [[ -n "$tokens" ]] && full+=$'\n'"$tokens"
 
-  local url has_tokens=false
+  local url has_tokens=false full_file err_file err
   [[ -n "$tokens" ]] && has_tokens=true
-  if ! url="$(gh pr comment "$PR" --body "$full" 2>/dev/null)"; then
-    jq -nc --arg n "$PR" '{ok:false,pr:($n|tonumber),reason:"gh pr comment failed — check the PR number and gh auth"}'; exit 1
+  full_file="$(mktemp)"
+  err_file="$(mktemp)"
+  trap 'rm -f "$full_file" "$err_file"' RETURN
+  printf '%s' "$full" > "$full_file"
+  if ! url="$(gh pr comment "$PR" --body-file "$full_file" 2>"$err_file")"; then
+    err="$(cat "$err_file")"
+    jq -nc --arg n "$PR" --arg e "$err" '{ok:false,pr:($n|tonumber),reason:("gh pr comment failed: " + $e)}'; exit 1
   fi
   jq -nc --arg n "$PR" --arg u "$url" --argjson t "$has_tokens" \
     '{ok:true,pr:($n|tonumber),comment_url:$u,tokens_included:$t}'

@@ -26,16 +26,22 @@ cat >"$SHIM/gh" <<'EOF'
 #!/usr/bin/env bash
 # Stub gh for the git-pr-retro smoke. Controlled via env:
 #   GH_STUB_FILES    TSV rows returned for `pr view --json files`
-#   GH_STUB_LOG      file that `pr comment` writes its --body into
+#   GH_STUB_LOG      file that `pr comment` writes its --body/--body-file into
 #   GH_STUB_EDIT_RC  exit code for `pr edit` (default 0)
+#   GH_STUB_COMMENT_ERR  if set, `pr comment` prints this to stderr and exits 1
 case "$1 $2" in
   "pr view")
     [[ -n "${GH_STUB_FILES:-}" ]] && printf '%s\n' "$GH_STUB_FILES"
     exit 0 ;;
   "pr comment")
+    if [[ -n "${GH_STUB_COMMENT_ERR:-}" ]]; then
+      echo "$GH_STUB_COMMENT_ERR" >&2
+      exit 1
+    fi
     n="$3"; shift 3
     while [[ $# -gt 0 ]]; do
       if [[ "$1" == --body ]]; then printf '%s' "$2" > "${GH_STUB_LOG:-/dev/null}"; shift; fi
+      if [[ "$1" == --body-file ]]; then cat "$2" > "${GH_STUB_LOG:-/dev/null}"; shift; fi
       shift
     done
     echo "https://github.com/o/r/pull/$n#issuecomment-1"
@@ -131,6 +137,23 @@ O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
 has "$O" '"ok":true' "body-file variant posts"
 has "$(cat "$GH_STUB_LOG")" 'from a file' "body-file content posted"
 pass "retro-comment: --body-file works"
+
+# ---- retro-comment: shell-special characters (backticks) survive inline --body -
+O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
+     bash "$SCRIPT" retro-comment --pr 11 --model m1 \
+       --body 'has `backticks` and $(command) and "quotes"')"
+has "$O" '"ok":true' "backtick/shell-special body posts without breaking"
+has "$(cat "$GH_STUB_LOG")" 'has `backticks` and $(command) and "quotes"' \
+  "shell-special body content posted verbatim"
+pass "retro-comment: shell-special characters in body survive the post"
+
+# ---- retro-comment: gh failure surfaces the real stderr, not a generic fallback
+O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
+     GH_STUB_COMMENT_ERR='HTTP 404: Not Found' \
+     bash "$SCRIPT" retro-comment --pr 999 --model m1 --body 'x')" || true
+has "$O" '"ok":false' "gh failure → ok:false"
+has "$O" 'HTTP 404: Not Found' "real gh stderr surfaced, not masked"
+pass "retro-comment: gh failure surfaces real stderr instead of generic fallback"
 
 # ---- request-review: best-effort contract -------------------------------------
 O="$(bash "$SCRIPT" request-review --pr 7)"
