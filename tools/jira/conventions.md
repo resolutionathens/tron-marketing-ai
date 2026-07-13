@@ -16,6 +16,13 @@ When creating tickets in the MD project, prefix the summary with an all-caps ide
 
 Format: `PREFIX: short imperative description` — e.g. `TRON-PLUGIN: build tools/image/image-pipeline.sh`.
 
+## Assignee
+
+Assign every MD-project ticket to its creator on creation with `--assignee '@me'`. This routes a
+ticket **you** create to you, and a **teammate's** ticket to them — which is correct even in the
+repos shared with the wider team (`marketing-pages`, `marketing-dynamic-landing-pages`). Don't
+hard-code a specific person's email here; `@me` is the whole point.
+
 This table is canonical — it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT
 (`tron-os`) repo. If you change a prefix here, it must change there too, and vice versa.
 
