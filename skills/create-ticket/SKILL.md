@@ -101,14 +101,27 @@ node "$ADF" < /tmp/tron-create-ticket/<slug>.md > /tmp/tron-create-ticket/<slug>
 acli jira workitem create \
   --project MD --type Task \
   --summary "TRON-PLUGIN: <summary>" \
-  --description-file /tmp/tron-create-ticket/<slug>.adf.json
+  --description-file /tmp/tron-create-ticket/<slug>.adf.json \
+  --assignee "@me"
 
 # 3. Verify the LIVE ticket lints high (round-trips through Jira's stored ADF).
 bash "$TICKET_DIR/rubric-lint.sh" --key <NEW-KEY> | jq '{verdict, missing}'
 ```
 
-The `--project` and `--type` follow the target board (default `MD`, `Task`). Report the new key and its
-verdict to the user.
+The `--project` and `--type` follow the target board (default `MD`, `Task`). The `--assignee` flag
+defaults to `"@me"` (current user); pass `"user@example.com"` or another value to assign to someone
+else. Report the new key and its verdict to the user.
+
+### Verifying the fix
+
+To verify a ticket was created with an assignee, run:
+
+```bash
+acli jira workitem view <NEW-KEY> --fields assignee
+```
+
+The output should include a non-empty `Assignee:` line. If no assignee appears, the acli invocation
+was missing the `--assignee` flag.
 
 ## Quality rules
 
