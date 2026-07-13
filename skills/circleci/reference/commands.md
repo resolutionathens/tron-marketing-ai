@@ -196,6 +196,23 @@ circleci local execute -c .circleci/config.yml --job <job-name>
 
 `circleci local execute` runs the job inside the same docker image CircleCI would use, **but** it doesn't have access to project-level env vars, contexts, or workspaces. So it's best for fast lint/build/test jobs, less useful for deploy jobs (which depend on AWS creds, etc.).
 
+**Known broken: Docker 29 / arm64 (Apple Silicon).** `circleci local execute` panics on
+Docker 29 under arm64 — the CLI's legacy `picard` local-execution agent isn't compatible
+(MD-1666). Skip straight to the `docker run` fallback below rather than troubleshooting it.
+
+### Fallback when `circleci local execute` is broken (Docker 29/arm64)
+
+Run the job's commands directly in the same image CircleCI uses, mounting the repo in:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work <ci-image> bash -lc 'npm ci && npm run generate'
+```
+
+Replace `<ci-image>` with the `image:` from the job's `docker:` executor in
+`.circleci/config.yml`, and the command with whatever the job actually runs (build, test,
+lint, etc.). This loses CircleCI-specific conveniences (caching, orbs, contexts) but runs the
+same install/build steps and is reliable on affected hosts.
+
 ### Pack a multi-file config (advanced)
 
 If `.circleci/config.yml` is split across multiple files (rare), pack them:

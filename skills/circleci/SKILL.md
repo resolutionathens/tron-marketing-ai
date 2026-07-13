@@ -77,6 +77,18 @@ circleci config process .circleci/config.yml | less   # view expanded config
 circleci local execute --job <job-name>   # run job locally (no project env vars/contexts)
 ```
 
+**`circleci local execute` is broken on Docker 29 / Apple Silicon (arm64)** — it panics because
+the CLI's legacy `picard` local-execution agent doesn't support Docker 29 on arm64 (MD-1666).
+Don't spend time debugging it on affected machines; fall back to running the job's commands
+directly in the CI image via `docker run`:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work <ci-image> bash -lc 'npm ci && npm run generate'
+```
+
+Swap `<ci-image>` and the command for whatever the target job actually runs (see
+`.circleci/config.yml`).
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -86,3 +98,4 @@ circleci local execute --job <job-name>   # run job locally (no project env vars
 | `{"message": "Project not found"}` | Slug case mismatch — use `gh/Facilitron/...` (capital F). |
 | Workflow stuck in `running` >1h | A job is hung or on hold. `curl .../workflow/<id>/job` to find it. |
 | `config validate` ok but cloud fails | Cloud has version constraints local doesn't enforce. Push to throwaway branch. |
+| `circleci local execute` panics (Docker 29 / arm64) | Known-broken (MD-1666, legacy `picard` agent). Use the `docker run` fallback above instead of debugging it. |
