@@ -67,8 +67,8 @@ acli jira workitem transition --key <KEY> --status '<status name>' --yes
 acli jira workitem assign <KEY> --assignee '<user>'
 
 # Create a new ticket
-acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>'
-# Add --assignee '@me' when the ticket is prefixed SCOUT: or TRON-PLUGIN: (see "Creating tickets" below)
+acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'
+# Always assign the creator with --assignee '@me' (see "Creating tickets" below)
 ```
 
 ### Rich descriptions (markdown → ADF)
@@ -82,14 +82,13 @@ When creating a ticket in the MD project, prefix the summary per
 canonical (it mirrors the `repoForSummaryPrefix` test fixture in the SCOUT repo). If the target
 repo isn't clear from context, ask the user which repo the ticket is for rather than guessing.
 
-Tickets prefixed `SCOUT:` or `TRON-PLUGIN:` are the user's own OS/plugin work — self-assign them
-on creation with `--assignee '@me'`:
+Assign **every** MD-project ticket to its creator on creation with `--assignee '@me'` — this routes a
+ticket you create to you and a teammate's ticket to them, which is correct even in the repos shared
+with the wider team (`marketing-pages`, `marketing-dynamic-landing-pages`):
 
 ```bash
 acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'
 ```
-
-Every other prefix stays unassigned unless the user says otherwise.
 
 ## Presentation guidelines
 
