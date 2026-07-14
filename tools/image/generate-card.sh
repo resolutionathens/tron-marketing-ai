@@ -81,7 +81,7 @@ set -a; source ~/.env 2>/dev/null || true; set +a
 REFS_DIR="$(mktemp -d /tmp/card-refs-XXXXXX)"
 trap 'rm -rf "$REFS_DIR"' EXIT
 
-node "$IK" list --path "$FOLDER" --limit "$REFS_COUNT" | \
+node "$IK" list --path "$FOLDER" --sort DESC_CREATED --limit "$REFS_COUNT" | \
   python3 -c "
 import sys, json
 data = json.load(sys.stdin)
@@ -95,7 +95,7 @@ for f in data:
 # ── 2. compute next sequence number (--prefix path) ─────────────────────────
 NEXT=""
 if [[ -n "$PREFIX" ]]; then
-  NEXT=$(node "$IK" list --path "$FOLDER" --limit 50 | \
+  NEXT=$(node "$IK" list --path "$FOLDER" --sort DESC_CREATED --limit 50 | \
     python3 -c "
 import sys, json
 for f in json.load(sys.stdin):
