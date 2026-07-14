@@ -2,6 +2,12 @@
 
 Use this richer structure when the user says the work is in `marketing-pages` and the items are `/resources/toolkit` items (checklists, SOPs, templates) sourced from a Google Doc.
 
+This playbook layers on top of the shared [ticket rubric](../../../tools/ticket/ticket-rubric.md)
+base shape (see [description-template.md](description-template.md)), not in place of it: the
+fenced machine header comes first (`Type: content`, `Deliverable type: toolkit`, and the
+content section markers `Destination:`/`Format:`/`SEO target:`/`Draft:`), then this playbook's
+richer sections follow.
+
 ## Contents
 
 - Enriched description shape
@@ -12,6 +18,18 @@ Use this richer structure when the user says the work is in `marketing-pages` an
 
 ````markdown
 # Publish toolkit item: <Title>
+
+```
+Done: Publish <Title> as a /resources/toolkit item
+Type: content
+Deliverable type: toolkit
+Context: <link to the ticket's source Google Doc or Confluence spec>
+Decision: <due date, sign-off owner, if known>
+Destination: toolkit
+Format: <sop|checklist|template>
+SEO target: <primary keyword or search intent>
+Draft: <google doc url>
+```
 
 ## Context
 

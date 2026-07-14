@@ -30,6 +30,11 @@ Use this for one ticket or a batch when the work is known but the ticket descrip
 Auth is `acli`'s own per-user OAuth session, not a brokered token — see
 [tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
 
+The description this skill writes uses the same [ticket rubric](../../tools/ticket/ticket-rubric.md)
+`tron:create-ticket` enforces at creation, so a ticket enriched after the fact lints the same as one
+created fresh with equivalent source information. `tron:ticket-lint` and Scout triage read the same
+markers regardless of which skill wrote the description.
+
 ## Where the source material lives
 
 A thin ticket rarely holds its own context. Look in this order and merge what you find:
@@ -166,13 +171,42 @@ If a source is not directly accessible, still enrich the ticket with its URL and
 
 ### 6. Draft the enriched description
 
-Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. Keep it practical and implementation-ready: add only the sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
+Use the base shape in [reference/description-template.md](reference/description-template.md) — it also has a full worked example for a Figma-driven navigation ticket. The base shape is the rubric's fenced machine header (spine + the section markers for the ticket's `Type`) followed by human prose. Add only the prose sections a ticket needs (a `## Source SEO fields` section for content/SEO work), and never include empty sections.
 
-When the destination repo is known, emit the `Destination repo:` and `Destination path or route:` lines under `## Sources` **verbatim**: the literal label text and backtick-wrapped value, exactly as shown in the template. Do not paraphrase them into a different heading (e.g. `## Repo / implementation guidance (marketing-pages)`) or fold the repo name into prose elsewhere instead. These are not freeform prose the model rephrases; they are a fixed, machine-parsed line. tron-os's dispatch router (`lib/triage.ts`) greps the literal `Destination repo:` marker to route work to the correct repo, and a paraphrased heading will not match it.
+Fill the machine header from what you gathered: `Done`, `Type`, `Deliverable type`, `Context`, `Decision`, and the `Type`'s section markers (`Repo`/`Affected paths`/`Acceptance criteria` for engineering, `Figma`/`Format`/`Brand refs`/`Lands` for design, `Destination`/`Format`/`SEO target`/`Draft` for content). Do not invent a value for a marker you cannot ground in a real source — a ticket that lints `medium` because a genuine detail is missing is fine; a `<placeholder>` value is not.
+
+When the destination repo is known, also emit the `Destination repo:` line under `## Sources`
+**verbatim**: the literal label text and backtick-wrapped value, exactly as shown in the template.
+Do not paraphrase it into a different heading (e.g. `## Repo / implementation guidance
+(marketing-pages)`) or fold the repo name into prose elsewhere instead. This is not freeform prose
+the model rephrases; it is a fixed, machine-parsed line, layered on top of the rubric's own
+`Repo:` marker, not a replacement for it. tron-os's dispatch router (`lib/triage.ts`) greps the
+literal `Destination repo:` marker to route work to the correct repo, and a paraphrased heading
+will not match it. Also emit `Destination path or route:` under `## Sources`, but only for a
+design or content ticket (engineering already carries this in the header's `Affected paths:`
+marker — do not duplicate it under `## Sources` too).
+
+### 7. Self-check against the rubric before writing
+
+Lint the drafted description offline, the same way `tron:create-ticket` does, before converting and writing to Jira. `rubric-lint.sh` already supports both invocation modes used below (`--file` for the local draft, `--key` for the live ticket after writing — see its usage comment in `tools/ticket/rubric-lint.sh`), so no companion change is needed for this step to work:
+
+```bash
+TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
+bash "$TICKET_DIR/rubric-lint.sh" --file /tmp/tron-enrich-jira-ticket/<KEY>.md \
+  --summary "<the ticket's current summary>" | jq '{verdict, missing}'
+```
+
+A `medium: routable but thin` verdict is acceptable when a genuine detail is still unknown; iterate
+if a marker is missing only because you did not look hard enough at the sources. After writing to
+Jira, verify the live ticket lints the same way:
+
+```bash
+bash "$TICKET_DIR/rubric-lint.sh" --key <KEY> | jq '{verdict, missing}'
+```
 
 ## Playbooks
 
-- **marketing-pages toolkit items** (`/resources/toolkit` checklists, SOPs, templates sourced from a Google Doc) use a richer schema-bound structure. See [reference/toolkit-playbook.md](reference/toolkit-playbook.md).
+- **marketing-pages toolkit items** (`/resources/toolkit` checklists, SOPs, templates sourced from a Google Doc) use a richer schema-bound structure layered on top of the rubric's content-type markers. See [reference/toolkit-playbook.md](reference/toolkit-playbook.md).
 
 ## Quality rules
 
@@ -199,3 +233,4 @@ Report back with:
 - Any key corrections
 - Any tickets skipped and why
 - Where the draft files were saved if useful
+- Each ticket's rubric verdict from step 7 (e.g. `high: actionable`, `medium: routable but thin`)
