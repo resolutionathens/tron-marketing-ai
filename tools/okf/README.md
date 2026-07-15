@@ -23,6 +23,11 @@ backend behind that HTTP surface (`createOkfClientFromConfig`); this client does
 query logic and does **not** read the bundle from disk. Per the OS ↔ Plugin boundary, the OS owns
 the data + query logic + HTTP surface (MD-1988); the plugin owns the affordance the worker invokes.
 
+When `$TRON_DISPATCH_ID` is set (a dispatched worker), both `select` and `load` forward it as the
+`x-tron-dispatch-id` header on their `/api/okf/*` requests, so the OS attributes the retrieval to
+that dispatch's `memoryUse` record — the same attribution the OS-authored direct-curl affordance
+already gets (MD-2187). Interactive/non-dispatched use is unchanged: no env var, no header.
+
 ## Usage
 
 ```bash

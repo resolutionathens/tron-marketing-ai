@@ -147,13 +147,20 @@ async function apiFetch(url, init, ms) {
 
 // ── control-plane API transport (primary — TRON_API_URL / --api-url) ────────────
 
+// Attributes this query/load to the dispatch's memoryUse record server-side (MD-2187),
+// matching the OS-authored direct-curl affordance. Omitted entirely when TRON_DISPATCH_ID is
+// unset (interactive/non-dispatched use), so unattributed requests are unchanged.
+function dispatchHeaders() {
+  return process.env.TRON_DISPATCH_ID ? { "x-tron-dispatch-id": process.env.TRON_DISPATCH_ID } : {};
+}
+
 async function apiSelect(base, { type, tags, idPrefix }, ms) {
   const qs = new URLSearchParams();
   if (type) qs.set("type", type);
   if (tags) qs.set("tags", tags);
   if (idPrefix) qs.set("idPrefix", idPrefix);
   const url = `${base}/api/okf/select${qs.toString() ? `?${qs}` : ""}`;
-  const data = await apiFetch(url, { method: "GET" }, ms);
+  const data = await apiFetch(url, { method: "GET", headers: dispatchHeaders() }, ms);
   return Array.isArray(data?.concepts) ? data.concepts : [];
 }
 
@@ -161,7 +168,11 @@ async function apiLoad(base, ids, ms) {
   const url = `${base}/api/okf/load`;
   const data = await apiFetch(
     url,
-    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) },
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", ...dispatchHeaders() },
+      body: JSON.stringify({ ids }),
+    },
     ms,
   );
   return data?.bodies && typeof data.bodies === "object" ? data.bodies : {};

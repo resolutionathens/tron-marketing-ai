@@ -14,6 +14,8 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 OKF="$DIR/okf.mjs"
 TMP="$(mktemp -d)"
+export HEADERS_LOG="$TMP/headers.log"
+: > "$HEADERS_LOG"
 SRV_PID=""
 BRK_PID=""
 cleanup() {
@@ -36,6 +38,7 @@ check_missing() { # <label> <unexpected-substring> <actual>
 # ── stub server: mirrors routes/okf.ts shapes ────────────────────────────────
 cat > "$TMP/server.mjs" <<'EOF'
 import { createServer } from "node:http";
+import { appendFileSync } from "node:fs";
 const CONCEPTS = [
   { id: "policy/git-flow", type: "Policy", tags: ["git", "lifecycle"], title: "Git flow policy", description: null, timestamp: null },
   { id: "policy/no-em-dash", type: "Policy", tags: ["writing"], title: "No em dashes", description: null, timestamp: null },
@@ -55,6 +58,7 @@ function applyQuery(list, { type, tags, idPrefix }) {
   });
 }
 const srv = createServer((req, res) => {
+  appendFileSync(process.env.HEADERS_LOG, `${req.headers["x-tron-dispatch-id"] || ""}\n`);
   const u = new URL(req.url, "http://x");
   if (req.method === "GET" && u.pathname === "/api/okf/select") {
     const tagsRaw = u.searchParams.get("tags");
@@ -157,6 +161,29 @@ check "no-source message names the broker fallback" "cloudflared access login" "
 # ── --api-url overrides env ──────────────────────────────────────────────────
 out="$(env -u TRON_API_URL node "$OKF" select --type Role --api-url "http://127.0.0.1:$PORT")"
 check "--api-url override works" "role/worker" "$out"
+
+# ── dispatch attribution header (MD-2187) ────────────────────────────────────
+# forwarded on select and load when TRON_DISPATCH_ID is set, matching the OS-authored
+# direct-curl path so skill-path OKF retrievals attribute to the dispatch's memoryUse.
+: > "$HEADERS_LOG"
+TRON_DISPATCH_ID="dispatch-test-123" node "$OKF" select --type Policy > /dev/null
+check "select forwards x-tron-dispatch-id when set" "dispatch-test-123" "$(tail -1 "$HEADERS_LOG")"
+
+: > "$HEADERS_LOG"
+TRON_DISPATCH_ID="dispatch-test-123" node "$OKF" load policy/git-flow > /dev/null
+check "load forwards x-tron-dispatch-id when set" "dispatch-test-123" "$(tail -1 "$HEADERS_LOG")"
+
+: > "$HEADERS_LOG"
+env -u TRON_DISPATCH_ID node "$OKF" select --type Policy > /dev/null
+hdr="$(tail -1 "$HEADERS_LOG")"
+if [ -z "$hdr" ]; then echo "ok: select omits x-tron-dispatch-id when unset"; pass=$((pass+1)); else
+  echo "FAIL: select omits x-tron-dispatch-id when unset"; echo "  actual header: [$hdr]"; fail=$((fail+1)); fi
+
+: > "$HEADERS_LOG"
+env -u TRON_DISPATCH_ID node "$OKF" load policy/git-flow > /dev/null
+hdr="$(tail -1 "$HEADERS_LOG")"
+if [ -z "$hdr" ]; then echo "ok: load omits x-tron-dispatch-id when unset"; pass=$((pass+1)); else
+  echo "FAIL: load omits x-tron-dispatch-id when unset"; echo "  actual header: [$hdr]"; fail=$((fail+1)); fi
 
 # ── network failure → exit 4 ─────────────────────────────────────────────────
 set +e
