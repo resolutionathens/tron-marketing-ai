@@ -54,6 +54,37 @@ route_healthy() {
   curl -s -o /dev/null --max-time 3 "http://localhost:${1}${ROUTE}"
 }
 
+# Populate NODE_RUN_PREFIX (array, possibly empty) with a command prefix that
+# guarantees the .nvmrc-pinned Node version launches Nuxt. Prefers nvm,
+# installing the pinned version if nvm doesn't have it yet; falls back to
+# `mise exec` when nvm can't provide it (missing, or install fails) so
+# mise-only worktrees don't silently launch Nuxt under the system Node.
+# Must be called with cwd already at the repo root (so nvm/mise pick up the
+# local .nvmrc/.mise.toml).
+select_node_runtime() {
+  NODE_RUN_PREFIX=()
+
+  if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "$HOME/.nvm/nvm.sh"
+    if nvm use >/dev/null 2>&1; then
+      return 0
+    fi
+    log "nvm doesn't have the .nvmrc-pinned Node version installed; installing it"
+    if nvm install >/dev/null 2>&1 && nvm use >/dev/null 2>&1; then
+      return 0
+    fi
+    log "nvm install failed; falling back to mise"
+  fi
+
+  if command -v mise >/dev/null 2>&1; then
+    NODE_RUN_PREFIX=(mise exec --)
+    return 0
+  fi
+
+  log "neither nvm nor mise could select the pinned Node version; continuing on system Node (risk of NODE_MODULE_VERSION mismatch)"
+}
+
 # Find the marketing-pages repo root from $REPO upward.
 find_marketing_pages_root() {
   local dir="$1"
@@ -96,12 +127,16 @@ cmd_start() {
   # Launch the server in the background from the repo root.
   (
     cd "$root"
-    # shellcheck disable=SC1091
-    [[ -s "$HOME/.nvm/nvm.sh" ]] && source "$HOME/.nvm/nvm.sh" && nvm use >/dev/null 2>&1 || true
+    select_node_runtime
     local dotenv=""
     [[ -f "$root/.env.local" ]] && dotenv="--dotenv .env.local"
-    # shellcheck disable=SC2086
-    nohup ./node_modules/.bin/nuxt dev --port="$p" $dotenv >"$log_file" 2>&1 &
+    if [[ ${#NODE_RUN_PREFIX[@]} -gt 0 ]]; then
+      # shellcheck disable=SC2086
+      nohup "${NODE_RUN_PREFIX[@]}" ./node_modules/.bin/nuxt dev --port="$p" $dotenv >"$log_file" 2>&1 &
+    else
+      # shellcheck disable=SC2086
+      nohup ./node_modules/.bin/nuxt dev --port="$p" $dotenv >"$log_file" 2>&1 &
+    fi
     disown
   )
 
@@ -160,14 +195,18 @@ cmd_status() {
   fi
 }
 
-case "$CMD" in
-  start)  cmd_start ;;
-  stop)
-    STOP_PORT="${POSITIONALS[0]:-$PORT}"
-    cmd_stop "$STOP_PORT" ;;
-  status)
-    STATUS_PORT="${POSITIONALS[0]:-$PORT}"
-    cmd_status "$STATUS_PORT" ;;
-  ""|help|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  *) usage_err "unknown subcommand '$CMD' (try: start, stop, status)" ;;
-esac
+# Guard CLI dispatch so test-dev-server.sh can `source` this file to unit-test
+# helpers like select_node_runtime without triggering the "no subcommand" path.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  case "$CMD" in
+    start)  cmd_start ;;
+    stop)
+      STOP_PORT="${POSITIONALS[0]:-$PORT}"
+      cmd_stop "$STOP_PORT" ;;
+    status)
+      STATUS_PORT="${POSITIONALS[0]:-$PORT}"
+      cmd_status "$STATUS_PORT" ;;
+    ""|help|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) usage_err "unknown subcommand '$CMD' (try: start, stop, status)" ;;
+  esac
+fi

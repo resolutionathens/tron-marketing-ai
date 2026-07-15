@@ -65,6 +65,79 @@ if echo "$out_help" | grep -q "start"; then pass "help text mentions 'start'"; e
 out_no_repo="$(cd /tmp && bash "$DS" start --port 19996 2>&1 || true)"
 if echo "$out_no_repo" | grep -q "marketing-pages"; then pass "start outside repo emits clear error"; else fail "start outside repo: $out_no_repo"; fi
 
+# ---- select_node_runtime: nvm/mise fallback logic -----------------------
+# Stub HOME/.nvm/nvm.sh with a fake `nvm` function controlled by env vars, and
+# a fake `mise` on PATH, so the fallback chain can be driven deterministically
+# without touching the real nvm/mise installs.
+FIXTURE_HOME="$(mktemp -d)"
+mkdir -p "$FIXTURE_HOME/.nvm"
+cat > "$FIXTURE_HOME/.nvm/nvm.sh" <<'NVMEOF'
+nvm() {
+  case "$1" in
+    use)
+      NVM_USE_CALLS=$(( ${NVM_USE_CALLS:-0} + 1 ))
+      [[ "$NVM_USE_CALLS" -ge "${TEST_NVM_USE_SUCCEED_AT:-999}" ]]
+      ;;
+    install) return "${TEST_NVM_INSTALL_EXIT:-0}" ;;
+  esac
+}
+NVMEOF
+
+FIXTURE_BIN="$(mktemp -d)"
+cat > "$FIXTURE_BIN/mise" <<'MISEEOF'
+#!/bin/sh
+exit 0
+MISEEOF
+chmod +x "$FIXTURE_BIN/mise"
+
+run_select_node_runtime() {
+  # Each case runs in its own subshell so env/PATH tweaks don't leak.
+  (
+    HOME="$FIXTURE_HOME"
+    export HOME
+    # Reset PATH to bare essentials so a real mise/nvm on the dev machine's
+    # PATH can't leak into a case that expects them absent.
+    PATH="/usr/bin:/bin"
+    if [[ "${1:-}" == "with-mise" ]]; then
+      PATH="$FIXTURE_BIN:$PATH"
+    fi
+    export PATH
+    # shellcheck disable=SC1090
+    source "$DS"
+    select_node_runtime
+    echo "PREFIX_LEN=${#NODE_RUN_PREFIX[@]}"
+    echo "PREFIX=${NODE_RUN_PREFIX[*]:-}"
+  )
+}
+
+# nvm already has the pinned version: no prefix needed, no install attempted.
+out_nvm_ok="$(TEST_NVM_USE_SUCCEED_AT=1 run_select_node_runtime 2>&1)"
+if echo "$out_nvm_ok" | grep -q "PREFIX_LEN=0"; then pass "select_node_runtime: nvm use succeeds -> no prefix"; else fail "nvm use succeeds: $out_nvm_ok"; fi
+
+# nvm doesn't have it, but installs it successfully: still no prefix needed.
+out_nvm_install="$(TEST_NVM_USE_SUCCEED_AT=2 TEST_NVM_INSTALL_EXIT=0 run_select_node_runtime 2>&1)"
+if echo "$out_nvm_install" | grep -q "PREFIX_LEN=0" && echo "$out_nvm_install" | grep -q "installing it"; then
+  pass "select_node_runtime: nvm install recovers missing version"
+else
+  fail "nvm install recovers missing version: $out_nvm_install"
+fi
+
+# nvm can't ever select the version, but mise is on PATH: falls back to mise.
+out_mise_fallback="$(TEST_NVM_USE_SUCCEED_AT=999 TEST_NVM_INSTALL_EXIT=0 run_select_node_runtime with-mise 2>&1)"
+if echo "$out_mise_fallback" | grep -q "PREFIX=mise exec --"; then
+  pass "select_node_runtime: falls back to mise exec when nvm can't select the version"
+else
+  fail "falls back to mise: $out_mise_fallback"
+fi
+
+# nvm can't select it and mise isn't available either: no prefix, warns loudly.
+out_no_fallback="$(TEST_NVM_USE_SUCCEED_AT=999 TEST_NVM_INSTALL_EXIT=1 run_select_node_runtime 2>&1)"
+if echo "$out_no_fallback" | grep -q "PREFIX_LEN=0" && echo "$out_no_fallback" | grep -q "neither nvm nor mise"; then
+  pass "select_node_runtime: warns and continues on system Node when nvm and mise both fail"
+else
+  fail "warns when nvm and mise both fail: $out_no_fallback"
+fi
+
 echo ""
 if [[ $FAILURES -eq 0 ]]; then
   printf "\033[32mall %d tests passed\033[0m\n" "$PASSES"
