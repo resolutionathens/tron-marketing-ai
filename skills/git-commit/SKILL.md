@@ -96,7 +96,24 @@ If a commit fails (pre-commit hook), report and stop.
 
 ## Step 6: Push
 
-`git push -u origin <branch>` if no upstream, plain `git push` otherwise. Never force push.
+Resolve the branch name independent of the shell's cwd (finds the feature-branch worktree):
+
+```bash
+# Find the feature-branch worktree (not the main checkout)
+MAIN_WD="$(git rev-parse --git-dir | xargs dirname)"
+WORKTREE="$(git worktree list --porcelain | grep -v "^bare:" | awk '{print $1}' | grep -v "^$MAIN_WD\$" | head -1)" || WORKTREE="$MAIN_WD"
+BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
+[ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
+
+# Check if already tracking upstream; if so, plain push. Else use -u.
+if git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" >/dev/null 2>&1; then
+  git -C "$WORKTREE" push
+else
+  git -C "$WORKTREE" push -u origin "$BRANCH"
+fi
+```
+
+Never force push.
 
 ## Step 7: Report
 

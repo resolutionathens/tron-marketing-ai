@@ -39,7 +39,18 @@ Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git
 
 ## Step 2: Push branch
 
-Check tracking: `git status -sb`. If no upstream, `git push -u origin <branch>`. If ahead, `git push`. If up to date, continue.
+Check tracking: `git status -sb`. Resolve the branch name once, independent of the shell's cwd
+(works even if cwd has reset to main checkout):
+
+```bash
+# Find the feature-branch worktree (not the main checkout)
+MAIN_WD="$(git rev-parse --git-dir | xargs dirname)"
+WORKTREE="$(git worktree list --porcelain | grep -v "^bare:" | awk '{print $1}' | grep -v "^$MAIN_WD\$" | head -1)" || WORKTREE="$MAIN_WD"
+BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
+[ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
+```
+
+If no upstream, `git push -u origin "$BRANCH"`. If ahead, `git push`. If up to date, continue.
 
 ## Step 3: Gather context
 
@@ -75,8 +86,9 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 
 ## Step 6: Create the PR
 
-`$BASE` is the default branch resolved in Step 3 — if this runs in a fresh shell,
-re-run the Step 3 resolver line first.
+`$BASE` is the default branch resolved in Step 3 and `$BRANCH` from Step 2 — both must be resolved
+in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
+Step 3's base resolver before creating the PR.
 
 Write the body to a temp file first, then pass it via `--body-file` — this avoids
 silent `gh pr create` failures when the body contains single quotes, backticks, or
@@ -86,7 +98,7 @@ other shell-sensitive characters (see MD-1907 retro):
 cat > /tmp/.pr-body.md <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE"
+gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH"
 ```
 
 ## Steps 7–8: Copilot review + retro comment (scripted)
