@@ -25,15 +25,21 @@
 #   git-pr-retro.sh await-review --pr <N> [--timeout <sec>] [--interval <sec>] [--repo-dir <path>]
 #       Poll until Copilot posts its review, then report what landed so the PR
 #       isn't declared approval-ready before the review exists. Prints
-#       {status, commentCount, comments[], reviewState, waitedSeconds, ...}
-#       where status is:
+#       {status, commentCount, comments[], reviewState, waitedSeconds,
+#       timeoutSeconds, ...} where status is:
+#         skipped     — operator flag TRON_COPILOT_UNAVAILABLE is set; the poll
+#                       was skipped entirely, no gh calls made (MD-2194)
 #         commented   — Copilot left inline comments (comments[] carries them;
 #                       the worker addresses them, pushes, then reports done)
 #         no-comments — Copilot reviewed with no inline comments
 #         timeout     — no Copilot review within the window (degrade gracefully,
 #                       never hang forever)
-#       Defaults: timeout 600s, interval 20s. Best-effort — an API/read failure
-#       or a repo without Copilot review exits 0 with a benign status.
+#       Defaults: timeout 600s (120s when TRON_DISPATCH_ID is set and --timeout
+#       wasn't passed explicitly — MD-2194), interval 20s. Best-effort — an
+#       API/read failure or a repo without Copilot review exits 0 with a benign
+#       status. The operator-unavailable check (TRON_COPILOT_UNAVAILABLE) is
+#       fail-open: any error there falls through to the normal poll, never
+#       blocks the PR.
 #
 # Output contract: ONE JSON line on stdout; narration on stderr.
 # Exit 0 success / 1 logical failure / 2 usage error.
@@ -47,7 +53,7 @@ command -v jq >/dev/null 2>&1 || usage_err "jq is required but not on PATH"
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 case "$CMD" in ""|help|-h|--help) sed -n '2,39p' "$0"; exit 0 ;; esac
 
-PR=""; RANGE=""; DIR="$(pwd)"; MODEL=""; BODY=""; BODY_FILE=""; TIMEOUT=600; INTERVAL=20
+PR=""; RANGE=""; DIR="$(pwd)"; MODEL=""; BODY=""; BODY_FILE=""; TIMEOUT=""; INTERVAL=20
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pr|--number|-n) PR="${2:-}"; shift ;;
@@ -171,10 +177,35 @@ cmd_request_review() {
 # review, then classify by inline-comment count. Best-effort throughout: an
 # unreadable API, an org without Copilot, or a genuine timeout all exit 0 with a
 # status the caller can branch on — this step must never hang or fail the run.
+#
+# MD-2194: an operator can flag a known Copilot outage so every dispatch skips
+# the wait instead of each one burning the full window (TRON_COPILOT_UNAVAILABLE).
+# Absent that flag, a dispatched worker (TRON_DISPATCH_ID set) still gets a much
+# tighter default window than an interactive run, so a dead Copilot service can't
+# stall a dispatch for the full 10 minutes.
+is_copilot_unavailable() {
+  local v
+  v="$(printf '%s' "${TRON_COPILOT_UNAVAILABLE:-}" | tr '[:upper:]' '[:lower:]')" || return 1
+  case "$v" in 1|true|yes|on) return 0 ;; *) return 1 ;; esac
+}
+
 cmd_await_review() {
   [[ -z "$PR" ]] && usage_err "await-review requires --pr <N>"
-  [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || usage_err "--timeout must be a non-negative integer of seconds"
+  if [[ -n "$TIMEOUT" ]]; then
+    [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || usage_err "--timeout must be a non-negative integer of seconds"
+  elif [[ -n "${TRON_DISPATCH_ID:-}" ]]; then
+    TIMEOUT=120
+  else
+    TIMEOUT=600
+  fi
   [[ "$INTERVAL" =~ ^[0-9]+$ ]] || usage_err "--interval must be a non-negative integer of seconds"
+
+  # Fail-open: any error inside the check falls through to a normal poll below.
+  if is_copilot_unavailable; then
+    jq -nc '{ok:true,status:"skipped",commentCount:0,waitedSeconds:0,timeoutSeconds:0,
+      reason:"operator flag TRON_COPILOT_UNAVAILABLE set — Copilot review unavailable, skipping wait"}'
+    return 0
+  fi
 
   # Honor --repo-dir so `gh` runs against the intended checkout even when invoked
   # from elsewhere (this is the last subcommand, so cd'ing the process is fine).
@@ -214,15 +245,15 @@ cmd_await_review() {
       now="$(date +%s)"; elapsed=$((now - start))
       local status; if (( count > 0 )); then status="commented"; else status="no-comments"; fi
       jq -nc --arg s "$status" --arg st "$state" --arg u "$review_url" \
-        --argjson c "$count" --argjson cm "$comments" --argjson w "$elapsed" \
-        '{ok:true,status:$s,reviewState:$st,reviewUrl:$u,commentCount:$c,waitedSeconds:$w,comments:$cm}'
+        --argjson c "$count" --argjson cm "$comments" --argjson w "$elapsed" --argjson t "$TIMEOUT" \
+        '{ok:true,status:$s,reviewState:$st,reviewUrl:$u,commentCount:$c,waitedSeconds:$w,timeoutSeconds:$t,comments:$cm}'
       return 0
     fi
 
     now="$(date +%s)"; elapsed=$((now - start))
     if (( elapsed >= TIMEOUT )); then
       jq -nc --argjson w "$elapsed" --argjson t "$TIMEOUT" \
-        '{ok:true,status:"timeout",commentCount:0,waitedSeconds:$w,reason:("no Copilot review within " + ($t|tostring) + "s")}'
+        '{ok:true,status:"timeout",commentCount:0,waitedSeconds:$w,timeoutSeconds:$t,reason:("no Copilot review within " + ($t|tostring) + "s")}'
       return 0
     fi
     (( INTERVAL > 0 )) && sleep "$INTERVAL"

@@ -231,6 +231,42 @@ has "$O" '"status":"error"' "unresolvable slug → benign error status"
 pass "await-review: slug resolution failure → ok:true status error, exit 0"
 unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
 
+# ---- await-review: MD-2194 operator override skips the poll entirely ----------
+# GH_STUB_SLUG_FAIL is set so any gh call the poll would make (repo view, api
+# reviews/comments) fails the test — proves the skip happens before any gh call.
+O="$(TRON_COPILOT_UNAVAILABLE=1 GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7)"; rc=$?
+[[ "$rc" == 0 ]] || fail "await-review with operator flag must never fail the lifecycle (rc=$rc)"
+has "$O" '"status":"skipped"' "operator flag set → status skipped"
+has "$O" '"waitedSeconds":0' "skipped status carries no wait"
+has "$O" 'TRON_COPILOT_UNAVAILABLE' "reason names the operator flag"
+pass "await-review: TRON_COPILOT_UNAVAILABLE=1 → status skipped, no gh calls, exit 0"
+
+O="$(TRON_COPILOT_UNAVAILABLE=true GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7)"
+has "$O" '"status":"skipped"' "operator flag 'true' (case-insensitive) → status skipped"
+pass "await-review: TRON_COPILOT_UNAVAILABLE=true → status skipped"
+
+O="$(TRON_COPILOT_UNAVAILABLE=0 GH_STUB_SLUG=o/r bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"
+has "$O" '"status":"timeout"' "operator flag '0' is not truthy → normal poll runs"
+pass "await-review: TRON_COPILOT_UNAVAILABLE=0 → not treated as unavailable"
+
+# ---- await-review: MD-2194 dispatched-worker default timeout is tightened -----
+# Use an immediate review match so the loop returns on its first check — this
+# observes the resolved default via timeoutSeconds without ever waiting it out.
+export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x"}]'
+export GH_STUB_PR_COMMENTS='[]'
+O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --interval 0)"; echo "  → $O"
+has "$O" '"timeoutSeconds":120' "TRON_DISPATCH_ID set, no --timeout → tightened 120s default"
+pass "await-review: dispatched worker with no --timeout override → 120s default (was 600s)"
+
+O="$(env -u TRON_DISPATCH_ID bash "$SCRIPT" await-review --pr 7 --interval 0)"; echo "  → $O"
+has "$O" '"timeoutSeconds":600' "no TRON_DISPATCH_ID, no --timeout → unchanged 600s default"
+pass "await-review: interactive run with no --timeout override → 600s default unchanged"
+
+O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --timeout 5 --interval 0)"
+has "$O" '"timeoutSeconds":5' "explicit --timeout overrides the dispatched default"
+pass "await-review: explicit --timeout still wins over the dispatched default"
+unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
+
 # ---- usage / error contract ----------------------------------------------------
 rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; }
 [[ "$(rc_of bogus)" == 2 ]] || fail "unknown subcommand should exit 2"
