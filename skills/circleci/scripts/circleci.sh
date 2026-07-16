@@ -73,9 +73,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---- broker auth + http with fallback -----------------------------------------------
+# A dispatched worker's tmux session gets cloudflared only via $CLOUDFLARED_PATH (MD-2079,
+# lib/tmux.ts's brokerSessionEnvArgs) — the tmux server's own PATH is too minimal to resolve
+# it. Honor that override before falling back to a bare PATH lookup, same as tron-os's
+# lib/broker-access.ts cloudflaredBin().
+cloudflared_bin() {
+  if [[ -n "${CLOUDFLARED_PATH:-}" ]]; then
+    printf '%s' "$CLOUDFLARED_PATH"
+  else
+    printf 'cloudflared'
+  fi
+}
+
 resolve_broker_token() {
   local token
-  token="$(cloudflared access token --app=https://secrets.facilitron.work 2>/dev/null)" || true
+  token="$("$(cloudflared_bin)" access token --app=https://secrets.facilitron.work 2>/dev/null)" || true
   [[ -n "$token" ]] && printf '%s' "$token"
 }
 
@@ -90,14 +102,14 @@ http() { # METHOD PATH [DATA]
   local m="$1" p="$2" d="${3:-}" token url
 
   if [[ "$BROKER_DOWN" == 0 ]]; then
-    command -v cloudflared >/dev/null 2>&1 && {
+    command -v "$(cloudflared_bin)" >/dev/null 2>&1 && {
       token="$(resolve_broker_token)"
       if [[ -n "$token" ]]; then
         url="$BROKER_API/$p"
         if [[ -n "$d" ]]; then
-          curl -fsS -X "$m" -H "CF-Access-Token: $token" -H "Content-Type: application/json" -d "$d" "$url" 2>/dev/null && return 0
+          curl -fsS -X "$m" -H "Cookie: CF_Authorization=$token" -H "Content-Type: application/json" -d "$d" "$url" 2>/dev/null && return 0
         else
-          curl -fsS -X "$m" -H "CF-Access-Token: $token" "$url" 2>/dev/null && return 0
+          curl -fsS -X "$m" -H "Cookie: CF_Authorization=$token" "$url" 2>/dev/null && return 0
         fi
       fi
     }
