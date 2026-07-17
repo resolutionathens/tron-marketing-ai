@@ -2,7 +2,13 @@
 name: create-ticket
 model: sonnet
 effort: medium
-description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for the work type (engineering, design, or content), stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:enrich-jira-ticket; to check tickets against the rubric use tron:ticket-lint."
+fallback:
+  cost: low
+  skip_when: "Use tron:create-ticket only for new tickets. Use tron:jira-source-discovery + tron:jira-ticket-enricher for existing tickets."
+  stage_skips:
+    - stage: "Step 4 — Self-check against the rubric"
+      skip_when: "User confirms the draft is complete and accurate"
+description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for the work type (engineering, design, or content), stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
 allowed-tools:
   - Bash
   - Read
@@ -136,8 +142,7 @@ was missing the `--assignee` flag.
 
 ## Relationship to the other rubric consumers
 
-- **tron:enrich-jira-ticket** fixes an *existing* thin ticket by mining links; **create-ticket** prevents
-  thin tickets at the source. Same rubric shape.
+- **tron:jira-source-discovery** + **tron:jira-ticket-enricher** fixes an *existing* thin ticket by mining links and writing the description; **create-ticket** prevents thin tickets at the source. Same rubric shape.
 - **tron:ticket-lint** is the read-only checker (one ticket or a whole board). If a user asks "is this
   ticket good enough," that is ticket-lint, not create-ticket.
 - **Scout triage** (tron-os) parses the same markers deterministically — that companion work is a separate

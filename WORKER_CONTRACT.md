@@ -61,7 +61,7 @@ below). Only if neither `TRON_API_URL` nor the broker is reachable should a skil
 whatever playbooks you were front-loaded with at kickoff, rather than blocking.
 
 Jira/Confluence access does **not** go through `TRON_API_URL`. `acli`-based skills (`jira`,
-`jira-comment`, `enrich-jira-ticket`, `board-triage`, `start-ticket`, `weekly-update`) use
+`jira-comment`, `enrich-jira-ticket`, `jira-source-discovery`, `jira-ticket-enricher`, `board-triage`, `start-ticket`, `weekly-update`) use
 `acli`'s own per-user OAuth session; Confluence page/attachment fetches go through the broker's
 `/jira/*` surface. See [`tools/jira/broker-status.md`](tools/jira/broker-status.md) for why
 `acli` stays off the broker.

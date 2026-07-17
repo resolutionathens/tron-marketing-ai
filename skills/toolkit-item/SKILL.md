@@ -2,6 +2,16 @@
 name: toolkit-item
 model: opus
 effort: high
+fallback:
+  cost: high
+  skip_when: "Use tron:toolkit-item only when publishing a full toolkit item. Use tron:md-to-pdf for a standalone PDF build."
+  stage_skips:
+    - stage: "Stage 3 — Build PDF"
+      skip_when: "Item needs no downloadable PDF"
+    - stage: "Stage 4 — Upload PDF"
+      skip_when: "No PDF was built"
+    - stage: "Stage 5 — Upload card image"
+      skip_when: "Item already has a card image on ImageKit"
 allowed-tools:
   - Bash
   - Read

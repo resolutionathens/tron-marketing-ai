@@ -2,6 +2,12 @@
 name: git-commit
 model: sonnet
 effort: medium
+fallback:
+  cost: low
+  skip_when: "Use tron:git-commit only when there are changes to commit. For single-file trivial fixes, commit directly instead."
+  stage_skips:
+    - stage: "Analyze & group"
+      skip_when: "Only one file changed or changes are all related to one concern"
 description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use this skill when the user says 'commit', 'commit and push', 'save my changes', 'push this up', or anything that implies they want to commit their current work. Also trigger when the user asks to 'ship it', 'wrap this up', or wants to finalize changes they've been working on."
 allowed-tools:
   - Bash

@@ -2,6 +2,12 @@
 name: git-pr
 model: sonnet
 effort: medium
+fallback:
+  cost: low
+  skip_when: "Use tron:git-pr only when a PR needs creating. For doc-only or trivial changes, verify and skip directly."
+  stage_skips:
+    - stage: "Steps 7-8 — Copilot review + retro comment"
+      skip_when: "PR is doc-only, trivial, or Copilot review is unavailable"
 description: "Create a pull request from the current feature branch with an auto-generated title and description. Use this skill when the user says 'create a PR', 'open a pull request', 'make a PR', 'submit for review', or anything that implies they want to create a pull request on GitHub."
 allowed-tools:
   - Bash

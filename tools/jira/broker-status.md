@@ -18,8 +18,8 @@ Routing these skills through the broker would mean bypassing `acli` entirely and
 hand-rolling the REST calls it already wraps (search, view, comment, transition,
 assign, create) — reintroducing the raw-REST-call approach this repo's worker
 rules warn against, for a large surface, to fix an env var these skills don't
-read. So the six `acli`-based skills (`jira`, `jira-comment`,
-`enrich-jira-ticket`, `board-triage`, `start-ticket`, `weekly-update`) stay on
+read. So the `acli`-based skills (`jira`, `jira-comment`,
+`enrich-jira-ticket`, `jira-source-discovery`, `jira-ticket-enricher`, `board-triage`, `start-ticket`, `weekly-update`) stay on
 `acli`'s own OAuth session per MD-1995's documented-exception path. Revisit if
 `acli` ever adds a custom-host/proxy flag.
 

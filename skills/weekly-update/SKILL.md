@@ -2,6 +2,14 @@
 name: weekly-update
 model: sonnet
 effort: medium
+fallback:
+  cost: low
+  skip_when: "Use tron:weekly-update only for composing a full weekly email. If user just needs their activity list without the email template, run the fetch script directly."
+  stage_skips:
+    - stage: "Step 3 — Ask three soft questions"
+      skip_when: "User says 'no blockers' or provides the soft sections directly"
+    - stage: "GitHub activity"
+      skip_when: "GitHub is unavailable or user is Jira-only"
 description: "Generate your weekly status update for Kristina (and your manager) by pulling recent activity from Jira — and GitHub when it's available — asking 3 quick questions for the soft sections (blockers, decisions, cross-team), composing it into Kristina's 6-section template as a plain-text email body, and copying it to the clipboard via pbcopy. Use this skill whenever the user asks for their 'weekly update', 'weekly status', 'weekly report', 'standup report', 'Kristina report', 'report for Dave', 'update email', or mentions Kristina's Tuesday 9am PST / 12pm EST deadline. Also trigger when the user says 'wrap up the week', 'what did I ship this week', or asks for a recap they can paste into an email. Works Jira-only for people without git/GitHub. Default window is 'since last Monday'; if the user says 'two-week' / 'biweekly' / 'past two weeks' / '2 weeks', widen accordingly."
 allowed-tools:
   - Bash

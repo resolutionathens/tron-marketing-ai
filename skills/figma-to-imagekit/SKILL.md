@@ -2,6 +2,14 @@
 name: figma-to-imagekit
 model: sonnet
 effort: medium
+fallback:
+  cost: medium
+  skip_when: "Use tron:figma-to-imagekit only when exporting from Figma to ImageKit. For a single-node re-upload, use the ImageKit CLI directly."
+  stage_skips:
+    - stage: "0 — Check connection"
+      skip_when: "Connection was already verified earlier in the same session"
+    - stage: "Resize/optimize"
+      skip_when: "Images are already webp at the correct size"
 description: "Export images from Figma designs and upload them to ImageKit CDN. Use this skill when the user wants to export assets from Figma, upload design images to ImageKit, move illustrations from Figma to production, or says things like 'grab that image from Figma', 'export and upload', 'get the images from the design', 'upload to ImageKit from Figma', or 'pull assets from Figma'."
 allowed-tools:
   - Bash

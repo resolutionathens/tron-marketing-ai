@@ -2,7 +2,7 @@
 
 Shared usage notes for the vendored converter at `tools/md-to-adf/md-to-adf.mjs`
 (lazy-installs its one npm dep on first run). Consumed by `tron:jira` and
-`tron:enrich-jira-ticket`.
+`tron:jira-ticket-enricher`.
 
 ## The acli plain-text gotcha
 

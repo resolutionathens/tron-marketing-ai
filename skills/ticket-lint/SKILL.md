@@ -2,7 +2,7 @@
 name: ticket-lint
 model: sonnet
 effort: low
-description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it (\"as written, Scout sees: none, needs human direction\"). Use this skill when the user wants to check, lint, grade, or self-assess a ticket's quality: 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', 'what's missing on this ticket', 'self-assess my ticket', 'check my ticket against the rubric', or the bulk 'lint my board', 'check my open tickets', 'which of my tickets are too thin', 'audit my queue'. Read-only: it reports gaps and offers to hand thin tickets to tron:enrich-jira-ticket or tron:create-ticket; it does not edit tickets itself."
+description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it (\"as written, Scout sees: none, needs human direction\"). Use this skill when the user wants to check, lint, grade, or self-assess a ticket's quality: 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', 'what's missing on this ticket', 'self-assess my ticket', 'check my ticket against the rubric', or the bulk 'lint my board', 'check my open tickets', 'which of my tickets are too thin', 'audit my queue'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
 allowed-tools:
   - Bash
   - Read
@@ -17,7 +17,7 @@ Tell a user exactly why a ticket is or is not actionable, in the same terms tria
 **"as written, Scout sees: `<verdict>`"** — not a vague "add a description."
 
 Read-only. It reports; it does not edit tickets. When a ticket is thin, it offers to hand off to
-`tron:enrich-jira-ticket` (fill an existing ticket) or points at `tron:create-ticket` (for new ones).
+`tron:jira-source-discovery` / `tron:jira-ticket-enricher` (fill an existing ticket) or points at `tron:create-ticket` (for new ones).
 
 The rubric, markers, and verdict ladder live in one file:
 [tools/ticket/ticket-rubric.md](../../tools/ticket/ticket-rubric.md). This skill is a thin front end over
@@ -66,7 +66,7 @@ Translate the JSON into what the owner should do. For a single ticket:
   - `missing.section` — the work-type specifics. "Add `Acceptance criteria:` and `Affected paths:`."
   - `missing.recommended` — `Decision:` (due date, sign-off owner). Flag it, do not block on it.
 - Name what is already good (`present`) so the fix feels small.
-- End with the remedy: offer `tron:enrich-jira-ticket` to fill it in, or note the rubric template.
+- End with the remedy: offer `tron:jira-source-discovery` + `tron:jira-ticket-enricher` to fill it in, or note the rubric template.
 
 For a **board**, report the grouped counts first (how many `high` / `medium` / `low` / `none`), then list
 the thin ones (`none` and `low`) with their single biggest gap each, so the user can fix a queue in one
@@ -87,6 +87,6 @@ Straight from the rubric ladder ([the verdict mapping](../../tools/ticket/ticket
 
 - Use the verdict strings from the script verbatim; do not reword them (they are the contract triage shares).
 - No em dashes in the prose you write back to the user.
-- Read-only: never edit a ticket from this skill. Hand off to `tron:enrich-jira-ticket` for that.
+- Read-only: never edit a ticket from this skill. Hand off to `tron:jira-source-discovery` / `tron:jira-ticket-enricher` for that.
 - If `rubric-lint.sh --key` fails (acli not authed, bad key), report the error plainly; do not guess a
   verdict from the summary alone.

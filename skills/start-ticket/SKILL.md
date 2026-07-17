@@ -2,6 +2,14 @@
 name: start-ticket
 model: sonnet
 effort: medium
+fallback:
+  cost: low
+  skip_when: "Use tron:start-ticket only when beginning work on a new ticket. If a branch and worktree already exist, skip and start work directly."
+  stage_skips:
+    - stage: "Transition to In Progress"
+      skip_when: "Ticket is already In Progress"
+    - stage: "Copy env files"
+      skip_when: "Worktree already has .env files from a prior start-ticket run"
 description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and then moving into the worktree and beginning the implementation against the ticket as the spec. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'. It scaffolds the workspace and kicks off the work; it does not commit, promote, or open a PR (those are separate lifecycle skills)."
 allowed-tools:
   - Bash
@@ -115,7 +123,7 @@ Setup is done. Now actually start the ticket — do not stop at scaffolding.
 
 1. **Switch your working context to the worktree.** Every command, file read, and edit from here runs against `worktreePath`, never the main checkout. `cd` into it (or pass it explicitly) so the dev server, edits, and git all target the new branch.
 2. **Use the ticket as the spec.** Work from the description you looked up in Step 1 — its Context, Sources, Implementation notes, and Acceptance criteria. Open the linked sources the description names (Figma, Confluence, GitHub, docs).
-3. **If the ticket is too thin to act on** (empty or vague description, no implementation notes), enrich it first with `tron:enrich-jira-ticket`, or ask the user for the missing detail. Do not guess at scope.
+3. **If the ticket is too thin to act on** (empty or vague description, no implementation notes), enrich it first with `tron:jira-source-discovery` + `tron:jira-ticket-enricher`, or ask the user for the missing detail. Do not guess at scope.
 4. **State a short plan, then start.** Restate the first implementation steps in a line or two, then make the first changes in the worktree, working the acceptance criteria top to bottom.
 
 Do not open the ticket URL in a browser — this includes dispatched/non-interactive workers, not just the `tron:ship-ticket` orchestrator. The ticket details were already fetched in Step 1; use `tron:jira` (or `tron:gh`) for any follow-up investigation.
