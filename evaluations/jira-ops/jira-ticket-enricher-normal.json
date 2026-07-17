@@ -1,0 +1,10 @@
+{
+  "skills": ["jira-ticket-enricher"],
+  "query": "Use these discovered sources to enrich MD-1234: a Figma design at https://figma.com/file/hero and the marketing-pages repository. Draft an engineering page ticket for the new hero before writing it.",
+  "expected_behavior": [
+    "Builds a description with a fenced rubric machine header and only engineering section markers",
+    "Uses real source details, preserves the source link, and includes the destination repository marker when known",
+    "Self-checks the draft with rubric-lint and converts it through md-to-adf before any Jira update",
+    "Shows the draft or obtains confirmation before editing the existing ticket, then verifies the live result"
+  ]
+}

@@ -72,23 +72,7 @@ Edit the `EDIT:` markers for your content. The template uses `\graphicspath` to 
 
 **Fonts.** The brand fonts are vendored in `fonts/` next to the template (Archivo + IBM Plex Mono as static weights; Inter as its upstream variable font, which is why bold is synthesized via `AutoFakeBold`). If the brand fonts change, drop the new files in `fonts/` and keep the filenames the template references.
 
-### One or two tables inside otherwise-prose content
-
-If most of the document is prose/checklists with just one or two tables, you can stay on the pandoc fallback and drop **raw LaTeX** into the markdown — pandoc's `raw_tex` extension is on by default, so a `\begin{tabular}…\end{tabular}` block passes through untouched:
-
-```markdown
-## Maintenance schedule
-
-\begin{tabular}{|p{3cm}|p{4cm}|p{6cm}|}
-\hline
-\textbf{Frequency} & \textbf{System} & \textbf{Task} \\
-\hline
-Monthly & HVAC & Replace filters; inspect drains \\
-\hline
-\end{tabular}
-```
-
-For tables that span pages, swap `tabular` for `longtable` so headers repeat and the table breaks cleanly.
+For a small number of tables in an otherwise prose document, see [pandoc exceptions](reference/pandoc-exceptions.md).
 
 ---
 
@@ -144,11 +128,4 @@ Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/faci
 
 It's the caller's job to decide what the PDF should _contain_. For toolkit items in particular, the PDF is the printable take-away (the procedure or checklist body), not a clone of the SEO-rich web page. Strip the lead-in copy, "What is …?" framing, Compliance/Version-Control sections, and `::faq` blocks before building. The `tron:toolkit-item` skill walks through this in detail.
 
-## When to update the logo
-
-The logo PNG (`facilitron-logo.png`) was rasterized once from `public/img/logos/facilitron-logo.svg` via `rsvg-convert -w 600`. If the brand logo changes, regenerate it:
-
-```bash
-rsvg-convert -w 600 <marketing-pages>/public/img/logos/facilitron-logo.svg \
-  -o "$SKILL_DIR/facilitron-logo.png"
-```
+For logo regeneration details, see [pandoc exceptions](reference/pandoc-exceptions.md).

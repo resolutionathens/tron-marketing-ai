@@ -1,0 +1,10 @@
+{
+  "skills": ["jira-source-discovery"],
+  "query": "Find the source material for MD-1234 and tell me whether a matching marketing page already exists.",
+  "expected_behavior": [
+    "Reads the ticket, comments, parent, and linked issues before reporting context",
+    "Extracts source links and identifies a work type from the available evidence",
+    "Searches for an existing matching page when the work is a marketing page or content item",
+    "Returns structured findings and does not write to Jira"
+  ]
+}

@@ -12,6 +12,19 @@ description: "Create a new, high-confidence Jira ticket by walking the shared ti
 allowed-tools:
   - Bash
   - Read
+scout:
+  surface: true
+  title: "Create an actionable ticket"
+  blurb: "Turns a work request into a complete Jira ticket with clear ownership and acceptance criteria."
+  when: "New work needs a Jira ticket that someone can start without filling in the gaps."
+  category: tickets
+  effects: [jira]
+  inputs:
+    - key: request
+      label: "Work request"
+      type: textarea
+      required: true
+      placeholder: "Describe the work and include any brief or source links"
 ---
 
 # Create Ticket
@@ -140,10 +153,6 @@ was missing the `--assignee` flag.
 - Verify the live ticket lints `high` after creating; if Jira's stored ADF changed anything, fix it with
   `acli jira workitem edit --key <KEY> --description-file … --yes`.
 
-## Relationship to the other rubric consumers
+## Related skills
 
-- **tron:jira-source-discovery** + **tron:jira-ticket-enricher** fixes an *existing* thin ticket by mining links and writing the description; **create-ticket** prevents thin tickets at the source. Same rubric shape.
-- **tron:ticket-lint** is the read-only checker (one ticket or a whole board). If a user asks "is this
-  ticket good enough," that is ticket-lint, not create-ticket.
-- **Scout triage** (tron-os) parses the same markers deterministically — that companion work is a separate
-  SCOUT ticket.
+See [rubric consumer roles](reference/consumer-roles.md) when deciding whether to create, lint, or enrich a ticket.

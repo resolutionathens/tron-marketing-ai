@@ -126,31 +126,7 @@ bash "$TOWEBP" featuredimg.png /tmp/news-<slug>/<slug>.webp
 node "$IK" upload /tmp/news-<slug>/<slug>.webp --name <slug>.webp --folder blog-featured
 ```
 
-**If no `featuredimg.png` was dropped, generate one** — mirroring `tron:toolkit-item`'s card-generation
-fallback, but sampling `blog-featured/` for style references instead of `toolkit/`, and at a wider,
-hero aspect ratio (news featured images run wider than the 1536x1024 toolkit card):
-
-```bash
-GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
-RESULT=$(bash "$GENCARD" \
-  --folder blog-featured \
-  --name "<slug>.webp" \
-  --size 1792x1024 \
-  --prompt "<subject prompt for this article>")
-# RESULT → {"ok":true,"file":"/tmp/…/<slug>.webp","name":"<slug>.webp","folder":"blog-featured","url":"…"}
-```
-
-`generate-card.sh` samples recent `blog-featured/` images as style references automatically (via
-`--folder blog-featured`), so new heroes stay consistent with the existing house look. For
-editorial/policy posts, the house style is abstract navy with electric-blue/purple line art — say
-so explicitly in `--prompt` if the sampled references don't already carry it. Full mechanics
-(reference sampling, generation, webp conversion, upload) are in the "Generate an index/card
-thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md).
-
-**Dependency:** image generation needs `OPENROUTER_API_KEY` (or `OPENAI_API_KEY`) in `~/.env`.
-`generate-card.sh` → `gen-image.sh` already fails loudly and prints a clear diagnostic if both
-are missing or the key 401s — don't swallow that error or silently skip the featured image; surface
-it and ask the user to add the key, or fall back to asking for a manual `featuredimg.png`.
+If no `featuredimg.png` was dropped, use the [featured-image fallback](reference/featured-image-fallback.md).
 
 ## Stage 3 — Write the article
 

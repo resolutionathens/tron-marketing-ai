@@ -1,0 +1,9 @@
+{
+  "skills": ["jira-source-discovery"],
+  "query": "Find the sources for MD-12O4.",
+  "expected_behavior": [
+    "Treats the malformed or ambiguous key as a problem rather than silently skipping it",
+    "May suggest a likely transposition only when context supports it, but asks for confirmation before proceeding",
+    "Does not fabricate ticket metadata, sources, or existing-page matches"
+  ]
+}

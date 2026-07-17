@@ -6,6 +6,19 @@ description: "Self-assess a Jira ticket (or a whole board) against the shared ti
 allowed-tools:
   - Bash
   - Read
+scout:
+  surface: true
+  title: "Check ticket readiness"
+  blurb: "Shows what a Jira ticket needs before it can be routed and started."
+  when: "You want to know whether a ticket is ready for someone to pick up."
+  category: tickets
+  effects: [report]
+  inputs:
+    - key: ticket
+      label: "Ticket key or JQL"
+      type: text
+      required: true
+      placeholder: "MD-1234 or project = MD AND statusCategory != Done"
 ---
 
 # Ticket Lint (self-assess)

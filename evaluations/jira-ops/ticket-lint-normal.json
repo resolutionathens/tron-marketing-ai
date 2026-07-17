@@ -1,0 +1,10 @@
+{
+  "skills": ["ticket-lint"],
+  "query": "Lint MD-1234 and tell me whether it is ready to start.",
+  "expected_behavior": [
+    "Runs the deterministic rubric-lint command against the named ticket",
+    "Reports the canonical Scout verdict verbatim and separates blocking, section, and recommended gaps",
+    "Names what is already present and suggests source discovery plus enrichment only when the ticket is thin",
+    "Does not edit the Jira ticket"
+  ]
+}

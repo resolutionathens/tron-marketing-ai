@@ -1,0 +1,9 @@
+{
+  "skills": ["create-ticket"],
+  "query": "Make a ticket to fix the customer landing page.",
+  "expected_behavior": [
+    "Does not guess a target repository, engineering prefix, source context, owner, or definition of done",
+    "Asks for the missing repository or work type and a real context source before assembling a ticket",
+    "Does not create a Jira ticket with placeholders or invented acceptance criteria"
+  ]
+}

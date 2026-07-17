@@ -205,23 +205,7 @@ Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m
 
 Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
 
-**Manual fallback** (if the bundled script can't be resolved): skip the Copilot
-request only for doc-only diffs (`*.md`/`*.mdx`, ≤3 files, ≤40 changed lines from
-Step 3's `--stat`); else `gh pr edit "<N>" --add-reviewer "@copilot" || true`. For
-the Step 7b wait, if `TRON_COPILOT_UNAVAILABLE` is set, skip the poll entirely and
-go straight to the "no automated review" status comment below. Otherwise poll
-`gh api repos/{owner}/{repo}/pulls/<N>/reviews` for a submitted review whose
-`user.login` matches `copilot` (case-insensitive), up to a bounded number of
-tries — ~10 min, or ~2 min if `TRON_DISPATCH_ID` is set; if one lands, read
-Copilot's inline comments from `.../pulls/<N>/comments`, address the valid ones
-and commit, then post the `no comments`/`comments addressed` status (with
-`<!-- tron-note -->`); if none lands in the window, post the prominent "no
-automated review ran" status comment (see above) and continue — never hang. For
-the retro, run `tools/git/token-usage.sh` into `$TOKENS`, write the assembled
-`<!-- tron-retro -->...` body (the sections above, a `---`, the literal model ID,
-and `$TOKENS`) to a unique `mktemp` file, and post with
-`gh pr comment "<N>" --body-file "$RETRO_BODY"` — never inline `--body`, which
-breaks on backticks and other shell-sensitive characters in the retro text.
+If the bundled script cannot be resolved, follow the [manual review fallback](reference/manual-review-fallback.md).
 
 ## Step 9: Report
 

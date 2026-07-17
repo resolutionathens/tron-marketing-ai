@@ -20,7 +20,7 @@ FAKE="$(mktemp -d "${TMPDIR:-/tmp}/gencard-test.XXXXXX")"
 trap 'rm -rf "$FAKE"' EXIT
 
 mkdir -p "$FAKE/tools/content" "$FAKE/tools/image" "$FAKE/tools/imagekit" \
-         "$FAKE/skills/gen-image/scripts" "$FAKE/bin"
+          "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
 
 # Real unit under test for numbering: the shared content-lib primitives.
 cp "$REPO_ROOT/tools/content/content-lib.sh" "$FAKE/tools/content/content-lib.sh"
@@ -33,6 +33,7 @@ SH
 
 # imagekit.mjs only needs to exist as a path; the `node` stub handles calls.
 : > "$FAKE/tools/imagekit/imagekit.mjs"
+: > "$FAKE/home/.env"
 
 # Stub gen-image.sh: write a dummy PNG to the output path ($3).
 cat > "$FAKE/skills/gen-image/scripts/gen-image.sh" <<'SH'
@@ -63,10 +64,39 @@ chmod +x "$FAKE/tools/image/to-webp.sh" "$FAKE/skills/gen-image/scripts/gen-imag
          "$FAKE/bin/node" "$FAKE/bin/curl"
 
 run_gencard() {
-  # $1 = canned list JSON file; rest = generate-card args
-  local list_json="$1"; shift
-  PATH="$FAKE/bin:$PATH" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" \
-    bash "$GENCARD" "$@" --no-upload 2>/dev/null
+  # $1 = phase label, $2 = canned list JSON file; rest = generate-card args.
+  # Bound the complete generator invocation so a stubbed subprocess cannot hang CI.
+  local phase="$1" list_json="$2" out err pid elapsed rc
+  shift 2
+  out="$FAKE/${phase}.stdout"
+  err="$FAKE/${phase}.stderr"
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" \
+    perl -MPOSIX=setsid -e 'defined setsid() or die "setsid failed: $!\n"; exec @ARGV' \
+    bash "$GENCARD" "$@" --no-upload >"$out" 2>"$err" &
+  pid=$!
+  elapsed=0
+  while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 20 ]; do
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    # The generator and stubs share this session, so no child can outlive a timeout.
+    kill -TERM -- "-$pid" 2>/dev/null || true
+    sleep 2
+    kill -KILL -- "-$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    printf 'FAIL: %s timed out after 20s\n' "$phase" >&2
+    cat "$err" >&2
+    return 1
+  fi
+  if wait "$pid"; then
+    cat "$out"
+  else
+    rc=$?
+    printf 'FAIL: %s exited %s\n' "$phase" "$rc" >&2
+    cat "$err" >&2
+    return 1
+  fi
 }
 
 # ---- 1. --prefix picks max existing index + 1 ----------------------------
@@ -78,7 +108,7 @@ cat > "$FAKE/list-guides.json" <<'JSON'
   {"type":"folder","name":"guide-99"}
 ]
 JSON
-out="$(run_gencard "$FAKE/list-guides.json" --folder guides --prefix guide --prompt "test subject")"
+out="$(run_gencard "prefix-existing" "$FAKE/list-guides.json" --folder guides --prefix guide --prompt "test subject")" || true
 if has "$out" '"next":"06"' && has "$out" '"name":"guide-06.webp"'; then
   pass "--prefix: guide-04/05 present → next 06, name guide-06.webp"
 else
@@ -87,7 +117,7 @@ fi
 
 # ---- 2. empty folder starts at 01 ---------------------------------------
 echo '[]' > "$FAKE/list-empty.json"
-out="$(run_gencard "$FAKE/list-empty.json" --folder guides --prefix guide --prompt "test subject")"
+out="$(run_gencard "prefix-empty" "$FAKE/list-empty.json" --folder guides --prefix guide --prompt "test subject")" || true
 if has "$out" '"next":"01"' && has "$out" '"name":"guide-01.webp"'; then
   pass "--prefix: empty folder → 01"
 else
@@ -101,7 +131,7 @@ cat > "$FAKE/list-legacy.json" <<'JSON'
   {"type":"file","name":"guide-02.webp","url":"https://ik.example/guide-02.webp"}
 ]
 JSON
-out="$(run_gencard "$FAKE/list-legacy.json" --folder guides --prefix guide --prompt "test subject")"
+out="$(run_gencard "prefix-legacy" "$FAKE/list-legacy.json" --folder guides --prefix guide --prompt "test subject")" || true
 if has "$out" '"next":"05"'; then
   pass "--prefix: unpadded guide-4.webp counts → next 05"
 else
@@ -116,7 +146,7 @@ cat > "$FAKE/list-noise.json" <<'JSON'
   {"type":"file","name":"guide-03.webp","url":"https://ik.example/guide-03.webp"}
 ]
 JSON
-out="$(run_gencard "$FAKE/list-noise.json" --folder guides --prefix guide --prompt "test subject")"
+out="$(run_gencard "prefix-noise" "$FAKE/list-noise.json" --folder guides --prefix guide --prompt "test subject")" || true
 if has "$out" '"next":"04"'; then
   pass "--prefix: .png files and folders ignored → next 04"
 else
@@ -124,7 +154,7 @@ else
 fi
 
 # ---- 5. --name path: exact name, no next field ---------------------------
-out="$(run_gencard "$FAKE/list-guides.json" --folder toolkit --name my-slug.webp --prompt "test subject")"
+out="$(run_gencard "exact-name" "$FAKE/list-guides.json" --folder toolkit --name my-slug.webp --prompt "test subject")" || true
 if has "$out" '"name":"my-slug.webp"' && ! has "$out" '"next"'; then
   pass "--name: exact filename kept, no next field"
 else

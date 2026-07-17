@@ -13,6 +13,12 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 0
 fi
 
+# build.ts imports yaml from this skill's isolated package manifest. Provision it
+# here so the parse-layer test works from a fresh checkout, not just a reused one.
+if [ ! -d "$HERE/node_modules/yaml" ]; then
+  (cd "$HERE" && bun install --frozen-lockfile >/dev/null)
+fi
+
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 OUT="$TMP/out"
 

@@ -1,0 +1,11 @@
+{
+  "skills": ["create-ticket"],
+  "query": "Create a Jira ticket for adding a keyboard-visible focus state to the primary button in facilitron-ui. The Figma source is https://figma.com/file/button-focus and Maya signs off Friday.",
+  "expected_behavior": [
+    "Classifies the request as engineering work for facilitron-ui and uses the UI summary prefix",
+    "Fetches or otherwise grounds the named Figma source before drafting context details",
+    "Collects the remaining rubric fields, including concrete affected paths and at least two checkable acceptance criteria",
+    "Shows a machine-header ticket draft and its rubric verdict before creating the Jira ticket",
+    "Creates only after approval, using md-to-adf and acli, then verifies the stored ticket and assignee"
+  ]
+}

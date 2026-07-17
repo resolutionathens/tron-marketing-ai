@@ -1,0 +1,9 @@
+{
+  "skills": ["ticket-lint"],
+  "query": "Check whether NOT-A-TICKET is ready.",
+  "expected_behavior": [
+    "Attempts to use the rubric linter rather than inferring readiness from the supplied text",
+    "Reports an invalid-key or Jira-auth failure plainly if the command cannot retrieve a ticket",
+    "Does not invent a verdict or edit any ticket"
+  ]
+}

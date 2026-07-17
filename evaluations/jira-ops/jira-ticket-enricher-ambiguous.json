@@ -1,0 +1,9 @@
+{
+  "skills": ["jira-ticket-enricher"],
+  "query": "Enrich MD-1234. I think it is probably a page, but I have no source links or acceptance criteria.",
+  "expected_behavior": [
+    "Recognizes that source material and work type are insufficient for a grounded enriched description",
+    "Routes to jira-source-discovery or asks for the missing context rather than inventing rubric marker values",
+    "Does not write to Jira until the description is grounded and the user has authorized the edit"
+  ]
+}

@@ -61,13 +61,7 @@ The voice rules below are the heart of the skill. Each one is here for a reason;
 
 **First-person plural is fine.** "We updated…", "I added…" — both read naturally. Pick whatever feels right; the user is talking to their own team.
 
-### Example
-
-After shipping a backward-compatible component change with options for variation:
-
-> Updated the product hero so the background image can either tile as a repeating pattern (the current behavior) or fill the whole section as a cover image, both over a chosen background color. The tile size is now adjustable too, giving more ways to vary heroes between sections. All existing heroes are unaffected since the new options are opt-in. Live on dev now for review, PR #709.
-
-Notice: prose, no bullets, no em dashes, no `backgroundImageMode` or other code-y names, and a clear status pointer at the end.
+See [voice examples and anti-patterns](reference/voice-examples.md) for the detailed example and review checklist.
 
 ## Step 3: Post the comment
 
@@ -82,11 +76,3 @@ acli jira workitem comment create --key <KEY> --body '<comment text>'
 ```
 
 If the body contains a single quote, swap the outer quoting to double quotes and escape any inner double quotes, or use a HEREDOC pattern via `--from-file`. ADF JSON is overkill for short prose comments — `--body` is the right tool here.
-
-## Anti-patterns
-
-- **Echoing the commit message.** The ticket already links to the PR; the comment shouldn't read like `feat(hero): add cover mode...`. Strip the prefix and rewrite in prose.
-- **Listing every change as bullets.** If you find yourself writing `- did X` `- did Y`, collapse them into a sentence: "We did X and Y."
-- **Em dashes anywhere.** Even one. Scan before posting.
-- **Restating the ticket.** If the ticket is "Add cover mode to hero," don't comment "Added cover mode to the hero." Tell them what's _new_ since they filed it — that it's working, where to see it, anything they should know.
-- **Multi-paragraph essays.** If the update genuinely needs that much explanation, it probably wants a meeting or a Confluence page, not a Jira comment.
