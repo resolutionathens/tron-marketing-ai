@@ -13,8 +13,8 @@
 # Usage:
 #   close-worktree.sh <branch> [--force] [--keep-branch] [--keep-remote]
 #
-#   --force        force-remove a dirty worktree and force-delete an unmerged
-#                  branch (git worktree remove --force / git branch -D)
+#   --force        force-remove a dirty worktree. Local branch force-deletion is
+#                  still allowed only after its merge has been verified.
 #   --keep-branch  remove the worktree but leave the local+remote branch
 #   --keep-remote  delete the local branch but leave origin's copy
 #
@@ -90,35 +90,53 @@ SESSION_CLOSED=true
 LOCAL_DELETED=true
 REMOTE_DELETED=true
 
-# ---- 1. kill the tmux session (best-effort) --------------------------------
-# Match the session whose name starts with the ticket key (MD-1661) or the full
-# branch. Session names come from wl_session_name_for_branch (worktree-lib.sh):
-# the branch with '.'/':' swapped for '-' (illegal in tmux session names), so
-# match against that sanitized form. Skipped silently when tmux isn't on PATH
-# (headless run) — a missing multiplexer is not a leftover.
+# ---- 1. locate the tmux session, but keep it alive until cleanup succeeds ---
+# The worker session is the final resource removed. If any git cleanup fails,
+# it must remain alive so the worker can inspect the leftovers and retry.
 TICKET_KEY="$(printf '%s' "$BRANCH" | grep -oE '^[A-Z]+-[0-9]+' || true)"
 BRANCH_SESSION="$(wl_session_name_for_branch "$BRANCH")"
+SESSION=""
 if command -v tmux >/dev/null 2>&1; then
   SESSION="$(tmux list-sessions -F '#{session_name}' 2>/dev/null \
     | grep -E "^(${TICKET_KEY:-$BRANCH_SESSION}|${BRANCH_SESSION})" | head -1 || true)"
-  if [[ -n "${SESSION:-}" ]]; then
-    if tmux kill-session -t "$SESSION" >/dev/null 2>&1; then
-      log "killed tmux session $SESSION"
-      # Give panes a beat to release file handles before we remove the dir
-      # (killing the session && worktree-remove races; see SKILL.md).
-      sleep 2
-    else
-      SESSION_CLOSED=false; LEFTOVERS+=("session")
-      log "failed to kill tmux session $SESSION"
-    fi
-  else
-    log "no matching tmux session for ${TICKET_KEY:-$BRANCH_SESSION}"
-  fi
+  [[ -n "$SESSION" ]] || log "no matching tmux session for ${TICKET_KEY:-$BRANCH_SESSION}"
 else
   log "tmux not present — skipping session close"
 fi
 
-# ---- 2. remove the worktree + verify it actually went away -----------------
+# ---- 2. refresh default and verify branch-deletion safety -------------------
+# Refresh before cleanup so ordinary ancestry checks see newly merged commits.
+# If refresh fails, retain the branch unless its merge can still be proven.
+if DEFAULT_BRANCH="$(tl_freshen_default "$MAIN_REPO")"; then
+  log "refreshed default branch $DEFAULT_BRANCH"
+else
+  log "could not refresh default branch ${DEFAULT_BRANCH:-unknown}; merge verification will fail closed"
+fi
+LOCAL_TIP="$(g rev-parse --verify "refs/heads/$BRANCH" 2>/dev/null || true)"
+REMOTE_TIP=""
+if g remote get-url origin >/dev/null 2>&1; then
+  REMOTE_TIP="$(g ls-remote --heads origin "$BRANCH" 2>/dev/null | awk 'NR == 1 { print $1 }')"
+fi
+LOCAL_PROOF=""
+REMOTE_PROOF=""
+if [[ "$KEEP_BRANCH" -eq 0 && -n "$LOCAL_TIP" ]]; then
+  LOCAL_PROOF="$(wl_branch_merge_proof "$BRANCH" "$DEFAULT_BRANCH" "$MAIN_REPO" "$LOCAL_TIP" || true)"
+  if [[ -n "$LOCAL_PROOF" ]]; then
+    log "verified local $BRANCH is merged ($LOCAL_PROOF)"
+  else
+    log "could not verify local $BRANCH at $LOCAL_TIP is merged into $DEFAULT_BRANCH"
+  fi
+fi
+if [[ "$KEEP_BRANCH" -eq 0 && "$KEEP_REMOTE" -eq 0 && -n "$REMOTE_TIP" ]]; then
+  REMOTE_PROOF="$(wl_branch_merge_proof "$BRANCH" "$DEFAULT_BRANCH" "$MAIN_REPO" "$REMOTE_TIP" || true)"
+  if [[ -n "$REMOTE_PROOF" ]]; then
+    log "verified origin/$BRANCH is merged ($REMOTE_PROOF)"
+  else
+    log "could not verify origin/$BRANCH at $REMOTE_TIP is merged into $DEFAULT_BRANCH"
+  fi
+fi
+
+# ---- 3. remove the worktree + verify it actually went away -----------------
 if [[ -n "$WTPATH" ]]; then
   RM_ARGS=(worktree remove)
   [[ "$FORCE" -eq 1 ]] && RM_ARGS+=(--force)
@@ -144,15 +162,18 @@ else
   log "no worktree registered for $BRANCH — already gone"
 fi
 
-# ---- 3. delete the local branch --------------------------------------------
+# ---- 4. delete the local branch --------------------------------------------
 branch_exists() { g show-ref --verify --quiet "refs/heads/$BRANCH"; }
 if [[ "$KEEP_BRANCH" -eq 0 ]]; then
   if branch_exists; then
-    DEL_FLAG="-d"; [[ "$FORCE" -eq 1 ]] && DEL_FLAG="-D"
-    if g branch "$DEL_FLAG" "$BRANCH" >/dev/null 2>&1; then
+    if [[ -z "$LOCAL_PROOF" ]]; then
+      log "keeping local branch $BRANCH because merge is not verified"
+    elif g branch -d "$BRANCH" >/dev/null 2>&1; then
       log "deleted local branch $BRANCH"
+    elif g branch -D "$BRANCH" >/dev/null 2>&1; then
+      log "force-deleted squash-merged local branch $BRANCH ($LOCAL_PROOF)"
     else
-      log "could not delete local branch $BRANCH (unmerged? rerun with --force)"
+      log "merge was verified but git could not delete local branch $BRANCH"
     fi
   else
     log "local branch $BRANCH already absent"
@@ -162,13 +183,15 @@ else
   log "--keep-branch: leaving local branch $BRANCH"
 fi
 
-# ---- 4. delete the remote branch -------------------------------------------
+# ---- 5. delete the remote branch -------------------------------------------
 # Idempotent: an already-deleted ref (PR auto-delete on merge) is success.
 remote_branch_present() { [[ -n "$(g ls-remote --heads origin "$BRANCH" 2>/dev/null)" ]]; }
 if [[ "$KEEP_BRANCH" -eq 0 && "$KEEP_REMOTE" -eq 0 ]]; then
   if g remote get-url origin >/dev/null 2>&1; then
     if remote_branch_present; then
-      if g push origin --delete "$BRANCH" >/dev/null 2>&1; then
+      if [[ -z "$REMOTE_PROOF" ]]; then
+        log "keeping origin branch $BRANCH because merge is not verified"
+      elif g push origin --delete "$BRANCH" >/dev/null 2>&1; then
         log "deleted origin branch $BRANCH"
       else
         log "git push origin --delete failed for $BRANCH"
@@ -184,12 +207,21 @@ else
   log "keeping remote branch $BRANCH"
 fi
 
-# ---- 4.5 re-sync the main checkout's default branch (best-effort, ff-only) --
-# Cleanup that never freshens the default lets the local default drift behind
-# origin, which makes the NEXT start-ticket branch off a stale base.
-tl_freshen_default "$MAIN_REPO" >/dev/null || true
+# ---- 6. close the worker session only after all git cleanup is verified -----
+if [[ ${#LEFTOVERS[@]} -eq 0 && -n "$SESSION" ]]; then
+  if tmux kill-session -t "$SESSION" >/dev/null 2>&1; then
+    log "killed tmux session $SESSION"
+  else
+    SESSION_CLOSED=false; LEFTOVERS+=("session")
+    log "failed to kill tmux session $SESSION"
+  fi
+elif [[ ${#LEFTOVERS[@]} -gt 0 && -n "$SESSION" ]]; then
+  SESSION_CLOSED=false
+  LEFTOVERS+=("session")
+  log "kept tmux session $SESSION alive because cleanup is incomplete"
+fi
 
-# ---- 5. emit the machine-readable result line ------------------------------
+# ---- 7. emit the machine-readable result line ------------------------------
 OK=true; [[ ${#LEFTOVERS[@]} -gt 0 ]] && OK=false
 LEFT_JSON=""
 for i in "${!LEFTOVERS[@]}"; do

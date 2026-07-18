@@ -46,9 +46,12 @@ SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/
 bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
 ```
 
-Kills the tmux session, removes the worktree (verifies it's gone), deletes local + remote branch, re-syncs the main checkout's default branch. Idempotent — any piece already gone counts as done.
+Refreshes the main checkout's default branch, verifies the feature branch is merged, removes and
+verifies the worktree plus local and remote branches, then kills the tmux session last. Squash
+merges are verified from the exact-head merged GitHub PR before the local branch is force-deleted.
+Idempotent — any piece already gone counts as done.
 
-- `--force` — force-remove a dirty worktree / force-delete an unmerged branch
+- `--force` — force-remove a dirty worktree; it never bypasses branch merge verification
 - `--keep-branch` — remove worktree only, leave local + remote branch
 - `--keep-remote` — delete local branch but keep origin's copy
 
@@ -58,9 +61,15 @@ One JSON line:
 {"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"leftovers":[]}
 ```
 
-`ok:false` with non-empty `leftovers` means something is still present — rerun with `--force`, or stop if there may be unsaved work.
+`ok:false` with non-empty `leftovers` means something is still present. The tmux session remains
+alive so the worker can inspect the result, retry with `--force` for a dirty worktree, or escalate.
+An unverified branch is never force-deleted.
 
 **Before removal — stop the worktree's dev server.** If `start-ticket` spun up a `bun dev` background task for this worktree, `TaskStop` it first. The script kills the tmux session but can't stop that task (it's a background task of the orchestrator session, not in tmux); a live dev server keeps file handles open in the worktree dir and races `wt remove`, leaving orphaned fragments behind.
+
+The tmux session intentionally stays live while the worktree is removed. Run Step 1 first so the
+invoking shell is in the main checkout, and stop other worktree processes before cleanup. If removal
+still fails, the live session and `worktree` leftover are the recovery path.
 
 ## When you DON'T know which branch to close
 
@@ -68,7 +77,10 @@ Run `wt list` to show all worktrees. The user will either name a branch or say "
 
 ## For the manual path (if script is unavailable)
 
-Use `wt remove <branch>` (with `--force` if dirty). Kill the tmux session first with `tmux kill-session -t <name>` — wait a beat between kill and remove to avoid file-handle races. After removal, `rm -rf <worktree-path>` if `wt`'s background cleanup left fragments. Delete branches with `git branch -d <branch>` and `git push origin --delete <branch>`.
+Move to the main checkout, refresh its default branch, and verify the feature branch is merged. Use
+`wt remove <branch>` (with `--force` if dirty), then delete verified branch refs. For squash merges,
+verify an exact-head merged PR before using `git branch -D`. Confirm the worktree and refs are gone,
+then kill the tmux session last. If anything remains, leave the session alive and report it.
 
 ## Batch cleanup for merged worktrees
 
