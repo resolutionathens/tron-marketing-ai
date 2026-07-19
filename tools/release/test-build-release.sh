@@ -39,7 +39,7 @@ node - "$OUT/release-manifest.json" "$VERSION" "$COMMIT" <<'NODE'
 const fs = require("fs");
 const [path, version, commit] = process.argv.slice(2);
 const release = JSON.parse(fs.readFileSync(path, "utf8"));
-if (release.version !== version || release.commit !== commit || release.packages.length !== 2) {
+if (release.version !== version || release.commit !== commit || release.packages.length !== 18) {
   throw new Error("release identity does not match the source commit");
 }
 for (const artifact of release.packages) {
@@ -49,8 +49,23 @@ for (const artifact of release.packages) {
 }
 NODE
 
+for PACKAGE in core engineer designer content seo manager social video; do
+  for HARNESS in claude codex; do
+    ARCHIVE="$OUT/tron-$PACKAGE-$HARNESS-v$VERSION.tar.gz"
+    test -s "$ARCHIVE"
+    archive_has "$ARCHIVE" "skills/jira/SKILL.md"
+  done
+done
+archive_has "$OUT/tron-engineer-claude-v$VERSION.tar.gz" "agents/a11y-scan-runner.md"
+archive_has "$OUT/tron-content-codex-v$VERSION.tar.gz" "skills/md-to-pdf/template.tex"
+for PACKAGE in core engineer designer content seo manager social video; do
+  archive_has "$OUT/tron-$PACKAGE-claude-v$VERSION.tar.gz" ".claude-plugin/marketplace.json"
+  archive_has "$OUT/tron-$PACKAGE-codex-v$VERSION.tar.gz" ".agents/plugins/marketplace.json"
+done
+
 (cd "$OUT" && shasum -a 256 -c SHA256SUMS)
-for ARTIFACT in "tron-claude-v$VERSION.tar.gz" "tron-codex-v$VERSION.tar.gz" release-manifest.json SHA256SUMS; do
+for ARTIFACT in "$OUT"/*; do
+  ARTIFACT="$(basename "$ARTIFACT")"
   cmp "$OUT/$ARTIFACT" "$OUT_AGAIN/$ARTIFACT"
 done
 printf 'PASS: deterministic dual-harness release artifacts and integrity manifest are valid.\n'

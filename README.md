@@ -36,6 +36,54 @@ refuse to write unless the current checkout is `marketing-pages`.
 
 ---
 
+## Core and role packages
+
+The authored catalog remains in `skills/` once. [`packages/package-map.json`](packages/package-map.json)
+classifies every skill into exactly one owner and defines eight release packages: `tron-core`,
+`tron-engineer`, `tron-designer`, `tron-content`, `tron-seo`, `tron-manager`, `tron-social`, and
+`tron-video`.
+
+Each role package extends core and is self-contained. The package map explicitly declares each
+package's shared agents and tool directories. The builder copies that declared closure alongside
+the selected skill directories, hooks, and skill-local assets, and rejects missing, escaping, or
+symlinked resources.
+Role packages do not read another installed plugin's filesystem, so installing one role does not
+require installing `tron-core` beside it. Shared capabilities can consequently appear in more
+than one built package while retaining one authored source and one declared owner.
+
+Build and validate the complete matrix locally:
+
+```sh
+node tools/package/build-packages.mjs dist/packages
+bash tools/package/test-build-packages.sh
+```
+
+The build emits matching Claude and Codex inventories from the same source and version. Generated
+skill prose rewrites an in-package `tron:<skill>` reference to the current package namespace. A
+reference outside the current inventory is rewritten to its declared owner, such as
+`tron-content:news-item`, making the cross-role handoff explicit instead of pretending the skill is
+local. The generated inventory records the monolith and role package IDs plus their
+mutual-exclusion rule so migration tooling can validate that a consumer enables exactly one
+distribution shape.
+
+### Migration from the monolithic package
+
+The monolithic `tron@tron` package remains available during migration and rollback. A consumer
+must enable either that package or one role package, not both, because both expose overlapping
+skills.
+
+1. Choose the role package matching the worker profile.
+2. Replace `tron:*` references in role configuration with `tron-<role>:*`.
+3. Install the matching Claude or Codex artifact from the same release version.
+4. Verify the required skill inventory before disabling `tron@tron`.
+5. Roll back by re-enabling the version-pinned monolith and restoring `tron:*` references.
+
+Cross-role handoffs must target a skill present in the caller's built inventory. If a workflow
+needs a skill outside that inventory, route the work to a worker with the owning role instead of
+reaching into another plugin directory.
+
+---
+
 ## Installing it (consumer repos)
 
 ### Codex

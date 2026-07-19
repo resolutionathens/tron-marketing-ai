@@ -1,8 +1,19 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { createReadStream, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import {
+  createReadStream,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, relative, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { spawnSync } from "node:child_process";
 
@@ -84,6 +95,75 @@ async function archive(name, version, paths) {
   };
 }
 
+function normalizeTimes(path) {
+  const stat = statSync(path);
+  if (stat.isDirectory()) {
+    for (const entry of readdirSync(path).sort()) normalizeTimes(join(path, entry));
+  }
+  utimesSync(path, 0, 0);
+}
+
+async function archiveGenerated(harness, packageName, version, source) {
+  normalizeTimes(source);
+  const filename = `tron-${packageName}-${harness}-v${version}.tar.gz`;
+  const destination = join(outDir, filename);
+  const inventory = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else inventory.push(relative(source, path));
+    }
+  };
+  walk(source);
+  const initResult = spawnSync("git", ["-C", source, "init", "-q"], { encoding: "utf8" });
+  if (initResult.status !== 0) fail(initResult.stderr.trim() || `could not initialize ${packageName}`);
+  const addResult = spawnSync(
+    "git",
+    ["--literal-pathspecs", "-C", source, "add", "-f", "--", ...inventory],
+    { encoding: "utf8" },
+  );
+  if (addResult.status !== 0) fail(addResult.stderr.trim() || `could not stage ${packageName}`);
+  const treeResult = spawnSync("git", ["-C", source, "write-tree"], { encoding: "utf8" });
+  if (treeResult.status !== 0) fail(treeResult.stderr.trim() || `could not write ${packageName} tree`);
+  const commitResult = spawnSync("git", ["-C", source, "commit-tree", treeResult.stdout.trim(), "-m", "package"], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "Tron Release",
+      GIT_AUTHOR_EMAIL: "release@facilitron.com",
+      GIT_AUTHOR_DATE: "1970-01-01T00:00:00Z",
+      GIT_COMMITTER_NAME: "Tron Release",
+      GIT_COMMITTER_EMAIL: "release@facilitron.com",
+      GIT_COMMITTER_DATE: "1970-01-01T00:00:00Z",
+    },
+  });
+  if (commitResult.status !== 0) fail(commitResult.stderr.trim() || `could not commit ${packageName} tree`);
+  const archiveResult = spawnSync("git", ["-C", source, "archive", "--format=tar", commitResult.stdout.trim()], {
+    maxBuffer: 100 * 1024 * 1024,
+  });
+  if (archiveResult.status !== 0) {
+    fail(archiveResult.stderr.toString().trim() || `could not assemble ${filename}`);
+  }
+  const gzipResult = spawnSync("gzip", ["-n", "-9"], {
+    input: archiveResult.stdout,
+    maxBuffer: 100 * 1024 * 1024,
+  });
+  if (gzipResult.status !== 0) {
+    fail(gzipResult.stderr.toString().trim() || `could not compress ${filename}`);
+  }
+  writeFileSync(destination, gzipResult.stdout);
+  return {
+    harness,
+    package: `tron-${packageName}`,
+    filename,
+    location: `https://github.com/${repository}/releases/download/v${version}/${filename}`,
+    sha256: await sha256(destination),
+    bytes: statSync(destination).size,
+    inventory,
+  };
+}
+
 const claude = manifest(".claude-plugin/plugin.json");
 const codex = manifest(".codex-plugin/plugin.json");
 if (claude.name !== "tron" || codex.name !== "tron") fail("both package names must be tron");
@@ -101,6 +181,30 @@ const packages = [
   await archive("claude", version, [".claude-plugin", ...commonPaths]),
   await archive("codex", version, [".codex-plugin", ".agents", ...commonPaths]),
 ];
+const packageRoot = mkdtempSync(join(tmpdir(), "tron-role-packages."));
+try {
+  const build = spawnSync("node", [join(root, "tools/package/build-packages.mjs"), packageRoot], {
+    encoding: "utf8",
+  });
+  if (build.status !== 0) fail(build.stderr.trim() || "could not build role package matrix");
+  const packageMap = JSON.parse(
+    readFileSync(join(root, "packages", "package-map.json"), "utf8"),
+  );
+  for (const packageName of Object.keys(packageMap.packages)) {
+    for (const harness of ["claude", "codex"]) {
+      packages.push(
+        await archiveGenerated(
+          harness,
+          packageName,
+          version,
+          join(packageRoot, harness, `tron-${packageName}`),
+        ),
+      );
+    }
+  }
+} finally {
+  rmSync(packageRoot, { recursive: true, force: true });
+}
 
 const release = {
   schemaVersion: 1,

@@ -47,6 +47,9 @@ VERSION="$(node -p "require('$CODEX_MANIFEST').version")"
 TMP_PARENT="${TMPDIR:-/tmp}"
 CODEX_HOME="$(mktemp -d "$TMP_PARENT/tron-codex-package.XXXXXX")"
 CLAUDE_CONFIG_DIR="$(mktemp -d "$TMP_PARENT/tron-claude-package.XXXXXX")"
+ROLE_BUILD_ROOT="$(mktemp -d "$TMP_PARENT/tron-role-build.XXXXXX")"
+ROLE_CODEX_HOME="$(mktemp -d "$TMP_PARENT/tron-role-codex.XXXXXX")"
+ROLE_CLAUDE_CONFIG_DIR="$(mktemp -d "$TMP_PARENT/tron-role-claude.XXXXXX")"
 LIVE_INSTALLED=false
 
 cleanup() {
@@ -54,7 +57,8 @@ cleanup() {
     codex plugin remove tron@tron --json >/dev/null 2>&1 || true
     codex plugin marketplace remove tron >/dev/null 2>&1 || true
   fi
-  trash "$CODEX_HOME" "$CLAUDE_CONFIG_DIR" || {
+  trash "$CODEX_HOME" "$CLAUDE_CONFIG_DIR" "$ROLE_BUILD_ROOT" \
+    "$ROLE_CODEX_HOME" "$ROLE_CLAUDE_CONFIG_DIR" || {
     printf 'FAIL: could not trash package validation homes\n' >&2
     return 1
   }
@@ -116,6 +120,33 @@ for (const [name, root] of [['Codex', codex], ['Claude', claude]]) {
 }
 NODE
 
+node "$ROOT/tools/package/build-packages.mjs" "$ROLE_BUILD_ROOT" >/dev/null
+ROLE_CODEX_SOURCE="$ROLE_BUILD_ROOT/codex/tron-content"
+ROLE_CLAUDE_SOURCE="$ROLE_BUILD_ROOT/claude/tron-content"
+CODEX_HOME="$ROLE_CODEX_HOME" codex plugin marketplace add "$ROLE_CODEX_SOURCE" --json >/dev/null
+CODEX_HOME="$ROLE_CODEX_HOME" codex plugin add tron-content@tron --json >/dev/null
+CLAUDE_CONFIG_DIR="$ROLE_CLAUDE_CONFIG_DIR" \
+  claude plugin marketplace add "$ROLE_CLAUDE_SOURCE" --scope user >/dev/null
+CLAUDE_CONFIG_DIR="$ROLE_CLAUDE_CONFIG_DIR" \
+  claude plugin install tron-content@tron --scope user >/dev/null
+CODEX_HOME="$ROLE_CODEX_HOME" codex plugin list --json > "$ROLE_CODEX_HOME/plugins.json"
+CLAUDE_CONFIG_DIR="$ROLE_CLAUDE_CONFIG_DIR" \
+  claude plugin list --json > "$ROLE_CLAUDE_CONFIG_DIR/plugins.json"
+node - "$ROLE_CODEX_HOME/plugins.json" "$ROLE_CLAUDE_CONFIG_DIR/plugins.json" "$VERSION" <<'NODE'
+const fs = require('fs');
+const [codexPath, claudePath, version] = process.argv.slice(2);
+const codex = JSON.parse(fs.readFileSync(codexPath, 'utf8'));
+const claude = JSON.parse(fs.readFileSync(claudePath, 'utf8'));
+const codexPlugin = codex.installed?.find((entry) => entry.pluginId === 'tron-content@tron');
+const claudePlugin = claude.find((entry) => entry.id === 'tron-content@tron');
+if (!codexPlugin?.enabled || codexPlugin.version !== version) {
+  throw new Error('fresh Codex process cannot install the generated content role package');
+}
+if (!claudePlugin?.enabled || claudePlugin.version !== version) {
+  throw new Error('fresh Claude process cannot install the generated content role package');
+}
+NODE
+
 if [ "$LIVE_SMOKE" = true ]; then
   claude --plugin-dir "$CLAUDE_ROOT" --print --max-budget-usd 0.50 \
     'Use the installed tron:brainstorm skill. Do not ask a question or call tools. Reply with exactly: CLAUDE-TRON-INSTALLED.' \
@@ -130,4 +161,4 @@ if [ "$LIVE_SMOKE" = true ]; then
     | grep -q 'CODEX-TRON-INSTALLED' || fail 'fresh Codex process could not invoke tron:brainstorm'
 fi
 
-printf 'PASS: Claude/Codex manifests share version %s; both isolated installs preserve the full catalog and bundled source.\n' "$VERSION"
+printf 'PASS: Claude/Codex manifests share version %s; isolated monolith and role installs are discoverable with complete inventories.\n' "$VERSION"

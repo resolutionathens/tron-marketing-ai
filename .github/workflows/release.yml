@@ -94,9 +94,13 @@ jobs:
             --title "Tron $tag" \
             --notes "Immutable Claude and Codex plugin packages built from $commit."
           created=true
+          while IFS= read -r filename; do
+            gh release upload "$tag" "dist/release/$filename"
+          done < <(node -e "
+            const release = require('./dist/release/release-manifest.json');
+            for (const artifact of release.packages) console.log(artifact.filename);
+          ")
           gh release upload "$tag" \
-            dist/release/tron-claude-"$tag".tar.gz \
-            dist/release/tron-codex-"$tag".tar.gz \
             dist/release/release-manifest.json \
             dist/release/SHA256SUMS
 

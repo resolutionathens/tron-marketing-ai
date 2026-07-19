@@ -39,6 +39,17 @@ jobs:
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
 
+  role-packages:
+    name: Role package ownership and dependency closure
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: brew install trash ripgrep
+      - run: bash tools/package/test-build-packages.sh
+
   layer-1-tests:
     name: Layer-1 test-*.sh suite (macOS / Apple Silicon)
     # Runs on macos-latest ON PURPOSE. The tron plugin only ever ships to

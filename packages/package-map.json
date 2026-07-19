@@ -1,0 +1,244 @@
+{
+  "schemaVersion": 1,
+  "packages": {
+    "core": {
+      "description": "Shared ticket intake, source discovery, and worker-runtime skills.",
+      "resources": [
+        "agents/confluence-transformer.md",
+        "tools/broker",
+        "tools/confluence",
+        "tools/image",
+        "tools/imagekit",
+        "tools/jira",
+        "tools/md-to-adf",
+        "tools/okf",
+        "tools/ticket"
+      ],
+      "skills": [
+        "confluence",
+        "create-ticket",
+        "enrich-jira-ticket",
+        "jira",
+        "jira-comment",
+        "jira-source-discovery",
+        "jira-ticket-enricher",
+        "okf-query",
+        "ticket-lint"
+      ]
+    },
+    "engineer": {
+      "description": "Engineering lifecycle, GitHub, CI, audit, and reporting skills.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "agents/lychee-link-runner.md",
+        "agents/unlighthouse-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "circleci",
+        "close-worktree",
+        "gh",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "git-pushtoprod",
+        "link-check",
+        "open-worktree",
+        "ship-ticket",
+        "site-audit",
+        "start-ticket",
+        "weekly-update"
+      ]
+    },
+    "designer": {
+      "description": "Creative intake, brand, asset, image, and PDF skills.",
+      "extends": ["core"],
+      "resources": [
+        "agents/optimize-images-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "brand-check",
+        "creative-request",
+        "figma-to-imagekit",
+        "gen-image",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "md-to-pdf",
+        "optimize-images",
+        "close-worktree",
+        "start-ticket",
+        "weekly-update"
+      ]
+    },
+    "content": {
+      "description": "Content drafting, critique, publishing, and prose QA skills.",
+      "extends": ["core"],
+      "resources": [
+        "agents/lychee-link-runner.md",
+        "agents/optimize-images-runner.md",
+        "agents/vale-prose-runner.md",
+        "tools/content",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "brainstorm",
+        "case-study",
+        "email-campaign",
+        "grill",
+        "guide-item",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "link-check",
+        "md-to-pdf",
+        "news-item",
+        "onesheet",
+        "optimize-images",
+        "press-release",
+        "prose-lint",
+        "toolkit-item",
+        "close-worktree",
+        "start-ticket",
+        "weekly-update"
+      ]
+    },
+    "seo": {
+      "description": "Keyword, on-page, reporting, and technical SEO skills.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "agents/lychee-link-runner.md",
+        "agents/unlighthouse-runner.md",
+        "agents/vale-prose-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "close-worktree",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "keyword-research",
+        "landing-page-seo",
+        "link-check",
+        "prose-lint",
+        "seo-audit",
+        "seo-report",
+        "site-audit",
+        "start-ticket",
+        "weekly-update"
+      ]
+    },
+    "manager": {
+      "description": "Board operations, initiative reporting, and scaffolding skills.",
+      "extends": ["core"],
+      "resources": [],
+      "skills": [
+        "board-scaffold",
+        "board-triage",
+        "initiative-report",
+        "md-to-pdf"
+      ]
+    },
+    "social": {
+      "description": "Social drafting, spotlight, brand, and image skills.",
+      "extends": ["core"],
+      "resources": [],
+      "skills": [
+        "brand-check",
+        "gen-image",
+        "md-to-pdf",
+        "social-post",
+        "spotlight",
+        "weekly-update"
+      ]
+    },
+    "video": {
+      "description": "Video briefing and publishing-kit skills.",
+      "extends": ["core"],
+      "resources": [],
+      "skills": [
+        "md-to-pdf",
+        "video-brief",
+        "video-publish",
+        "weekly-update"
+      ]
+    }
+  },
+  "ownership": {
+    "core": [
+      "confluence",
+      "create-ticket",
+      "enrich-jira-ticket",
+      "jira",
+      "jira-comment",
+      "jira-source-discovery",
+      "jira-ticket-enricher",
+      "okf-query",
+      "ticket-lint"
+    ],
+    "engineer": [
+      "a11y-scan",
+      "circleci",
+      "close-worktree",
+      "gh",
+      "git-commit",
+      "git-dev",
+      "git-pr",
+      "git-pushtoprod",
+      "link-check",
+      "open-worktree",
+      "ship-ticket",
+      "site-audit",
+      "start-ticket",
+      "weekly-update"
+    ],
+    "designer": [
+      "brand-check",
+      "creative-request",
+      "figma-to-imagekit",
+      "gen-image",
+      "md-to-pdf",
+      "optimize-images"
+    ],
+    "content": [
+      "brainstorm",
+      "case-study",
+      "email-campaign",
+      "grill",
+      "guide-item",
+      "news-item",
+      "onesheet",
+      "press-release",
+      "prose-lint",
+      "toolkit-item"
+    ],
+    "seo": [
+      "keyword-research",
+      "landing-page-seo",
+      "seo-audit",
+      "seo-report"
+    ],
+    "manager": [
+      "board-scaffold",
+      "board-triage",
+      "initiative-report"
+    ],
+    "social": [
+      "social-post",
+      "spotlight"
+    ],
+    "video": [
+      "video-brief",
+      "video-publish"
+    ]
+  }
+}
