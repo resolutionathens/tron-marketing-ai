@@ -113,6 +113,49 @@ instead, so edits are picked up without a round-trip:
 Use the github source for the committed team setup; the local directory source for
 authoring.
 
+## Releases
+
+Every merged plugin version is published from `master` by
+`.github/workflows/release.yml`. The workflow builds separate Claude and Codex archives from the
+same commit, records their file inventories and SHA-256 values in `release-manifest.json`, verifies
+the uploaded assets, and only then publishes the draft as GitHub's latest release. Consumers can
+resolve the current approved version through:
+
+```text
+GET https://api.github.com/repos/Facilitron/tron-marketing-ai/releases/latest
+```
+
+The repository must have **Settings → Releases → Immutable releases** enabled. The workflow checks
+this setting and refuses to publish without it. GitHub locks the release tag and assets after the
+draft is published, and generates a release attestation. A failed build or upload deletes its draft
+and cannot change the latest-release pointer.
+
+To publish:
+
+1. Bump both `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` to the same semver.
+2. Merge the reviewed PR to `master`. The manifest change starts the release workflow.
+3. Confirm the workflow's checksum and release-attestation verification passes.
+
+To retry a failed release after correcting its cause, run **Publish immutable Tron release** from
+the Actions tab. The workflow never replaces an existing version.
+
+To roll back adoption, first verify the target release and its assets:
+
+```sh
+gh release verify v0.33.0
+gh release download v0.33.0 --dir /tmp/tron-rollback
+(cd /tmp/tron-rollback && shasum -a 256 -c SHA256SUMS)
+```
+
+After maintainer approval, move only the current pointer to that already-immutable release:
+
+```sh
+gh release edit v0.33.0 --latest
+```
+
+This does not modify or republish either version. Consumers resolving the latest-release endpoint
+adopt the rollback target, while pinned artifact URLs remain unchanged.
+
 ---
 
 ## Dependencies

@@ -1,0 +1,128 @@
+name: Publish immutable Tron release
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .claude-plugin/plugin.json
+      - .codex-plugin/plugin.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tron-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build, verify, and publish both harnesses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install plugin CLIs and cleanup dependency
+        run: |
+          npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
+          npm install --global trash-cli
+
+      - name: Validate package source and build release artifacts
+        run: |
+          bash tools/lint/check-plugin-package.sh
+          bash tools/release/test-build-release.sh
+          node tools/release/build-release.mjs dist/release
+
+      - name: Require repository release immutability
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          enabled="$(gh api -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/immutable-releases" --jq '.enabled' 2>/dev/null || true)"
+          test "$enabled" = true || {
+            echo 'Repository Settings > Releases > Immutable releases must be enabled before publishing.'
+            exit 1
+          }
+
+      - name: Publish complete release and advance the current pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./.claude-plugin/plugin.json').version")"
+          tag="v$version"
+          commit="$(git rev-parse HEAD)"
+          test "$(node -p "require('./.codex-plugin/plugin.json').version")" = "$version"
+
+          existing="$(gh release view "$tag" --json isDraft,targetCommitish \
+            --jq '[.isDraft, .targetCommitish] | @tsv' 2>/dev/null || true)"
+          if [ -n "$existing" ]; then
+            existing_draft="$(printf '%s' "$existing" | cut -f1)"
+            existing_commit="$(printf '%s' "$existing" | cut -f2)"
+            test "$existing_commit" = "$commit" || {
+              echo "Release $tag exists for $existing_commit, not $commit. Refusing replacement."
+              exit 1
+            }
+            if [ "$existing_draft" = true ]; then
+              gh release delete "$tag" --cleanup-tag --yes
+            else
+              verify_dir="$(mktemp -d)"
+              gh release download "$tag" --dir "$verify_dir"
+              (cd "$verify_dir" && sha256sum --check SHA256SUMS)
+              gh release edit "$tag" --latest
+              exit 0
+            fi
+          fi
+
+          created=false
+          cleanup_draft() {
+            if [ "$created" = true ]; then
+              is_draft="$(gh release view "$tag" --json isDraft --jq '.isDraft' 2>/dev/null || true)"
+              if [ "$is_draft" = true ]; then
+                gh release delete "$tag" --cleanup-tag --yes >/dev/null 2>&1 || true
+              fi
+            fi
+          }
+          trap cleanup_draft EXIT
+
+          gh release create "$tag" --draft --target "$commit" \
+            --title "Tron $tag" \
+            --notes "Immutable Claude and Codex plugin packages built from $commit."
+          created=true
+          gh release upload "$tag" \
+            dist/release/tron-claude-"$tag".tar.gz \
+            dist/release/tron-codex-"$tag".tar.gz \
+            dist/release/release-manifest.json \
+            dist/release/SHA256SUMS
+
+          verify_dir="$(mktemp -d)"
+          gh release download "$tag" --dir "$verify_dir"
+          (cd "$verify_dir" && sha256sum --check SHA256SUMS)
+
+          gh release edit "$tag" --draft=false --latest
+          created=false
+
+          current=false
+          for _ in 1 2 3 4 5; do
+            latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq '.tag_name')"
+            if [ "$latest_tag" = "$tag" ]; then
+              current=true
+              break
+            fi
+            sleep 5
+          done
+          test "$current" = true
+          verified=false
+          for _ in 1 2 3 4 5; do
+            if gh release verify "$tag"; then
+              verified=true
+              break
+            fi
+            sleep 5
+          done
+          test "$verified" = true
