@@ -1,6 +1,6 @@
 # tron — Facilitron marketing-pages AI toolkit
 
-A Claude Code **plugin** bundling the skills that drive day-to-day work on the
+A shared-source Claude Code and Codex **plugin** bundling the skills that drive day-to-day work on the
 [Facilitron marketing site](https://www.facilitron.com): Jira/Confluence intake, the
 git task lifecycle, content pipelines (news, toolkit, guides), branded PDF export,
 ImageKit/Figma asset operations, and audit/QA tooling.
@@ -37,6 +37,21 @@ refuse to write unless the current checkout is `marketing-pages`.
 ---
 
 ## Installing it (consumer repos)
+
+### Codex
+
+Add the repository as a marketplace, then install the native Codex package:
+
+```sh
+codex plugin marketplace add Facilitron/tron-marketing-ai
+codex plugin add tron@tron
+```
+
+Start a new Codex conversation after installation so its skills are discovered. The Codex
+package references the same `skills/`, `agents/`, `tools/`, and `hooks/` source as Claude Code;
+there is no harness-specific copy of any `SKILL.md`.
+
+### Claude Code
 
 Add the marketplace and enable the plugin in the consumer repo's `.claude/settings.json`
 (this is what `marketing-pages` does):

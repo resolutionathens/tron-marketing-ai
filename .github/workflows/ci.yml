@@ -22,6 +22,21 @@ jobs:
       - run: bash tools/lint/check-scout-frontmatter.sh
       - run: bash tools/lint/test-check-scout-frontmatter.sh
 
+  plugin-package:
+    name: Claude and Codex package validation
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install plugin CLIs and cleanup dependency
+        run: |
+          npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
+          brew install trash
+      - name: Validate native Claude and Codex package installations
+        run: bash tools/lint/check-plugin-package.sh
+
   layer-1-tests:
     name: Layer-1 test-*.sh suite (macOS / Apple Silicon)
     # Runs on macos-latest ON PURPOSE. The tron plugin only ever ships to
