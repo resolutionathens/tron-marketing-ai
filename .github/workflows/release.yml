@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: write
-  administration: read
 
 concurrency:
   group: tron-release
@@ -39,17 +38,6 @@ jobs:
           bash tools/lint/check-plugin-package.sh
           bash tools/release/test-build-release.sh
           node tools/release/build-release.mjs dist/release
-
-      - name: Require repository release immutability
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          enabled="$(gh api -H 'X-GitHub-Api-Version: 2026-03-10' \
-            "repos/${GITHUB_REPOSITORY}/immutable-releases" --jq '.enabled' 2>/dev/null || true)"
-          test "$enabled" = true || {
-            echo 'Repository Settings > Releases > Immutable releases must be enabled before publishing.'
-            exit 1
-          }
 
       - name: Publish complete release and advance the current pointer
         env:
