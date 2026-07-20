@@ -4,9 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-test.XXXXXX")"
 OUT_AGAIN="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-test-again.XXXXXX")"
+FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-fixture.XXXXXX")"
+FIXTURE_OUT="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-fixture-out.XXXXXX")"
+FIXTURE_OUT_AGAIN="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-fixture-out-again.XXXXXX")"
+FIXTURE_OUT_DIRTY="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-fixture-out-dirty.XXXXXX")"
 
 cleanup() {
-  trash "$OUT" "$OUT_AGAIN"
+  trash "$OUT" "$OUT_AGAIN" "$FIXTURE" "$FIXTURE_OUT" "$FIXTURE_OUT_AGAIN" "$FIXTURE_OUT_DIRTY"
 }
 trap cleanup EXIT
 
@@ -69,3 +73,43 @@ for ARTIFACT in "$OUT"/*; do
   cmp "$OUT/$ARTIFACT" "$OUT_AGAIN/$ARTIFACT"
 done
 printf 'PASS: deterministic dual-harness release artifacts and integrity manifest are valid.\n'
+
+# Fixture-level: builds must be byte-deterministic against a snapshot of the current
+# working tree (including uncommitted edits), without requiring a commit on this branch.
+FIXTURE_PATHS=(.claude-plugin .codex-plugin .agents skills agents tools hooks packages README.md WORKER_CONTRACT.md)
+for PATH_ENTRY in "${FIXTURE_PATHS[@]}"; do
+  cp -R "$ROOT/$PATH_ENTRY" "$FIXTURE/$PATH_ENTRY"
+done
+git -C "$FIXTURE" init -q
+git -C "$FIXTURE" add -A
+GIT_AUTHOR_NAME="Tron Release Fixture" \
+GIT_AUTHOR_EMAIL="release@facilitron.com" \
+GIT_AUTHOR_DATE="1970-01-01T00:00:00Z" \
+GIT_COMMITTER_NAME="Tron Release Fixture" \
+GIT_COMMITTER_EMAIL="release@facilitron.com" \
+GIT_COMMITTER_DATE="1970-01-01T00:00:00Z" \
+git -C "$FIXTURE" commit -q -m "fixture: working tree snapshot"
+
+node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT" >/dev/null
+node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT_AGAIN" >/dev/null
+for ARTIFACT in "$FIXTURE_OUT"/*; do
+  ARTIFACT="$(basename "$ARTIFACT")"
+  cmp "$FIXTURE_OUT/$ARTIFACT" "$FIXTURE_OUT_AGAIN/$ARTIFACT"
+done
+
+# The clean-tree guard must still block a build once the fixture itself goes dirty,
+# and must fail for that specific reason (not some unrelated breakage).
+echo "fixture edit" >> "$FIXTURE/README.md"
+set +e
+DIRTY_OUTPUT="$(node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT_DIRTY" 2>&1)"
+DIRTY_STATUS=$?
+set -e
+if [ "$DIRTY_STATUS" -eq 0 ]; then
+  printf 'FAIL: release build succeeded against a dirty tree.\n' >&2
+  exit 1
+fi
+if ! printf '%s' "$DIRTY_OUTPUT" | grep -q 'must be committed before building a release'; then
+  printf 'FAIL: release build against a dirty tree failed for the wrong reason:\n%s\n' "$DIRTY_OUTPUT" >&2
+  exit 1
+fi
+printf 'PASS: fixture-level release build is deterministic against uncommitted changes and the clean-tree guard still blocks a dirty tree.\n'
