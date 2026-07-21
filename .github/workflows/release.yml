@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 concurrency:
   group: tron-release
@@ -38,6 +40,11 @@ jobs:
           bash tools/lint/check-plugin-package.sh
           bash tools/release/test-build-release.sh
           node tools/release/build-release.mjs dist/release
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/release/*
 
       - name: Publish complete release and advance the current pointer
         env:
