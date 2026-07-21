@@ -33,11 +33,11 @@ source "$PLUGIN_ROOT/tools/content/content-lib.sh"
 # Locate gen-image.sh via the standard plugin resolver
 GENIMG_SKILL_DIR="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/gen-image}"
 if [ ! -e "${GENIMG_SKILL_DIR:-}/scripts/gen-image.sh" ]; then
-  GENIMG_SKILL_DIR="$(for d in \
-      ~/.claude/plugins/cache/*/*/*/skills/gen-image \
-      ~/.claude/plugins/marketplaces/*/skills/gen-image; do
+  GENIMG_SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces \
+      "$HOME/Library/Application Support/tron-os/tron-releases/versions" \
+      -maxdepth 5 -type d -path "*/skills/gen-image" 2>/dev/null | while read -r d; do
     [ -e "$d/scripts/gen-image.sh" ] && echo "$d"
-  done | sort -V | tail -1)"
+  done | sort -V | tail -1 || true)"
 fi
 [ -e "${GENIMG_SKILL_DIR:-}/scripts/gen-image.sh" ] \
   || { printf '{"ok":false,"error":"gen-image.sh not found — run /plugin update"}\n' >&2; exit 1; }

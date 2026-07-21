@@ -27,7 +27,7 @@ This skill delegates the scan to the **`a11y-scan-runner`** subagent (runs on Ha
    ```bash
    name=a11y-scan
    SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/a11y-scan.sh" ] && echo "$d"; done | sort -V | tail -1)"
+   [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/a11y-scan.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
    [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || { echo "tron:$name: can't find scripts/a11y-scan.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
    echo "$SKILL_DIR/scripts/a11y-scan.sh"   # → the absolute script path to hand the runner
    ```

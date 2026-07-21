@@ -26,7 +26,7 @@ name=brainstorm
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
 # fall back to the newest INSTALLED copy that actually contains scripts/brainstorm.sh
 # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
-[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || SKILL_DIR="$(for d in ~/.claude/plugins/cache/*/*/*/skills/$name ~/.claude/plugins/marketplaces/*/skills/$name; do [ -e "$d/scripts/brainstorm.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/brainstorm.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 # last resort: this script's own dir (running straight from the checkout)
 [ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 [ -e "$SKILL_DIR/reference/ideation-note-template.md" ] || { echo "tron:$name: can't find reference/ideation-note-template.md — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
