@@ -9,7 +9,24 @@ capture each.
 - **Figma file** — keep the full URL with its `node-id`. Note the frame or page name from any comment. The implementer builds to this; do not try to render it.
 - **Existing or HubSpot page being replaced** — keep the URL as the content/layout reference.
 - **Asset location** — an ImageKit folder, a download link, or attachments named in the source ticket.
-- **Google Doc** — when accessible, fetch its text export and read fields near the top such as `Meta Title:`, `Meta Description:`, `Slug:`, the H1 title, and Purpose / Scope / Procedure / FAQ sections.
+- **Google Doc** — read it through the **authenticated gws Docs API**, not a plain export or
+  browser fetch (which fail for any doc that is not world-readable, which is most of them). This
+  is the path CCAL-1777 missed:
+  ```bash
+  # documentId is the long token from the /document/d/<ID>/edit URL
+  gws docs documents get --params '{"documentId":"<ID>"}'
+  ```
+  The response is the Docs **JSON model**, not plain text. Readable text lives under
+  `body.content[]` — each structural element is a paragraph whose runs carry the text:
+  ```bash
+  gws docs documents get --params '{"documentId":"<ID>"}' \
+    | jq -r '.body.content[]?.paragraph?.elements[]?.textRun?.content // empty'
+  ```
+  From the extracted text read fields near the top such as `Meta Title:`, `Meta Description:`,
+  `Slug:`, the H1 title, and Purpose / Scope / Procedure / FAQ sections. A Google Doc a ticket
+  links as its spec is an authoritative source — it is a hard implementation gate, so it must be
+  read, not skipped (see [WORKER_CONTRACT.md](../../../WORKER_CONTRACT.md) → *An authoritative
+  source is a hard implementation gate*).
 
 ## Spec and code sources
 
@@ -22,5 +39,9 @@ capture each.
 - **Error or monitoring link** (Sentry, logs, dashboard) — keep the issue URL and capture the error message, affected endpoint, and frequency if shown. This is the repro context for a fix.
 - **Chat or recording link** (Slack thread, Loom) — keep the URL as provenance, but note it may not be accessible to the implementer; summarize any decision captured in the ticket text rather than relying on the link.
 
-If a source is not directly accessible, still enrich the ticket with its URL and note that the
-implementer should use it as the reference.
+"Not directly accessible" means **every supported authenticated path for that source type has
+been tried** — the gws Docs API for a Google Doc, `fetch-confluence.sh` for Confluence, `acli`
+for Jira, the broker for Figma — not that a first plain fetch returned nothing. Only after that
+do you record the URL as a reference. When the source is authoritative (the thing the work
+implements) and no authenticated path reads it, that is a hard blocker for the implementer, not a
+note to work around (see [WORKER_CONTRACT.md](../../../WORKER_CONTRACT.md)).

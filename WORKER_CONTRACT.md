@@ -16,6 +16,7 @@ interactive user would do.
 - [What a dispatched worker is](#what-a-dispatched-worker-is)
 - [Environment variables you get](#environment-variables-you-get)
 - [The PR-gate autonomy model](#the-pr-gate-autonomy-model)
+- [Source access, verification evidence, and PR-gate retention](#source-access-verification-evidence-and-pr-gate-retention)
 - [Tools and skills unavailable to you](#tools-and-skills-unavailable-to-you)
 - [The broker: on-demand credential minting](#the-broker-on-demand-credential-minting)
 - [Detecting and testing dispatch mode](#detecting-and-testing-dispatch-mode)
@@ -89,6 +90,58 @@ A dispatched worker's git-lifecycle autonomy stops at the PR, not before it and 
 
 In short: **autonomous through the PR, human-gated at and beyond it.** This is the same shape
 whether you were dispatched by the Tron control plane directly or via a Scout run.
+
+## Source access, verification evidence, and PR-gate retention
+
+These three rules are the canonical policy for what a dispatched worker owes a ticket. The
+lifecycle skills implement the mechanics; this document is the authority when they disagree with
+your instinct. They exist because of [CCAL-1777](https://facilitron.atlassian.net/browse/CCAL-1777):
+a worker declared a linked Google Doc unreadable, built from the ticket summary instead, claimed
+every acceptance criterion and render check passed, and removed its worktree before review. The
+doc was readable the whole time through the authenticated `gws docs documents get` path and
+carried requirements the PR missed.
+
+<!-- contract:source-hard-gate -->
+### An authoritative source is a hard implementation gate
+
+When a ticket links an authoritative source — a spec doc, Confluence page, Google Doc, or Figma
+file that the work is meant to implement — **fetch and read it before you write any code.** The
+ticket summary and acceptance criteria are a routing aid, not a substitute for the source.
+
+Before declaring a source unreadable, try **every supported authenticated retrieval path** for
+its type, not just a plain browser fetch or export URL:
+
+| Source | Authenticated path to try |
+| --- | --- |
+| Google Doc | `gws docs documents get --params '{"documentId":"<id>"}'` (see `tron:jira-source-discovery` → `reference/source-types.md`) |
+| Confluence page | the broker helper `tools/confluence/fetch-confluence.sh <url-or-id>` |
+| Jira issue | `acli jira workitem view <KEY> --fields '*all' --json` |
+| Figma file | the broker `/figma/*` surface (see `tron:figma-to-imagekit`) |
+
+Only if **every** supported authenticated path for the source fails do you stop. When you stop,
+post **one concise plain-text blocker** naming the source URL and the exact retrieval paths you
+tried, then wait — do not proceed on the summary. You may not claim that source-specific
+requirements are complete without evidence read from the source itself.
+
+<!-- contract:evidence-backed-claims -->
+### Verification claims must name their evidence
+
+Every claim that something passed — a build, a render, a test suite, an acceptance criterion —
+**names the command you ran or the artifact you inspected that proves it.** "Rendering checks
+passed" with nothing behind it is exactly the failure CCAL-1777 shipped.
+
+If a verification path is **unavailable** to you (no dev server, a tool you can't reach, a check
+that needs a human), report it as unavailable — not as passed. Unavailable and passing are
+different states, and collapsing them into "done" is what the human PR gate exists to catch.
+
+<!-- contract:pr-gate-retention -->
+### The worktree is retained through the PR gate
+
+Your branch, worktree, and worker session stay **intact through the human PR gate.** Opening the
+PR is the end of your autonomous run, not the start of cleanup. Do not run `tron:close-worktree`
+(or otherwise remove the worktree/branch) as an autonomous step — it runs **only after the PR
+merges, or when a human explicitly asks for cleanup.** Removing the worktree early destroys the
+state a reviewer needs to reproduce and the branch the merge lands on.
 
 ## Tools and skills unavailable to you
 

@@ -94,9 +94,9 @@ If the work type is a marketing-pages landing page, product page, or content ite
 
 ### 5. Pull source metadata
 
-Identify the source type from the links you gathered and capture what the implementer will need. See `reference/source-types.md` for the full catalog.
+Identify the source type from the links you gathered and capture what the implementer will need. See `reference/source-types.md` for the full catalog. Read a Google Doc through the authenticated `gws docs documents get` path, not a plain export — `reference/source-types.md` has the exact command and JSON extraction.
 
-If a source is not directly accessible, still note its URL so the implementer can use it as a reference.
+If a source is not directly accessible, still note its URL so the implementer can use it as a reference — but "not accessible" means every supported authenticated retrieval path for that source type failed, not that a first plain fetch came back empty. An authoritative source (the spec the work implements) that no authenticated path can read is a hard implementation gate, not a note to work around; see [WORKER_CONTRACT.md](../../WORKER_CONTRACT.md).
 
 ## Output
 

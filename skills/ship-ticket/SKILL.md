@@ -28,12 +28,25 @@ If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatc
 call `AskUserQuestion`. Skip Step 2's per-stage confirmation and advance through the lifecycle
 automatically, delegating to each stage's skill in turn — each delegated skill applies its own
 dispatch-mode behavior (see its SKILL.md), so approval prompts inside those stages are already
-handled. Step 5's first stop condition ("the user declines the next stage in Step 2") does not
-apply — there is no Step 2 gate to decline under dispatch. Its other two stop conditions still
-apply as written: stop and report on a non-recoverable stage failure (Step 8/CLEANUP completing is
-still the normal end of the loop), and if a genuinely risky or ambiguous decision comes up that no
-stage's default can resolve, post ONE concise plain-text message and stop to wait for the reply,
-rather than using `AskUserQuestion`.
+handled.
+
+**Park at the PR gate — do not run past REVIEW.** A dispatched run's autonomy ends when the PR is
+open (see [WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *The PR-gate autonomy model* and *The
+worktree is retained through the PR gate*). Stop the loop at stage 6 (REVIEW) with the branch,
+worktree, and worker session **left intact**, and hand back. Do **not** autonomously advance to
+stage 7 (PROMOTE-PROD) or stage 8 (CLEANUP): production promotion is human-gated, and
+`tron:close-worktree` runs only after the PR merges or a human explicitly asks for cleanup —
+removing the worktree early destroys the state the reviewer needs and the branch the merge lands
+on. The kickoff prompt authorizes those later stages explicitly or they do not happen.
+
+This changes Step 5's stop conditions under dispatch. Its first condition ("the user declines the
+next stage in Step 2") does not apply — there is no Step 2 gate to decline. Its "Stage 8 (CLEANUP)
+completes" condition **does not apply either**: in dispatch mode, **stage 6 (REVIEW) completing —
+the PR is open — replaces stage 8 as the loop's normal end**, because the run parks at the PR gate
+and never reaches PROMOTE-PROD or CLEANUP on its own. Step 5's remaining condition still applies as
+written: stop and report on a non-recoverable stage failure. And if a genuinely risky or ambiguous
+decision comes up that no stage's default can resolve, post ONE concise plain-text message and stop
+to wait for the reply, rather than using `AskUserQuestion`.
 
 Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
@@ -99,7 +112,7 @@ When the delegated skill finishes, return to Step 1 — re-detect lifecycle posi
 Stop the loop and hand back to the user when:
 
 - The user declines the next stage in Step 2.
-- Stage 8 (CLEANUP) completes — the lifecycle is done.
+- Stage 8 (CLEANUP) completes — the lifecycle is done. **Under dispatch this is replaced by stage 6 (REVIEW) completing** — see "When dispatched (worker mode)" above; a dispatched run parks at the open PR and never reaches stage 8 on its own.
 - A stage fails non-recoverably (e.g. CI red on PR, merge conflict on PROMOTE-DEV). Report what failed and let the user decide.
 
 ## What this skill does NOT do

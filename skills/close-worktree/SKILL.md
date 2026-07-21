@@ -23,6 +23,15 @@ If it does — the list is ambiguous and picking wrong risks deleting the wrong 
 work — post ONE concise plain-text message listing the candidate branches and stop to wait for the
 reply, rather than using `AskUserQuestion`.
 
+**Cleanup is post-merge only.** A dispatched worker does not close its own worktree as an
+autonomous step. This skill runs **only after the PR has merged, or when a human explicitly asks
+for cleanup** — the worktree, branch, and session are retained through the human PR gate so a
+reviewer can reproduce the change and the merge has a branch to land on (see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *The worktree is retained through the PR gate*).
+The merge-verification below is a safety net, not a licence to run this before review: it refuses
+to delete an unmerged branch, but you still should not invoke the skill until merge or an explicit
+request.
+
 Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Fast path — when you already know the branch
