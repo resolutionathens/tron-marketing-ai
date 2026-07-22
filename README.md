@@ -91,7 +91,7 @@ reaching into another plugin directory.
 Add the repository as a marketplace, then install the native Codex package:
 
 ```sh
-codex plugin marketplace add Facilitron/tron-marketing-ai
+codex plugin marketplace add resolutionathens/tron-marketing-ai
 codex plugin add tron@tron
 ```
 
@@ -108,7 +108,7 @@ Add the marketplace and enable the plugin in the consumer repo's `.claude/settin
 {
   "extraKnownMarketplaces": {
     "tron": {
-      "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" },
+      "source": { "source": "github", "repo": "resolutionathens/tron-marketing-ai" },
     },
   },
   "enabledPlugins": { "tron@tron": true },
@@ -129,7 +129,7 @@ Third-party marketplaces don't auto-update by default, so an installed copy can 
   ```jsonc
   "extraKnownMarketplaces": {
     "tron": {
-      "source": { "source": "github", "repo": "Facilitron/tron-marketing-ai" },
+      "source": { "source": "github", "repo": "resolutionathens/tron-marketing-ai" },
       "autoUpdate": true
     }
   }
@@ -170,7 +170,7 @@ the uploaded assets, and only then publishes the draft as GitHub's latest releas
 resolve the current approved version through:
 
 ```text
-GET https://api.github.com/repos/Facilitron/tron-marketing-ai/releases/latest
+GET https://api.github.com/repos/resolutionathens/tron-marketing-ai/releases/latest
 ```
 
 The repository must have **Settings → Releases → Immutable releases** enabled. The workflow checks
