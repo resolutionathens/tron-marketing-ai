@@ -26,7 +26,7 @@ set -u
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 LOCAL_MANIFEST="$PLUGIN_ROOT/.claude-plugin/plugin.json"
-REMOTE_URL="${TRON_UPDATE_REMOTE_URL:-https://raw.githubusercontent.com/Facilitron/tron-marketing-ai/master/.claude-plugin/plugin.json}"
+REMOTE_URL="${TRON_UPDATE_REMOTE_URL:-https://raw.githubusercontent.com/resolutionathens/tron-marketing-ai/master/.claude-plugin/plugin.json}"
 CACHE="${TRON_UPDATE_CACHE:-${TMPDIR:-/tmp}/tron-plugin-latest-version}"
 TTL_MIN=1440  # re-hit the network at most once per day
 
