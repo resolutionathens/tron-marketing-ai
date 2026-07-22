@@ -39,17 +39,18 @@ refuse to write unless the current checkout is `marketing-pages`.
 ## Core and role packages
 
 The authored catalog remains in `skills/` once. [`packages/package-map.json`](packages/package-map.json)
-classifies every skill into exactly one owner and defines eight release packages: `tron-core`,
-`tron-engineer`, `tron-designer`, `tron-content`, `tron-seo`, `tron-manager`, `tron-social`, and
-`tron-video`.
+classifies every skill into exactly one owner and defines eight scoped release packages:
+`tron-core`, `tron-engineer`, `tron-designer`, `tron-content`, `tron-seo`, `tron-manager`,
+`tron-social`, and `tron-video`. The seven role packages extend `tron-core`; `tron-core` is also
+available on its own for shared ticket-intake and worker-runtime capabilities.
 
-Each role package extends core and is self-contained. The package map explicitly declares each
-package's shared agents and tool directories. The builder copies that declared closure alongside
-the selected skill directories, hooks, and skill-local assets, and rejects missing, escaping, or
-symlinked resources.
-Role packages do not read another installed plugin's filesystem, so installing one role does not
-require installing `tron-core` beside it. Shared capabilities can consequently appear in more
-than one built package while retaining one authored source and one declared owner.
+Each scoped package is self-contained. The package map explicitly declares each package's shared
+agents and tool directories. The builder copies that declared closure alongside the selected skill
+directories, hooks, the dispatched-worker contract, and skill-local assets, and rejects missing,
+escaping, or symlinked resources.
+Scoped packages do not read another installed plugin's filesystem, so installing a role package
+does not require installing `tron-core` beside it. Shared capabilities can consequently appear in
+more than one built package while retaining one authored source and one declared owner.
 
 Build and validate the complete matrix locally:
 
@@ -62,25 +63,24 @@ The build emits matching Claude and Codex inventories from the same source and v
 skill prose rewrites an in-package `tron:<skill>` reference to the current package namespace. A
 reference outside the current inventory is rewritten to its declared owner, such as
 `tron-content:news-item`, making the cross-role handoff explicit instead of pretending the skill is
-local. The generated inventory records the monolith and role package IDs plus their
+local. The generated inventory records the monolith and scoped package IDs plus their
 mutual-exclusion rule so migration tooling can validate that a consumer enables exactly one
 distribution shape.
 
 ### Migration from the monolithic package
 
 The monolithic `tron@tron` package remains available during migration and rollback. A consumer
-must enable either that package or one role package, not both, because both expose overlapping
-skills.
+must enable either that package or one scoped package, not both, because their inventories overlap.
 
-1. Choose the role package matching the worker profile.
+1. Choose the scoped package matching the worker profile.
 2. Replace `tron:*` references in role configuration with `tron-<role>:*`.
 3. Install the matching Claude or Codex artifact from the same release version.
 4. Verify the required skill inventory before disabling `tron@tron`.
 5. Roll back by re-enabling the version-pinned monolith and restoring `tron:*` references.
 
 Cross-role handoffs must target a skill present in the caller's built inventory. If a workflow
-needs a skill outside that inventory, route the work to a worker with the owning role instead of
-reaching into another plugin directory.
+needs a skill outside that inventory, route the work to a worker with the owning package instead
+of reaching into another plugin directory.
 
 ---
 
@@ -163,20 +163,19 @@ authoring.
 
 ## Releases
 
-Every merged plugin version is published from `master` by
-`.github/workflows/release.yml`. The workflow builds separate Claude and Codex archives from the
-same commit, records their file inventories and SHA-256 values in `release-manifest.json`, verifies
-the uploaded assets, and only then publishes the draft as GitHub's latest release. Consumers can
-resolve the current approved version through:
+A manifest version bump merged to `master` starts
+`.github/workflows/release.yml`. The workflow builds monolithic Claude and Codex archives plus
+both-harness artifacts for every scoped package from the same commit. It records their file
+inventories and SHA-256 values in `release-manifest.json`, verifies the uploaded assets and build
+provenance, and only then publishes the draft as GitHub's latest release. Consumers can resolve
+the current approved version through:
 
 ```text
 GET https://api.github.com/repos/resolutionathens/tron-marketing-ai/releases/latest
 ```
 
-The repository must have **Settings → Releases → Immutable releases** enabled. The workflow checks
-this setting and refuses to publish without it. GitHub locks the release tag and assets after the
-draft is published, and generates a release attestation. A failed build or upload deletes its draft
-and cannot change the latest-release pointer.
+The repository must have **Settings → Releases → Immutable releases** enabled. A failed build or
+upload deletes its draft and cannot change the latest-release pointer.
 
 To publish:
 
@@ -303,9 +302,14 @@ your shell or add them to your `marketing-pages/.env.local`.
 
 ```
 tron-marketing-ai/
+├── .agents/plugins/          # native Codex marketplace manifest
 ├── .claude-plugin/
 │   ├── plugin.json          # the plugin manifest (name: tron)
 │   └── marketplace.json     # single-plugin marketplace, source "."
+├── .codex-plugin/           # native Codex plugin manifest, sharing skills/
+├── .github/workflows/       # CI and immutable-release workflows
+├── packages/
+│   └── package-map.json     # scoped package ownership and resource closures
 ├── skills/                  # one dir per skill
 │   ├── md-to-pdf/           # bundles build.ts, template.tex, fonts/, logo
 │   ├── prose-lint/          # bundles the Facilitron Vale style pack under styles/
@@ -315,7 +319,10 @@ tron-marketing-ai/
 │   └── …                    # optimize-images-runner · vale-prose-runner · confluence-transformer
 ├── hooks/                   # SessionStart update-notice hook (check-update.sh + hooks.json)
 ├── evaluations/             # skill-evaluation scenarios run by tools/evaluate (see TESTING.md)
+├── WORKER_CONTRACT.md       # non-interactive dispatched-worker rules and PR gate
+├── TESTING.md                # test layers and commands for plugin contributors
 ├── tools/                   # shared, plugin-level tooling (referenced via CLAUDE_PLUGIN_ROOT)
+│   ├── broker/              # org-secret broker access and credential-minting docs
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 │   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)
 │   ├── confluence/          # fetch-confluence.sh + confluence-lib.sh — used by confluence, news-item, guide-item
@@ -338,3 +345,30 @@ Two reference patterns:
   **`${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…`** — the `CLAUDE_PLUGIN_ROOT`
   var with a fallback two levels up from the skill dir, so it works whichever variable the
   runtime exports.
+
+## Developing and verifying
+
+This repository ships instructions, deterministic scripts, and packaged assets rather than an app.
+See [CLAUDE.md](CLAUDE.md) for authoring rules, [TESTING.md](TESTING.md) for the complete test
+matrix, and [WORKER_CONTRACT.md](WORKER_CONTRACT.md) for the non-interactive worker and PR-gate
+rules.
+
+Run the smallest relevant check while editing, then the package test when changing package
+ownership, shared resources, cross-skill handoffs, agents, or skill-local assets:
+
+```sh
+# A changed deterministic script
+bash skills/<skill>/scripts/test-<skill>.sh
+
+# All deterministic script and shared-tool tests
+bash tools/lint/run-layer1-tests.sh
+
+# Frontmatter and fast-path resolver checks
+bash tools/lint/check-scout-frontmatter.sh
+bash tools/lint/check-fastpath-resolvers.sh
+
+# Scoped Claude/Codex package inventories and dependency closures
+bash tools/package/test-build-packages.sh
+```
+
+CI also validates native Claude and Codex package installation and deterministic release builds.
