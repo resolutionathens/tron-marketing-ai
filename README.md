@@ -284,6 +284,9 @@ your shell or add them to your `marketing-pages/.env.local`.
 | `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable (`confluence`, `news-item`, `guide-item`) |
 | `CONFLUENCE_CLOUD_ID` | _(optional)_ override the Confluence cloud ID — defaults to Facilitron's instance                        |
 | `CONFLUENCE_BASE`     | _(optional)_ override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
+| `WEEKLY_UPDATE_RECIPIENT` | _(optional)_ `weekly-update`'s report recipient / template owner — defaults to `Kristina`      |
+| `WEEKLY_UPDATE_MANAGER`   | _(optional)_ `weekly-update`'s second greeting name (your manager) — defaults to `Dave`        |
+| `WEEKLY_UPDATE_DEADLINE`  | _(optional)_ `weekly-update`'s reporting deadline — defaults to `Tuesday 9am PST / 12pm EST`   |
 
 - **1Password** (app + optional `op` CLI, `brew install 1password-cli`) populates `~/.env`.
   If a skill reports a token is unset, the 1Password agent likely isn't running.

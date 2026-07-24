@@ -10,7 +10,7 @@ fallback:
       skip_when: "User says 'no blockers' or provides the soft sections directly"
     - stage: "GitHub activity"
       skip_when: "GitHub is unavailable or user is Jira-only"
-description: "Generate your weekly status update for Kristina (and your manager) by pulling recent activity from Jira — and GitHub when it's available — asking 3 quick questions for the soft sections (blockers, decisions, cross-team), composing it into Kristina's 6-section template as a plain-text email body, and copying it to the clipboard via pbcopy. Use this skill whenever the user asks for their 'weekly update', 'weekly status', 'weekly report', 'standup report', 'Kristina report', 'report for Dave', 'update email', or mentions Kristina's Tuesday 9am PST / 12pm EST deadline. Also trigger when the user says 'wrap up the week', 'what did I ship this week', or asks for a recap they can paste into an email. Works Jira-only for people without git/GitHub. Default window is 'since last Monday'; if the user says 'two-week' / 'biweekly' / 'past two weeks' / '2 weeks', widen accordingly."
+description: "Generate your weekly status update for your manager (and template owner) by pulling recent activity from Jira — and GitHub when it's available — asking 3 quick questions for the soft sections (blockers, decisions, cross-team), composing it into the team's 6-section template as a plain-text email body, and copying it to the clipboard via pbcopy. Use this skill whenever the user asks for their 'weekly update', 'weekly status', 'weekly report', 'standup report', 'manager report', 'update email', or mentions their weekly reporting deadline. Also trigger when the user says 'wrap up the week', 'what did I ship this week', or asks for a recap they can paste into an email. Recipient, template owner, and deadline are configurable per user (env vars, defaulting to the Kristina / Tuesday 9am PST ritual) — see Step 0. Works Jira-only for people without git/GitHub. Default window is 'since last Monday'; if the user says 'two-week' / 'biweekly' / 'past two weeks' / '2 weeks', widen accordingly."
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -33,10 +33,30 @@ scout:
 
 # Weekly Update Generator
 
-Produces a plain-text email body in Kristina's 6-section template, copied to clipboard via `pbcopy`. Works Jira-only (GitHub optional). Never auto-sends.
+Produces a plain-text email body in the team's 6-section template, copied to clipboard via `pbcopy`. Works Jira-only (GitHub optional). Never auto-sends.
 
 Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
 [tools/jira/broker-status.md](../../tools/jira/broker-status.md) for why.
+
+## Step 0 — Load recipient config
+
+Recipient, template owner, and deadline come from env vars (same `~/.env` convention other
+skills use — see [README.md](../../README.md) "Environment Variables"), defaulting to Ian's
+current Kristina / Tuesday ritual so existing users see no change:
+
+```bash
+if [[ -z "${WEEKLY_UPDATE_RECIPIENT:-}" && -f "$HOME/.env" ]]; then
+  set -a; source "$HOME/.env"; set +a
+fi
+RECIPIENT="${WEEKLY_UPDATE_RECIPIENT:-Kristina}"
+MANAGER="${WEEKLY_UPDATE_MANAGER:-Dave}"
+DEADLINE="${WEEKLY_UPDATE_DEADLINE:-Tuesday 9am PST / 12pm EST}"
+```
+
+`RECIPIENT` is also the template owner (whose 6-section format this is). Use `RECIPIENT` and
+`MANAGER` in the Step 4 greeting, and `DEADLINE` anywhere the deadline is mentioned back to the
+user. A user with no `~/.env` and no exports gets the same Kristina/Dave/Tuesday defaults as
+today — this step changes nothing for them.
 
 ## Step 1 — Fetch the week's activity (scripted)
 
@@ -80,7 +100,7 @@ Provide 2-3 plausible options from the data + "Other." If the user said "none," 
 ## Step 4 — Compose the email
 
 ```
-Hey Kristina and Dave,
+Hey <RECIPIENT> and <MANAGER>,
 
 1. Quick Update
 - <1–2 bullets, high level — what moved forward>
@@ -109,7 +129,7 @@ Hey Kristina and Dave,
 - **No em dashes** (Facilitron voice). Use commas, colons, or split the sentence.
 - **No Jira keys, no PR numbers, no commit hashes.** Translate to plain English: "Shipped MD-1733" → "Shipped the news page redesign."
 - **~25 words per bullet max.** Roll up related work — name the theme, not each ticket.
-- **Greeting is "Hey Kristina and Dave,"** (swap "Dave" for their manager's name if not Ian). No subject line, no sign-off.
+- **Greeting is "Hey `<RECIPIENT>` and `<MANAGER>`,"** using the values loaded in Step 0. No subject line, no sign-off.
 - **Section 6 optional.** Omit if nothing notable.
 - **Look up Jira keys mentioned in user answers** before composing — write from the substance, not the key.
 
@@ -140,4 +160,4 @@ Print the full body for user review. If `pbcopy` succeeded, tell them: "On your 
 
 ## Anti-patterns
 
-❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder Kristina's sections. ❌ Use markdown or em dashes in output.
+❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder the template's sections. ❌ Use markdown or em dashes in output.
