@@ -36,11 +36,14 @@ ct_rewrite_links() {
 }
 
 # Echo the pages/*.vue file that serves an internal route, or return 1.
-# Resolves <path> against <repo>/pages as foo.vue, foo/index.vue, or the nearest
-# [...slug].vue catch-all — the same resolution Nuxt uses.
+# Resolves <path> against <repo>/app/pages (Nuxt 4 srcDir layout) or, if that
+# directory doesn't exist, <repo>/pages (pre-migration layout) as foo.vue,
+# foo/index.vue, or the nearest [...slug].vue catch-all — the same resolution
+# Nuxt uses.
 ct_resolve_page() {
   local p="$1" repo="${2:-$(pwd)}" base
-  base="$repo/pages"; p="${p#/}"; p="${p%/}"
+  base="$repo/app/pages"; [[ -d "$base" ]] || base="$repo/pages"
+  p="${p#/}"; p="${p%/}"
   [[ -f "$base/$p.vue" ]] && { printf '%s\n' "$base/$p.vue"; return 0; }
   [[ -f "$base/$p/index.vue" ]] && { printf '%s\n' "$base/$p/index.vue"; return 0; }
   local probe="$p"
