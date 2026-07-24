@@ -20,10 +20,11 @@ FAKE="$(mktemp -d "${TMPDIR:-/tmp}/gencard-test.XXXXXX")"
 trap 'rm -rf "$FAKE"' EXIT
 
 mkdir -p "$FAKE/tools/content" "$FAKE/tools/image" "$FAKE/tools/imagekit" \
-          "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
+          "$FAKE/tools/skill" "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
 
 # Real unit under test for numbering: the shared content-lib primitives.
 cp "$REPO_ROOT/tools/content/content-lib.sh" "$FAKE/tools/content/content-lib.sh"
+cp "$REPO_ROOT/tools/skill/resolve-skill-dir.sh" "$FAKE/tools/skill/resolve-skill-dir.sh"
 
 # Stub to-webp.sh: just copy source → dest.
 cat > "$FAKE/tools/image/to-webp.sh" <<'SH'
@@ -115,6 +116,17 @@ run_gencard_from_codex_cache() {
   cat "$out"
 }
 
+run_gencard_without_gen_image() {
+  local out err
+  out="$FAKE/missing-gen-image.stdout"
+  err="$FAKE/missing-gen-image.stderr"
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home-empty" CLAUDE_PLUGIN_ROOT="$FAKE" \
+    bash "$GENCARD" --folder toolkit --name missing.webp --prompt "test subject" --no-upload \
+      >"$out" 2>"$err" && return 1
+  [[ ! -s "$out" ]] || return 1
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data["ok"] is False' "$err"
+}
+
 # ---- 1. --prefix picks max existing index + 1 ----------------------------
 cat > "$FAKE/list-guides.json" <<'JSON'
 [
@@ -189,6 +201,14 @@ if has "$out" '"name":"codex-cache.webp"'; then
   pass "Codex cache: resolves gen-image without CLAUDE_PLUGIN_ROOT"
 else
   fail "Codex cache fallback: got: $out"
+fi
+
+# ---- 7. Missing gen-image preserves the JSON error contract -------------
+mv "$FAKE/home/.codex" "$FAKE/home/.codex-staging"
+if run_gencard_without_gen_image; then
+  pass "missing gen-image: exits nonzero with one valid JSON error object"
+else
+  fail "missing gen-image did not preserve the JSON error contract"
 fi
 
 echo ""

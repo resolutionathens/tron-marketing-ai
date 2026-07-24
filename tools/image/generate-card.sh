@@ -30,17 +30,12 @@ TOWEBP="$PLUGIN_ROOT/tools/image/to-webp.sh"
 # shellcheck source=/dev/null
 source "$PLUGIN_ROOT/tools/content/content-lib.sh"
 
-# Locate gen-image.sh via the standard plugin resolver
-GENIMG_SKILL_DIR="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/gen-image}"
-if [ ! -e "${GENIMG_SKILL_DIR:-}/scripts/gen-image.sh" ]; then
-  GENIMG_SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces \
-      "$HOME/Library/Application Support/tron-os/tron-releases/versions" \
-      -maxdepth 5 -type d -path "*/skills/gen-image" 2>/dev/null | while read -r d; do
-    [ -e "$d/scripts/gen-image.sh" ] && echo "$d"
-  done | sort -V | tail -1 || true)"
+# Locate gen-image.sh through the same resolver used by lifecycle launchers.
+RESOLVER="$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh"
+if ! GENIMG_SKILL_DIR="$(bash "$RESOLVER" gen-image scripts/gen-image.sh 2>/dev/null)"; then
+  printf '{"ok":false,"error":"gen-image skill could not be resolved; run /plugin update"}\n' >&2
+  exit 1
 fi
-[ -e "${GENIMG_SKILL_DIR:-}/scripts/gen-image.sh" ] \
-  || { printf '{"ok":false,"error":"gen-image.sh not found — run /plugin update"}\n' >&2; exit 1; }
 
 # ── parse args ──────────────────────────────────────────────────────────────
 FOLDER=""

@@ -67,9 +67,11 @@ The mechanical middle (classify, freshen base, create branch+worktree, copy env 
 
 ```bash
 name=start-ticket
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/start-ticket.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/start-ticket.sh" ] || { echo "tron:$name: scripts/start-ticket.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/start-ticket.sh)"
 bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <text>) [--no-transition] [--base <branch>]
 ```
 
@@ -129,4 +131,3 @@ Setup is done. Now actually start the ticket — do not stop at scaffolding.
 Do not open the ticket URL in a browser — this includes dispatched/non-interactive workers, not just the `tron:ship-ticket` orchestrator. The ticket details were already fetched in Step 1; use `tron:jira` (or `tron:gh`) for any follow-up investigation.
 
 This skill begins the work; it does not finish it. Committing, dev promotion, PR, and prod stay with their own lifecycle skills (`tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`). Hand off once there is something to commit.
-

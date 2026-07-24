@@ -12,6 +12,7 @@
         "tools/jira",
         "tools/md-to-adf",
         "tools/okf",
+        "tools/skill",
         "tools/ticket",
         "tools/lint/run-layer1-tests.sh"
       ],

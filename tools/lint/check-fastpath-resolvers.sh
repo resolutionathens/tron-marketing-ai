@@ -5,9 +5,9 @@
 # skills, the matching agents/*-runner.md — and fails if that doc has lost the
 # CLAUDE_SKILL_DIR -> CLAUDE_PLUGIN_ROOT -> Claude/Codex cache/marketplace/release-store
 # SKILL_DIR fallback (see CLAUDE.md -> Path resolution). Silently dropping the
-# fallback is the exact regression MD-1987 exists to catch; the fallback must
-# use the null-glob-safe find idiom (MD-2320), not the old for-loop over bare
-# globs that aborts under zsh when a candidate root has no match.
+# fallback is the exact regression MD-1987 exists to catch. It may use the
+# shared resolver (MD-2351) or the legacy null-glob-safe find idiom (MD-2320),
+# never the old for-loop over bare globs that aborts under zsh.
 #
 #   bash tools/lint/check-fastpath-resolvers.sh
 set -euo pipefail
@@ -34,7 +34,12 @@ for script in skills/*/scripts/*.sh; do
     grep -qF "scripts/$base" "$doc" || continue
     grep -qE 'find ~/\.claude/plugins/cache ~/\.claude/plugins/marketplaces ~/\.codex/plugins/cache ~/\.codex/plugins/marketplaces' "$doc" || continue
     grep -qF 'tron-os/tron-releases/versions' "$doc" || continue
-    grep -qE -e '-path "\*/skills/\$name"' "$doc" || continue
+    if grep -qF 'tools/skill/resolve-skill-dir.sh' "$doc"; then
+      grep -qF 'CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..' "$doc" || continue
+      grep -qF 'bash "$RESOLVER" "$name"' "$doc" || continue
+    else
+      grep -qE -e '-path "\*/skills/\$name"' "$doc" || continue
+    fi
     found=1
     break
   done
@@ -42,7 +47,7 @@ for script in skills/*/scripts/*.sh; do
   if [ "$found" = 1 ]; then
     echo "OK   $skill ($base)"
   else
-    echo "FAIL $skill ($base) — no SKILL.md or agents/*.md resolves it with the null-glob-safe find SKILL_DIR fallback (Claude/Codex cache/marketplace/release-store)"
+    echo "FAIL $skill ($base) — no SKILL.md or agents/*.md resolves it with the shared or null-glob-safe SKILL_DIR fallback (Claude/Codex cache/marketplace/release-store)"
     fail=1
   fi
 done

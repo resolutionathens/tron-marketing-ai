@@ -102,13 +102,13 @@ the workflow + judgment in SKILL.md.
 
 ## Path resolution (two patterns — don't mix them)
 
-- **A skill's own bundled files** resolve through the robust resolver block (copied verbatim into
-  each script-backed skill). It prefers `$CLAUDE_SKILL_DIR`, falls back to
-  `$CLAUDE_PLUGIN_ROOT/skills/<name>`, then to the newest _installed_ copy that actually contains
-  the script across Claude cache/marketplace, Codex cache/marketplace, and the release store. This
-  boilerplate is **intentional** (`$CLAUDE_SKILL_DIR` isn't always exported under the headless
-  worker) — do not "DRY it up" into a sourced helper; sourcing has the same chicken-and-egg path
-  problem it exists to solve.
+- **A skill's own bundled files** resolve through `tools/skill/resolve-skill-dir.sh`. Launchers use
+  a small guarded `find` bootstrap to locate that helper when `$CLAUDE_PLUGIN_ROOT` is unavailable,
+  then the shared resolver prefers `$CLAUDE_SKILL_DIR`, falls back to
+  `$CLAUDE_PLUGIN_ROOT/skills/<name>`, and finally selects the newest installed copy containing the
+  requested file across Claude cache/marketplace, Codex cache/marketplace, and the release store.
+  Keep the bootstrap block copied verbatim in script-backed skill docs because finding the shared
+  helper is the chicken-and-egg step it cannot perform for itself.
 - **Shared `tools/`** resolve through `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…` so
   they work from any skill regardless of cwd. The ImageKit CLI invocation convention is
   `IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"; node "$IK" …`.
