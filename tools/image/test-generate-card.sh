@@ -20,10 +20,11 @@ FAKE="$(mktemp -d "${TMPDIR:-/tmp}/gencard-test.XXXXXX")"
 trap 'rm -rf "$FAKE"' EXIT
 
 mkdir -p "$FAKE/tools/content" "$FAKE/tools/image" "$FAKE/tools/imagekit" \
-          "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
+          "$FAKE/tools/skill" "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
 
 # Real unit under test for numbering: the shared content-lib primitives.
 cp "$REPO_ROOT/tools/content/content-lib.sh" "$FAKE/tools/content/content-lib.sh"
+cp "$REPO_ROOT/tools/skill/resolve-skill-dir.sh" "$FAKE/tools/skill/resolve-skill-dir.sh"
 
 # Stub to-webp.sh: just copy source → dest.
 cat > "$FAKE/tools/image/to-webp.sh" <<'SH'

@@ -13,8 +13,8 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/fastpath-lint-smoke.XXXXXX")"
 PASS=0
 pass() { echo "  ✓ $*"; PASS=$((PASS + 1)); }
-fail() { echo "  ✗ $*" >&2; rm -rf "$FIXTURE"; exit 1; }
-trap 'rm -rf "$FIXTURE"' EXIT
+fail() { echo "  ✗ $*" >&2; find "$FIXTURE" -depth -delete 2>/dev/null || true; exit 1; }
+trap 'find "$FIXTURE" -depth -delete 2>/dev/null || true' EXIT
 
 echo "check-fastpath-resolvers smoke: fixture=$FIXTURE"
 
@@ -44,14 +44,15 @@ fi
 grep -q "FAIL widget" /tmp/fastpath-smoke-out.$$ || fail "failure output should name the broken skill"
 pass "catches a SKILL.md missing the cache/marketplace fallback"
 
-# --- restoring the fallback line makes it pass again -------------------------
+# --- restoring the shared resolver bootstrap makes it pass again -------------
 cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
 # /widget
 1. Resolve the script path.
    ```bash
    name=widget
-   SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   [ -e "$SKILL_DIR/scripts/widget.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/widget.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+   RESOLVER="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+   [ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+   SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/widget.sh)"
    bash "$SKILL_DIR/scripts/widget.sh"
    ```
 EOF
