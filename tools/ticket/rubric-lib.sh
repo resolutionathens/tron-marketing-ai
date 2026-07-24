@@ -9,7 +9,7 @@
 # same verdict Scout triage reports, so tron:create-ticket and tron:ticket-lint
 # (and, on the SCOUT side, triage) all score a ticket identically. If you change
 # a marker key or the verdict ladder here, change ticket-rubric.md and the SCOUT
-# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 1.
+# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 2.
 
 # --- marker presence ---------------------------------------------------------
 
@@ -62,13 +62,15 @@ rb_present() {
 
 # --- work type ---------------------------------------------------------------
 
-# Echo the normalized Type: value (engineering|design|content), or empty.
+# Echo the normalized Type: value
+# (engineering|design|content|campaign-asset), or empty.
 rb_type() {
-  local v; v="$(rb_marker_value "$1" "Type" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z].*$//')"
+  local v; v="$(rb_marker_value "$1" "Type" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z-].*$//')"
   case "$v" in
     engineering|eng) echo engineering ;;
     design)          echo design ;;
     content)         echo content ;;
+    campaign-asset)  echo campaign-asset ;;
     *)               echo "" ;;
   esac
 }
@@ -80,8 +82,15 @@ rb_section_markers() {
     engineering) echo "Repo|Acceptance criteria|Affected paths" ;;
     design)      echo "Figma|Format|Brand refs|Lands" ;;
     content)     echo "Destination|Format|SEO target|Draft" ;;
+    campaign-asset) echo "Campaign|Asset|Format|Lands" ;;
     *)           echo "" ;;
   esac
+}
+
+# Echo the shared locator marker set for non-git work. Scout triage mirrors this
+# exact vocabulary instead of rediscovering locators from each Type's section.
+rb_locator_markers() {
+  echo "Figma|Lands|Destination|Draft|Campaign"
 }
 
 # --- assessment --------------------------------------------------------------

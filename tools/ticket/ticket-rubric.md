@@ -1,4 +1,4 @@
-# Ticket rubric — the shared spec (rubric-version: 1)
+# Ticket rubric — the shared spec (rubric-version: 2)
 
 The one rubric behind three consumers:
 
@@ -56,7 +56,7 @@ markers below are the contract, the prose around them is for the human.
 | Marker             | Meaning                                                        | Required |
 | ------------------ | ------------------------------------------------------------- | -------- |
 | `Done:`            | One line naming the concrete deliverable (definition of done) | yes      |
-| `Type:`            | `engineering` \| `design` \| `content`                        | yes      |
+| `Type:`            | `engineering` \| `design` \| `content` \| `campaign-asset`    | yes      |
 | `Deliverable type:`| Fine-grained deliverable class (see table below)              | yes      |
 | `Context:`         | Link to the brief / Figma / folder / draft that grounds it    | yes      |
 | `Decision:`        | Due date, sign-off owner, and any hard constraints            | recommended |
@@ -68,6 +68,7 @@ markers below are the contract, the prose around them is for the human.
 | engineering | `pr`, `page`, `bugfix`, `config`, `script`          |
 | design      | `figma`, `image`, `pdf`, `brand-asset`              |
 | content     | `news`, `guide`, `toolkit`, `case-study`, `pdf`     |
+| campaign-asset | `image`, `pdf`, `print`, `merch`, `collateral`   |
 
 ## Work-type sections
 
@@ -100,6 +101,26 @@ what separates "we know what this is" from "we don't."
 | `Format:`     | Article / checklist / SOP / template / PDF                |
 | `SEO target:` | Primary keyword or search intent                          |
 | `Draft:`      | Link to the source draft (Google Doc, Confluence)         |
+
+### campaign-asset
+
+Campaign assets are leaf deliverables in a campaign tree. The parent campaign is first class because
+it often carries more routing meaning than the leaf ticket's prose.
+
+| Marker        | Meaning                                                       |
+| ------------- | ------------------------------------------------------------- |
+| `Campaign:`   | Parent campaign path or Jira key chain                         |
+| `Asset:`      | Concrete leaf asset being produced                             |
+| `Format:`     | File format, dimensions, material, or production specification |
+| `Lands:`      | Folder, vendor handoff, channel, or other delivery destination |
+
+### Locator markers
+
+The shared **locator marker set** is `Figma`, `Lands`, `Destination`, `Draft`, and `Campaign`.
+These markers answer where non-git work lives, where it lands, or what concrete source it points at.
+Triage consumers must use this named set instead of rediscovering locator semantics from each work-type
+section. Its executable form is `rb_locator_markers` in `rubric-lib.sh`. A URL in `Context:` still grounds
+every ticket, but `Context` is part of the spine rather than this work-type locator set.
 
 ## The verdict mapping
 
@@ -160,12 +181,17 @@ Destination: <news | toolkit | guide>
 Format: <article | checklist | SOP | template | PDF>
 SEO target: <primary keyword / intent>
 Draft: <source draft url>
+
+# campaign-asset
+Campaign: <parent campaign path or Jira key chain>
+Asset: <concrete leaf asset>
+Format: <format / dimensions / material>
+Lands: <folder / vendor / channel>
 ```
 
 ## Adding a work type later
 
-Social is deliberately out of scope for now (MD-2105). The spine is designed so a new `Type` slots in
-without reworking it:
+The spine is designed so a new `Type` slots in without reworking it:
 
 1. Add the `Type` value and its `Deliverable type:` values to the tables above and bump `rubric-version`.
 2. Add a work-type section with its required markers.
