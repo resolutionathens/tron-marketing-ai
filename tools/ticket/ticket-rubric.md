@@ -56,7 +56,7 @@ markers below are the contract, the prose around them is for the human.
 | Marker             | Meaning                                                        | Required |
 | ------------------ | ------------------------------------------------------------- | -------- |
 | `Done:`            | One line naming the concrete deliverable (definition of done) | yes      |
-| `Type:`            | `engineering` \| `design` \| `content` \| `campaign-asset`    | yes      |
+| `Type:`            | `engineering` \| `design` \| `content` \| `campaign-asset` \| `cms` | yes |
 | `Deliverable type:`| Fine-grained deliverable class (see table below)              | yes      |
 | `Context:`         | Link to the brief / Figma / folder / draft that grounds it    | yes      |
 | `Decision:`        | Due date, sign-off owner, and any hard constraints            | recommended |
@@ -69,6 +69,7 @@ markers below are the contract, the prose around them is for the human.
 | design      | `figma`, `image`, `pdf`, `brand-asset`              |
 | content     | `news`, `guide`, `toolkit`, `case-study`, `pdf`     |
 | campaign-asset | `image`, `pdf`, `print`, `merch`, `collateral`   |
+| cms         | `page-edit`, `bugfix`, `content-update`              |
 
 ## Work-type sections
 
@@ -114,13 +115,30 @@ it often carries more routing meaning than the leaf ticket's prose.
 | `Format:`     | File format, dimensions, material, or production specification |
 | `Lands:`      | Folder, vendor handoff, channel, or other delivery destination |
 
+### cms
+
+CMS work edits an existing page in a hosted content system. It requires both the authenticated location
+where the change is made and the public or preview location where another person can verify the result.
+
+| Marker        | Meaning                                                        |
+| ------------- | -------------------------------------------------------------- |
+| `CMS:`        | Hosted system that owns the page, such as HubSpot              |
+| `Edit URL:`   | Direct editor URL where the change is made; may be auth-gated   |
+| `Verify URL:` | Public or preview URL where anyone can inspect the affected page |
+
 ### Locator markers
 
-The shared **locator marker set** is `Figma`, `Lands`, `Destination`, `Draft`, and `Campaign`.
-These markers answer where non-git work lives, where it lands, or what concrete source it points at.
-Triage consumers must use this named set instead of rediscovering locator semantics from each work-type
-section. Its executable form is `rb_locator_markers` in `rubric-lib.sh`. A URL in `Context:` still grounds
-every ticket, but `Context` is part of the spine rather than this work-type locator set.
+Locator markers are split by what they guarantee:
+
+- **Resolvable locators:** `Figma`, `Draft`, `Edit URL`, and `Verify URL`. Their values point to something
+  a person or agent other than the ticket author can open and inspect. A downstream locatability fail-safe
+  may be cleared only by one of these markers with a URL value, or by another independently parsed URL.
+- **Placement context:** `Campaign`, `Lands`, and `Destination`. These provide real routing context but do
+  not guarantee an openable source or verification target, so they must never clear a locatability fail-safe.
+
+The executable sets are separately queryable through `rb_resolvable_locator_markers` and
+`rb_placement_context_markers` in `rubric-lib.sh`. A URL in `Context:` still grounds every ticket, but
+`Context` remains part of the spine rather than either work-type set.
 
 ## The verdict mapping
 
@@ -129,8 +147,8 @@ reports. This is the exact ladder `tron:ticket-lint` surfaces as "as written, Sc
 
 | Verdict (canonical string)       | Condition                                                                 |
 | -------------------------------- | ------------------------------------------------------------------------- |
-| `none: needs human direction`    | `Done:` **or** `Deliverable type:` missing (triage can't tell what it is) |
-| `low: needs enrichment`          | Both above present, but another **spine** marker missing (`Type`/`Context`) |
+| `none: needs human direction`    | `Done:` missing, or `Deliverable type:` missing/invalid for the `Type` |
+| `low: needs enrichment`          | Both above valid, but another **spine** marker missing/invalid (`Type`/`Context`) |
 | `medium: routable but thin`      | Full spine present, but one or more of the `Type`'s section markers missing |
 | `high: actionable`               | Full spine **and** every section marker for the `Type` present            |
 
@@ -187,6 +205,11 @@ Campaign: <parent campaign path or Jira key chain>
 Asset: <concrete leaf asset>
 Format: <format / dimensions / material>
 Lands: <folder / vendor / channel>
+
+# cms
+CMS: <hosted CMS name>
+Edit URL: <direct editor URL, may require authentication>
+Verify URL: <public or preview URL>
 ```
 
 ## Adding a work type later

@@ -63,7 +63,7 @@ rb_present() {
 # --- work type ---------------------------------------------------------------
 
 # Echo the normalized Type: value
-# (engineering|design|content|campaign-asset), or empty.
+# (engineering|design|content|campaign-asset|cms), or empty.
 rb_type() {
   local v; v="$(rb_marker_value "$1" "Type" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z-].*$//')"
   case "$v" in
@@ -71,8 +71,38 @@ rb_type() {
     design)          echo design ;;
     content)         echo content ;;
     campaign-asset)  echo campaign-asset ;;
+    cms)             echo cms ;;
     *)               echo "" ;;
   esac
+}
+
+# Echo the pipe-delimited allowed Deliverable type values for a Type.
+rb_deliverable_types() {
+  case "$1" in
+    engineering)    echo "pr|page|bugfix|config|script" ;;
+    design)         echo "figma|image|pdf|brand-asset" ;;
+    content)        echo "news|guide|toolkit|case-study|pdf" ;;
+    campaign-asset) echo "image|pdf|print|merch|collateral" ;;
+    cms)            echo "page-edit|bugfix|content-update" ;;
+    *)              echo "" ;;
+  esac
+}
+
+# Does Deliverable type contain an allowed value for the normalized Type?
+# Matching is case-insensitive but otherwise exact. Returns 0 valid, 1 invalid.
+rb_deliverable_type_valid() {
+  local text="$1" type="$2" value allowed item
+  value="$(rb_marker_value "$text" "Deliverable type" \
+    | tr '[:upper:]' '[:lower:]' \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  rb_value_is_real "$value" || return 1
+  allowed="$(rb_deliverable_types "$type")"
+  [ -n "$allowed" ] || return 1
+  local IFS='|'
+  for item in $allowed; do
+    [ "$value" = "$item" ] && return 0
+  done
+  return 1
 }
 
 # Echo the pipe-delimited required section markers for a Type. Empty for none.
@@ -83,14 +113,21 @@ rb_section_markers() {
     design)      echo "Figma|Format|Brand refs|Lands" ;;
     content)     echo "Destination|Format|SEO target|Draft" ;;
     campaign-asset) echo "Campaign|Asset|Format|Lands" ;;
+    cms)         echo "CMS|Edit URL|Verify URL" ;;
     *)           echo "" ;;
   esac
 }
 
-# Echo the shared locator marker set for non-git work. Scout triage mirrors this
-# exact vocabulary instead of rediscovering locators from each Type's section.
-rb_locator_markers() {
-  echo "Figma|Lands|Destination|Draft|Campaign"
+# Echo markers whose values resolve to openable work or verification targets.
+# Downstream locatability fail-safes may consume this set.
+rb_resolvable_locator_markers() {
+  echo "Figma|Draft|Edit URL|Verify URL"
+}
+
+# Echo placement-only context. These markers route work but do not guarantee
+# anything openable, so they must not clear a locatability fail-safe.
+rb_placement_context_markers() {
+  echo "Campaign|Lands|Destination"
 }
 
 # --- assessment --------------------------------------------------------------
@@ -102,12 +139,17 @@ rb_locator_markers() {
 # Args: <text> [<prefix_ok>]  — prefix_ok=1 means the summary carries a valid
 # PREFIX:, which satisfies engineering's Repo requirement on its own.
 rb_missing() {
-  local text="$1" prefix_ok="${2:-0}" k type
-  for k in Done "Deliverable type" Type Context; do
-    rb_present "$text" "$k" || printf 'spine:%s\n' "$k"
-  done
-  rb_present "$text" Decision || printf 'rec:%s\n' Decision
+  local text="$1" prefix_ok="${2:-0}" type
+  rb_present "$text" Done || printf 'spine:Done\n'
+  rb_present "$text" Context || printf 'spine:Context\n'
   type="$(rb_type "$text")"
+  if rb_present "$text" Type && [ -n "$type" ]; then
+    rb_deliverable_type_valid "$text" "$type" || printf 'spine:Deliverable type\n'
+  else
+    printf 'spine:Type\n'
+    rb_present "$text" "Deliverable type" || printf 'spine:Deliverable type\n'
+  fi
+  rb_present "$text" Decision || printf 'rec:%s\n' Decision
   if [ -n "$type" ]; then
     local IFS='|' ms m
     read -ra ms <<< "$(rb_section_markers "$type")"

@@ -13,7 +13,7 @@ practical and implementation-ready.
 
 ```
 Done: <one-line concrete deliverable>
-Type: engineering | design | content
+Type: engineering | design | content | campaign-asset | cms
 Deliverable type: <value from the rubric's table for this Type>
 Context: <link to the brief / Figma / folder / draft that grounds it>
 Decision: <due date, sign-off owner, hard constraints — if known>

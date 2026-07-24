@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Step 4 — Self-check against the rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for the work type (engineering, design, or content), stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
+description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for engineering, design, content, campaign-asset, or hosted-CMS work, stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
 allowed-tools:
   - Bash
   - Read
@@ -57,12 +57,13 @@ is fine and honest; a ticket padded with `<placeholder>` values is not.
 
 ### 1. Pick the work type and target
 
-Determine `Type` = `engineering` | `design` | `content` from what the user is filing. Then:
+Determine the canonical `Type` from the shared rubric. Do not keep a separate type list here. Then:
 
 - **engineering** — which repo does the work land in? Map it to a summary `PREFIX:` from
   [tools/jira/conventions.md](../../tools/jira/conventions.md) (`TRON-PLUGIN`, `SCOUT`, `PAGES`, `LLLP`,
   `MABE`, `SUPPORT`, `UI`). If the repo is not clear, ask; do not guess a prefix.
-- **design / content** — no summary prefix; the `Deliverable type:` marker carries the routing.
+- **design / content / campaign-asset / cms** — no summary prefix; the `Deliverable type:` marker
+  carries the routing.
 
 Also settle the `Deliverable type:` (the fine-grained class) from the allowed values for that `Type` in
 the rubric.
@@ -77,6 +78,8 @@ Walk the fields for the chosen `Type`, one at a time, in plain conversation. Col
   - engineering: `Repo`, `Affected paths`, `Acceptance criteria` (2+ checkable bullets).
   - design: `Figma`, `Format`, `Brand refs`, `Lands`.
   - content: `Destination`, `Format`, `SEO target`, `Draft`.
+  - campaign-asset: `Campaign`, `Asset`, `Format`, `Lands`.
+  - cms: `CMS`, `Edit URL`, `Verify URL`.
 
 Reject placeholders. If the user gives a source link, fetch it (Figma/Doc/Confluence) and use its real
 detail to fill `Context` and the section markers.
@@ -84,7 +87,7 @@ detail to fill `Context` and the section markers.
 ### 3. Assemble the ticket
 
 **Summary:** `PREFIX: short imperative description` for engineering; a plain imperative summary for
-design/content.
+all non-engineering types.
 
 **Description:** the machine header (a fenced code block holding every marker) first, then the human prose.
 The fenced block is required, not cosmetic: `acli` stores descriptions as ADF and md-to-adf collapses
