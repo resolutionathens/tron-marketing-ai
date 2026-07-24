@@ -5,12 +5,11 @@
 # optional tools and SKIPs when they're absent — so this runs green on a clean
 # checkout with only the cheap tool deps installed.
 #
-# This is the same suite a developer runs locally; CI (.github/workflows/ci.yml)
-# invokes it on macos-latest. We run on macOS/Apple Silicon *on purpose*: it is
-# the plugin's only real target, its /bin/bash is 3.2 and its coreutils are BSD,
-# so this natively catches the bash-3.2 empty-array-expansion bugs (CCAL-2091/
-# CCAL-2092) and BSD/GNU coreutils divergence (base64, stat) that an
-# ubuntu-latest runner would silently mask.
+# tron:git-pr runs this suite locally before pushing or creating a PR. Running
+# on the developer's macOS/Apple Silicon host is intentional: it is the plugin's
+# only real target, its /bin/bash is 3.2 and its coreutils are BSD, so this catches
+# the bash-3.2 empty-array-expansion bugs (CCAL-2091/CCAL-2092) and BSD/GNU
+# coreutils divergence (base64, stat) that an Ubuntu runner would silently mask.
 #
 #   bash tools/lint/run-layer1-tests.sh
 set -uo pipefail

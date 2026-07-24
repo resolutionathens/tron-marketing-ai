@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [master]
   pull_request:
 
 jobs:
@@ -33,43 +31,10 @@ jobs:
       - name: Install plugin CLIs and cleanup dependency
         run: |
           npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
-          brew install trash
+          brew install trash ripgrep
       - name: Validate native Claude and Codex package installations
         run: bash tools/lint/check-plugin-package.sh
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
-
-  role-packages:
-    name: Role package ownership and dependency closure
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: brew install trash ripgrep
-      - run: bash tools/package/test-build-packages.sh
-
-  layer-1-tests:
-    name: Layer-1 test-*.sh suite (macOS / Apple Silicon)
-    # Runs on macos-latest ON PURPOSE. The tron plugin only ever ships to
-    # Apple-Silicon macOS, and GitHub's macos-latest runners are arm64 with
-    # /bin/bash 3.2 + BSD coreutils — the same runtime the plugin's users have.
-    # That is what makes this suite catch the bugs the earlier CI scope (MD-1987)
-    # deferred: the bash-3.2 empty-array-expansion crashes (CCAL-2091/CCAL-2092)
-    # and BSD/GNU coreutils divergence (base64, stat). An ubuntu-latest runner
-    # would silently pass over both.
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      # Cheap tool deps so the hermetic tests actually run instead of skipping
-      # (e.g. optimize-images needs ImageMagick/pngquant/cwebp to build its
-      # fixture and exercise the bash-3.2 CCAL-2092 guard). Tests for tools we
-      # do not install here (vale, lychee, unlighthouse, gh, acli, …) SKIP.
-      - name: Install test tool dependencies
-        run: brew install jq imagemagick pngquant webp jpegoptim
-      - name: Run the layer-1 test-*.sh suite
-        run: bash tools/lint/run-layer1-tests.sh
+      - name: Validate role package ownership and dependency closure
+        run: bash tools/package/test-build-packages.sh

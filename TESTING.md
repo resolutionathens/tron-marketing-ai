@@ -33,7 +33,8 @@ Run every script test at once:
 bash tools/lint/run-layer1-tests.sh   # every test-*.sh under skills/ and tools/
 ```
 
-This is the same suite CI runs (see below); the equivalent hand-rolled loop is:
+This is the suite `tron:git-pr` runs locally before it pushes or creates a PR. The equivalent
+hand-rolled loop is:
 
 ```bash
 for t in $(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort); do
@@ -42,13 +43,13 @@ for t in $(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | s
 done
 ```
 
-### Layer-1 suite in CI (macOS / Apple Silicon)
+### Layer-1 pre-PR gate (macOS / Apple Silicon)
 
-`.github/workflows/ci.yml` runs the whole layer-1 suite via `run-layer1-tests.sh`
-on **`macos-latest`**, not `ubuntu-latest`. That is deliberate: the plugin only ever
-runs on Apple-Silicon macOS, and the macOS runner ships `/bin/bash` 3.2 with BSD
-coreutils — the same runtime our users have. Running there is what catches the two
-bug classes an ubuntu runner masks and MD-1987 had to defer:
+`tron:git-pr` runs the whole layer-1 suite via `run-layer1-tests.sh` on the developer's
+Mac before any branch push or PR creation. Layer 1 deliberately does not run in GitHub
+Actions: the plugin only ships to Apple-Silicon macOS, so testing on the development host
+provides the real `/bin/bash` 3.2 and BSD-coreutils runtime without a billed hosted macOS
+job. That runtime catches the two bug classes an Ubuntu runner masks:
 
 - **bash-3.2 empty-array expansion** (`"${arr[@]}"` under `set -u` throws on bash < 4.4).
   The CCAL-2091/CCAL-2092 regressions only reproduce under the 3.2 that macOS ships.
@@ -56,7 +57,7 @@ bug classes an ubuntu runner masks and MD-1987 had to defer:
   on BSD; `stat` uses `-f '%Lp'` not `-c '%a'`. Write test helpers to work on both.
 
 So when you add a `test-*.sh`, keep it portable across BSD/GNU or `command -v`-guard the
-divergent tool and SKIP — a test that quietly assumes GNU flags will go red on this job.
+divergent tool and SKIP. A test that quietly assumes GNU flags will fail the local pre-PR gate.
 
 The shared `tools/` have their own smoke tests — run them after touching shared tooling:
 
