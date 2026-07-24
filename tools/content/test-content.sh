@@ -52,6 +52,14 @@ mkdir -p "$ROOT/pages/product/works" "$ROOT/pages/resources/news"
 ct_resolve_page /product/scheduling-and-reservations "$ROOT" >/dev/null 2>&1 && fail "missing route should not resolve"
 pass "ct_resolve_page → foo.vue, foo/index.vue, and [...slug].vue catch-all"
 
+# --- Nuxt 4 srcDir layout: app/pages/ takes precedence over pages/ ----------
+# Nested under $ROOT so the EXIT trap always cleans it up, even on fail().
+ROOT4="$ROOT/nuxt4"
+mkdir -p "$ROOT4/app/pages/product/works"
+: > "$ROOT4/app/pages/product/works/index.vue"
+[[ -n "$(ct_resolve_page /product/works "$ROOT4")" ]] || fail "should resolve app/pages/ route (Nuxt 4 srcDir)"
+pass "ct_resolve_page → checks app/pages/ first for Nuxt 4 repos"
+
 O="$(bash "$SCRIPT" check-link /product/works --repo "$ROOT")"; echo "  → $O"
 has "$O" '"exists":true' "check-link known route exists"
 has "$O" 'product/works/index.vue' "check-link reports the resolved file"
