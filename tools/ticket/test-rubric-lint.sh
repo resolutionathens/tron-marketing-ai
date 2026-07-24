@@ -38,7 +38,7 @@ pass "rb_marker_present treats TBD/placeholder as absent"
 
 # case-insensitive key + <bracketed> placeholder
 CI='done: lower key still counts
-type: <engineering | design | content>'
+type: <engineering | design | content | campaign-asset | cms>'
 rb_marker_present "$CI" Done || fail "case-insensitive Done key"
 rb_marker_present "$CI" Type && fail "<bracketed> template stub should read as absent"
 pass "keys match case-insensitively; <bracketed> stubs read as absent"
@@ -56,8 +56,22 @@ pass "rb_value_is_real rejects blanks/placeholders, accepts real values"
 [[ "$(rb_type 'Type: Engineering')" == engineering ]] || fail "Type: Engineering → engineering"
 [[ "$(rb_type 'Type: content')"     == content ]]     || fail "Type: content → content"
 [[ "$(rb_type 'Type: design work')" == design ]]      || fail "Type: 'design work' → design"
+[[ "$(rb_type 'Type: campaign-asset')" == campaign-asset ]] \
+  || fail "Type: campaign-asset → campaign-asset"
+[[ "$(rb_type 'Type: cms edit')" == cms ]] || fail "Type: 'cms edit' → cms"
 [[ "$(rb_type 'Type: marketing')"   == "" ]]          || fail "unknown type → empty"
-pass "rb_type normalizes to engineering|design|content, empty for unknown"
+pass "rb_type normalizes every rubric work type, empty for unknown"
+
+# --- deliverable values + shared locator vocabulary --------------------------
+[[ "$(rb_deliverable_types campaign-asset)" == "image|pdf|print|merch|collateral" ]] \
+  || fail "campaign-asset deliverable values drifted"
+[[ "$(rb_deliverable_types cms)" == "page-edit|bugfix|content-update" ]] \
+  || fail "cms deliverable values drifted"
+[[ "$(rb_resolvable_locator_markers)" == "Figma|Draft|Edit URL|Verify URL" ]] \
+  || fail "resolvable locator marker set drifted"
+[[ "$(rb_placement_context_markers)" == "Campaign|Lands|Destination" ]] \
+  || fail "placement context marker set drifted"
+pass "deliverables and locator classes are explicit and deterministic"
 
 # --- verdict ladder ----------------------------------------------------------
 [[ "$(rb_verdict 'random prose with no markers')" == "none: needs human direction" ]] \
@@ -125,6 +139,65 @@ Brand refs: tron- palette
 Lands: /product/ticketing hero'
 [[ "$(rb_verdict "$DES")" == "high: actionable" ]] || fail "full design ticket → high"
 pass "full content and design tickets → high"
+
+# --- full campaign asset ticket → high; missing campaign → medium ------------
+CAMPAIGN='Done: Produce the pillow design for the welcome kit
+Type: campaign-asset
+Deliverable type: print
+Context: https://facilitron.atlassian.net/browse/MCR-394
+Campaign: FU6 Welcome Kit > Pillows (MCR-393)
+Asset: Pillow Design
+Format: print-ready PDF
+Lands: campaign production folder'
+[[ "$(rb_verdict "$CAMPAIGN")" == "high: actionable" ]] \
+  || fail "full campaign-asset ticket → high (got: $(rb_verdict "$CAMPAIGN"))"
+
+CAMPAIGN_NO_LOCATOR='Done: Produce the pillow design for the welcome kit
+Type: campaign-asset
+Deliverable type: print
+Context: https://facilitron.atlassian.net/browse/MCR-394
+Asset: Pillow Design
+Format: print-ready PDF
+Lands: campaign production folder'
+[[ "$(rb_verdict "$CAMPAIGN_NO_LOCATOR")" == "medium: routable but thin" ]] \
+  || fail "campaign-asset without Campaign hierarchy → medium"
+[[ "$(rb_missing "$CAMPAIGN_NO_LOCATOR")" == *"section:Campaign"* ]] \
+  || fail "campaign-asset without hierarchy flags Campaign"
+pass "campaign-asset requires its campaign locator and other section markers"
+
+CAMPAIGN_BAD_DELIVERABLE="${CAMPAIGN/Deliverable type: print/Deliverable type: zzz-not-real}"
+[[ "$(rb_verdict "$CAMPAIGN_BAD_DELIVERABLE")" == "none: needs human direction" ]] \
+  || fail "invalid campaign-asset deliverable → none"
+[[ "$(rb_missing "$CAMPAIGN_BAD_DELIVERABLE")" == *"spine:Deliverable type"* ]] \
+  || fail "invalid deliverable is reported as a spine gap"
+rb_deliverable_type_valid "$CAMPAIGN" campaign-asset \
+  || fail "valid campaign-asset deliverable rejected"
+rb_deliverable_type_valid "$CAMPAIGN_BAD_DELIVERABLE" campaign-asset \
+  && fail "invalid campaign-asset deliverable accepted"
+pass "Deliverable type must match the selected Type's value table"
+
+# --- hosted CMS edit requires edit + verify locations ------------------------
+CMS='Done: Fix the Stewardship Awards page layout
+Type: cms
+Deliverable type: bugfix
+Context: https://facilitron.atlassian.net/browse/MCR-414
+CMS: HubSpot
+Edit URL: https://app.hubspot.com/pages/46442771/editor/216811382540/content
+Verify URL: https://info.facilitron.com/stewardship-awards-2026?hs_preview=eQbTwLgt-216811382540'
+[[ "$(rb_verdict "$CMS")" == "high: actionable" ]] \
+  || fail "full cms ticket → high (got: $(rb_verdict "$CMS"))"
+
+CMS_NO_VERIFY='Done: Fix the Stewardship Awards page layout
+Type: cms
+Deliverable type: bugfix
+Context: https://facilitron.atlassian.net/browse/MCR-414
+CMS: HubSpot
+Edit URL: https://app.hubspot.com/pages/46442771/editor/216811382540/content'
+[[ "$(rb_verdict "$CMS_NO_VERIFY")" == "medium: routable but thin" ]] \
+  || fail "cms ticket without Verify URL → medium"
+[[ "$(rb_missing "$CMS_NO_VERIFY")" == *"section:Verify URL"* ]] \
+  || fail "cms ticket without public verification flags Verify URL"
+pass "cms work requires separately openable edit and verification locations"
 
 # --- CLI (--file / stdin, JSON) ---------------------------------------------
 command -v jq >/dev/null || { echo "  (skipping CLI JSON checks — jq not on PATH)"; echo "rubric smoke: $PASS checks passed"; exit 0; }

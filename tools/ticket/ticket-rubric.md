@@ -1,4 +1,4 @@
-# Ticket rubric — the shared spec (rubric-version: 1)
+# Ticket rubric — the shared spec (rubric-version: 2)
 
 The one rubric behind three consumers:
 
@@ -56,7 +56,7 @@ markers below are the contract, the prose around them is for the human.
 | Marker             | Meaning                                                        | Required |
 | ------------------ | ------------------------------------------------------------- | -------- |
 | `Done:`            | One line naming the concrete deliverable (definition of done) | yes      |
-| `Type:`            | `engineering` \| `design` \| `content`                        | yes      |
+| `Type:`            | `engineering` \| `design` \| `content` \| `campaign-asset` \| `cms` | yes |
 | `Deliverable type:`| Fine-grained deliverable class (see table below)              | yes      |
 | `Context:`         | Link to the brief / Figma / folder / draft that grounds it    | yes      |
 | `Decision:`        | Due date, sign-off owner, and any hard constraints            | recommended |
@@ -68,6 +68,8 @@ markers below are the contract, the prose around them is for the human.
 | engineering | `pr`, `page`, `bugfix`, `config`, `script`          |
 | design      | `figma`, `image`, `pdf`, `brand-asset`              |
 | content     | `news`, `guide`, `toolkit`, `case-study`, `pdf`     |
+| campaign-asset | `image`, `pdf`, `print`, `merch`, `collateral`   |
+| cms         | `page-edit`, `bugfix`, `content-update`              |
 
 ## Work-type sections
 
@@ -101,6 +103,43 @@ what separates "we know what this is" from "we don't."
 | `SEO target:` | Primary keyword or search intent                          |
 | `Draft:`      | Link to the source draft (Google Doc, Confluence)         |
 
+### campaign-asset
+
+Campaign assets are leaf deliverables in a campaign tree. The parent campaign is first class because
+it often carries more routing meaning than the leaf ticket's prose.
+
+| Marker        | Meaning                                                       |
+| ------------- | ------------------------------------------------------------- |
+| `Campaign:`   | Parent campaign path or Jira key chain                         |
+| `Asset:`      | Concrete leaf asset being produced                             |
+| `Format:`     | File format, dimensions, material, or production specification |
+| `Lands:`      | Folder, vendor handoff, channel, or other delivery destination |
+
+### cms
+
+CMS work edits an existing page in a hosted content system. It requires both the authenticated location
+where the change is made and the public or preview location where another person can verify the result.
+
+| Marker        | Meaning                                                        |
+| ------------- | -------------------------------------------------------------- |
+| `CMS:`        | Hosted system that owns the page, such as HubSpot              |
+| `Edit URL:`   | Direct editor URL where the change is made; may be auth-gated   |
+| `Verify URL:` | Public or preview URL where anyone can inspect the affected page |
+
+### Locator markers
+
+Locator markers are split by what they guarantee:
+
+- **Resolvable locators:** `Figma`, `Draft`, `Edit URL`, and `Verify URL`. Their values point to something
+  a person or agent other than the ticket author can open and inspect. A downstream locatability fail-safe
+  may be cleared only by one of these markers with a URL value, or by another independently parsed URL.
+- **Placement context:** `Campaign`, `Lands`, and `Destination`. These provide real routing context but do
+  not guarantee an openable source or verification target, so they must never clear a locatability fail-safe.
+
+The executable sets are separately queryable through `rb_resolvable_locator_markers` and
+`rb_placement_context_markers` in `rubric-lib.sh`. A URL in `Context:` still grounds every ticket, but
+`Context` remains part of the spine rather than either work-type set.
+
 ## The verdict mapping
 
 `rubric-lib.sh` computes the verdict deterministically from marker presence; it mirrors what Scout triage
@@ -108,8 +147,8 @@ reports. This is the exact ladder `tron:ticket-lint` surfaces as "as written, Sc
 
 | Verdict (canonical string)       | Condition                                                                 |
 | -------------------------------- | ------------------------------------------------------------------------- |
-| `none: needs human direction`    | `Done:` **or** `Deliverable type:` missing (triage can't tell what it is) |
-| `low: needs enrichment`          | Both above present, but another **spine** marker missing (`Type`/`Context`) |
+| `none: needs human direction`    | `Done:` missing, or `Deliverable type:` missing/invalid for the `Type` |
+| `low: needs enrichment`          | Both above valid, but another **spine** marker missing/invalid (`Type`/`Context`) |
 | `medium: routable but thin`      | Full spine present, but one or more of the `Type`'s section markers missing |
 | `high: actionable`               | Full spine **and** every section marker for the `Type` present            |
 
@@ -160,12 +199,22 @@ Destination: <news | toolkit | guide>
 Format: <article | checklist | SOP | template | PDF>
 SEO target: <primary keyword / intent>
 Draft: <source draft url>
+
+# campaign-asset
+Campaign: <parent campaign path or Jira key chain>
+Asset: <concrete leaf asset>
+Format: <format / dimensions / material>
+Lands: <folder / vendor / channel>
+
+# cms
+CMS: <hosted CMS name>
+Edit URL: <direct editor URL, may require authentication>
+Verify URL: <public or preview URL>
 ```
 
 ## Adding a work type later
 
-Social is deliberately out of scope for now (MD-2105). The spine is designed so a new `Type` slots in
-without reworking it:
+The spine is designed so a new `Type` slots in without reworking it:
 
 1. Add the `Type` value and its `Deliverable type:` values to the tables above and bump `rubric-version`.
 2. Add a work-type section with its required markers.

@@ -25,7 +25,7 @@ Discover the real context behind a thin Jira ticket. This skill reads the ticket
 ## When to use
 
 - A ticket has a thin or empty description and you need to find the source material
-- You need to know what work type (engineering/design/content) a ticket is
+- You need to know which work type from the shared ticket rubric applies
 - You need to discover linked Figma files, Confluence pages, Google Docs, or GitHub references
 - You want to check whether a content/landing page already exists before enriching
 
@@ -36,7 +36,7 @@ Returns structured metadata as JSON:
 {
   "key": "MD-1234",
   "summary": "...",
-  "workType": "engineering|design|content",
+  "workType": "engineering|design|content|campaign-asset|cms",
   "sources": [
     {"type": "figma|confluence|google-doc|github|...", "url": "...", "note": "..."}
   ],
@@ -85,6 +85,12 @@ Infer from the summary, source, and user context. Common Facilitron patterns:
 - Blog, cluster article, or news item → content (news)
 - Guide or pillar → content (guide)
 - `Checklist:` / `SOP:` / `Template:` with `/resources/toolkit` → content (toolkit)
+- A leaf asset under a campaign hierarchy → campaign-asset
+- Editing an existing page in HubSpot or another hosted CMS → cms
+
+Return one of the canonical `Type` values defined in
+[`tools/ticket/ticket-rubric.md`](../../tools/ticket/ticket-rubric.md); do not maintain a separate
+work-type vocabulary in this skill.
 
 When the user states the repo or destination type, trust that over inference.
 
