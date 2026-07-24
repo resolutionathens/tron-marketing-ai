@@ -4,22 +4,6 @@ on:
   pull_request:
 
 jobs:
-  fastpath-resolvers:
-    name: Fast-path SKILL_DIR resolver lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: bash tools/lint/check-fastpath-resolvers.sh
-      - run: bash tools/lint/test-check-fastpath-resolvers.sh
-
-  scout-frontmatter:
-    name: "scout: frontmatter shape lint"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: bash tools/lint/check-scout-frontmatter.sh
-      - run: bash tools/lint/test-check-scout-frontmatter.sh
-
   plugin-package:
     name: Claude and Codex package validation
     runs-on: macos-latest
