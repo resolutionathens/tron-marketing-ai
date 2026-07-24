@@ -46,6 +46,17 @@ for shell in /bin/bash /bin/zsh; do
   pass "$shell resolves the newest cache with an unmatched marketplace"
 done
 
+# A root name must never outrank the semantic version. This reproduces the
+# cross-root bug where sorting complete paths could choose an older install.
+seed "$MARKETPLACE/0.35.3/skills"
+for shell in /bin/bash /bin/zsh; do
+  [[ -x "$shell" ]] || continue
+  got="$(run_in "$shell")"
+  want="$FIX/$CACHE/0.35.10/skills/$NAME"
+  [[ "$got" == "$want" ]] || fail "$shell cross-root: expected $want, got $got"
+  pass "$shell selects the newest semantic version across different roots"
+done
+
 find "$FIX/.claude/plugins/cache" -depth -delete
 seed "$MARKETPLACE/0.36.0/skills"
 for shell in /bin/bash /bin/zsh; do

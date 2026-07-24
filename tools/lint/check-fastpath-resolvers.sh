@@ -35,6 +35,7 @@ for script in skills/*/scripts/*.sh; do
     grep -qE 'find ~/\.claude/plugins/cache ~/\.claude/plugins/marketplaces ~/\.codex/plugins/cache ~/\.codex/plugins/marketplaces' "$doc" || continue
     grep -qF 'tron-os/tron-releases/versions' "$doc" || continue
     if grep -qF 'tools/skill/resolve-skill-dir.sh' "$doc"; then
+      grep -qF 'CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..' "$doc" || continue
       grep -qF 'bash "$RESOLVER" "$name"' "$doc" || continue
     else
       grep -qE -e '-path "\*/skills/\$name"' "$doc" || continue

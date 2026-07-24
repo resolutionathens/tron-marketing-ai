@@ -50,7 +50,8 @@ cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
 1. Resolve the script path.
    ```bash
    name=widget
-   RESOLVER="${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+   RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
    [ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
    SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/widget.sh)"
    bash "$SKILL_DIR/scripts/widget.sh"

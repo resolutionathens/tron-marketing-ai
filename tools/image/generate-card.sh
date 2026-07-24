@@ -32,7 +32,10 @@ source "$PLUGIN_ROOT/tools/content/content-lib.sh"
 
 # Locate gen-image.sh through the same resolver used by lifecycle launchers.
 RESOLVER="$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh"
-GENIMG_SKILL_DIR="$(bash "$RESOLVER" gen-image scripts/gen-image.sh)"
+if ! GENIMG_SKILL_DIR="$(bash "$RESOLVER" gen-image scripts/gen-image.sh 2>/dev/null)"; then
+  printf '{"ok":false,"error":"gen-image skill could not be resolved; run /plugin update"}\n' >&2
+  exit 1
+fi
 
 # ── parse args ──────────────────────────────────────────────────────────────
 FOLDER=""

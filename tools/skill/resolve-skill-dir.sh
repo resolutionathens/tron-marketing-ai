@@ -30,7 +30,21 @@ fi
 candidate="$(
   find "$claude_cache" "$claude_marketplaces" "$codex_cache" "$codex_marketplaces" \
     "$release_store" -maxdepth 7 -type f -path "*/skills/$name/$probe" 2>/dev/null \
-    | sed "s#/$probe\$##" | sort -V | tail -1 || true
+    | while IFS= read -r file; do
+        skill_dir="${file%"/$probe"}"
+        version="$(printf '%s\n' "$skill_dir" | tr '/' '\n' \
+          | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | tail -1)"
+        version="${version:-0.0.0}"
+        rank=1
+        if [[ "$skill_dir" == "$claude_cache/"* || "$skill_dir" == "$codex_cache/"* ]]; then
+          rank=2
+        fi
+        if [[ "$skill_dir" == "$claude_marketplaces/"* || "$skill_dir" == "$codex_marketplaces/"* ]]; then
+          rank=3
+        fi
+        printf '%s\t%s\t%s\n' "$version" "$rank" "$skill_dir"
+      done \
+    | sort -t $'\t' -k1,1V -k2,2n -k3,3 | tail -1 | cut -f3- || true
 )"
 if [[ -n "$candidate" ]]; then
   printf '%s\n' "$candidate"
