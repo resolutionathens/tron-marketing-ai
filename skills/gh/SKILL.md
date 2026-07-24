@@ -24,7 +24,7 @@ When a GitHub issue/PR reference appears (`#42`, `owner/repo#42`, full URL), fet
 ```bash
 name=gh
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/gh.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/gh.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/gh.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/gh.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 [ -e "$SKILL_DIR/scripts/gh.sh" ] || { echo "tron:$name: scripts/gh.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/gh.sh" <subcommand> [flags]
 ```

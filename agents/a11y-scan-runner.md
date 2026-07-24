@@ -24,7 +24,7 @@ name=a11y-scan
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
 # fall back to the newest INSTALLED copy that actually contains scripts/a11y-scan.sh
 # (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
-[ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/a11y-scan.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/a11y-scan.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || { echo "tron:$name: can't find scripts/a11y-scan.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 
 # Run it. It prints the absolute path to the JSON results file on stdout.

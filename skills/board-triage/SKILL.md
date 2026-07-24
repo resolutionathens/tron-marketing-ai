@@ -40,7 +40,7 @@ lenses below as pre-digested JSON, so you never read raw per-ticket JSON:
 ```bash
 name=board-triage
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/board-triage.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/board-triage.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 [ -e "$SKILL_DIR/scripts/board-triage.sh" ] || { echo "tron:$name: scripts/board-triage.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/board-triage.sh" fetch                    # MCR, --limit 500, 14-day staleness
 bash "$SKILL_DIR/scripts/board-triage.sh" fetch --project ABC --stale-days 7

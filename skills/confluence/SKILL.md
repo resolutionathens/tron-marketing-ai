@@ -24,7 +24,7 @@ Fetch Confluence page content. Always use `acli` for reading — it carries work
 ```bash
 name=confluence
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/confluence.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/confluence.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/confluence.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/confluence.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 [ -e "$SKILL_DIR/scripts/confluence.sh" ] || { echo "tron:$name: scripts/confluence.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 
 bash "$SKILL_DIR/scripts/confluence.sh" resolve <url-or-id>   # → {"ok":true,"pageId":"…","source":"raw|url|tiny"}

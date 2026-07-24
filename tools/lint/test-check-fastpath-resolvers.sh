@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke for check-fastpath-resolvers.sh: confirms it passes on the real repo,
 # and — the actual regression test — confirms it FAILS a synthetic skill
-# whose SKILL.md is missing the cache/marketplace SKILL_DIR fallback, and
+# whose SKILL.md is missing the Claude/Codex cache/marketplace SKILL_DIR fallback, and
 # passes again once the fallback is restored.
 #
 #   bash tools/lint/test-check-fastpath-resolvers.sh
@@ -51,7 +51,7 @@ cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
    ```bash
    name=widget
    SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   [ -e "$SKILL_DIR/scripts/widget.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/widget.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+   [ -e "$SKILL_DIR/scripts/widget.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/widget.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
    bash "$SKILL_DIR/scripts/widget.sh"
    ```
 EOF

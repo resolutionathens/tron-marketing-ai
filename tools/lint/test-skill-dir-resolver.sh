@@ -11,7 +11,7 @@
 # This test extracts the REAL resolver line shipped in skills/start-ticket/
 # SKILL.md (so it can't silently drift from what ships) and runs it under BOTH
 # /bin/bash and /bin/zsh against a fixture that reproduces today's reality:
-#   - the plugin cache has several versions of the skill
+#   - the Claude and Codex plugin caches have several versions of the skill
 #   - the marketplaces root exists but has NO matching skill (the abort trigger)
 #   - the release store holds an older copy
 # It asserts the snippet resolves without aborting, picks the highest version
@@ -45,6 +45,8 @@ case "$RESOLVER_LINE" in
 esac
 printf '%s' "$RESOLVER_LINE" | grep -qF 'tron-os/tron-releases/versions' \
   || fail "resolver line is missing the release-store candidate root"
+printf '%s' "$RESOLVER_LINE" | grep -qF '~/.codex/plugins/cache' \
+  || fail "resolver line is missing the Codex cache candidate root"
 printf '%s' "$RESOLVER_LINE" | grep -qF '|| true' \
   || fail "resolver line dropped the '|| true' guard — find's non-zero on a missing root will abort under set -e"
 pass "extracted the shipped find-based resolver line"
@@ -79,6 +81,7 @@ run_in() { # run_in <shell> -> prints resolved SKILL_DIR (relative to $FIX)
 }
 
 CACHE=".claude/plugins/cache/tron/tron-engineer"
+CODEX_CACHE=".codex/plugins/cache/tron/tron-engineer"
 MKT=".claude/plugins/marketplaces"
 STORE="Library/Application Support/tron-os/tron-releases/versions"
 
@@ -108,6 +111,19 @@ for sh in /bin/bash /bin/zsh; do
   got="$(run_in "$sh")"
   [ "$got" = "$want2" ] || fail "$sh: expected release-store fallback $want2, got '$got'"
   pass "$sh: falls back to the release store when the cache is absent"
+done
+
+# ── Scenario 3: Codex has its own cache path. A dispatched Codex worker may
+# have neither CLAUDE_SKILL_DIR nor CLAUDE_PLUGIN_ROOT, so this must work even
+# after the Claude cache and release store are unavailable. ───────────────────
+rm -rf "$FIX/Library"
+seed "$CODEX_CACHE/0.36.1/skills"
+want3="$FIX/$CODEX_CACHE/0.36.1/skills/$NAME"
+for sh in /bin/bash /bin/zsh; do
+  [ -x "$sh" ] || continue
+  got="$(run_in "$sh")"
+  [ "$got" = "$want3" ] || fail "$sh: expected Codex cache fallback $want3, got '$got'"
+  pass "$sh: falls back to the Codex cache when Claude and release-store copies are absent"
 done
 
 echo "skill-dir-resolver regression: $PASS passed"
