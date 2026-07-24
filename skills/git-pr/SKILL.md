@@ -43,6 +43,19 @@ git status --porcelain
 
 Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git-commit`.
 
+## Step 1b: Run the Layer-1 suite locally
+
+Run the complete deterministic-script suite on the developer's Mac before pushing or creating
+the PR:
+
+```bash
+bash tools/lint/run-layer1-tests.sh
+```
+
+Stop if any test fails. Do not create the PR until the failure is fixed and the suite passes.
+This local macOS gate is intentional: it exercises the plugin's real Bash 3.2 and BSD-coreutils
+runtime without paying for a GitHub-hosted macOS runner on every PR and `master` push.
+
 ## Step 2: Push branch
 
 Check tracking: `git status -sb`. Resolve the branch name once, independent of the shell's cwd

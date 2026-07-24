@@ -12,7 +12,8 @@
         "tools/jira",
         "tools/md-to-adf",
         "tools/okf",
-        "tools/ticket"
+        "tools/ticket",
+        "tools/lint/run-layer1-tests.sh"
       ],
       "skills": [
         "confluence",
