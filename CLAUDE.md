@@ -105,9 +105,10 @@ the workflow + judgment in SKILL.md.
 - **A skill's own bundled files** resolve through the robust resolver block (copied verbatim into
   each script-backed skill). It prefers `$CLAUDE_SKILL_DIR`, falls back to
   `$CLAUDE_PLUGIN_ROOT/skills/<name>`, then to the newest _installed_ copy that actually contains
-  the script. This boilerplate is **intentional** (`$CLAUDE_SKILL_DIR` isn't always exported under
-  the headless worker) — do not "DRY it up" into a sourced helper; sourcing has the same
-  chicken-and-egg path problem it exists to solve.
+  the script across Claude cache/marketplace, Codex cache/marketplace, and the release store. This
+  boilerplate is **intentional** (`$CLAUDE_SKILL_DIR` isn't always exported under the headless
+  worker) — do not "DRY it up" into a sourced helper; sourcing has the same chicken-and-egg path
+  problem it exists to solve.
 - **Shared `tools/`** resolve through `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…` so
   they work from any skill regardless of cwd. The ImageKit CLI invocation convention is
   `IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"; node "$IK" …`.

@@ -43,7 +43,7 @@ Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
 ```bash
 name=weekly-update
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/weekly-activity.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/weekly-activity.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+[ -e "$SKILL_DIR/scripts/weekly-activity.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/weekly-activity.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
 [ -e "$SKILL_DIR/scripts/weekly-activity.sh" ] || { echo "tron:$name: scripts/weekly-activity.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
 bash "$SKILL_DIR/scripts/weekly-activity.sh" fetch          # last Monday → now
 bash "$SKILL_DIR/scripts/weekly-activity.sh" fetch --weeks 2   # biweekly

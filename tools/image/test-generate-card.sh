@@ -99,6 +99,22 @@ run_gencard() {
   fi
 }
 
+run_gencard_from_codex_cache() {
+  # Exercise the installation-agnostic fallback with no CLAUDE_PLUGIN_ROOT.
+  # The copied launcher derives its plugin root from its own location, while
+  # gen-image exists only in the Codex cache beneath HOME.
+  local list_json="$1" out err
+  out="$FAKE/codex-cache.stdout"
+  err="$FAKE/codex-cache.stderr"
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" FAKE_LIST="$list_json" \
+    bash "$FAKE/tools/image/generate-card.sh" \
+      --folder toolkit --name codex-cache.webp --prompt "test subject" --no-upload >"$out" 2>"$err" || {
+        cat "$err" >&2
+        return 1
+      }
+  cat "$out"
+}
+
 # ---- 1. --prefix picks max existing index + 1 ----------------------------
 cat > "$FAKE/list-guides.json" <<'JSON'
 [
@@ -159,6 +175,20 @@ if has "$out" '"name":"my-slug.webp"' && ! has "$out" '"next"'; then
   pass "--name: exact filename kept, no next field"
 else
   fail "--name path: got: $out"
+fi
+
+# ---- 6. Codex cache fallback works without CLAUDE_PLUGIN_ROOT ------------
+cp "$GENCARD" "$FAKE/tools/image/generate-card.sh"
+chmod +x "$FAKE/tools/image/generate-card.sh"
+mv "$FAKE/skills/gen-image" "$FAKE/home/.codex-gen-image-staging"
+mkdir -p "$FAKE/home/.codex/plugins/cache/tron/tron-engineer/0.36.1/skills/gen-image/scripts"
+mv "$FAKE/home/.codex-gen-image-staging/scripts/gen-image.sh" \
+  "$FAKE/home/.codex/plugins/cache/tron/tron-engineer/0.36.1/skills/gen-image/scripts/gen-image.sh"
+out="$(run_gencard_from_codex_cache "$FAKE/list-empty.json")" || true
+if has "$out" '"name":"codex-cache.webp"'; then
+  pass "Codex cache: resolves gen-image without CLAUDE_PLUGIN_ROOT"
+else
+  fail "Codex cache fallback: got: $out"
 fi
 
 echo ""
