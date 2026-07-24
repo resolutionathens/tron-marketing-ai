@@ -35,7 +35,7 @@ ct_rewrite_links() {
   sed -E 's#https?://(www\.)?facilitron\.com(/[A-Za-z0-9._~%/?#=&+-]*)#\2#g'
 }
 
-# Echo the pages/*.vue file that serves an internal route, or return 1.
+# Echo the *.vue file that serves an internal route, or return 1.
 # Resolves <path> against <repo>/app/pages (Nuxt 4 srcDir layout) or, if that
 # directory doesn't exist, <repo>/pages (pre-migration layout) as foo.vue,
 # foo/index.vue, or the nearest [...slug].vue catch-all — the same resolution
