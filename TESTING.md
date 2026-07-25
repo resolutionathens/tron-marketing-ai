@@ -70,6 +70,23 @@ These tests cover the script **in isolation** — they do not exercise the full 
 Each test script's header should describe how to run the full skill manually as an integration
 spec. The skill-level behavior is covered by the evaluations in layer 3.
 
+### Instruction-only engineering workflows
+
+`test-driven-development`, `debugging-and-error-recovery`, `code-review-and-quality`, and
+`security-and-hardening` intentionally have no deterministic scripts: they guide judgment within a
+repository's existing test, browser, CI, and lifecycle tooling. Verify them by checking all of the
+following after an edit:
+
+```bash
+bash tools/lint/check-scout-frontmatter.sh
+bash tools/lint/check-plugin-package.sh
+bash tools/package/test-build-packages.sh
+```
+
+Then run a focused evaluation or manual scenario against the skill's trigger language. Confirm it
+discovers repository-specific commands rather than assuming a stack, reports evidence rather than
+claiming success, stays report-only, and preserves dispatched-worker approval gates for risky changes.
+
 ### Fast-path SKILL_DIR resolver lint (pre-PR enforced)
 
 A scripted skill's SKILL.md (or, for the runner-delegated audit skills, the matching
@@ -181,7 +198,7 @@ behaviors below.
 | Tier               | Skills (intended)                                                | What to verify holds at this tier                                                                                                                           |
 | ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `haiku` / low      | the 5 audit skills, `jira`, `confluence`                         | Pure orchestration only — resolve the target, delegate, relay. It must **not** start doing the heavy work itself or add judgment the runner owns.           |
-| `sonnet` / low–med | git flows, board ops, SEO, video, social, `figma-to-imagekit`    | Light judgment is correct: commit grouping is atomic, PR title/body are conventional, drafting is on-voice. No over-splitting, no hallucinated steps.       |
+| `sonnet` / low–med | git flows, board ops, SEO, video, social, `figma-to-imagekit`, engineering-quality workflows | Light judgment is correct: commit grouping is atomic, PR title/body are conventional, debugging preserves evidence, reviews identify material risks, and security gates defer risky changes. |
 | `opus` / high      | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `grill` | Long-form quality dominates: component selection, column balancing, link verification, and the served-HTML correctness gate are all exercised, not skipped. |
 
 **Behaviors that differ by tier — check these explicitly:**
