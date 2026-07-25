@@ -117,9 +117,17 @@ jobs:
             sleep 5
           done
           test "$current" = true
+          verify_artifacts() {
+            while IFS= read -r filename; do
+              gh attestation verify "$verify_dir/$filename" --repo "$GITHUB_REPOSITORY"
+            done < <(node -e "
+              const release = require('./dist/release/release-manifest.json');
+              for (const artifact of release.packages) console.log(artifact.filename);
+            ")
+          }
           verified=false
           for _ in 1 2 3 4 5; do
-            if gh release verify "$tag"; then
+            if verify_artifacts; then
               verified=true
               break
             fi

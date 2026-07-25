@@ -113,3 +113,11 @@ if ! printf '%s' "$DIRTY_OUTPUT" | grep -q 'must be committed before building a 
   exit 1
 fi
 printf 'PASS: fixture-level release build is deterministic against uncommitted changes and the clean-tree guard still blocks a dirty tree.\n'
+
+WORKFLOW="$ROOT/.github/workflows/release.yml"
+grep -Fq 'gh attestation verify "$verify_dir/$filename" --repo "$GITHUB_REPOSITORY"' "$WORKFLOW"
+if grep -Fq 'gh release verify "$tag"' "$WORKFLOW"; then
+  printf 'FAIL: release workflow verifies a tag instead of attested artifacts.\n' >&2
+  exit 1
+fi
+printf 'PASS: release workflow verifies manifest-listed artifact attestations, not a tag.\n'
