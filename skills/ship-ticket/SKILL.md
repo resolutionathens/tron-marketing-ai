@@ -63,6 +63,13 @@ Interactive users are unaffected — this section only changes behavior when `TR
 8. CLEANUP      — remove worktree, prune branch              (tron:close-worktree)
 ```
 
+**Repos that never promote to production** (they ship by tag or PR-merge straight to their
+default branch, so stage 7 never runs — e.g. `tron-marketing-ai`, `tron-os`) skip the only
+automated Done transition in this lifecycle. Before stage 8 (CLEANUP), mark the ticket Done
+explicitly — see `tron:jira` → "Marking a ticket Done at close-out" for the exact invocation.
+Repos that do promote keep getting the transition automatically from `tron:git-pushtoprod`; don't
+run it again by hand there.
+
 ## Step 1 — Determine current lifecycle position
 
 Before running anything, figure out where the user is in the lifecycle. Don't assume a fresh start — they may already have a branch, commits, or an open PR.

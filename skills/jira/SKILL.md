@@ -71,6 +71,21 @@ acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>
 # Always assign the creator with --assignee '@me' (see "Creating tickets" below)
 ```
 
+### Marking a ticket Done at close-out
+
+This is the canonical form of the invocation for closing out a ticket:
+
+```bash
+acli jira workitem transition --key <KEY> --status 'Done' --yes
+```
+
+`tron:git-pushtoprod` already runs this automatically (with its own copy, unchanged by this note)
+as part of promoting to production, for repos that have a production branch. **Repos that ship by
+tag or PR-merge to their default branch instead of promoting to production never run that stage**,
+so nothing transitions the ticket automatically — a worker closing out the ticket
+(`tron:ship-ticket` stage 8 / `tron:close-worktree`) must run this invocation explicitly before or
+during cleanup. Those two skills link here for the exact command rather than restating it.
+
 ### Rich descriptions (markdown → ADF)
 
 **Rule:** any description more than a line or two, or with any markdown formatting, must go through the bundled `tools/md-to-adf` helper and `--description-file` — never pass raw markdown to `-d`/`--description` (it renders literally). Invocation, the acli plain-text gotcha, and the code-mark caveat: [tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md).
