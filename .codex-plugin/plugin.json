@@ -1,7 +1,7 @@
 {
   "name": "tron",
   "description": "Facilitron marketing AI toolkit: Jira and Confluence intake, git lifecycle, content pipelines, audits, media operations, drafting, SEO, board, video, and social skills.",
-  "version": "0.36.1",
+  "version": "0.36.2",
   "author": {
     "name": "Facilitron",
     "url": "https://www.facilitron.com"
