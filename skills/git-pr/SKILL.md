@@ -45,16 +45,23 @@ Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git
 
 ## Step 1b: Run the Layer-1 suite locally
 
-Run the complete deterministic-script suite on the developer's Mac before pushing or creating
-the PR:
+If `tools/lint/run-layer1-tests.sh` exists in the current repository, run the complete
+deterministic-script suite on the developer's Mac before pushing or creating the PR:
 
 ```bash
-bash tools/lint/run-layer1-tests.sh
+if [ -f tools/lint/run-layer1-tests.sh ]; then
+  bash tools/lint/run-layer1-tests.sh
+fi
 ```
 
-Stop if any test fails. Do not create the PR until the failure is fixed and the suite passes.
-This local macOS gate is intentional: it exercises the plugin's real Bash 3.2 and BSD-coreutils
-runtime without paying for a GitHub-hosted macOS runner on every PR and `master` push.
+When the script exists, stop if any test fails. Do not create the PR until the failure is fixed
+and the suite passes. This local macOS gate is intentional: it exercises the plugin's real Bash
+3.2 and BSD-coreutils runtime without paying for a GitHub-hosted macOS runner on every PR and
+`master` push.
+
+When the script does not exist, use the current repository's documented checks as the required
+local gate instead. Find them in its `CLAUDE.md`, `README`, package scripts, or contribution docs;
+run the checks that cover the change and stop on failure before creating the PR.
 
 ## Step 2: Push branch
 
