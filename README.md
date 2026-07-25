@@ -190,7 +190,6 @@ the Actions tab. The workflow never replaces an existing version.
 To roll back adoption, first verify the target release and its assets:
 
 ```sh
-gh release verify v0.33.0
 gh release download v0.33.0 --dir /tmp/tron-rollback
 (cd /tmp/tron-rollback && shasum -a 256 -c SHA256SUMS)
 gh attestation verify /tmp/tron-rollback/tron-claude-v0.33.0.tar.gz \

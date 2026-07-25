@@ -119,7 +119,7 @@ jobs:
           test "$current" = true
           verify_artifacts() {
             while IFS= read -r filename; do
-              gh attestation verify "$verify_dir/$filename" --repo "$GITHUB_REPOSITORY"
+              gh attestation verify "$verify_dir/$filename" --repo "$GITHUB_REPOSITORY" || return 1
             done < <(node -e "
               const release = require('./dist/release/release-manifest.json');
               for (const artifact of release.packages) console.log(artifact.filename);
