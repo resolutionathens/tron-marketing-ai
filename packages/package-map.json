@@ -42,6 +42,8 @@
         "a11y-scan",
         "circleci",
         "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
         "gh",
         "git-commit",
         "git-dev",
@@ -49,9 +51,11 @@
         "git-pushtoprod",
         "link-check",
         "open-worktree",
+        "security-and-hardening",
         "ship-ticket",
         "site-audit",
         "start-ticket",
+        "test-driven-development",
         "weekly-update"
       ]
     },
@@ -191,6 +195,8 @@
       "a11y-scan",
       "circleci",
       "close-worktree",
+      "code-review-and-quality",
+      "debugging-and-error-recovery",
       "gh",
       "git-commit",
       "git-dev",
@@ -198,9 +204,11 @@
       "git-pushtoprod",
       "link-check",
       "open-worktree",
+      "security-and-hardening",
       "ship-ticket",
       "site-audit",
       "start-ticket",
+      "test-driven-development",
       "weekly-update"
     ],
     "designer": [
