@@ -2,7 +2,7 @@
 name: code-review-and-quality
 model: sonnet
 effort: medium
-description: "Review a code change before merge for correctness, readability, architecture, security, performance, and verification evidence. Use when asked to review code, inspect a diff, check PR quality, assess a feature before merge, or find risks in an implementation: 'review this change', 'code review', 'is this ready to merge', 'check this diff', or 'review my PR'. Complements OpenRouter PR review and does not create or merge PRs."
+description: "Review a code change before merge for correctness, readability, architecture, security, performance, and verification evidence. Use when asked to review code, inspect a diff, check PR quality, assess a feature before merge, or find risks in an implementation: 'review this change', 'code review', 'is this ready to merge', 'check this diff', or 'review my PR'. Complements automated PR review tooling and does not create or merge PRs."
 allowed-tools:
   - Bash
   - Read
