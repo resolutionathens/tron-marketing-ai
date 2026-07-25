@@ -182,7 +182,7 @@ To publish:
 
 1. Bump both `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` to the same semver.
 2. Merge the reviewed PR to `master`. The manifest change starts the release workflow.
-3. Confirm the workflow's checksum and release-attestation verification passes.
+3. Confirm the workflow's checksum and artifact-attestation verification passes.
 
 To retry a failed release after correcting its cause, run **Publish immutable Tron release** from
 the Actions tab. The workflow never replaces an existing version.
@@ -190,10 +190,15 @@ the Actions tab. The workflow never replaces an existing version.
 To roll back adoption, first verify the target release and its assets:
 
 ```sh
-gh release verify v0.33.0
 gh release download v0.33.0 --dir /tmp/tron-rollback
 (cd /tmp/tron-rollback && shasum -a 256 -c SHA256SUMS)
+gh attestation verify /tmp/tron-rollback/tron-claude-v0.33.0.tar.gz \
+  --repo resolutionathens/tron-marketing-ai
 ```
+
+`gh release verify` looks for an attestation on the release tag. Tron attests the release artifacts,
+so verify downloaded artifact files with `gh attestation verify` instead. Repeat the artifact command
+for each package when validating a complete release.
 
 After maintainer approval, move only the current pointer to that already-immutable release:
 

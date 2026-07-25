@@ -43,6 +43,10 @@ for t in $(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | s
 done
 ```
 
+The release smoke test also statically guards the release workflow's provenance check. It must verify
+the downloaded artifact files listed in `release-manifest.json` with `gh attestation verify`; tag-level
+`gh release verify` checks a different attestation subject and would falsely fail after publication.
+
 ### Layer-1 pre-PR gate (macOS / Apple Silicon)
 
 `tron:git-pr` runs the whole layer-1 suite via `run-layer1-tests.sh` on the developer's
