@@ -39,12 +39,9 @@ Interactive users are unaffected — this section only changes behavior when `TR
 **Step 0: Mark the ticket Done, if this repo never promotes to production.** `tron:git-pushtoprod`
 transitions the ticket automatically for repos that promote — but a repo that ships by tag or
 PR-merge straight to its default branch never runs that stage, so nothing has transitioned the
-ticket yet. Check the branch's `<KEY>` and, if the ticket isn't already Done, run the canonical
-invocation from `tron:jira` → "Marking a ticket Done at close-out":
-
-```bash
-acli jira workitem transition --key <KEY> --status 'Done' --yes
-```
+ticket yet. Check the branch's `<KEY>` and, if the ticket isn't already Done, run the exact
+invocation from `tron:jira` → "Marking a ticket Done at close-out" — don't retype it here, that
+section is the single source of truth.
 
 Skip this step if the repo promotes to production (the transition already happened) or the
 ticket is already Done.
