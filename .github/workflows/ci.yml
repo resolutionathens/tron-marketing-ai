@@ -22,3 +22,5 @@ jobs:
         run: bash tools/release/test-build-release.sh
       - name: Validate role package ownership and dependency closure
         run: bash tools/package/test-build-packages.sh
+      - name: Run Layer-1 lints
+        run: bash tools/lint/run-layer1-tests.sh
