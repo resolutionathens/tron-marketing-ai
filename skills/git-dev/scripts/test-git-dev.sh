@@ -7,6 +7,8 @@
 #   D. bun.lock-only conflict → --ours keeps dev's copy, ok:true
 #   E. --worktree <path> resolves branch/dirty from the path, not $PWD
 #   F. a repo with no dev branch → friendly no-dev-branch error
+#   H. a patch-equivalent commit already on dev is skipped and identified
+#   I. a similar but non-equivalent commit is still promoted
 #
 #   bash skills/git-dev/scripts/test-git-dev.sh
 set -euo pipefail
@@ -140,6 +142,44 @@ OUT="$(bash "$SCRIPT" --worktree 2>/dev/null)" && fail "G: expected non-zero exi
 echo "  → $OUT"
 grep -q '"error":"missing-worktree-value"' <<<"$OUT" || fail "G: should report missing-worktree-value: $OUT"
 pass "--worktree with no value errors cleanly (no set -e shift-count crash)"
+
+# ── H. patch-equivalent commit already on dev is skipped ─────────────────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" checkout -q dev
+echo equivalent > "$MAIN/equivalent.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "fix: already applied on dev"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-8-equivalent master
+echo equivalent > "$MAIN/equivalent.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "fix: incoming equivalent patch"
+INCOMING_SHA="$(gx "$MAIN" rev-parse HEAD)"
+DEV_TIP_BEFORE="$(gx "$MAIN" rev-parse dev)"
+gx "$MAIN" checkout -q master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-8-equivalent)" || fail "H: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "H: not ok: $OUT"
+grep -q '"skippedSupersededCommits":\[' <<<"$OUT" || fail "H: skipped commits not reported: $OUT"
+grep -q "\"$INCOMING_SHA\"" <<<"$OUT" || fail "H: incoming equivalent SHA not identified: $OUT"
+[[ "$(gx "$MAIN" rev-parse dev)" == "$DEV_TIP_BEFORE" ]] || fail "H: dev advanced for an already-present patch"
+pass "patch-equivalent incoming commit is skipped and identified"
+rm -rf "$ROOT"
+
+# ── I. non-equivalent incoming commit is not skipped ─────────────────────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" checkout -q dev
+echo dev-version > "$MAIN/similar.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "fix: dev version"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-9-non-equivalent master
+echo incoming-version > "$MAIN/different.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "fix: distinct incoming patch"
+INCOMING_SHA="$(gx "$MAIN" rev-parse HEAD)"
+gx "$MAIN" checkout -q master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-9-non-equivalent)" || fail "I: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "I: not ok: $OUT"
+grep -q '"skippedSupersededCommits":\[\]' <<<"$OUT" || fail "I: non-equivalent commit reported skipped: $OUT"
+gx "$MAIN" merge-base --is-ancestor "$INCOMING_SHA" dev || fail "I: non-equivalent incoming commit was not promoted"
+pass "non-equivalent incoming commit is promoted normally"
+rm -rf "$ROOT"
 
 echo ""
 echo "✅ git-dev smoke PASSED ($PASS checks)"

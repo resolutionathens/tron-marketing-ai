@@ -17,7 +17,8 @@
 #                        (often master → on-protected-branch) and stray files.
 #
 # Output: one JSON line on stdout (narration on stderr). Examples:
-#   {"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"depsResolved":[]}
+#   {"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"depsResolved":[],"skippedSupersededCommits":[]}
+#   {"ok":true,"branch":"MD-1801-x","target":"dev","pushed":false,"depsResolved":[],"skippedSupersededCommits":["abc123"]}
 #   {"ok":false,"branch":"MD-1801-x","target":"dev","error":"conflicts","conflicts":["src/a.ts"]}
 set -euo pipefail
 
@@ -80,8 +81,18 @@ case "$RES" in
     if $IN_WT; then git -C "$MAIN" checkout master >/dev/null 2>&1 || true
     else git -C "$MAIN" checkout "$BRANCH" >/dev/null 2>&1 || true; fi
     log "dev updated and pushed"
-    printf '{"ok":true,"branch":"%s","target":"dev","pushed":true,"worktree":%s,"depsResolved":[%s]}\n' \
+    printf '{"ok":true,"branch":"%s","target":"dev","pushed":true,"worktree":%s,"depsResolved":[%s],"skippedSupersededCommits":[]}\n' \
       "$BRANCH" "$IN_WT" "$DEPS_JSON"
+    ;;
+  skipped:*)
+    SKIPPED="${RES#skipped:}"; SKIPPED_JSON=""
+    IFS=',' read -ra parts <<< "$SKIPPED"
+    for i in "${!parts[@]}"; do [[ $i -gt 0 ]] && SKIPPED_JSON+=","; SKIPPED_JSON+="\"${parts[$i]}\""; done
+    if $IN_WT; then git -C "$MAIN" checkout master >/dev/null 2>&1 || true
+    else git -C "$MAIN" checkout "$BRANCH" >/dev/null 2>&1 || true; fi
+    log "dev already contains equivalent patches; skipped superseded commits: $SKIPPED"
+    printf '{"ok":true,"branch":"%s","target":"dev","pushed":false,"worktree":%s,"depsResolved":[],"skippedSupersededCommits":[%s]}\n' \
+      "$BRANCH" "$IN_WT" "$SKIPPED_JSON"
     ;;
   conflict:*)
     FILES="${RES#conflict:}"; CJSON=""

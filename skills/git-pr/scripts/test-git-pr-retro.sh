@@ -32,6 +32,7 @@ cat >"$SHIM/gh" <<'EOF'
 #   GH_STUB_SLUG     nameWithOwner for `repo view` (default o/r)
 #   GH_STUB_SLUG_FAIL  if set, `repo view` exits 1 (owner/repo unresolvable)
 #   GH_STUB_REVIEWS  JSON array returned for `api .../pulls/N/reviews`
+#   GH_STUB_REVIEWS_SEQUENCE_FILE  one JSON response per line, consumed per poll
 #   GH_STUB_PR_COMMENTS  JSON array returned for `api .../pulls/N/comments`
 case "$1 $2" in
   "pr view")
@@ -43,7 +44,14 @@ case "$1 $2" in
     exit 0 ;;
   "api "*)
     case "$2" in
-      *"/reviews") printf '%s\n' "${GH_STUB_REVIEWS:-[]}" ;;
+      *"/reviews")
+        if [[ -n "${GH_STUB_REVIEWS_SEQUENCE_FILE:-}" && -s "$GH_STUB_REVIEWS_SEQUENCE_FILE" ]]; then
+          sed -n '1p' "$GH_STUB_REVIEWS_SEQUENCE_FILE"
+          sed '1d' "$GH_STUB_REVIEWS_SEQUENCE_FILE" > "$GH_STUB_REVIEWS_SEQUENCE_FILE.next"
+          mv "$GH_STUB_REVIEWS_SEQUENCE_FILE.next" "$GH_STUB_REVIEWS_SEQUENCE_FILE"
+        else
+          printf '%s\n' "${GH_STUB_REVIEWS:-[]}"
+        fi ;;
       *"/comments") printf '%s\n' "${GH_STUB_PR_COMMENTS:-[]}" ;;
       *) echo "[]" ;;
     esac
@@ -223,6 +231,18 @@ export GH_STUB_PR_COMMENTS='[]'
 O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"
 has "$O" '"status":"timeout"' "a PENDING (unsubmitted) Copilot review does not count as landed"
 pass "await-review: PENDING review ignored → timeout"
+
+# ---- await-review: pending review keeps polling until it is submitted --------
+REVIEWS_SEQUENCE="$ROOT/reviews-sequence.jsonl"
+printf '%s\n%s\n' \
+  '[{"user":{"login":"Copilot"},"state":"PENDING"}]' \
+  '[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x/submitted"}]' \
+  > "$REVIEWS_SEQUENCE"
+O="$(GH_STUB_REVIEWS_SEQUENCE_FILE="$REVIEWS_SEQUENCE" bash "$SCRIPT" await-review --pr 7 --timeout 2 --interval 0)"
+has "$O" '"status":"no-comments"' "poll continues after pending response until submitted review lands"
+has "$O" 'https://x/submitted' "result comes from the later submitted review"
+[[ ! -s "$REVIEWS_SEQUENCE" ]] || fail "await-review should consume both poll responses"
+pass "await-review: PENDING response retains polling loop until review completion"
 
 # ---- await-review: owner/repo unresolvable degrades to error, never hangs -----
 O="$(GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; rc=$?
