@@ -173,7 +173,7 @@ if (!/^\d+\.\d+\.\d+$/.test(claude.version)) fail("package version must be stabl
 const dirty = git("status", "--porcelain", "--untracked-files=no");
 if (dirty) {
   fail(
-    `release fixture requires committed tracked changes; rerun the release fixture after the atomic commit:\n${dirty}`,
+    `tracked files must be committed before building a release; the release fixture requires committed tracked changes, so rerun the release fixture after the atomic commit:\n${dirty}`,
   );
 }
 
