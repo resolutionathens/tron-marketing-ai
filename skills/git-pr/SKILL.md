@@ -197,9 +197,10 @@ JSON line — branch on `status`:
 
 Post the status comment with `gh pr comment "<N>" --body-file <tmp>` (write the
 body to a unique file from `mktemp "${TMPDIR:-/tmp}/tron-status-body.XXXXXX"`
-first — never inline `--body` — per the retro note above). Only after this status is reported is the PR genuinely ready for the
-human approval gate. When dispatched (`TRON_DISPATCH_ID` set), this status comment
-is also how the tron-os dashboard learns the PR is review-resolved.
+first — never inline `--body` — per the retro note above). Only after this
+status is reported is the PR genuinely ready for the human approval gate. When
+dispatched (`TRON_DISPATCH_ID` set), this status comment is also how the tron-os
+dashboard learns the PR is review-resolved.
 
 **Step 8 — retro comment.** Write the filled-in retro sections (this is your
 judgment) to a fresh, unique temp file — never a fixed name, which risks
