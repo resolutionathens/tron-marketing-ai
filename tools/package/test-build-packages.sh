@@ -130,6 +130,19 @@ for (const entry of inventory.packages) {
   if (!hook.includes(`${entry.package}@tron --force`)) {
     throw new Error(`${entry.harness}/${role} hook does not update its own package`);
   }
+  // Hook commands run through `sh -c`, so an unquoted CLAUDE_PLUGIN_ROOT word-splits
+  // on install paths containing spaces (the release store lives under Application Support).
+  const hookConfig = JSON.parse(fs.readFileSync(path.join(packageRoot, "hooks/hooks.json"), "utf8"));
+  const sessionStart = (hookConfig.hooks?.SessionStart ?? []).flatMap((matcher) => matcher.hooks ?? []);
+  if (sessionStart.length === 0) {
+    throw new Error(`${entry.harness}/${role} ships no SessionStart hook`);
+  }
+  for (const entryHook of sessionStart) {
+    // The interpolated path must be quoted; trailing arguments after it are fine.
+    if (!/^"[^"]*\$\{CLAUDE_PLUGIN_ROOT\}[^"]*"($| )/.test(entryHook.command ?? "")) {
+      throw new Error(`${entry.harness}/${role} hook command is not quoted: ${entryHook.command}`);
+    }
+  }
   const walk = (dir) => {
     for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
       if (item.name === "node_modules") throw new Error(`${entry.package} bundled node_modules`);
