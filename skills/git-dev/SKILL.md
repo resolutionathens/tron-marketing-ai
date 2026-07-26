@@ -28,14 +28,15 @@ bash "$SKILL_DIR/scripts/git-dev.sh" [feature-branch] [--worktree <abs-path>]
 #   --worktree <path> resolve source branch + dirty-check from this path, not $PWD
 ```
 
-Validates the branch (refuses master/main/dev/staging/production), checks the tree is clean, detects worktree vs checkout, merges into `dev`, pushes, restores your starting state. Only resolves dependency lockfiles (`package.json`, `package-lock.json`, `bun.lock` → `--ours`); any other conflict aborts cleanly — read the conflicting files and resolve with the user.
+Validates the branch (refuses master/main/dev/staging/production), checks the tree is clean, detects worktree vs checkout, merges into `dev`, pushes, restores your starting state. Before merging, it compares stable patch IDs and safely skips the promotion when every incoming commit already has an equivalent change on `dev`. Only dependency lockfiles (`package.json`, `package-lock.json`, `bun.lock` → `--ours`) are auto-resolved; any other conflict aborts cleanly — read the conflicting files and resolve with the user.
 
 Use `--worktree` when calling from a worktree-integrated shell where `$PWD` resets to the main checkout after each Bash call.
 
 One JSON line on stdout:
 
 ```json
-{"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"worktree":true,"depsResolved":["package.json"]}
+{"ok":true,"branch":"MD-1801-x","target":"dev","pushed":true,"worktree":true,"depsResolved":["package.json"],"skippedSupersededCommits":[]}
+{"ok":true,"branch":"MD-1801-x","target":"dev","pushed":false,"worktree":true,"depsResolved":[],"skippedSupersededCommits":["abc123"]}
 {"ok":false,"branch":"MD-1801-x","target":"dev","error":"conflicts","conflicts":["src/a.ts"]}
 {"ok":false,"branch":"MD-1801-x","target":"dev","error":"no-dev-branch"}
 ```

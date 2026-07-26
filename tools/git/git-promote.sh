@@ -55,13 +55,49 @@ gp_has_branch() {
 # Echoes one of:
 #   "ok"                         merged cleanly (or fast-forward), pushed
 #   "ok:package.json,..."        only package*.json conflicted → --ours, pushed
+#   "skipped:<sha>,<sha>"        every incoming patch is already on target
 #   "conflict:<file>,<file>"     other conflicts → merge aborted, NOT pushed
 #   "error:<stage>"              checkout/pull/push failed
 # Return code mirrors success (0) vs conflict/error (1).
 gp_merge_into() {
   local main="$1" target="$2" source="$3"
   git -C "$main" checkout "$target" >/dev/null 2>&1 || { echo "error:checkout-$target"; return 1; }
-  git -C "$main" pull --ff-only >/dev/null 2>&1 || git -C "$main" pull >/dev/null 2>&1 || { echo "error:pull-$target"; return 1; }
+  # Promotion targets must match their remote tracking branch before we inspect
+  # or merge them. A fallback pull can create a local merge commit, which makes
+  # the later skip path report success after mutating the target without pushing.
+  git -C "$main" pull --ff-only >/dev/null 2>&1 || { echo "error:pull-$target"; return 1; }
+
+  # An empty `git cherry` result is ambiguous: it can mean there are no incoming
+  # commits because source is already reachable from target. Identify that exact
+  # commit explicitly so callers report an identical promotion as superseded.
+  local source_tip
+  if git -C "$main" merge-base --is-ancestor "$source" "$target" 2>/dev/null; then
+    source_tip="$(git -C "$main" rev-parse "$source" 2>/dev/null)" || { echo "error:resolve-$source"; return 1; }
+    echo "skipped:$source_tip"
+    return 0
+  fi
+
+  # `git cherry` compares stable patch IDs rather than commit IDs. If every
+  # source-only commit is marked `-`, the target already contains equivalent
+  # changes, commonly through a squash or an independently applied fix. Merging
+  # those commits adds no behavior and can create unrelated conflicts, so report
+  # the superseded SHAs and leave the target untouched. Any `+` keeps the normal
+  # merge path, ensuring a merely similar commit is never skipped.
+  local cherry superseded="" has_incoming=false has_non_equivalent=false mark sha
+  cherry="$(git -C "$main" cherry "$target" "$source" 2>/dev/null || true)"
+  while read -r mark sha; do
+    [[ -z "${mark:-}" || -z "${sha:-}" ]] && continue
+    has_incoming=true
+    if [[ "$mark" == "-" ]]; then
+      superseded+="${superseded:+,}$sha"
+    else
+      has_non_equivalent=true
+    fi
+  done <<< "$cherry"
+  if $has_incoming && ! $has_non_equivalent; then
+    echo "skipped:$superseded"
+    return 0
+  fi
 
   if git -C "$main" merge --no-edit "$source" >/dev/null 2>&1; then
     git -C "$main" push >/dev/null 2>&1 || { echo "error:push-$target"; return 1; }

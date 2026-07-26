@@ -93,6 +93,7 @@ if $HAS_STAGING; then
   RES="$(gp_merge_into "$MAIN" staging master)" || true
   case "$RES" in
     ok|ok:*) STAGING_OK=true; log "staging updated" ;;
+    skipped:*) STAGING_OK=true; log "staging already contains equivalent patches; skipped ${RES#skipped:}" ;;
     conflict:*) ERR="staging-conflicts"; CONFLICTS="${RES#conflict:}"; STAGING_DONE=false ;;
     *) ERR="staging-${RES#error:}"; STAGING_DONE=false ;;
   esac
@@ -105,6 +106,7 @@ if $STAGING_DONE; then
   RES="$(gp_merge_into "$MAIN" production master)" || true
   case "$RES" in
     ok|ok:*) PROD_OK=true; log "production updated" ;;
+    skipped:*) PROD_OK=true; log "production already contains equivalent patches; skipped ${RES#skipped:}" ;;
     conflict:*) ERR="production-conflicts"; CONFLICTS="${RES#conflict:}" ;;
     *) ERR="production-${RES#error:}" ;;
   esac
