@@ -9,6 +9,7 @@
 #   F. a repo with no dev branch → friendly no-dev-branch error
 #   H. a patch-equivalent commit already on dev is skipped and identified
 #   I. a similar but non-equivalent commit is still promoted
+#   J. an identical commit already reachable from dev is skipped and identified
 #
 #   bash skills/git-dev/scripts/test-git-dev.sh
 set -euo pipefail
@@ -156,9 +157,9 @@ DEV_TIP_BEFORE="$(gx "$MAIN" rev-parse dev)"
 gx "$MAIN" checkout -q master
 OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-8-equivalent)" || fail "H: script exited non-zero: $OUT"
 echo "  → $OUT"
-grep -q '"ok":true' <<<"$OUT" || fail "H: not ok: $OUT"
-grep -q '"skippedSupersededCommits":\[' <<<"$OUT" || fail "H: skipped commits not reported: $OUT"
-grep -q "\"$INCOMING_SHA\"" <<<"$OUT" || fail "H: incoming equivalent SHA not identified: $OUT"
+rg -q '"ok":true' <<<"$OUT" || fail "H: not ok: $OUT"
+rg -q '"skippedSupersededCommits":\[' <<<"$OUT" || fail "H: skipped commits not reported: $OUT"
+rg -q "\"$INCOMING_SHA\"" <<<"$OUT" || fail "H: incoming equivalent SHA not identified: $OUT"
 [[ "$(gx "$MAIN" rev-parse dev)" == "$DEV_TIP_BEFORE" ]] || fail "H: dev advanced for an already-present patch"
 pass "patch-equivalent incoming commit is skipped and identified"
 rm -rf "$ROOT"
@@ -175,10 +176,29 @@ INCOMING_SHA="$(gx "$MAIN" rev-parse HEAD)"
 gx "$MAIN" checkout -q master
 OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-9-non-equivalent)" || fail "I: script exited non-zero: $OUT"
 echo "  → $OUT"
-grep -q '"ok":true' <<<"$OUT" || fail "I: not ok: $OUT"
-grep -q '"skippedSupersededCommits":\[\]' <<<"$OUT" || fail "I: non-equivalent commit reported skipped: $OUT"
+rg -q '"ok":true' <<<"$OUT" || fail "I: not ok: $OUT"
+rg -q '"skippedSupersededCommits":\[\]' <<<"$OUT" || fail "I: non-equivalent commit reported skipped: $OUT"
 gx "$MAIN" merge-base --is-ancestor "$INCOMING_SHA" dev || fail "I: non-equivalent incoming commit was not promoted"
 pass "non-equivalent incoming commit is promoted normally"
+rm -rf "$ROOT"
+
+# ── J. identical commit already reachable from dev is skipped ────────────────
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"
+gx "$MAIN" checkout -q -b MD-10-identical master
+echo identical > "$MAIN/identical.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "fix: identical incoming commit"
+INCOMING_SHA="$(gx "$MAIN" rev-parse HEAD)"
+gx "$MAIN" checkout -q dev
+gx "$MAIN" merge -q --no-edit MD-10-identical
+gx "$MAIN" push -q
+DEV_TIP_BEFORE="$(gx "$MAIN" rev-parse dev)"
+gx "$MAIN" checkout -q master
+OUT="$(cd "$MAIN" && bash "$SCRIPT" MD-10-identical)" || fail "J: script exited non-zero: $OUT"
+echo "  → $OUT"
+rg -q '"ok":true' <<<"$OUT" || fail "J: not ok: $OUT"
+rg -q "\"$INCOMING_SHA\"" <<<"$OUT" || fail "J: reachable incoming SHA not identified as skipped: $OUT"
+[[ "$(gx "$MAIN" rev-parse dev)" == "$DEV_TIP_BEFORE" ]] || fail "J: dev advanced for an already-reachable commit"
+pass "identical incoming commit already reachable from dev is skipped and identified"
 rm -rf "$ROOT"
 
 echo ""

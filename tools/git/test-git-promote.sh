@@ -94,6 +94,29 @@ rc=0; OUT="$(gp_merge_into "$MAIN" no-such-branch feat)" || rc=$?
 [[ "$(gx "$MAIN" rev-parse --abbrev-ref HEAD)" == master ]] || fail "main checkout left off master after failed checkout"
 pass "gp_merge_into → error:checkout-<target> + rc 1 on a nonexistent target (HEAD unmoved)"
 
+# --- gp_merge_into refuses a divergent target instead of merging during pull --
+# A skip check must never inherit a local merge commit created by fallback pull.
+gx "$MAIN" checkout -q -b dev master
+echo local > "$MAIN/local-only.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "local dev divergence"
+LOCAL_DEV_TIP="$(gx "$MAIN" rev-parse HEAD)"
+OTHER="$ROOT/other"
+git clone -q "$ORIGIN" "$OTHER"
+gx "$OTHER" config user.email other@tron.local
+gx "$OTHER" config user.name "tron other"
+gx "$OTHER" checkout -q -b dev origin/master
+echo remote > "$OTHER/remote-only.txt"
+gx "$OTHER" add -A; gx "$OTHER" commit -q -m "remote dev divergence"
+gx "$OTHER" push -q -u origin dev
+gx "$MAIN" fetch -q origin dev
+gx "$MAIN" branch --set-upstream-to=origin/dev dev >/dev/null
+gx "$MAIN" config pull.rebase false
+rc=0; OUT="$(gp_merge_into "$MAIN" dev feat)" || rc=$?
+[[ "$rc" -eq 1 ]] || fail "divergent target pull should fail closed (got rc $rc: $OUT)"
+[[ "$OUT" == "error:pull-dev" ]] || fail "divergent target should report error:pull-dev (got: $OUT)"
+[[ "$(gx "$MAIN" rev-parse dev)" == "$LOCAL_DEV_TIP" ]] || fail "divergent target was modified by fallback pull"
+pass "gp_merge_into → divergent target fails fast without creating a local pull merge"
+
 # --- gp_merge_into resolved_arr[@]: unbound variable on bash 3.2 (CCAL-2092) -
 # Regression for CCAL-2092: when `git merge` fails for a reason OTHER than a
 # conflict (e.g. a hook rejection), `git diff --name-only --diff-filter=U`
@@ -111,6 +134,7 @@ shift 2
 case "$1" in
   checkout) exit 0 ;;
   pull) exit 0 ;;
+  merge-base) exit 1 ;; # source is not already reachable from target
   merge) exit 1 ;;   # fails for a non-conflict reason (e.g. hook rejection)
   diff) exit 0 ;;    # no unmerged paths reported
   add) exit 0 ;;
