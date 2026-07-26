@@ -43,25 +43,31 @@ git status --porcelain
 
 Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git-commit`.
 
-## Step 1b: Run the Layer-1 suite locally
+## Step 1b: Select and run repository-supported verification
 
-If `tools/lint/run-layer1-tests.sh` exists in the current repository, run the complete
-deterministic-script suite on the developer's Mac before pushing or creating the PR:
+Use the bundled selector to choose the current repository's supported local gates. It preserves
+the plugin's complete Layer-1 suite when available; otherwise it selects declared package scripts
+named `test`, `typecheck`, and `smoke`. The selector reports every selected command before running
+it:
 
 ```bash
-if [ -f tools/lint/run-layer1-tests.sh ]; then
-  bash tools/lint/run-layer1-tests.sh
-fi
+name=git-pr
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/select-verification-gates.sh)"
+bash "$SKILL_DIR/scripts/select-verification-gates.sh" --repo-dir "$(pwd)"
 ```
 
-When the script exists, stop if any test fails. Do not create the PR until the failure is fixed
-and the suite passes. This local macOS gate is intentional: it exercises the plugin's real Bash
-3.2 and BSD-coreutils runtime without paying for a GitHub-hosted macOS runner on every PR and
-`master` push.
+Stop if a selected test fails. Do not create the PR until every reported gate passes. The plugin's
+local macOS Layer-1 gate is intentional: it exercises the real Bash 3.2 and BSD-coreutils runtime
+without paying for a GitHub-hosted macOS runner on every PR and `master` push.
 
-When the script does not exist, use the current repository's documented checks as the required
-local gate instead. Find them in its `CLAUDE.md`, `README`, package scripts, or contribution docs;
-run the checks that cover the change and stop on failure before creating the PR.
+If the selector reports that no automatic gates were found, inspect `CLAUDE.md`, `README`, package
+scripts, and contribution docs. Announce the exact repository-defined checks selected, run those
+that cover the change, and stop on failure. Never substitute or reference the plugin-only Layer-1
+script when it is absent.
 
 ## Step 2: Push branch
 
