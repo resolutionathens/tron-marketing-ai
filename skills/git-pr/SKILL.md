@@ -196,17 +196,22 @@ JSON line — branch on `status`:
   `<!-- tron-note -->`).
 
 Post the status comment with `gh pr comment "<N>" --body-file <tmp>` (write the
-body to a unique `mktemp` file first — never inline `--body` — per the retro
-note above). Only after this status is reported is the PR genuinely ready for the
-human approval gate. When dispatched (`TRON_DISPATCH_ID` set), this status comment
-is also how the tron-os dashboard learns the PR is review-resolved.
+body to a unique file from `mktemp "${TMPDIR:-/tmp}/tron-status-body.XXXXXX"`
+first — never inline `--body` — per the retro note above). Only after this
+status is reported is the PR genuinely ready for the human approval gate. When
+dispatched (`TRON_DISPATCH_ID` set), this status comment is also how the tron-os
+dashboard learns the PR is review-resolved.
 
 **Step 8 — retro comment.** Write the filled-in retro sections (this is your
 judgment) to a fresh, unique temp file — never a fixed name, which risks
-posting a stale draft left over from a prior PR — then post and clean up:
+posting a stale draft left over from a prior PR — then post and clean up.
+Keep the `mktemp` template ending in `X` characters with no suffix after them:
+BSD `mktemp` (what macOS ships) only substitutes *trailing* X's, so a template
+like `…XXXXXX.md` yields that exact literal filename instead of a unique one,
+then fails `mkstemp failed … File exists` on the next run (MD-2434).
 
 ```bash
-RETRO_BODY="$(mktemp /tmp/tron-retro-body.XXXXXX.md)"
+RETRO_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-retro-body.XXXXXX")"
 cat > "$RETRO_BODY" <<'EOF'
 **What went well:**
 **Friction / surprises:**
