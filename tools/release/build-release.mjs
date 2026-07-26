@@ -171,7 +171,11 @@ if (claude.version !== codex.version) fail("Claude and Codex package versions mu
 if (!/^\d+\.\d+\.\d+$/.test(claude.version)) fail("package version must be stable semver");
 
 const dirty = git("status", "--porcelain", "--untracked-files=no");
-if (dirty) fail(`tracked files must be committed before building a release:\n${dirty}`);
+if (dirty) {
+  fail(
+    `release fixture requires committed tracked changes; rerun the release fixture after the atomic commit:\n${dirty}`,
+  );
+}
 
 mkdirSync(outDir, { recursive: true });
 const version = claude.version;

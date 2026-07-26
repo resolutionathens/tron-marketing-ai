@@ -381,3 +381,5 @@ bash tools/package/test-build-packages.sh
 ```
 
 CI also validates native Claude and Codex package installation and deterministic release builds.
+The release fixture requires a clean tree, so run it after the atomic commit. If tracked changes
+remain, commit them and rerun `bash tools/release/test-build-release.sh`.

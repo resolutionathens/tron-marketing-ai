@@ -108,8 +108,12 @@ if [ "$DIRTY_STATUS" -eq 0 ]; then
   printf 'FAIL: release build succeeded against a dirty tree.\n' >&2
   exit 1
 fi
-if ! printf '%s' "$DIRTY_OUTPUT" | grep -q 'must be committed before building a release'; then
+if ! printf '%s' "$DIRTY_OUTPUT" | grep -q 'release fixture requires committed tracked changes'; then
   printf 'FAIL: release build against a dirty tree failed for the wrong reason:\n%s\n' "$DIRTY_OUTPUT" >&2
+  exit 1
+fi
+if ! printf '%s' "$DIRTY_OUTPUT" | grep -q 'rerun the release fixture after the atomic commit'; then
+  printf 'FAIL: dirty-tree diagnostic did not explain the required verification sequence:\n%s\n' "$DIRTY_OUTPUT" >&2
   exit 1
 fi
 printf 'PASS: fixture-level release build is deterministic against uncommitted changes and the clean-tree guard still blocks a dirty tree.\n'
