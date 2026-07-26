@@ -133,11 +133,14 @@ for (const entry of inventory.packages) {
   // Hook commands run through `sh -c`, so an unquoted CLAUDE_PLUGIN_ROOT word-splits
   // on install paths containing spaces (the release store lives under Application Support).
   const hookConfig = JSON.parse(fs.readFileSync(path.join(packageRoot, "hooks/hooks.json"), "utf8"));
-  for (const matcher of hookConfig.hooks?.SessionStart ?? []) {
-    for (const entryHook of matcher.hooks ?? []) {
-      if (!/^"[^"]*\$\{CLAUDE_PLUGIN_ROOT\}[^"]*"$/.test(entryHook.command ?? "")) {
-        throw new Error(`${entry.harness}/${role} hook command is not quoted: ${entryHook.command}`);
-      }
+  const sessionStart = (hookConfig.hooks?.SessionStart ?? []).flatMap((matcher) => matcher.hooks ?? []);
+  if (sessionStart.length === 0) {
+    throw new Error(`${entry.harness}/${role} ships no SessionStart hook`);
+  }
+  for (const entryHook of sessionStart) {
+    // The interpolated path must be quoted; trailing arguments after it are fine.
+    if (!/^"[^"]*\$\{CLAUDE_PLUGIN_ROOT\}[^"]*"($| )/.test(entryHook.command ?? "")) {
+      throw new Error(`${entry.harness}/${role} hook command is not quoted: ${entryHook.command}`);
     }
   }
   const walk = (dir) => {
