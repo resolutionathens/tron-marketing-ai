@@ -41,6 +41,45 @@ extract_version() {
   fi
 }
 
+# Return success when the first x.y.z version is newer than the second. This avoids
+# GNU version-sort flags, which are unavailable in macOS's BSD sort.
+version_is_newer() { # <candidate> <current>
+  local candidate="$1" current="$2"
+  local candidate_major candidate_minor candidate_patch
+  local current_major current_minor current_patch
+  IFS=. read -r candidate_major candidate_minor candidate_patch <<EOF
+$candidate
+EOF
+  IFS=. read -r current_major current_minor current_patch <<EOF
+$current
+EOF
+  [ -n "$candidate_major" ] && [ -n "$candidate_minor" ] && [ -n "$candidate_patch" ] || return 1
+  [ -n "$current_major" ] && [ -n "$current_minor" ] && [ -n "$current_patch" ] || return 1
+  case "$candidate_major:$candidate_minor:$candidate_patch:$current_major:$current_minor:$current_patch" in
+    *[!0-9:]*) return 1 ;;
+  esac
+  if [ "$candidate_major" -ne "$current_major" ]; then
+    [ "$candidate_major" -gt "$current_major" ]
+  elif [ "$candidate_minor" -ne "$current_minor" ]; then
+    [ "$candidate_minor" -gt "$current_minor" ]
+  else
+    [ "$candidate_patch" -gt "$current_patch" ]
+  fi
+}
+
+latest_release_version() { # <versions-dir>
+  local store="$1" directory version latest=""
+  for directory in "$store"/*; do
+    [ -d "$directory" ] || continue
+    version="${directory##*/}"
+    version="${version#v}"
+    if [ -z "$latest" ] || version_is_newer "$version" "$latest"; then
+      latest="$version"
+    fi
+  done
+  printf '%s' "$latest"
+}
+
 [ -f "$LOCAL_MANIFEST" ] || exit 0
 LOCAL="$(extract_version < "$LOCAL_MANIFEST")"
 [ -n "$LOCAL" ] || exit 0   # can't determine local version — stay quiet
@@ -51,9 +90,7 @@ case "$PLUGIN_ROOT" in
   "$RELEASE_STORE"/*)
     # The release store is a locally reconciled channel. Its version directories are the
     # versions this install can actually receive, so never compare it with GitHub master.
-    REMOTE="$(find "$RELEASE_STORE" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null \
-      | sed -nE 's#.*/v?([0-9]+\.[0-9]+\.[0-9]+)$#\1#p' \
-      | sort -V 2>/dev/null | tail -1)"
+    REMOTE="$(latest_release_version "$RELEASE_STORE")"
     ;;
   "$HOME/.claude/plugins/cache"/*|"$HOME/.claude/plugins/marketplaces"/*|"$HOME/.codex/plugins/cache"/*|"$HOME/.codex/plugins/marketplaces"/*)
     # GitHub marketplace/cache installs consume the repository channel. Cache its manifest
@@ -79,10 +116,9 @@ esac
 [ -n "$REMOTE" ] || exit 0
 case "$REMOTE" in *[!0-9.]* ) exit 0 ;; esac
 
-# Quiet if up to date or somehow ahead of its channel. Use version sort so 0.10.0 > 0.9.0.
+# Quiet if up to date or somehow ahead of its channel.
 [ "$REMOTE" = "$LOCAL" ] && exit 0
-newest="$(printf '%s\n%s\n' "$LOCAL" "$REMOTE" | sort -V 2>/dev/null | tail -1)"
-[ "$newest" = "$REMOTE" ] || exit 0
+version_is_newer "$REMOTE" "$LOCAL" || exit 0
 
 printf '{"systemMessage":"⚠️  tron plugin update available: installed %s, published %s. Update with: claude plugin update tron@tron. For a tron-os release-store install, run: tron-os reconcile-tron-release, then rerun the plugin update."}\n' "$LOCAL" "$REMOTE"
 exit 0
