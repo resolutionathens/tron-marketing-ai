@@ -122,9 +122,7 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
 Step 3's base resolver before creating the PR.
 
-Write the body to a temp file first, then pass it via `--body-file` — this avoids
-silent `gh pr create` failures when the body contains single quotes, backticks, or
-other shell-sensitive characters (see MD-1907 retro):
+Write the body to a temp file and pass it via `--body-file`:
 
 ```bash
 cat > /tmp/.pr-body.md <<'EOF'

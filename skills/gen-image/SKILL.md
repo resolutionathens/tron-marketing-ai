@@ -94,7 +94,7 @@ for f in json.load(sys.stdin):
 - **Editorial/flat illustrations** (icons, isometric scenes, characters): describe a new scene in the same style.
 - **Photographs**: describe a new photograph — same lighting/mood, distinct scene.
 
-In every case, the references are a **family, not a template**. Word the subprompt so the new card is "similar in subject, palette, and motifs to the references, but a visually distinct composition — do not reproduce any single reference's layout." The script bakes this distinctness instruction into every reference-based prompt, so the near-duplicate is stopped at generation time; still glance at the result against the downloaded refs before shipping (see the self-verify above) — this path is exactly where the near-duplicate on CCAL-1469 slipped through to human review (MD-2014).
+In every case, the references are a **family, not a template**: the new card should share subject, palette, and motifs without reproducing any single reference's layout. The script bakes that distinctness instruction into every reference-based prompt, so check the result against the downloaded refs before shipping (see the self-verify above).
 
 Toolkit cards are 1600×901 (landscape). Generate matching aspect:
 

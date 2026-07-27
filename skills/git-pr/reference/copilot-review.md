@@ -80,13 +80,8 @@ review-resolved.
 
 ## Step 8 — retro comment
 
-Write the filled-in retro sections (this is your judgment) to a fresh, unique temp file — never a
-fixed name, which risks posting a stale draft left over from a prior PR — then post and clean up.
-
-Keep the `mktemp` template ending in `X` characters with no suffix after them: BSD `mktemp` (what
-macOS ships) only substitutes *trailing* X's, so a template like `…XXXXXX.md` yields that exact
-literal filename instead of a unique one, then fails `mkstemp failed … File exists` on the next run
-(MD-2434).
+Write the filled-in retro sections (this is your judgment) to a fresh temp file, then post and clean
+up:
 
 ```bash
 RETRO_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-retro-body.XXXXXX")"
