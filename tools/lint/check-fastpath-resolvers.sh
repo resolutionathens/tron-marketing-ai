@@ -36,7 +36,7 @@ for script in skills/*/scripts/*.sh; do
   # A skill may push the resolver into one of its own reference/ files when
   # SKILL.md gets long (CLAUDE.md -> Reference files & progressive disclosure).
   docs+=("skills/$skill"/reference/*.md)
-  docs+=(agents/*.md)
+  docs+=(agents/*-runner.md)
   for doc in "${docs[@]}"; do
     [ -f "$doc" ] || continue
     grep -qF "scripts/$base" "$doc" || continue
@@ -52,7 +52,7 @@ for script in skills/*/scripts/*.sh; do
   if [ "$found" = 1 ]; then
     echo "OK   $skill ($base)"
   else
-    echo "FAIL $skill ($base) — no SKILL.md or agents/*.md resolves it through tools/skill/resolve-skill-dir.sh with the Claude/Codex cache/marketplace/release-store fallback; a hand-rolled find for */skills/\$name no longer counts (MD-2450)"
+    echo "FAIL $skill ($base) — no SKILL.md, reference/*.md, or agents/*-runner.md resolves it through tools/skill/resolve-skill-dir.sh with the Claude/Codex cache/marketplace/release-store fallback; a hand-rolled find for */skills/\$name no longer counts (MD-2450)"
     fail=1
   fi
 done
