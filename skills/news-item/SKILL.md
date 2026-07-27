@@ -12,7 +12,7 @@ fallback:
       skip_when: "Article has no images or images are already uploaded"
     - stage: "Stage 4 — Verify"
       skip_when: "User wants draft-only output without verification"
-description: Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use this skill whenever the user wants to "start the news item", "create the news article", "build out this cluster article", "turn this Confluence draft into a news post", references a Jira "Blog Post" or "Cluster:" ticket with a Confluence link, or drops a featuredimg into the repo root and mentions a news/blog/cluster article. Even if they describe only one part, this skill owns the whole pipeline so the pieces stay consistent.
+description: "Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline: Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use for 'start the news item', 'turn this Confluence draft into a news post', a Jira 'Blog Post' or 'Cluster:' ticket with a Confluence link, or dropping a featuredimg into the repo root. Even if the user describes only one part, this skill owns the whole pipeline so the pieces stay consistent."
 allowed-tools:
   - Bash
   - Read

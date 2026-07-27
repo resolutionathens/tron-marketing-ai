@@ -2,7 +2,7 @@
 name: press-release
 model: opus
 effort: high
-description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use this skill when content/PR wants to announce something: 'draft a press release', 'write the PR for the Tickets launch', 'announcement for MCR-273', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft in AP-style PR structure. Git-free — it drafts; publishing/distribution is a separate step."
+description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use for 'draft a press release', 'write the PR for the Tickets launch', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft in AP-style PR structure. Git-free — it drafts; publishing and distribution are a separate step."
 allowed-tools:
   - Bash
   - Read

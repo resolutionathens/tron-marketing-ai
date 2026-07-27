@@ -2,7 +2,7 @@
 name: onesheet
 model: sonnet
 effort: medium
-description: "Draft a Facilitron product / feature onesheet — a single-page sell sheet (headline, value props, proof points, how-it-works, CTA) structured for a branded PDF. Use this skill when content/product-marketing wants a onesheet, sell sheet, one-pager, or product summary flyer: 'draft a onesheet for Streaming', 'product one-pager for Tickets', 'sell sheet for MCR-265', 'product summary flyer for Streaming', or onesheet tickets. Produces structured markdown ready for tron:md-to-pdf. Git-free — drafts the content; PDF render + asset work are separate steps."
+description: "Draft a Facilitron product / feature onesheet — a single-page sell sheet (headline, value props, proof points, how-it-works, CTA) structured for a branded PDF. Use for 'draft a onesheet for Streaming', 'product one-pager for Tickets', 'sell sheet for MCR-265', or 'product summary flyer'. Produces structured markdown ready for tron:md-to-pdf. Git-free — drafts the content; PDF render and asset work are separate steps."
 allowed-tools:
   - Bash
   - Read

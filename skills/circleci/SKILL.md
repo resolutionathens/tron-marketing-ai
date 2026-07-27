@@ -2,7 +2,7 @@
 name: circleci
 model: sonnet
 effort: medium
-description: "Interact with CircleCI pipeline internals from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, validate `.circleci/config.yml`, and run jobs locally for testing. Use this skill whenever the user references a CircleCI pipeline, workflow run, or job (e.g., 'why did CircleCI fail', 'watch the CI run on this branch'), wants to validate or lint a CircleCI config, wants to test a job locally, or pastes a circleci.com/pipelines/... URL. Also trigger on phrases like 'check the CircleCI build', 'pipeline status', 'config validate', 'run this job locally'."
+description: "Interact with CircleCI pipeline internals from the command line — list/watch pipelines and workflows, fetch run logs and artifacts, validate .circleci/config.yml, and run jobs locally for testing. Use whenever the user references a CircleCI pipeline, workflow run, or job ('why did CircleCI fail', 'watch the CI run on this branch'), wants to validate a config, wants to test a job locally, or pastes a circleci.com/pipelines/... URL."
 allowed-tools:
   - Bash
   - Read

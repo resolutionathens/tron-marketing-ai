@@ -12,7 +12,7 @@ fallback:
       skip_when: "Guide has no images or images are already uploaded"
     - stage: "Stage 5 — Verify"
       skip_when: "User wants draft-only output without verification"
-description: 'Publish a new long-form guide to /resources/guides on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. A guide is a bespoke Vue PAGE built from section/display components (not a Nuxt-Content markdown file); this skill owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, page composition, guides-index registration, and SEO meta. Use this skill whenever the user wants to "start the guide", "create a new guide", "build out this guide", "turn this Confluence draft into a guide page", references a Jira "Guide" or "Pillar" ticket with a Confluence link. Even if they describe only one part, this skill owns the whole pipeline so the pieces stay consistent.'
+description: "Publish a new long-form guide to /resources/guides on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. A guide is a bespoke Vue PAGE built from section/display components, not a Nuxt-Content markdown file; this skill owns the full pipeline: Confluence fetch, image conversion to webp + ImageKit upload, page composition, guides-index registration, and SEO meta. Use for 'start the guide', 'build out this guide', 'turn this Confluence draft into a guide page', or a Jira 'Guide' or 'Pillar' ticket with a Confluence link. Even if the user describes only one part, this skill owns the whole pipeline."
 allowed-tools:
   - Bash
   - Read

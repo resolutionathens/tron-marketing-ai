@@ -2,7 +2,7 @@
 name: spotlight
 model: sonnet
 effort: medium
-description: "Draft a Facilitron spotlight social post — a new-hire, people, district, facility, or customer spotlight — in the house structure (who/what + a human angle + quote + CTA), with per-platform variants for IG/FB/LI. Use this skill when social wants a spotlight: 'new hire spotlight for X', 'district spotlight for Conejo Valley', 'facility spotlight', 'team member spotlight', 'spotlight post for <name>', or a CCAL spotlight ticket (the New Hire Spotlights / District Spotlights campaigns). Git-free — produces the copy; scheduling happens in the social tools."
+description: "Draft a Facilitron spotlight social post — new-hire, people, district, facility, or customer — in the house structure (who/what plus a human angle, quote, and CTA), with per-platform variants for IG/FB/LI. Use for 'new hire spotlight for X', 'district spotlight for Conejo Valley', 'facility spotlight', or a CCAL spotlight ticket. Git-free — produces the copy; scheduling happens in the social tools."
 allowed-tools:
   - Bash
   - Read

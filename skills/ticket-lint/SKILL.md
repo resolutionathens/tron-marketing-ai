@@ -2,7 +2,7 @@
 name: ticket-lint
 model: sonnet
 effort: low
-description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it (\"as written, Scout sees: none, needs human direction\"). Use this skill when the user wants to check, lint, grade, or self-assess a ticket's quality: 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', 'what's missing on this ticket', 'self-assess my ticket', 'check my ticket against the rubric', or the bulk 'lint my board', 'check my open tickets', 'which of my tickets are too thin', 'audit my queue'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
+description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it. Use for 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', or the bulk 'lint my board' / 'which of my tickets are too thin'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
 allowed-tools:
   - Bash
   - Read

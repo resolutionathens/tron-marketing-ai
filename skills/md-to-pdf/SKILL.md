@@ -2,7 +2,7 @@
 name: md-to-pdf
 model: sonnet
 effort: medium
-description: Convert a Facilitron Nuxt-Content markdown file into a branded PDF (a branded document), authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use when the user wants to convert markdown to PDF or generate a PDF from a markdown SOP, checklist, template, or news post — phrases like "make a PDF of this", "build a PDF", "convert markdown to PDF", "generate a PDF", "generate a PDF download for the toolkit", or "turn this markdown into a downloadable branded document" trigger it. A pandoc-from-markdown fallback exists for quick prose-only output. Output goes to /tmp/facilitron-md-to-pdf by default.
+description: "Convert a Facilitron Nuxt-Content markdown file into a branded PDF, authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use for 'make a PDF of this', 'convert markdown to PDF', 'generate a PDF download for the toolkit', or 'turn this markdown into a downloadable branded document'. A pandoc-from-markdown fallback exists for quick prose-only output. Output goes to /tmp/facilitron-md-to-pdf by default."
 allowed-tools:
   - Bash
   - Read

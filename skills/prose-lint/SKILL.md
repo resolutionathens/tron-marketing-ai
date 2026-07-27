@@ -2,7 +2,7 @@
 name: prose-lint
 model: haiku
 effort: low
-description: "Lint prose, marketing copy, blog posts, SOPs, and other markdown content with Vale to enforce style, terminology, and readability rules. Use this skill when the user wants to check writing quality, lint copy, run prose checks, enforce a style guide, find spelling/grammar/terminology issues, or says things like 'run vale', 'lint this content', 'check the prose', 'proofread this', 'check the writing', 'review the copy', 'check our terminology', or 'enforce the style guide'. Also trigger when the user is finalizing marketing copy, blog/cluster articles, toolkit items (SOPs, checklists, templates), or other content/*.md files and wants a quality pass before publish."
+description: "Lint prose, marketing copy, blog posts, SOPs, and other markdown content with Vale to enforce style, terminology, and readability rules. Use for 'run vale', 'lint this content', 'check the prose', 'proofread this', or 'enforce the style guide'. Also trigger when the user is finalizing marketing copy, blog/cluster articles, toolkit items, or other content/*.md files and wants a quality pass before publish."
 allowed-tools:
   - Task
   - Bash

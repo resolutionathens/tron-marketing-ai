@@ -2,7 +2,7 @@
 name: case-study
 model: opus
 effort: high
-description: "Draft a Facilitron customer / district case study from raw inputs (interview notes, metrics, a Confluence brief, a Jira ticket) into the standard Challenge → Solution → Results structure, ready to publish or export. Use this skill when content wants to write a case study or success story: 'draft a case study for Redondo Beach USD', 'write up the success story', 'turn these interview notes into a case study', 'case study for MCR-264', or pasting district/customer notes + outcomes. Produces a structured markdown draft (with pull-quote + metrics) and hands publishing to tron:guide-item / tron:news-item (web) or tron:md-to-pdf (downloadable). Git-free — it drafts; it does not branch, commit, or publish to the content tree itself."
+description: "Draft a Facilitron customer / district case study from raw inputs (interview notes, metrics, a Confluence brief, a Jira ticket) into the standard Challenge, Solution, Results structure. Use when content wants a case study or success story: 'draft a case study for Redondo Beach USD', 'turn these interview notes into a case study', or pasting district/customer notes plus outcomes. Produces a structured markdown draft with pull-quote and metrics, and hands publishing to tron:guide-item / tron:news-item (web) or tron:md-to-pdf (downloadable). Git-free — it drafts; it does not branch, commit, or publish to the content tree."
 allowed-tools:
   - Bash
   - Read

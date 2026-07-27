@@ -2,7 +2,7 @@
 name: email-campaign
 model: sonnet
 effort: medium
-description: "Draft a Facilitron marketing or lifecycle email — newsletter (Facility Forward), district launch announcement, onboarding sequence, or product-update email — with subject-line options, preview text, and a structured body with a clear CTA. Use this skill when content wants to write an email or newsletter: 'draft the Facility Forward newsletter', 'write the district launch email', 'onboarding email sequence', 'announcement email for the Tickets launch', or email/lifecycle tickets (MCR Email & Lifecycle theme). Produces review-ready email copy (multiple subject lines, preview text, body, CTA). Git-free — drafts copy; sending happens in the ESP."
+description: "Draft a Facilitron marketing or lifecycle email — newsletter (Facility Forward), district launch announcement, onboarding sequence, or product-update email — with subject-line options, preview text, and a structured body with a clear CTA. Use when content wants an email or newsletter: 'draft the Facility Forward newsletter', 'write the district launch email', 'onboarding email sequence'. Produces review-ready copy. Git-free — drafts copy; sending happens in the ESP."
 allowed-tools:
   - Bash
   - Read

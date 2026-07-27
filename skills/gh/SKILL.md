@@ -2,7 +2,7 @@
 name: gh
 model: sonnet
 effort: medium
-description: "Interact with EXISTING GitHub issues and PRs from the CLI using the `gh` tool — look up, comment, review, merge, list, and the raw `gh api`. Use this skill whenever the user references a GitHub issue or PR (e.g., `#42`, `owner/repo#42`, a github.com URL), wants to look up a PR's reviews or checks, needs to comment on / transition / merge an issue or PR, or asks anything like 'what's the status of PR X', 'list my open issues', 'merge that PR', 'who reviewed this', or 'what changed in this release'. To CREATE a new PR use tron:git-pr."
+description: "Interact with EXISTING GitHub issues and PRs from the CLI using the gh tool — look up, comment, review, merge, list, and the raw gh api. Use whenever the user references a GitHub issue or PR (#42, owner/repo#42, a github.com URL), wants a PR's reviews or checks, or asks 'what's the status of PR X', 'merge that PR', 'who reviewed this'. To CREATE a new PR use tron:git-pr."
 allowed-tools:
   - Bash
   - Read

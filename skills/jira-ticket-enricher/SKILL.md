@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Self-check against rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description. Uses the shared ticket rubric to produce a high-confidence description with machine-readable markers. Use this skill after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources', 'fill in the description from the gathered links'. Jira-write skill — it edits ticket descriptions only after the user confirms."
+description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description, using the shared ticket rubric to produce machine-readable markers. Use after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources'. Jira-write skill — it edits ticket descriptions only after the user confirms."
 allowed-tools:
   - Bash
   - Read

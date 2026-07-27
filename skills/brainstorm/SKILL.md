@@ -2,7 +2,7 @@
 name: brainstorm
 model: opus
 effort: high
-description: "Collaborative one-question-at-a-time ideation for a marketing idea before you commit to producing it — a content topic, a campaign, positioning, a name, a new landing page. Use when the user says '/brainstorm', 'I have an idea', 'help me think through', 'noodle on this', 'workshop this idea', 'what should we do about', 'what content should we write on', or has a vague hypothesis with no plan yet. Asks one question at a time to surface assumptions, then writes a structured Ideation Note. Does NOT produce the content — it produces the thinking."
+description: "Collaborative one-question-at-a-time ideation for a marketing idea before you commit to producing it — a content topic, a campaign, positioning, a name, a new landing page. Use for '/brainstorm', 'I have an idea', 'help me think through', 'workshop this idea', or a vague hypothesis with no plan yet. Asks one question at a time to surface assumptions, then writes a structured Ideation Note. Does NOT produce the content — it produces the thinking."
 allowed-tools:
   - AskUserQuestion
   - Read

@@ -2,7 +2,7 @@
 name: gen-image
 model: sonnet
 effort: low
-description: "Generate a new image, optionally matching the visual style of reference photos — color palette, lighting, mood, composition, medium. Use when the user wants to create, generate, or make an image, illustration, or graphic. Trigger on: 'generate an image', 'create an image', 'make an image of X', 'generate an image like these', 'create an image in this style', 'make something that looks like these photos', '/gen-image', 'gen image from folder', or 'generate image like [folder]'."
+description: "Generate a new image, optionally matching the visual style of reference photos — color palette, lighting, mood, composition, medium. Use for 'generate an image', 'make an image of X', 'create an image in this style', '/gen-image', or 'generate image like [folder]'."
 allowed-tools:
   - Bash
 scout:
