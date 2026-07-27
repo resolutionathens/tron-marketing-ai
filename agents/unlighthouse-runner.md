@@ -19,11 +19,11 @@ target. Do not type an `npx` line.**
 ```bash
 # Resolve the skill dir without relying on $CLAUDE_SKILL_DIR (not exported to this bash).
 name=site-audit
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-# fall back to the newest INSTALLED copy that actually contains scripts/site-audit.sh
-# (skips a stale mirror that lacks it; newest version wins, marketplace breaks ties)
-[ -e "$SKILL_DIR/scripts/site-audit.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/site-audit.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/site-audit.sh" ] || { echo "tron:$name: can't find scripts/site-audit.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/site-audit.sh)"
 
 # Run it. It prints the absolute path to the parsed CSV on stdout.
 CSV="$(bash "$SKILL_DIR/scripts/site-audit.sh" "<target-url>" [--page|--full] [--samples N] [--desktop])"
