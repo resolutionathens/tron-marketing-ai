@@ -59,5 +59,9 @@ OUT="$(CLAUDE_PLUGIN_ROOT="$root" \
       bash "$SCRIPT" 2>&1)"; RC=$?
 [ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "no-network: fail-silent exit 0" || bad "no-network: expected silent exit 0 (rc=$RC out=$OUT)"
 
+# 6. Non-numeric version text is ignored so interpolation can never make invalid hook JSON.
+mk_remote "0.10.0-beta"; run "0.9.0"
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "non-numeric remote: silent exit 0" || bad "non-numeric remote: expected silent exit 0 (rc=$RC out=$OUT)"
+
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }

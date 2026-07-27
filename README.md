@@ -138,7 +138,7 @@ Third-party marketplaces don't auto-update by default, so an installed copy can 
 
 - **Update notice** — even without auto-update, the plugin ships a `SessionStart` hook
   (`hooks/check-update.sh`) that compares your installed `version` against `master` once a
-  day and prints a one-line notice when you're behind. To update manually:
+  day and returns a one-line SessionStart system message when you're behind. To update manually:
 
   ```
   claude plugin update tron@tron

@@ -42,6 +42,7 @@ extract_version() {
 [ -f "$LOCAL_MANIFEST" ] || exit 0
 LOCAL="$(extract_version < "$LOCAL_MANIFEST")"
 [ -n "$LOCAL" ] || exit 0   # can't determine local version — stay quiet
+case "$LOCAL" in *[!0-9.]* ) exit 0 ;; esac
 
 # Resolve the remote version: use a fresh cache if present, else fetch (fast, fail-silent),
 # falling back to a stale cache if the fetch fails.
@@ -58,6 +59,7 @@ else
   fi
 fi
 [ -n "$REMOTE" ] || exit 0
+case "$REMOTE" in *[!0-9.]* ) exit 0 ;; esac
 
 # Quiet if up to date or somehow ahead of master. Use version sort so 0.10.0 > 0.9.0.
 [ "$REMOTE" = "$LOCAL" ] && exit 0
