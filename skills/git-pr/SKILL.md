@@ -25,14 +25,14 @@ Create a PR from the current feature branch with a clear, conventional title and
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. Skip Step 5's approval prompt and proceed straight to Step 6 with the
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: skip Step 5's approval prompt and proceed straight to Step 6 with the
 generated title and body as-is. If something genuinely blocks progress (e.g. the branch has no
 resolvable base, or a required detail is missing and can't be inferred from the diff), post ONE
 concise plain-text message stating what's needed and stop to wait for the reply, rather than using
 `AskUserQuestion`.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Step 1: Validate branch and tree
 
@@ -133,112 +133,26 @@ EOF
 gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH"
 ```
 
-## Steps 7–8: Copilot review + retro comment (scripted)
+## Steps 7–8: Copilot review + retro comment
 
-The mechanics — the doc-only skip arithmetic, the token-usage lookup, and the
-marker-comment assembly — live in the bundled `git-pr-retro.sh`. Resolve it once:
+Request a Copilot review, wait for it to land, act on it, then post the retro. The mechanics — the
+script resolution, the skip arithmetic, the `await-review` status branches, and the retro comment
+shape — are in [reference/copilot-review.md](reference/copilot-review.md). Read it before running
+this step; what follows is only the part that is your judgment.
 
-```bash
-name=git-pr
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
-RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
-[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
-[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
-SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/git-pr-retro.sh)"
-```
+- **A PR is not approval-ready the instant it opens.** If a review was requested, wait for it
+  (MD-2112), and report the outcome in a status comment. That status is what makes the PR genuinely
+  ready for the human gate, and under dispatch it is how the tron-os dashboard learns the PR is
+  review-resolved.
+- **On review comments:** address the valid ones in the worktree and `tron:git-commit` the fixes so
+  they push to the PR branch. Skip any that are wrong or out of scope, and say which ones and why.
+- **When no automated review ran** (skipped, timed out, or errored), say so prominently rather than
+  proceeding quietly. The human gate is then the only review that happened.
+- **The retro sections are yours to write.** Use `FOLLOW-UP:` for work this PR deliberately did not
+  do, one per line.
 
-**Step 7 — Copilot review (best-effort, skipped for small doc-only PRs):**
-
-```bash
-bash "$SKILL_DIR/scripts/git-pr-retro.sh" skip-check --pr "<N>"
-```
-
-Prints `{"skip":bool,"reason":"..."}` (doc = `*.md`/`*.mdx` only; small = ≤3 files
-and ≤40 changed lines). A SKILL.md counts as documentation, but its blast radius
-(it's instructions an agent executes) still makes it easy to blow past the
-thresholds — don't special-case it lower. If `skip` is true, skip the request and
-note it in Step 9. Otherwise:
-
-```bash
-bash "$SKILL_DIR/scripts/git-pr-retro.sh" request-review --pr "<N>"
-```
-
-Never fails the lifecycle (an org without Copilot review returns `requested:false`,
-exit 0). One request at PR open only.
-
-**Step 7b — wait for Copilot's review, then report status (MD-2112).** A PR is
-**not** approval-ready the instant it opens — if a Copilot review was requested
-(`requested:true` above), you must wait for that review to actually land before
-handing off to the human approval gate. Skip this step only when Step 7 skipped
-the request or returned `requested:false`.
-
-```bash
-bash "$SKILL_DIR/scripts/git-pr-retro.sh" await-review --pr "<N>"
-```
-
-Polls until Copilot posts its review (default: up to 10 min, every 20s — tighter,
-120s, for a dispatched worker with `TRON_DISPATCH_ID` set, unless you pass
-`--timeout` yourself; tune with `--timeout`/`--interval` seconds). It prints one
-JSON line — branch on `status`:
-
-- **`skipped`** — the operator set `TRON_COPILOT_UNAVAILABLE` (e.g. during a
-  known Copilot outage) so the poll was skipped entirely; no gh calls were made
-  (MD-2194). Treat exactly like `timeout` below for the status comment.
-- **`commented`** — Copilot left inline comments (in `comments[]`, each with
-  `path`/`line`/`body`). Read them, **address the valid ones in the worktree**,
-  then `tron:git-commit` the fixes so they push to the PR branch. Skip any that
-  are wrong or out of scope, and say which in your status. Then post a status
-  comment: `Copilot review: N comment(s), addressed in <short-sha>` (or note the
-  ones you deliberately left), ending with the `<!-- tron-note -->` marker.
-- **`no-comments`** — Copilot reviewed and had nothing to flag. Post a one-line
-  `Copilot review: no comments` status comment with the `<!-- tron-note -->`
-  marker. No code changes.
-- **`timeout`** / **`error`** / **`skipped`** — no automated review ran (Copilot
-  never posted within the window, the wait couldn't run at all, or an operator
-  flagged it unavailable). Do **not** hang, retry, or proceed silently — post a
-  prominent status comment so the human gate is unmistakably the only review
-  that happened: `**No automated review ran** — <reason>. Proceeding to the
-  human approval gate.` (fill `<reason>` from the JSON's `reason` field; use
-  `<!-- tron-note -->`).
-
-Post the status comment with `gh pr comment "<N>" --body-file <tmp>` (write the
-body to a unique file from `mktemp "${TMPDIR:-/tmp}/tron-status-body.XXXXXX"`
-first — never inline `--body` — per the retro note above). Only after this
-status is reported is the PR genuinely ready for the human approval gate. When
-dispatched (`TRON_DISPATCH_ID` set), this status comment is also how the tron-os
-dashboard learns the PR is review-resolved.
-
-**Step 8 — retro comment.** Write the filled-in retro sections (this is your
-judgment) to a fresh, unique temp file — never a fixed name, which risks
-posting a stale draft left over from a prior PR — then post and clean up.
-Keep the `mktemp` template ending in `X` characters with no suffix after them:
-BSD `mktemp` (what macOS ships) only substitutes *trailing* X's, so a template
-like `…XXXXXX.md` yields that exact literal filename instead of a unique one,
-then fails `mkstemp failed … File exists` on the next run (MD-2434).
-
-```bash
-RETRO_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-retro-body.XXXXXX")"
-cat > "$RETRO_BODY" <<'EOF'
-**What went well:**
-**Friction / surprises:**
-**Follow-up (filed):**
-**Out of scope / not filed:**
-FOLLOW-UP:
-EOF
-bash "$SKILL_DIR/scripts/git-pr-retro.sh" retro-comment --pr "<N>" \
-  --model "<your model ID>" --body-file "$RETRO_BODY" && rm -f "$RETRO_BODY"
-```
-
-The script adds the `<!-- tron-retro -->` marker (required for the OS reviewer),
-the `### Retro` header, and the footer: the `*<model ID>*` line plus this session's
-real token line from `tools/git/token-usage.sh` (empty token data never blocks the
-comment).
-
-Replace `<your model ID>` with your own exact model ID (e.g. `claude-opus-4-8[1m]`) as **literal text**. Do not paste a shell variable like `${CLAUDE_MODEL_ID}` — Claude Code does not export it to the shell, so the literal `${...}` would end up in the comment. You know your own model ID from your session context; write it in directly.
-
-Use `FOLLOW-UP:` for work this PR did not do — one per line. Use `<!-- tron-note -->` on any other comment you post on this PR.
-
-If the bundled script cannot be resolved, follow the [manual review fallback](reference/manual-review-fallback.md).
+If the bundled script cannot be resolved, follow the
+[manual review fallback](reference/manual-review-fallback.md).
 
 ## Step 9: Report
 

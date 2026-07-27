@@ -24,8 +24,10 @@ Walk the canonical Facilitron task lifecycle by **delegating to the existing per
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. Skip Step 2's per-stage confirmation and advance through the lifecycle
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: skip Step 2's per-stage confirmation and advance through the lifecycle
 automatically, delegating to each stage's skill in turn — each delegated skill applies its own
 dispatch-mode behavior (see its SKILL.md), so approval prompts inside those stages are already
 handled.
@@ -47,8 +49,6 @@ and never reaches PROMOTE-PROD or CLEANUP on its own. Step 5's remaining conditi
 written: stop and report on a non-recoverable stage failure. And if a genuinely risky or ambiguous
 decision comes up that no stage's default can resolve, post ONE concise plain-text message and stop
 to wait for the reply, rather than using `AskUserQuestion`.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Lifecycle stages
 

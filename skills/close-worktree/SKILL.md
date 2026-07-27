@@ -16,8 +16,10 @@ Remove git worktrees that are no longer needed, along with their tmux sessions a
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. A dispatched worker almost always already knows which branch to close (it's
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: a dispatched worker almost always already knows which branch to close (it's
 the branch it was working in), so the "don't know which branch" case below should rarely trigger.
 If it does — the list is ambiguous and picking wrong risks deleting the wrong worktree or unsaved
 work — post ONE concise plain-text message listing the candidate branches and stop to wait for the
@@ -31,8 +33,6 @@ reviewer can reproduce the change and the merge has a branch to land on (see
 The merge-verification below is a safety net, not a licence to run this before review: it refuses
 to delete an unmerged branch, but you still should not invoke the skill until merge or an explicit
 request.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Fast path — when you already know the branch
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Lints every skills/*/scripts/*.sh (the deterministic script backbones, per
 # CLAUDE.md → Deterministic scripts) against the doc that resolves its path at
-# runtime — the skill's own SKILL.md, or, for the runner-delegated audit
-# skills, the matching agents/*-runner.md — and fails if that doc has lost the
+# runtime — the skill's own SKILL.md, one of its reference/*.md files, or,
+# for the runner-delegated audit skills, the matching agents/*-runner.md —
+# and fails if that doc has lost the
 # CLAUDE_SKILL_DIR -> CLAUDE_PLUGIN_ROOT -> Claude/Codex cache/marketplace/release-store
 # SKILL_DIR fallback (see CLAUDE.md -> Path resolution). Silently dropping the
 # fallback is the exact regression MD-1987 exists to catch.
@@ -32,6 +33,9 @@ for script in skills/*/scripts/*.sh; do
 
   found=0
   docs=("skills/$skill/SKILL.md")
+  # A skill may push the resolver into one of its own reference/ files when
+  # SKILL.md gets long (CLAUDE.md -> Reference files & progressive disclosure).
+  docs+=("skills/$skill"/reference/*.md)
   docs+=(agents/*.md)
   for doc in "${docs[@]}"; do
     [ -f "$doc" ] || continue

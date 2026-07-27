@@ -23,16 +23,16 @@ Analyze changes, group them into atomic commits by logical concern, get user app
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. Instead:
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here:
 
 - **Step 4's approval prompt:** skip it and proceed straight to Step 5 with the generated commit
   plan as-is.
 - **The missing-Jira-key question** in the guard below: it's a genuine open question with no safe
   default (creating an unwanted ticket or misattributing work is hard to undo) — post it as ONE
   concise plain-text message and stop to wait for the reply, rather than using `AskUserQuestion`.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Guard: never commit to master/main
 
