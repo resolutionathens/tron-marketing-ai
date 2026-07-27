@@ -108,7 +108,7 @@ page.
 ## Rules
 
 - Lead with the percent + the one-line health (on track / at risk / blocked).
-- Plain prose, no em dashes, exec-readable. Don't editorialize beyond what the tickets show.
+- Plain prose, exec-readable, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). Don't editorialize beyond what the tickets show.
 
 Write the summary:
 

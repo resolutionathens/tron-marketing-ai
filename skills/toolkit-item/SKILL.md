@@ -136,7 +136,7 @@ Remove source markdown and source image files. Don't touch `content/resources/to
 Validate → fix → repeat until clean. Check:
 - Internal links resolve (lychee + check-link)
 - Category is valid enum
-- No em-dashes (Facilitron voice)
+- Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
 - `tron:prose-lint` and `tron:a11y-scan` pass
 - PDF carries only actionable content
 - ImageKit filenames match front-matter values exactly

@@ -96,5 +96,5 @@ acli jira workitem view <KEY> --fields summary,description --json \
 - Keep descriptions scannable with headings and bullets.
 - Do not paste the full source document into Jira unless the user asks. Link to the source and summarize.
 - Do not invent fields that are not supported by the destination schema.
-- No em dashes in prose you draft.
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Always use `tools/md-to-adf` with `--description-file` — never pass raw markdown to `acli --description`.

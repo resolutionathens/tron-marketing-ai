@@ -61,5 +61,5 @@ Confirm the enriched ticket is live and lints correctly.
 
 ## Quality rules
 
-- No em dashes in prose you draft (Facilitron voice).
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Always use `tools/md-to-adf` with `--description-file` — never pass raw markdown to `acli --description`.

@@ -148,7 +148,7 @@ was missing the `--assignee` flag.
 ## Quality rules
 
 - Markers in a fenced code block; prose (with clickable links) below. Always.
-- No em dashes in the prose you draft (Facilitron voice).
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Never pass raw markdown to `acli --description`; always use md-to-adf + `--description-file`
   ([tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md)).
 - Engineering tickets carry both the summary `PREFIX:` and the `Repo:` marker.

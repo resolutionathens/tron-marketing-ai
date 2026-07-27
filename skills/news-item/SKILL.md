@@ -45,7 +45,7 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 - [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
 - [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
 - [ ] Stage 4 — Verify: links, images resolve, served-HTML check on THIS worktree, prose-lint + a11y-scan
-- [ ] Verification loop: re-read against brief, no em-dashes, fix, repeat
+- [ ] Verification loop: re-read against brief, check Facilitron voice, fix, repeat
 - [ ] Clean up: remove dropped-in featured image + /tmp/news-<slug>
 ```
 
@@ -165,4 +165,4 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
 
 ## Verification loop
 
-Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, no em-dashes (Facilitron voice), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.
+Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.

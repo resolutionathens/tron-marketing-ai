@@ -62,7 +62,7 @@ happens in the social tools. For spotlights (new-hire / district / facility / pe
 
 ## Rules
 
-- Facilitron voice: plain, confident, **no em dashes**. One primary CTA per post.
+- Facilitron voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md). One primary CTA per post.
 - Tailor per platform — don't paste the same caption three times. IG is visual + hashtags, FB is
   conversational + link, LI is professional + insight-led.
 - Always include **alt text** for the image. Don't invent facts, names, dates, or stats.

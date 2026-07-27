@@ -80,7 +80,7 @@ Write `/tmp/video/<slug>-brief.md` (slug = kebab-case of the title):
 
 ## Rules
 
-- Match Facilitron voice: plain, confident, **no em dashes** in on-screen copy.
+- Match Facilitron voice in on-screen copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Don't pad — every shot earns its place against the length budget.
 - Use **AskUserQuestion** only for the few unknowns that change the cut (length, platform, CTA).
 

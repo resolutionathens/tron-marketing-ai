@@ -70,7 +70,7 @@ newsletter, District Launch Emails, Onboarding Emails, announcements).
 
 ## Drafting rules
 
-- **No em dashes.** Short sentences. One primary CTA per email (secondary links ok in a newsletter).
+- Facilitron voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md). Short sentences. One primary CTA per email (secondary links ok in a newsletter).
 - Subject ≤45 chars where possible; preview text never repeats the subject.
 - For a sequence, keep each email to one idea and show the send cadence (e.g. Day 0 / 2 / 5).
 - Don't invent product claims or dates. Use **AskUserQuestion** for audience + primary CTA if unclear.

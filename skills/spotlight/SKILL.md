@@ -70,7 +70,7 @@ CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
 
 ## Rules
 
-- Human-first and genuine, not corporate. **No em dashes.** Get names/titles exactly right.
+- Human-first and genuine, not corporate. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). Get names/titles exactly right.
 - Never fabricate a quote, role, or fact — flag gaps and confirm.
 - Always include alt text and the photo spec.
 

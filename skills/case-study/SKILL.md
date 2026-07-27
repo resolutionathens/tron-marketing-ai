@@ -64,7 +64,7 @@ have yet — never open with an empty Results block when one question would fill
 
 ## Drafting rules
 
-- Marketing voice: **no em dashes**, plain confident prose, no hype.
+- Marketing voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Lead with the outcome; back every claim with a metric or a quote.
 - If a key metric or quote is missing, flag it with `> TODO:` rather than inventing it. Use
   **AskUserQuestion** for the few facts that change the story.

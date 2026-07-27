@@ -73,6 +73,6 @@ SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/brainstorm.sh)"
 bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] [--out PATH]
 ```
 
-Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. No em dashes in the note's copy (Facilitron voice).
+Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. Facilitron voice in the note's copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 
 The note ends with a next-step routing — route per the template's Next Step list.

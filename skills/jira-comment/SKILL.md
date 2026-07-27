@@ -55,7 +55,7 @@ The voice rules below are the heart of the skill. Each one is here for a reason;
 
 **Prose, not bullets.** Bullets feel like a status report or a chunked AI response. Two or three sentences in a row reads like a person talking. If you genuinely have a list of unrelated items, that's usually a sign you have more than one comment to write — or that the items belong in the PR description.
 
-**No em dashes.** They're an AI tell and they make casual writing feel formal. Use a period, a comma, parentheses, or the word "and"/"but"/"so" instead. This is one of the more common rules to slip on — actively scan your draft for them before posting.
+**No em dashes**, and scan the draft for them before posting. The rule, the reasons, and the substitutions are in [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 
 **Mention where it stands if there's a useful next step.** If the work is on dev, in a PR, or live on production, end with a short pointer ("Live on dev now for review, PR #709." or "Shipped to production."). Skip this if the ticket itself already implies where things are or if the comment is purely informational with no follow-up.
 

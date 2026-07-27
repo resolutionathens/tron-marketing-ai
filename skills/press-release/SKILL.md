@@ -78,9 +78,10 @@ newsworthy first (inverted pyramid).>
 ## Drafting rules
 
 - Inverted pyramid: the news leads, detail follows.
-- **No em dashes in body prose**; AP-ish style; third person; no marketing superlatives in the body.
-  One permitted exception: the AP-style **dateline** em dash (`**<CITY, State> — <Date>** —` in the
-  template above) is standard PR format — keep it there and only there.
+- Facilitron voice in body prose ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md));
+  AP-ish style; third person; no marketing superlatives in the body. The AP-style **dateline** em
+  dash (`**<CITY, State> — <Date>** —` in the template above) is the one documented exception to the
+  no-em-dash rule — keep it there and only there.
 - Don't fabricate quotes or numbers. Missing quote/stat → `> TODO:` and ask with **AskUserQuestion**
   for the few that matter.
 

@@ -99,7 +99,7 @@ Straight from the rubric ladder ([the verdict mapping](../../tools/ticket/ticket
 ## Quality rules
 
 - Use the verdict strings from the script verbatim; do not reword them (they are the contract triage shares).
-- No em dashes in the prose you write back to the user.
+- Facilitron voice in the prose you write back to the user: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Read-only: never edit a ticket from this skill. Hand off to `tron:jira-source-discovery` / `tron:jira-ticket-enricher` for that.
 - If `rubric-lint.sh --key` fails (acli not authed, bad key), report the error plainly; do not guess a
   verdict from the summary alone.

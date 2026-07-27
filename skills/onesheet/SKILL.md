@@ -71,7 +71,7 @@ cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 ## Drafting rules
 
 - One page. Ruthless: 3 value props, 3 steps, 1 proof block.
-- Benefits over features. **No em dashes.** No unsupported claims (flag gaps with `> TODO:`).
+- Benefits over features. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). No unsupported claims (flag gaps with `> TODO:`).
 - Use **AskUserQuestion** only for audience + the single primary CTA if unclear.
 
 ## Handoff

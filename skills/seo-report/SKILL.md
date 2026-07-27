@@ -54,7 +54,7 @@ input for everything below.
 
 - **Leadership summary** — condense to headline + the few things that matter, framed per the analyzer's
   c-suite guide (`/guide` / `docs/csuite-report-guide.md`). Always keep the **period comparison** the
-  report carries; a summary without the delta is noise. Prose, no em dashes.
+  report carries; a summary without the delta is noise. Prose, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)).
 - **Deliverables** — `tron:md-to-pdf` for a branded PDF; for the monthly **report-to-carousel** (MCR-353),
   pull the headline tiles + top movers into slide-ready bullets.
 - **Follow-ups** — route the report's own findings into action:

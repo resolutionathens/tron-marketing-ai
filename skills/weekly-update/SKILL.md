@@ -128,7 +128,7 @@ Hey <RECIPIENT> and <MANAGER>,
 ### Formatting rules (non-negotiable)
 
 - **Plain text only** — no markdown, no `*bold*`, no backticks. Parentheses are fine.
-- **No em dashes** (Facilitron voice). Use commas, colons, or split the sentence.
+- Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)).
 - **No Jira keys, no PR numbers, no commit hashes.** Translate to plain English: "Shipped MD-1733" → "Shipped the news page redesign."
 - **~25 words per bullet max.** Roll up related work — name the theme, not each ticket.
 - **Greeting is "Hey `<RECIPIENT>` and `<MANAGER>`,"** using the values loaded in Step 0. No subject line, no sign-off.
@@ -162,4 +162,4 @@ Print the full body for user review. If `pbcopy` succeeded, tell them: "On your 
 
 ## Anti-patterns
 
-❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder the template's sections. ❌ Use markdown or em dashes in output.
+❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder the template's sections. ❌ Use markdown in output.

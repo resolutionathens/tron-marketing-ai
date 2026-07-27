@@ -66,7 +66,7 @@ YouTube / the social schedulers. Serves the webinar-sharing + YouTube-series wor
 
 ## Rules
 
-- Titles/descriptions are real SEO surface — front-load the keyword, write for humans. **No em dashes.**
+- Titles/descriptions are real SEO surface — front-load the keyword, write for humans. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)).
 - Chapters must map to actual timestamps; don't invent them — pull from the transcript/brief.
 - Accessibility: always note captions/subtitles. Don't fabricate metrics or claims.
 

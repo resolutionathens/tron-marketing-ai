@@ -157,7 +157,7 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
 2. **Index card:** Load `/resources/guides`, confirm new card shows.
 3. **Images resolve:** Spot-check ImageKit URLs.
 4. **Links:** Run `bash "$C" rewrite-links pages/resources/guides/<slug>.vue` (facilitron.com → relative), then `bash "$C" check-link` each internal path. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
-5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, grep for `—` (no em-dashes).
+5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, and the dash grep from [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 6. **Clean up:** Remove `/tmp/guide-<slug>` and dropped-in sources.
 
 ## Common pitfalls
