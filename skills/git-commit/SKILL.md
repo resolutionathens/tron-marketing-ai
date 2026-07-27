@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Analyze & group"
       skip_when: "Only one file changed or changes are all related to one concern"
-description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use for 'commit', 'commit and push', 'push this up', 'ship it', or anything that implies finalizing current work."
+description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use for 'commit', 'commit and push', 'push this up', 'save my changes', 'ship it', or anything that implies finalizing current work."
 allowed-tools:
   - Bash
   - Read

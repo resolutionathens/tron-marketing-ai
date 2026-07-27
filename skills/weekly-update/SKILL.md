@@ -10,7 +10,7 @@ fallback:
       skip_when: "User says 'no blockers' or provides the soft sections directly"
     - stage: "GitHub activity"
       skip_when: "GitHub is unavailable or user is Jira-only"
-description: "Generate your weekly status update for your manager by pulling recent Jira activity (and GitHub when available), asking 3 quick questions for blockers/decisions/cross-team, and composing the team's 6-section template as a plain-text email body on the clipboard. Use for 'weekly update', 'weekly status', 'standup report', or 'what did I ship this week'. Recipient, template owner, and deadline are env-configurable; works Jira-only for people without git. Default window is since last Monday; widen for 'biweekly' or 'past two weeks'."
+description: "Generate your weekly status update for your manager by pulling recent Jira activity (and GitHub when available), asking 3 quick questions for blockers/decisions/cross-team, and composing the team's 6-section template as a plain-text email body on the clipboard. Use for 'weekly update', 'weekly status', 'weekly report', 'standup report', or 'what did I ship this week'. Recipient, template owner, and deadline are env-configurable; works Jira-only for people without git. Default window is since last Monday; widen for 'biweekly' or 'past two weeks'."
 allowed-tools:
   - Bash
   - AskUserQuestion
