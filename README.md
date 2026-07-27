@@ -141,12 +141,12 @@ Third-party marketplaces don't auto-update by default, so an installed copy can 
   day and prints a one-line notice when you're behind. To update manually:
 
   ```
-  /plugin marketplace update tron
-  /plugin install tron@tron --force
-  /reload-plugins
+  claude plugin update tron@tron
   ```
 
-  The check is fail-silent (never blocks startup) and network-frugal (cached daily).
+  For a tron-os release-store install, run `tron-os reconcile-tron-release` first, then run
+  the plugin update command. The check is fail-silent (never blocks startup) and network-frugal
+  (cached daily).
 
 ### Developing the plugin (live edit loop)
 

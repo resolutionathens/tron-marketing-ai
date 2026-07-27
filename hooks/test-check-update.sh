@@ -16,44 +16,48 @@ mk_root() { # <dir> <version>
 }
 mk_remote() { printf '{ "name": "tron", "version": "%s" }\n' "$1" > "$TMP/remote.json"; }
 
-# Run the hook with isolated cache + file:// remote; capture exit code and stderr.
-run() { # <local_version>  -> sets RC and ERR
+# Run the hook with isolated cache + file:// remote; capture exit code and output.
+run() { # <local_version>  -> sets RC and OUT
   local root="$TMP/root"; rm -rf "$root"; mk_root "$root" "$1"
-  ERR="$(CLAUDE_PLUGIN_ROOT="$root" \
+  OUT="$(CLAUDE_PLUGIN_ROOT="$root" \
         TRON_UPDATE_REMOTE_URL="file://$TMP/remote.json" \
         TRON_UPDATE_CACHE="$TMP/cache-$1-$RANDOM" \
-        bash "$SCRIPT" 2>&1 >/dev/null)"
+        bash "$SCRIPT" 2>&1)"
   RC=$?
 }
 ok()   { echo "ok  : $1"; }
 bad()  { echo "FAIL: $1"; fail=1; }
 
-# 1. Behind → notice (exit 2, message names both versions + the update command).
+# 1. Behind → a clean SessionStart system message (exit 0).
 mk_remote "0.10.0"; run "0.9.0"
-[ "$RC" -eq 2 ] && ok "behind: exits 2" || bad "behind: expected exit 2, got $RC"
-case "$ERR" in *"0.9.0"*"0.10.0"*) ok "behind: names installed + published" ;; *) bad "behind: message missing versions ($ERR)";; esac
-case "$ERR" in *"/plugin marketplace update tron"*) ok "behind: shows update command" ;; *) bad "behind: no update command";; esac
+[ "$RC" -eq 0 ] && ok "behind: exits 0" || bad "behind: expected exit 0, got $RC"
+case "$OUT" in *'"systemMessage"'*) ok "behind: emits a system message" ;; *) bad "behind: missing system message ($OUT)";; esac
+printf '%s' "$OUT" | node -e 'const fs = require("fs"); const output = JSON.parse(fs.readFileSync(0, "utf8")); process.exit(typeof output.systemMessage === "string" ? 0 : 1)' \
+  && ok "behind: emits valid hook JSON" || bad "behind: invalid hook JSON ($OUT)"
+case "$OUT" in *"0.9.0"*"0.10.0"*) ok "behind: names installed + published" ;; *) bad "behind: message missing versions ($OUT)";; esac
+case "$OUT" in *"claude plugin update tron@tron"*) ok "behind: shows working plugin update command" ;; *) bad "behind: no plugin update command";; esac
+case "$OUT" in *"tron-os reconcile-tron-release"*) ok "behind: shows release-store reconcile command" ;; *) bad "behind: no release-store reconcile command";; esac
 
 # 2. Up to date → silent (exit 0, no output).
 mk_remote "0.10.0"; run "0.10.0"
-[ "$RC" -eq 0 ] && [ -z "$ERR" ] && ok "current: silent exit 0" || bad "current: expected silent exit 0 (rc=$RC err=$ERR)"
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "current: silent exit 0" || bad "current: expected silent exit 0 (rc=$RC out=$OUT)"
 
 # 3. Local AHEAD of remote (e.g. dev build) → silent.
 mk_remote "0.9.0"; run "0.10.0"
-[ "$RC" -eq 0 ] && [ -z "$ERR" ] && ok "ahead: silent exit 0" || bad "ahead: expected silent exit 0 (rc=$RC err=$ERR)"
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "ahead: silent exit 0" || bad "ahead: expected silent exit 0 (rc=$RC out=$OUT)"
 
 # 4. Version-sort correctness: 0.9.0 installed vs 0.10.0 published must read as behind
 #    (lexical sort would wrongly call 0.9.0 newer). Covered by test 1 passing with sort -V.
 mk_remote "0.10.0"; run "0.9.0"
-[ "$RC" -eq 2 ] && ok "semver: 0.10.0 > 0.9.0" || bad "semver: 0.10.0 not treated as newer than 0.9.0"
+[ "$RC" -eq 0 ] && ok "semver: 0.10.0 > 0.9.0" || bad "semver: 0.10.0 not treated as newer than 0.9.0"
 
 # 5. Unreachable remote + no cache → fail-silent (exit 0, never blocks startup).
 root="$TMP/root"; rm -rf "$root"; mk_root "$root" "0.9.0"
-ERR="$(CLAUDE_PLUGIN_ROOT="$root" \
+OUT="$(CLAUDE_PLUGIN_ROOT="$root" \
       TRON_UPDATE_REMOTE_URL="file://$TMP/does-not-exist.json" \
       TRON_UPDATE_CACHE="$TMP/cache-miss-$RANDOM" \
-      bash "$SCRIPT" 2>&1 >/dev/null)"; RC=$?
-[ "$RC" -eq 0 ] && [ -z "$ERR" ] && ok "no-network: fail-silent exit 0" || bad "no-network: expected silent exit 0 (rc=$RC err=$ERR)"
+      bash "$SCRIPT" 2>&1)"; RC=$?
+[ "$RC" -eq 0 ] && [ -z "$OUT" ] && ok "no-network: fail-silent exit 0" || bad "no-network: expected silent exit 0 (rc=$RC out=$OUT)"
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }
