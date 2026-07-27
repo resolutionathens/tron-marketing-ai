@@ -10,7 +10,7 @@ fallback:
       skip_when: "Ticket is already In Progress"
     - stage: "Copy env files"
       skip_when: "Worktree already has .env files from a prior start-ticket run"
-description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, and then moving into the worktree and beginning the implementation against the ticket as the spec. Detects Jira vs GitHub from the input format. Use this skill when the user says 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', 'work on this issue', 'start work on owner/repo#7', 'pick up that GitHub issue', or pastes a Jira / GitHub issue URL. Also trigger when the user says 'grab that ticket', 'let me work on this', or 'set up a branch for <ticket-ref>'. It scaffolds the workspace and kicks off the work; it does not commit, promote, or open a PR (those are separate lifecycle skills)."
+description: "Start work on a Jira ticket or GitHub issue by looking it up, creating a branch and worktree, transitioning it to In Progress, then moving into the worktree and beginning the implementation against the ticket as the spec. Detects Jira vs GitHub from the input format. Use for 'start working on MD-1234', 'pick up ticket ABC-456', 'start issue #42', or pasting a Jira / GitHub issue URL. It scaffolds the workspace and kicks off the work; it does not commit, promote, or open a PR (those are separate lifecycle skills)."
 allowed-tools:
   - Bash
   - Read
@@ -27,15 +27,15 @@ Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. A dispatch normally names its ticket unambiguously, so Step 0's "ambiguous
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: a dispatch normally names its ticket unambiguously, so Step 0's "ambiguous
 ref" case should rarely trigger. If it does, post ONE concise plain-text message stating the
 ambiguity and any inline choices, then stop to wait for the reply, rather than using
 `AskUserQuestion`. The same applies to the "ticket too thin to act on" case in Step 2 — relay the
 missing detail as a plain message instead of prompting interactively. See also the
 not-in-a-browser note at the end of Step 2, which already applies to dispatched workers.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Step 0: Detect ticket type
 

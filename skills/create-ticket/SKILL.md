@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Step 4 — Self-check against the rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for engineering, design, content, campaign-asset, or hosted-CMS work, stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use this skill when the user wants to file, open, create, or write a NEW Jira ticket or task: 'create a ticket', 'file a Jira ticket for X', 'open a task', 'new ticket', 'log this as a ticket', 'make a ticket so it doesn't get lost', or when they describe work that should become a ticket. Enforces the rubric so the ticket is actionable by construction (not thin/title-only). For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
+description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for engineering, design, content, campaign-asset, or hosted-CMS work, stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use for 'create a ticket', 'file a Jira ticket for X', 'open a task', 'log this as a ticket', or when the user describes work that should become one. Enforces the rubric so the ticket is actionable by construction, not thin/title-only. For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
 allowed-tools:
   - Bash
   - Read
@@ -148,7 +148,7 @@ was missing the `--assignee` flag.
 ## Quality rules
 
 - Markers in a fenced code block; prose (with clickable links) below. Always.
-- No em dashes in the prose you draft (Facilitron voice).
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Never pass raw markdown to `acli --description`; always use md-to-adf + `--description-file`
   ([tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md)).
 - Engineering tickets carry both the summary `PREFIX:` and the `Repo:` marker.

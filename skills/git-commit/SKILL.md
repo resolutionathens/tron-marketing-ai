@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Analyze & group"
       skip_when: "Only one file changed or changes are all related to one concern"
-description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use this skill when the user says 'commit', 'commit and push', 'save my changes', 'push this up', or anything that implies they want to commit their current work. Also trigger when the user asks to 'ship it', 'wrap this up', or wants to finalize changes they've been working on."
+description: "Stage, commit, and push changes with auto-generated conventional commit messages. Produces atomic commits — when changes span multiple concerns, they're split into separate focused commits rather than one large dump. Use for 'commit', 'commit and push', 'push this up', 'save my changes', 'ship it', or anything that implies finalizing current work."
 allowed-tools:
   - Bash
   - Read
@@ -23,16 +23,16 @@ Analyze changes, group them into atomic commits by logical concern, get user app
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. Instead:
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here:
 
 - **Step 4's approval prompt:** skip it and proceed straight to Step 5 with the generated commit
   plan as-is.
 - **The missing-Jira-key question** in the guard below: it's a genuine open question with no safe
   default (creating an unwanted ticket or misattributing work is hard to undo) — post it as ONE
   concise plain-text message and stop to wait for the reply, rather than using `AskUserQuestion`.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Guard: never commit to master/main
 

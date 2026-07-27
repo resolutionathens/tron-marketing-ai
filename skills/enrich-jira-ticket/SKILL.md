@@ -5,7 +5,7 @@ effort: low
 fallback:
   cost: low
   skip_when: "Use tron:enrich-jira-ticket only when a ticket needs enrichment. If you only need source discovery, use tron:jira-source-discovery. If you only need to write a description from known sources, use tron:jira-ticket-enricher."
-description: "Enrich existing Jira tickets with implementation-ready descriptions by discovering source context and writing a rubric-compliant description. This is a thin orchestrator that delegates to tron:jira-source-discovery (source discovery) and tron:jira-ticket-enricher (description writing). Use when the user says 'enrich these tickets', 'flesh out Jira tickets', 'add acceptance criteria', 'prep these tickets for dev'. For source discovery only, use tron:jira-source-discovery directly. For description writing from known sources, use tron:jira-ticket-enricher directly."
+description: "Enrich existing Jira tickets with implementation-ready descriptions by discovering source context and writing a rubric-compliant description. Thin orchestrator that delegates to tron:jira-source-discovery (source discovery) and tron:jira-ticket-enricher (description writing). Use for 'enrich these tickets', 'flesh out Jira tickets', 'add acceptance criteria', 'prep these tickets for dev'. For source discovery only, use tron:jira-source-discovery directly. For description writing from known sources, use tron:jira-ticket-enricher directly."
 allowed-tools:
   - Skill
   - Bash
@@ -61,5 +61,5 @@ Confirm the enriched ticket is live and lints correctly.
 
 ## Quality rules
 
-- No em dashes in prose you draft (Facilitron voice).
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Always use `tools/md-to-adf` with `--description-file` — never pass raw markdown to `acli --description`.

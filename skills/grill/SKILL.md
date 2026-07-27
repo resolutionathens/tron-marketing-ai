@@ -2,7 +2,7 @@
 name: grill
 model: opus
 effort: high
-description: "Critical-interrogation pass on a piece of marketing content or a brief before it ships — surfaces hidden assumptions, vague claims, missing edge cases, and the pushback a reviewer or customer will have. Use when the user says '/grill', 'grill this', 'grill me on this', 'stress-test this', 'poke holes in', 'red-team this', 'what am I missing', 'pressure-test the copy', or pastes a draft and asks for tough questions before publish. Output is a Grill Memo with prioritized findings and concrete fixes. This finds weakness; it does not check mechanics — pair with /prose-lint (prose), /link-check (links), and /code-review (code)."
+description: "Critical-interrogation pass on a piece of marketing content or a brief before it ships — surfaces hidden assumptions, vague claims, missing edge cases, and the pushback a reviewer or customer will have. Use for '/grill', 'grill this', 'stress-test this', 'poke holes in', 'red-team this', or pasting a draft and asking for tough questions before publish. Output is a Grill Memo with prioritized findings and concrete fixes. This finds weakness; it does not check mechanics — pair with /prose-lint (prose), /link-check (links), and /code-review (code)."
 allowed-tools:
   - Read
   - Grep

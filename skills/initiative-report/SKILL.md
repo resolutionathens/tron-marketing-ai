@@ -2,7 +2,7 @@
 name: initiative-report
 model: sonnet
 effort: medium
-description: "Roll up the progress of a Marketing Initiative, Theme, Epic, or Campaign — child tickets by status, percent complete, what shipped, what's in flight, blockers, and what's next — into a shareable status summary. Use this skill when a manager wants a status roll-up: 'status of the ADA Compliance initiative', 'how's the FU6 event tracking', 'roll up the Tickets epic', 'progress report for MCR-355', 'what shipped under Brand & Creative', or any initiative/theme status ask. Git-free — reads Jira and writes a summary."
+description: "Roll up the progress of a Marketing Initiative, Theme, Epic, or Campaign — child tickets by status, percent complete, what shipped, what's in flight, blockers, and what's next — into a shareable status summary. Use when a manager wants a status roll-up: 'status of the ADA Compliance initiative', 'roll up the Tickets epic', 'progress report for MCR-355'. Git-free — reads Jira and writes a summary."
 allowed-tools:
   - Bash
   - Read
@@ -43,9 +43,11 @@ script — it returns the parent, every descendant with status fields, and pre-c
 
 ```bash
 name=initiative-report
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/initiative-report.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/initiative-report.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/initiative-report.sh" ] || { echo "tron:$name: scripts/initiative-report.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/initiative-report.sh)"
 bash "$SKILL_DIR/scripts/initiative-report.sh" fetch <PARENT-KEY>
 ```
 
@@ -106,7 +108,7 @@ page.
 ## Rules
 
 - Lead with the percent + the one-line health (on track / at risk / blocked).
-- Plain prose, no em dashes, exec-readable. Don't editorialize beyond what the tickets show.
+- Plain prose, exec-readable, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). Don't editorialize beyond what the tickets show.
 
 Write the summary:
 

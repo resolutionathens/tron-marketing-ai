@@ -2,7 +2,7 @@
 name: a11y-scan
 model: haiku
 effort: low
-description: "Run automated accessibility (WCAG) scans against a URL or sitemap using pa11y and axe-core. Use this skill when the user wants to check accessibility, audit a11y compliance, find WCAG violations, scan for accessibility issues, or says things like 'a11y scan', 'pa11y', 'axe', 'check accessibility', 'wcag check', 'audit accessibility', 'accessibility audit', 'find a11y issues', or 'is this page WCAG compliant'. Highly relevant to ongoing WCAG 2.1 AA compliance work — use whenever new pages or templates need verification, or when triaging Confluence pages from Taras."
+description: "Run automated accessibility (WCAG) scans against a URL or sitemap using pa11y and axe-core. Use for 'a11y scan', 'pa11y', 'axe', 'check accessibility', 'wcag check', or 'is this page WCAG compliant'. Highly relevant to ongoing WCAG 2.1 AA compliance work — use whenever new pages or templates need verification, or when triaging Confluence pages from Taras."
 allowed-tools:
   - Task
   - Bash
@@ -26,9 +26,11 @@ This skill delegates the scan to the **`a11y-scan-runner`** subagent (runs on Ha
 2. **Resolve the bundled script's absolute path.** Resolve the skill dir robustly — `$CLAUDE_SKILL_DIR` is not always exported into Bash:
    ```bash
    name=a11y-scan
-   SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-   [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/a11y-scan.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-   [ -e "$SKILL_DIR/scripts/a11y-scan.sh" ] || { echo "tron:$name: can't find scripts/a11y-scan.sh — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+   RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+   [ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+   [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+   SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/a11y-scan.sh)"
    echo "$SKILL_DIR/scripts/a11y-scan.sh"   # → the absolute script path to hand the runner
    ```
 3. **Delegate to `a11y-scan-runner`** (Task tool): "Run a WCAG 2.1 AA accessibility scan on `<target>` using the bundled script at `<absolute script path>` (pass `--sitemap` for a sitemap target / extra URLs for a multi-page scan). Return findings grouped by issue type with severity counts." The runner runs the script — it does **not** hand-assemble axe/pa11y command lines or a `.pa11yci.json`.

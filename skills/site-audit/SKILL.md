@@ -2,7 +2,7 @@
 name: site-audit
 model: haiku
 effort: low
-description: "Run a site-wide Lighthouse audit (performance, SEO, accessibility, best practices) using unlighthouse, which crawls every page in a site and reports per-page scores plus aggregated insights. Use this skill ONLY for multi-page / whole-site crawls — when the user wants coverage across many pages, says things like 'run lighthouse across the site', 'audit the site', 'unlighthouse', 'check site performance', 'score the whole marketing site', 'site-wide health check', 'find pages with bad LCP/CLS', or 'run a site perf audit'. For a single page's on-page SEO use tron:seo-audit; for one URL's accessibility use tron:a11y-scan."
+description: "Run a site-wide Lighthouse audit (performance, SEO, accessibility, best practices) using unlighthouse, which crawls every page in a site and reports per-page scores plus aggregated insights. Use ONLY for multi-page / whole-site crawls: 'run lighthouse across the site', 'unlighthouse', 'score the whole marketing site', 'find pages with bad LCP/CLS'. For a single page's on-page SEO use tron:seo-audit; for one URL's accessibility use tron:a11y-scan."
 allowed-tools:
   - Task
 scout:

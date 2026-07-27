@@ -2,7 +2,7 @@
 name: jira-comment
 model: sonnet
 effort: medium
-description: Add a short, plain-language progress or summary comment to a Jira ticket using the `acli` CLI, in a voice that's succinct, non-technical, prose (no bullets), and free of em dashes. Use this skill whenever the user says "comment on the ticket", "add a Jira comment", "leave a note on CCAL-XXXX", "note what we did on the ticket", "drop a comment on MD-1234", "update the ticket", or otherwise wants to post a quick status, progress, or summary comment to a Jira issue. Trigger even when the user doesn't explicitly say "Jira"; phrases like "comment on it" in a context where a Jira key or active ticket is in play count.
+description: "Add a short, plain-language progress or summary comment to a Jira ticket using the acli CLI, in a voice that's succinct, non-technical, and prose rather than bullets. Use for 'comment on the ticket', 'leave a note on CCAL-XXXX', 'drop a comment on MD-1234', or 'update the ticket'. Trigger even when the user doesn't say 'Jira'; 'comment on it' counts when a Jira key or active ticket is in play."
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -55,7 +55,7 @@ The voice rules below are the heart of the skill. Each one is here for a reason;
 
 **Prose, not bullets.** Bullets feel like a status report or a chunked AI response. Two or three sentences in a row reads like a person talking. If you genuinely have a list of unrelated items, that's usually a sign you have more than one comment to write — or that the items belong in the PR description.
 
-**No em dashes.** They're an AI tell and they make casual writing feel formal. Use a period, a comma, parentheses, or the word "and"/"but"/"so" instead. This is one of the more common rules to slip on — actively scan your draft for them before posting.
+**No em dashes**, and scan the draft for them before posting. The rule, the reasons, and the substitutions are in [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 
 **Mention where it stands if there's a useful next step.** If the work is on dev, in a PR, or live on production, end with a short pointer ("Live on dev now for review, PR #709." or "Shipped to production."). Skip this if the ticket itself already implies where things are or if the comment is purely informational with no follow-up.
 

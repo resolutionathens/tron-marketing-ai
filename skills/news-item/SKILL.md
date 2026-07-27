@@ -12,7 +12,7 @@ fallback:
       skip_when: "Article has no images or images are already uploaded"
     - stage: "Stage 4 — Verify"
       skip_when: "User wants draft-only output without verification"
-description: Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline — Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use this skill whenever the user wants to "start the news item", "create the news article", "build out this cluster article", "turn this Confluence draft into a news post", references a Jira "Blog Post" or "Cluster:" ticket with a Confluence link, or drops a featuredimg into the repo root and mentions a news/blog/cluster article. Even if they describe only one part, this skill owns the whole pipeline so the pieces stay consistent.
+description: "Publish a new article to /resources/news on the Facilitron marketing site from a Jira ticket whose description links a Confluence draft. Owns the full pipeline: Confluence fetch, image conversion to webp + ImageKit upload, and writing the Nuxt-Content markdown file with front matter and ::fImg blocks. Use for 'start the news item', 'turn this Confluence draft into a news post', a Jira 'Blog Post' or 'Cluster:' ticket with a Confluence link, or dropping a featuredimg into the repo root. Even if the user describes only one part, this skill owns the whole pipeline so the pieces stay consistent."
 allowed-tools:
   - Bash
   - Read
@@ -45,7 +45,7 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 - [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
 - [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
 - [ ] Stage 4 — Verify: links, images resolve, served-HTML check on THIS worktree, prose-lint + a11y-scan
-- [ ] Verification loop: re-read against brief, no em-dashes, fix, repeat
+- [ ] Verification loop: re-read against brief, check Facilitron voice, fix, repeat
 - [ ] Clean up: remove dropped-in featured image + /tmp/news-<slug>
 ```
 
@@ -165,4 +165,4 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
 
 ## Verification loop
 
-Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, no em-dashes (Facilitron voice), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.
+Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.

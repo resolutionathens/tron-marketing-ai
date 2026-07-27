@@ -2,7 +2,7 @@
 name: video-brief
 model: sonnet
 effort: medium
-description: "Turn a video request or ticket into a production-ready brief — purpose, audience, key message, script/voiceover, and a shot list — so an editor can go straight to work. Use this skill when video wants to plan a piece: 'brief the support video for X', 'script the DevFees feature video', 'plan the FU recap reel', 'shot list for the webinar cutdown', or a CCAL Video ticket. Produces a brief + script + shot list and points downstream to the production chain (Rough Cut → GFX → Color → Sound → Deliverables) and to remotion-narrated-film for generated/narrated explainers. Git-free — it plans; editing happens in the NLE."
+description: "Turn a video request or ticket into a production-ready brief — purpose, audience, key message, script/voiceover, and a shot list — so an editor can go straight to work. Use when video wants to plan a piece: 'brief the support video for X', 'script the DevFees feature video', 'shot list for the webinar cutdown', or a CCAL Video ticket. Produces a brief, script, and shot list, and points downstream to the production chain (Rough Cut, GFX, Color, Sound, Deliverables) and to remotion-narrated-film for generated/narrated explainers. Git-free — it plans; editing happens in the NLE."
 allowed-tools:
   - Bash
   - Read
@@ -80,7 +80,7 @@ Write `/tmp/video/<slug>-brief.md` (slug = kebab-case of the title):
 
 ## Rules
 
-- Match Facilitron voice: plain, confident, **no em dashes** in on-screen copy.
+- Match Facilitron voice in on-screen copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Don't pad — every shot earns its place against the length budget.
 - Use **AskUserQuestion** only for the few unknowns that change the cut (length, platform, CTA).
 

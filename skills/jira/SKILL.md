@@ -2,7 +2,7 @@
 name: jira
 model: haiku
 effort: low
-description: "Look up, search, and interact with Jira tickets using the acli CLI. Use this skill whenever the user references a Jira ticket key (e.g., MD-1234, PROJ-456, ABC-78), mentions Jira, asks about work items, issues, or tickets, wants to search for tasks, or needs to transition or assign a ticket. Also trigger when the user says things like 'what's the status of that ticket', 'look up the issue', 'check my board', or references any KEY-NUMBER pattern that looks like a Jira identifier. To post a progress or status comment on a ticket use tron:jira-comment."
+description: "Look up, search, and interact with Jira tickets using the acli CLI. Use whenever the user references a Jira ticket key (MD-1234, PROJ-456), mentions Jira, wants to search work items, or needs to transition or assign a ticket. Also trigger on 'what's the status of that ticket', 'check my board', or any KEY-NUMBER pattern that looks like a Jira identifier. To post a progress or status comment on a ticket use tron:jira-comment."
 allowed-tools:
   - Bash
 scout:

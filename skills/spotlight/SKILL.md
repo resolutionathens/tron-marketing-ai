@@ -2,7 +2,7 @@
 name: spotlight
 model: sonnet
 effort: medium
-description: "Draft a Facilitron spotlight social post — a new-hire, people, district, facility, or customer spotlight — in the house structure (who/what + a human angle + quote + CTA), with per-platform variants for IG/FB/LI. Use this skill when social wants a spotlight: 'new hire spotlight for X', 'district spotlight for Conejo Valley', 'facility spotlight', 'team member spotlight', 'spotlight post for <name>', or a CCAL spotlight ticket (the New Hire Spotlights / District Spotlights campaigns). Git-free — produces the copy; scheduling happens in the social tools."
+description: "Draft a Facilitron spotlight social post — new-hire, people, district, facility, or customer — in the house structure (who/what plus a human angle, quote, and CTA), with per-platform variants for IG/FB/LI. Use for 'new hire spotlight for X', 'district spotlight for Conejo Valley', 'facility spotlight', or a CCAL spotlight ticket. Git-free — produces the copy; scheduling happens in the social tools."
 allowed-tools:
   - Bash
   - Read
@@ -70,7 +70,7 @@ CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
 
 ## Rules
 
-- Human-first and genuine, not corporate. **No em dashes.** Get names/titles exactly right.
+- Human-first and genuine, not corporate. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). Get names/titles exactly right.
 - Never fabricate a quote, role, or fact — flag gaps and confirm.
 - Always include alt text and the photo spec.
 

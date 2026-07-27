@@ -105,4 +105,33 @@ rg -q 'tools/skill/resolve-skill-dir.sh' "$ROOT/tools/image/generate-card.sh" \
   || fail "generate-card does not use the shared resolver"
 pass "all four launch paths use the shared resolver"
 
+# --- extra required paths (MD-2450) ------------------------------------------
+# A skill whose install is only valid when several pieces are present (prose-lint
+# needs vale-ini.template AND styles/) passes them as extra probes. A candidate
+# holding only the first probe must be skipped in favour of a complete one, so a
+# partial install cannot resolve and hand a missing path downstream.
+EX="$(mktemp -d "${TMPDIR:-/tmp}/skill-dir-extra.XXXXXX")"
+trap 'find "$FIX" "$EX" -depth -delete 2>/dev/null || true' EXIT
+partial="$EX/$CACHE/0.40.0/skills/prose-lint"
+complete="$EX/$CACHE/0.39.0/skills/prose-lint"
+mkdir -p "$partial" "$complete/styles"
+printf 'x\n' >"$partial/vale-ini.template"
+printf 'x\n' >"$complete/vale-ini.template"
+
+got="$(HOME="$EX" bash "$RESOLVER" prose-lint vale-ini.template styles)" \
+  || fail "resolver should find the complete install"
+[ "$got" = "$complete" ] \
+  || fail "expected the complete install ($complete), got $got"
+pass "extra probes skip a partial install even when it has a newer version"
+
+HOME="$EX" bash "$RESOLVER" prose-lint vale-ini.template styles >/dev/null 2>&1 || fail "unexpected failure"
+rm -rf "$complete"
+if HOME="$EX" bash "$RESOLVER" prose-lint vale-ini.template styles >/dev/null 2>&1; then
+  fail "resolver should fail when no install satisfies every probe"
+fi
+pass "extra probes fail loudly when no install is complete"
+
+# Single-probe invocation is covered by every check above, which runs against
+# $FIX and is deliberately torn down by then; do not re-assert it here.
+
 echo "skill-dir-resolver regression: $PASS passed"

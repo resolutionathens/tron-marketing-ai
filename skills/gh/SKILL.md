@@ -2,7 +2,7 @@
 name: gh
 model: sonnet
 effort: medium
-description: "Interact with EXISTING GitHub issues and PRs from the CLI using the `gh` tool — look up, comment, review, merge, list, and the raw `gh api`. Use this skill whenever the user references a GitHub issue or PR (e.g., `#42`, `owner/repo#42`, a github.com URL), wants to look up a PR's reviews or checks, needs to comment on / transition / merge an issue or PR, or asks anything like 'what's the status of PR X', 'list my open issues', 'merge that PR', 'who reviewed this', or 'what changed in this release'. To CREATE a new PR use tron:git-pr."
+description: "Interact with EXISTING GitHub issues and PRs from the CLI using the gh tool — look up, comment, review, merge, list, and the raw gh api. Use whenever the user references a GitHub issue or PR (#42, owner/repo#42, a github.com URL), wants a PR's reviews or checks, or asks 'what's the status of PR X', 'list my open issues', 'merge that PR', 'who reviewed this'. To CREATE a new PR use tron:git-pr."
 allowed-tools:
   - Bash
   - Read
@@ -23,9 +23,11 @@ When a GitHub issue/PR reference appears (`#42`, `owner/repo#42`, full URL), fet
 
 ```bash
 name=gh
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/gh.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/gh.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/gh.sh" ] || { echo "tron:$name: scripts/gh.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/gh.sh)"
 bash "$SKILL_DIR/scripts/gh.sh" <subcommand> [flags]
 ```
 

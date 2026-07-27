@@ -2,7 +2,7 @@
 name: press-release
 model: opus
 effort: high
-description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use this skill when content/PR wants to announce something: 'draft a press release', 'write the PR for the Tickets launch', 'announcement for MCR-273', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft in AP-style PR structure. Git-free — it drafts; publishing/distribution is a separate step."
+description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use for 'draft a press release', 'write the PR for the Tickets launch', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft in AP-style PR structure. Git-free — it drafts; publishing and distribution are a separate step."
 allowed-tools:
   - Bash
   - Read
@@ -78,9 +78,10 @@ newsworthy first (inverted pyramid).>
 ## Drafting rules
 
 - Inverted pyramid: the news leads, detail follows.
-- **No em dashes in body prose**; AP-ish style; third person; no marketing superlatives in the body.
-  One permitted exception: the AP-style **dateline** em dash (`**<CITY, State> — <Date>** —` in the
-  template above) is standard PR format — keep it there and only there.
+- Facilitron voice in body prose ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md));
+  AP-ish style; third person; no marketing superlatives in the body. The AP-style **dateline** em
+  dash (`**<CITY, State> — <Date>** —` in the template above) is the one documented exception to the
+  no-em-dash rule — keep it there and only there.
 - Don't fabricate quotes or numbers. Missing quote/stat → `> TODO:` and ask with **AskUserQuestion**
   for the few that matter.
 

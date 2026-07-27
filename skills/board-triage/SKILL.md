@@ -2,7 +2,7 @@
 name: board-triage
 model: sonnet
 effort: medium
-description: "Review a Jira marketing board (default MCR) and surface what needs attention — new/unassigned tickets, stale or blocked items, missing priorities or due dates, and ownership gaps — with suggested assignments and priorities grouped by Marketing Theme. Use this skill when a manager wants to run the board: 'triage the MCR board', 'what needs attention on the board', 'morning board review', 'who should pick these up', 'what's stale', or any standup/board-grooming ask. Git-free — reads Jira and proposes changes; it applies assignments/transitions only on your confirmation."
+description: "Review a Jira marketing board (default MCR) and surface what needs attention — new/unassigned tickets, stale or blocked items, missing priorities or due dates, and ownership gaps — with suggested assignments and priorities grouped by Marketing Theme. Use when a manager wants to run the board: 'triage the MCR board', 'what needs attention on the board', 'morning board review', 'what's stale'. Git-free — reads Jira and proposes changes; it applies assignments/transitions only on your confirmation."
 allowed-tools:
   - Bash
   - Read
@@ -39,9 +39,11 @@ lenses below as pre-digested JSON, so you never read raw per-ticket JSON:
 
 ```bash
 name=board-triage
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/board-triage.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/board-triage.sh" ] || { echo "tron:$name: scripts/board-triage.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/board-triage.sh)"
 bash "$SKILL_DIR/scripts/board-triage.sh" fetch                    # MCR, --limit 500, 14-day staleness
 bash "$SKILL_DIR/scripts/board-triage.sh" fetch --project ABC --stale-days 7
 ```

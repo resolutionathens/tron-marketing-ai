@@ -109,6 +109,15 @@ the workflow + judgment in SKILL.md.
   requested file across Claude cache/marketplace, Codex cache/marketplace, and the release store.
   Keep the bootstrap block copied verbatim in script-backed skill docs because finding the shared
   helper is the chicken-and-egg step it cannot perform for itself.
+
+  **There is exactly one canonical bootstrap** — the six lines ending in
+  `SKILL_DIR="$(bash "$RESOLVER" "$name" <probe>)"`, as in `skills/git-dev/SKILL.md`. Copy it
+  verbatim and change only `name=` and the probe path. Do **not** hand-roll a
+  `find … -type d -path "*/skills/$name"` that locates the skill dir directly: that variant skips
+  the resolver entirely, and with it the version-then-rank precedence (marketplace over cache over
+  release store) that decides which installed copy wins when several are present. `<probe>` must be
+  a **file**, not a directory, and takes a single path — a skill needing two files to prove a valid
+  install probes the more specific one (`prose-lint` probes `vale-ini.template`, not `styles/`).
 - **Shared `tools/`** resolve through `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…` so
   they work from any skill regardless of cwd. The ImageKit CLI invocation convention is
   `IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"; node "$IK" …`.

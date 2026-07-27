@@ -2,7 +2,7 @@
 name: brand-check
 model: sonnet
 effort: medium
-description: "Audit a design asset or a rendered marketing page against Facilitron brand guidelines — color palette / tron- Tailwind tokens, typography, logo usage and clear-space, and WCAG color contrast. Use this skill when a designer wants to verify brand consistency before handoff, or when a ticket is about color/brand correctness: 'does this match our brand', 'brand check this asset', 'are these the right colors', 'check the palette', 'is this on-brand', 'verify logo usage', 'check color contrast', or tickets like color libraries, color refinement, chart color schemes, brand guidelines, or ADA contrast fixes. Works on an image file, a Figma frame, or a live/staging URL. Git-free — reports findings; it does not edit code, branch, or open PRs."
+description: "Audit a design asset or a rendered marketing page against Facilitron brand guidelines — color palette / tron- Tailwind tokens, typography, logo usage and clear-space, and WCAG color contrast. Use when a designer wants to verify brand consistency before handoff, or when a ticket is about color/brand correctness: 'does this match our brand', 'brand check this asset', 'is this on-brand', 'check color contrast'. Works on an image file, a Figma frame, or a live/staging URL. Git-free — reports findings; it does not edit code, branch, or open PRs."
 allowed-tools:
   - Bash
   - Read
@@ -84,9 +84,11 @@ and **3:1** (large text ≥24px or ≥19px bold, and UI/graphics):
 
 ```bash
 name=brand-check
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/contrast.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/contrast.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/contrast.sh" ] || { echo "tron:$name: scripts/contrast.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/contrast.sh)"
 
 bash "$SKILL_DIR/scripts/contrast.sh" "<fg-hex>" "<bg-hex>"   # e.g. '#5A6B8C' '#F5F5F5'
 ```

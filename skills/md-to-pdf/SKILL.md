@@ -2,7 +2,7 @@
 name: md-to-pdf
 model: sonnet
 effort: medium
-description: Convert a Facilitron Nuxt-Content markdown file into a branded PDF (a branded document), authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use when the user wants to convert markdown to PDF or generate a PDF from a markdown SOP, checklist, template, or news post — phrases like "make a PDF of this", "build a PDF", "convert markdown to PDF", "generate a PDF", "generate a PDF download for the toolkit", or "turn this markdown into a downloadable branded document" trigger it. A pandoc-from-markdown fallback exists for quick prose-only output. Output goes to /tmp/facilitron-md-to-pdf by default.
+description: "Convert a Facilitron Nuxt-Content markdown file into a branded PDF, authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use for 'make a PDF of this', 'convert markdown to PDF', 'generate a PDF download for the toolkit', or 'turn this markdown into a downloadable branded document'. A pandoc-from-markdown fallback exists for quick prose-only output. Output goes to /tmp/facilitron-md-to-pdf by default."
 allowed-tools:
   - Bash
   - Read
@@ -37,9 +37,11 @@ $SKILL_DIR/   # template.tex, fonts/, facilitron-logo.png, build.ts
 
 ```bash
 name=md-to-pdf
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/template.tex" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/template.tex" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/template.tex" ] || { echo "tron:$name: template.tex not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" template.tex)"
 ```
 
 This prefers the env hint, then the newest _installed copy that actually contains the asset_ (so a stale mirror missing it is skipped, and same-version ties go to the marketplace copy) — and survives a plugin version bump. `build.ts` additionally resolves its own assets relative to itself (`import.meta.url`), so once you invoke it through `$SKILL_DIR` it needs no env var at all.

@@ -2,7 +2,7 @@
 name: okf-query
 model: haiku
 effort: low
-description: "Pull OKF playbooks (policies, role overlays, conventions, house rules) by type/tags mid-task, on demand, over the control-plane API — for a running dispatched worker that needs a specific playbook it was not front-loaded with. Use when you're mid-task and need the canonical way this org does something and it isn't already in your standing rules: 'is there a playbook for X', 'what's our convention for X', 'how do we handle X here', 'pull the OKF for X', 'check the standing rules for X', 'fetch the git-flow / release / worktree policy', 'what does the OKF say about X', 'load the role overlay', 'query the knowledge base for X'. Filters the manifest first (cheap), then fetches only the bodies you pick (select then load). Requires TRON_API_URL (dispatched workers have it); read-only."
+description: "Pull OKF playbooks (policies, role overlays, conventions, house rules) by type/tags mid-task over the control-plane API — for a running dispatched worker that needs a specific playbook it was not front-loaded with. Use when you need the canonical way this org does something and it isn't already in your standing rules: 'is there a playbook for X', 'what's our convention for X', 'what does the OKF say about X'. Filters the manifest first (cheap), then fetches only the bodies you pick. Requires TRON_API_URL (dispatched workers have it); read-only."
 allowed-tools:
   - Bash
 scout:

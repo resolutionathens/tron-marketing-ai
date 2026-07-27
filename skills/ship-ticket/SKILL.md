@@ -2,7 +2,7 @@
 name: ship-ticket
 model: haiku
 effort: low
-description: "Walk the canonical Facilitron task lifecycle end-to-end: ticket lookup → branch & worktree → atomic commits → dev → PR → prod → cleanup. Use this skill ONLY when the user asks for the whole flow at once — phrases like 'ship MD-XXXX end-to-end', 'take this ticket from start to finish', 'walk me through the full Facilitron flow', 'run the full lifecycle on CCAL-XXXX', or 'do everything for this ticket'. Do NOT use this skill when the user asks for a single stage ('commit', 'open a PR', 'start MD-XXXX'); those have their own dedicated skills (tron:git-commit, tron:git-pr, tron:start-ticket). This is the orchestrator for whole-lifecycle requests, not individual moves."
+description: "Walk the canonical Facilitron task lifecycle end-to-end: ticket lookup, branch and worktree, atomic commits, dev, PR, prod, cleanup. Use ONLY when the user asks for the whole flow at once: 'ship MD-XXXX end-to-end', 'take this ticket from start to finish', 'run the full lifecycle on CCAL-XXXX'. Do NOT use it when the user asks for a single stage ('commit', 'open a PR', 'start MD-XXXX'); those have their own dedicated skills (tron:git-commit, tron:git-pr, tron:start-ticket). This is the orchestrator for whole-lifecycle requests, not individual moves."
 allowed-tools:
   - Skill
   - Bash
@@ -24,8 +24,10 @@ Walk the canonical Facilitron task lifecycle by **delegating to the existing per
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. Skip Step 2's per-stage confirmation and advance through the lifecycle
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: skip Step 2's per-stage confirmation and advance through the lifecycle
 automatically, delegating to each stage's skill in turn — each delegated skill applies its own
 dispatch-mode behavior (see its SKILL.md), so approval prompts inside those stages are already
 handled.
@@ -47,8 +49,6 @@ and never reaches PROMOTE-PROD or CLEANUP on its own. Step 5's remaining conditi
 written: stop and report on a non-recoverable stage failure. And if a genuinely risky or ambiguous
 decision comes up that no stage's default can resolve, post ONE concise plain-text message and stop
 to wait for the reply, rather than using `AskUserQuestion`.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Lifecycle stages
 
@@ -112,7 +112,7 @@ After REVIEW or PROMOTE-PROD, optionally offer `tron:jira-comment` to post a sho
 
 ## Step 4 — After the stage, re-check position
 
-When the delegated skill finishes, return to Step 1 — re-detect lifecycle position. The user may have decided to stop, or the stage may have produced unexpected state. Don't blindly advance.
+When the delegated skill finishes, return to Step 1 — re-detect lifecycle position. The user may have decided to stop, or the stage may have produced unexpected state.
 
 ## Step 5 — Stop conditions
 

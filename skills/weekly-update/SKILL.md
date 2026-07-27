@@ -10,7 +10,7 @@ fallback:
       skip_when: "User says 'no blockers' or provides the soft sections directly"
     - stage: "GitHub activity"
       skip_when: "GitHub is unavailable or user is Jira-only"
-description: "Generate your weekly status update for your manager (and template owner) by pulling recent activity from Jira — and GitHub when it's available — asking 3 quick questions for the soft sections (blockers, decisions, cross-team), composing it into the team's 6-section template as a plain-text email body, and copying it to the clipboard via pbcopy. Use this skill whenever the user asks for their 'weekly update', 'weekly status', 'weekly report', 'standup report', 'manager report', 'update email', or mentions their weekly reporting deadline. Also trigger when the user says 'wrap up the week', 'what did I ship this week', or asks for a recap they can paste into an email. Recipient, template owner, and deadline are configurable per user (env vars, defaulting to the Kristina / Tuesday 9am PST ritual) — see Step 0. Works Jira-only for people without git/GitHub. Default window is 'since last Monday'; if the user says 'two-week' / 'biweekly' / 'past two weeks' / '2 weeks', widen accordingly."
+description: "Generate your weekly status update for your manager by pulling recent Jira activity (and GitHub when available), asking 3 quick questions for blockers/decisions/cross-team, and composing the team's 6-section template as a plain-text email body on the clipboard. Use for 'weekly update', 'weekly status', 'weekly report', 'standup report', or 'what did I ship this week'. Recipient, template owner, and deadline are env-configurable; works Jira-only for people without git. Default window is since last Monday; widen for 'biweekly' or 'past two weeks'."
 allowed-tools:
   - Bash
   - AskUserQuestion
@@ -62,9 +62,11 @@ today — this step changes nothing for them.
 
 ```bash
 name=weekly-update
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/weekly-activity.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/weekly-activity.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/weekly-activity.sh" ] || { echo "tron:$name: scripts/weekly-activity.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/weekly-activity.sh)"
 bash "$SKILL_DIR/scripts/weekly-activity.sh" fetch          # last Monday → now
 bash "$SKILL_DIR/scripts/weekly-activity.sh" fetch --weeks 2   # biweekly
 ```
@@ -126,7 +128,7 @@ Hey <RECIPIENT> and <MANAGER>,
 ### Formatting rules (non-negotiable)
 
 - **Plain text only** — no markdown, no `*bold*`, no backticks. Parentheses are fine.
-- **No em dashes** (Facilitron voice). Use commas, colons, or split the sentence.
+- Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)).
 - **No Jira keys, no PR numbers, no commit hashes.** Translate to plain English: "Shipped MD-1733" → "Shipped the news page redesign."
 - **~25 words per bullet max.** Roll up related work — name the theme, not each ticket.
 - **Greeting is "Hey `<RECIPIENT>` and `<MANAGER>`,"** using the values loaded in Step 0. No subject line, no sign-off.
@@ -160,4 +162,4 @@ Print the full body for user review. If `pbcopy` succeeded, tell them: "On your 
 
 ## Anti-patterns
 
-❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder the template's sections. ❌ Use markdown or em dashes in output.
+❌ List every ticket — roll up. ❌ Write narrative — bullets only. ❌ Invent activity — say so and ask. ❌ Auto-send — `pbcopy` only. ❌ Reorder the template's sections. ❌ Use markdown in output.

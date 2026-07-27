@@ -2,7 +2,7 @@
 name: brainstorm
 model: opus
 effort: high
-description: "Collaborative one-question-at-a-time ideation for a marketing idea before you commit to producing it — a content topic, a campaign, positioning, a name, a new landing page. Use when the user says '/brainstorm', 'I have an idea', 'help me think through', 'noodle on this', 'workshop this idea', 'what should we do about', 'what content should we write on', or has a vague hypothesis with no plan yet. Asks one question at a time to surface assumptions, then writes a structured Ideation Note. Does NOT produce the content — it produces the thinking."
+description: "Collaborative one-question-at-a-time ideation for a marketing idea before you commit to producing it — a content topic, a campaign, positioning, a name, a new landing page. Use for '/brainstorm', 'I have an idea', 'help me think through', 'workshop this idea', or a vague hypothesis with no plan yet. Asks one question at a time to surface assumptions, then writes a structured Ideation Note. Does NOT produce the content — it produces the thinking."
 allowed-tools:
   - AskUserQuestion
   - Read
@@ -65,12 +65,14 @@ Save via the fast path script (handles slug, date, front matter):
 
 ```bash
 name=brainstorm
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/brainstorm.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/brainstorm.sh" ] || { echo "tron:$name: scripts/brainstorm.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/brainstorm.sh)"
 bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] [--out PATH]
 ```
 
-Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. No em dashes in the note's copy (Facilitron voice).
+Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. Facilitron voice in the note's copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 
 The note ends with a next-step routing — route per the template's Next Step list.

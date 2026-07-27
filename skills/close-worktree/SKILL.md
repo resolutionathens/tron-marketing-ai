@@ -16,8 +16,10 @@ Remove git worktrees that are no longer needed, along with their tmux sessions a
 
 ## When dispatched (worker mode)
 
-If `TRON_DISPATCH_ID` is set, this skill is running as a non-interactive dispatched worker — never
-call `AskUserQuestion`. A dispatched worker almost always already knows which branch to close (it's
+Under dispatch (`TRON_DISPATCH_ID` set) `AskUserQuestion` is not callable — see
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Tools and skills unavailable to you*.
+
+What that means here: a dispatched worker almost always already knows which branch to close (it's
 the branch it was working in), so the "don't know which branch" case below should rarely trigger.
 If it does — the list is ambiguous and picking wrong risks deleting the wrong worktree or unsaved
 work — post ONE concise plain-text message listing the candidate branches and stop to wait for the
@@ -31,8 +33,6 @@ reviewer can reproduce the change and the merge has a branch to land on (see
 The merge-verification below is a safety net, not a licence to run this before review: it refuses
 to delete an unmerged branch, but you still should not invoke the skill until merge or an explicit
 request.
-
-Interactive users are unaffected — this section only changes behavior when `TRON_DISPATCH_ID` is set.
 
 ## Fast path — when you already know the branch
 
@@ -59,9 +59,11 @@ cd "${GIT_COMMON_DIR%/.git}" || exit 1
 
 ```bash
 name=close-worktree
-SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
-[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/close-worktree.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
-[ -e "$SKILL_DIR/scripts/close-worktree.sh" ] || { echo "tron:$name: scripts/close-worktree.sh not found — run /plugin update (or set CLAUDE_PLUGIN_ROOT)" >&2; exit 1; }
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/close-worktree.sh)"
 bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
 ```
 

@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Self-check against rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description. Uses the shared ticket rubric to produce a high-confidence description with machine-readable markers. Use this skill after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources', 'fill in the description from the gathered links'. Jira-write skill — it edits ticket descriptions only after the user confirms."
+description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description, using the shared ticket rubric to produce machine-readable markers. Use after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources'. Jira-write skill — it edits ticket descriptions only after the user confirms."
 allowed-tools:
   - Bash
   - Read
@@ -96,5 +96,5 @@ acli jira workitem view <KEY> --fields summary,description --json \
 - Keep descriptions scannable with headings and bullets.
 - Do not paste the full source document into Jira unless the user asks. Link to the source and summarize.
 - Do not invent fields that are not supported by the destination schema.
-- No em dashes in prose you draft.
+- Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Always use `tools/md-to-adf` with `--description-file` — never pass raw markdown to `acli --description`.

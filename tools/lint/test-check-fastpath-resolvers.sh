@@ -60,5 +60,26 @@ EOF
 bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "should pass once the fallback is restored"
 pass "passes once the cache/marketplace fallback is restored"
 
+# --- the legacy hand-rolled find is rejected (MD-2450) ------------------------
+# This variant searches the same roots but locates the skill dir itself instead
+# of calling the shared resolver, so it silently skips the resolver's
+# version-then-rank precedence. It was accepted before MD-2450 and must not be.
+cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
+# /widget
+1. Resolve the script path.
+   ```bash
+   name=widget
+   SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+$CLAUDE_PLUGIN_ROOT/skills/$name}}"
+   [ -e "$SKILL_DIR/scripts/widget.sh" ] || SKILL_DIR="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 5 -type d -path "*/skills/$name" 2>/dev/null | while read -r d; do [ -e "$d/scripts/widget.sh" ] && echo "$d"; done | sort -V | tail -1 || true)"
+   [ -e "$SKILL_DIR/scripts/widget.sh" ] || { echo "tron:$name: scripts/widget.sh not found" >&2; exit 1; }
+   bash "$SKILL_DIR/scripts/widget.sh"
+   ```
+EOF
+if bash "$SCRIPT" "$FIXTURE" >/tmp/fastpath-smoke-out.$$ 2>&1; then
+  fail "should have rejected the legacy hand-rolled find bootstrap (MD-2450)"
+fi
+grep -q "FAIL widget" /tmp/fastpath-smoke-out.$$ || fail "failure output should name the skill on the legacy bootstrap"
+pass "rejects the legacy hand-rolled find that skips the shared resolver"
+
 rm -f /tmp/fastpath-smoke-out.$$
 echo "check-fastpath-resolvers smoke: $PASS passed"

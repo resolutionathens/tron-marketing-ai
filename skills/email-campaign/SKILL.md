@@ -2,7 +2,7 @@
 name: email-campaign
 model: sonnet
 effort: medium
-description: "Draft a Facilitron marketing or lifecycle email — newsletter (Facility Forward), district launch announcement, onboarding sequence, or product-update email — with subject-line options, preview text, and a structured body with a clear CTA. Use this skill when content wants to write an email or newsletter: 'draft the Facility Forward newsletter', 'write the district launch email', 'onboarding email sequence', 'announcement email for the Tickets launch', or email/lifecycle tickets (MCR Email & Lifecycle theme). Produces review-ready email copy (multiple subject lines, preview text, body, CTA). Git-free — drafts copy; sending happens in the ESP."
+description: "Draft a Facilitron marketing or lifecycle email — newsletter (Facility Forward), district launch announcement, onboarding sequence, or product-update email — with subject-line options, preview text, and a structured body with a clear CTA. Use when content wants an email or newsletter: 'draft the Facility Forward newsletter', 'write the district launch email', 'onboarding email sequence'. Produces review-ready copy. Git-free — drafts copy; sending happens in the ESP."
 allowed-tools:
   - Bash
   - Read
@@ -70,7 +70,7 @@ newsletter, District Launch Emails, Onboarding Emails, announcements).
 
 ## Drafting rules
 
-- **No em dashes.** Short sentences. One primary CTA per email (secondary links ok in a newsletter).
+- Facilitron voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md). Short sentences. One primary CTA per email (secondary links ok in a newsletter).
 - Subject ≤45 chars where possible; preview text never repeats the subject.
 - For a sequence, keep each email to one idea and show the send cadence (e.g. Day 0 / 2 / 5).
 - Don't invent product claims or dates. Use **AskUserQuestion** for audience + primary CTA if unclear.

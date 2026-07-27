@@ -2,7 +2,7 @@
 name: jira-source-discovery
 model: haiku
 effort: low
-description: "Discover source material for a Jira ticket by reading the ticket, its parent, and linked issues — extracting source links, metadata, work type, and existing-page context. Use this skill when you need to find the real context behind a thin ticket: 'find the source for MD-1234', 'what's the context behind this ticket', 'gather the linked issues and sources'. Pure read-only discovery — it returns structured metadata; it does not write to Jira. Pair with tron:jira-ticket-enricher to write the enriched description."
+description: "Discover source material for a Jira ticket by reading the ticket, its parent, and linked issues — extracting source links, metadata, work type, and existing-page context. Use when you need the real context behind a thin ticket: 'find the source for MD-1234', 'what's the context behind this ticket', 'gather the linked issues and sources'. Pure read-only discovery — it returns structured metadata; it does not write to Jira. Pair with tron:jira-ticket-enricher to write the enriched description."
 allowed-tools:
   - Bash
   - Read

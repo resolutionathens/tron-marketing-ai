@@ -2,7 +2,7 @@
 name: ticket-lint
 model: sonnet
 effort: low
-description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it (\"as written, Scout sees: none, needs human direction\"). Use this skill when the user wants to check, lint, grade, or self-assess a ticket's quality: 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', 'what's missing on this ticket', 'self-assess my ticket', 'check my ticket against the rubric', or the bulk 'lint my board', 'check my open tickets', 'which of my tickets are too thin', 'audit my queue'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
+description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it. Use for 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', or the bulk 'lint my board' / 'which of my tickets are too thin'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
 allowed-tools:
   - Bash
   - Read
@@ -99,7 +99,7 @@ Straight from the rubric ladder ([the verdict mapping](../../tools/ticket/ticket
 ## Quality rules
 
 - Use the verdict strings from the script verbatim; do not reword them (they are the contract triage shares).
-- No em dashes in the prose you write back to the user.
+- Facilitron voice in the prose you write back to the user: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Read-only: never edit a ticket from this skill. Hand off to `tron:jira-source-discovery` / `tron:jira-ticket-enricher` for that.
 - If `rubric-lint.sh --key` fails (acli not authed, bad key), report the error plainly; do not guess a
   verdict from the summary alone.
