@@ -137,16 +137,17 @@ Third-party marketplaces don't auto-update by default, so an installed copy can 
   ```
 
 - **Update notice** — even without auto-update, the plugin ships a `SessionStart` hook
-  (`hooks/check-update.sh`) that compares your installed `version` against `master` once a
-  day and returns a one-line SessionStart system message when you're behind. To update manually:
+  (`hooks/check-update.sh`) that compares your installed `version` against the newest version
+  in its own release channel and returns a one-line SessionStart system message when you're
+  behind. To update manually:
 
   ```
   claude plugin update tron@tron
   ```
 
   For a tron-os release-store install, run `tron-os reconcile-tron-release` first, then run
-  the plugin update command. The check is fail-silent (never blocks startup) and network-frugal
-  (cached daily).
+  the plugin update command. The check is fail-silent (never blocks startup), network-frugal for
+  GitHub marketplace installs (cached daily), and silent when its channel is indeterminate.
 
 ### Developing the plugin (live edit loop)
 
