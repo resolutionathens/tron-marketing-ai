@@ -205,7 +205,7 @@ function rewritePackageIdentity(dir, packageName) {
     hook,
     text
       .replaceAll("tron plugin", `tron-${packageName} plugin`)
-      .replaceAll("tron@tron --force", `tron-${packageName}@tron --force`),
+      .replaceAll("tron@tron", `tron-${packageName}@tron`),
   );
 }
 

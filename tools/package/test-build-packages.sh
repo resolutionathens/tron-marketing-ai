@@ -127,7 +127,7 @@ for (const entry of inventory.packages) {
     }
   }
   const hook = fs.readFileSync(path.join(packageRoot, "hooks/check-update.sh"), "utf8");
-  if (!hook.includes(`${entry.package}@tron --force`)) {
+  if (!hook.includes(`${entry.package}@tron`)) {
     throw new Error(`${entry.harness}/${role} hook does not update its own package`);
   }
   // Hook commands run through `sh -c`, so an unquoted CLAUDE_PLUGIN_ROOT word-splits

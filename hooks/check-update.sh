@@ -13,9 +13,8 @@
 #   * Network-frugal. The remote version is cached and only re-fetched once per day; the
 #     local-vs-remote comparison still runs every startup, so the notice keeps showing
 #     until the user updates.
-#   * User-visible. A notice is written to stderr and the hook exits 2 — that is the only
-#     SessionStart channel Claude Code shows directly to the user (stdout goes to the
-#     model's context, not the terminal).
+#   * User-visible. A notice is returned as a SessionStart system message and the hook exits 0,
+#     so Claude Code displays it without treating the hook as a startup error.
 #
 # Test/override env vars (used by hooks/test-check-update.sh):
 #   CLAUDE_PLUGIN_ROOT       plugin root (defaults to this script's parent dir)
@@ -43,6 +42,7 @@ extract_version() {
 [ -f "$LOCAL_MANIFEST" ] || exit 0
 LOCAL="$(extract_version < "$LOCAL_MANIFEST")"
 [ -n "$LOCAL" ] || exit 0   # can't determine local version — stay quiet
+case "$LOCAL" in *[!0-9.]* ) exit 0 ;; esac
 
 # Resolve the remote version: use a fresh cache if present, else fetch (fast, fail-silent),
 # falling back to a stale cache if the fetch fails.
@@ -59,12 +59,12 @@ else
   fi
 fi
 [ -n "$REMOTE" ] || exit 0
+case "$REMOTE" in *[!0-9.]* ) exit 0 ;; esac
 
 # Quiet if up to date or somehow ahead of master. Use version sort so 0.10.0 > 0.9.0.
 [ "$REMOTE" = "$LOCAL" ] && exit 0
 newest="$(printf '%s\n%s\n' "$LOCAL" "$REMOTE" | sort -V 2>/dev/null | tail -1)"
 [ "$newest" = "$REMOTE" ] || exit 0
 
-printf '⚠️  tron plugin update available — installed %s, published %s.\n' "$LOCAL" "$REMOTE" >&2
-printf '   Update with:  /plugin marketplace update tron  →  /plugin install tron@tron --force  →  /reload-plugins\n' >&2
-exit 2
+printf '{"systemMessage":"⚠️  tron plugin update available: installed %s, published %s. Update with: claude plugin update tron@tron. For a tron-os release-store install, run: tron-os reconcile-tron-release, then rerun the plugin update."}\n' "$LOCAL" "$REMOTE"
+exit 0
