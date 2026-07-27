@@ -54,7 +54,7 @@ Report the exact commands and results. Do not rerun unchanged checks merely for 
 ## Rules
 
 - Do not disable, skip, or weaken a test to make the suite pass.
-- Do not test framework behavior or private implementation details.
+- Test behavior at the same level of abstraction as the repository's existing suite.
 - Keep tests isolated from time, ordering, network, and production data where practical.
 - If the repository has no test harness, report the gap and propose the smallest verification path instead
   of inventing an unapproved framework.

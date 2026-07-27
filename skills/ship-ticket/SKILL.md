@@ -112,7 +112,7 @@ After REVIEW or PROMOTE-PROD, optionally offer `tron:jira-comment` to post a sho
 
 ## Step 4 — After the stage, re-check position
 
-When the delegated skill finishes, return to Step 1 — re-detect lifecycle position. The user may have decided to stop, or the stage may have produced unexpected state. Don't blindly advance.
+When the delegated skill finishes, return to Step 1 — re-detect lifecycle position. The user may have decided to stop, or the stage may have produced unexpected state.
 
 ## Step 5 — Stop conditions
 
