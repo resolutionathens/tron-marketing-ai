@@ -115,9 +115,12 @@ the workflow + judgment in SKILL.md.
   verbatim and change only `name=` and the probe path. Do **not** hand-roll a
   `find … -type d -path "*/skills/$name"` that locates the skill dir directly: that variant skips
   the resolver entirely, and with it the version-then-rank precedence (marketplace over cache over
-  release store) that decides which installed copy wins when several are present. `<probe>` must be
-  a **file**, not a directory, and takes a single path — a skill needing two files to prove a valid
-  install probes the more specific one (`prose-lint` probes `vale-ini.template`, not `styles/`).
+  release store) that decides which installed copy wins when several are present.
+
+  The **first** `<probe>` drives the search and must be a **file**. A skill whose install is only
+  valid when several pieces are present passes the rest as extra required paths after it, and those
+  may be files or directories: `prose-lint` probes `vale-ini.template styles`, so a partial install
+  is skipped rather than resolved and handed a missing `styles/` downstream.
 - **Shared `tools/`** resolve through `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/…` so
   they work from any skill regardless of cwd. The ImageKit CLI invocation convention is
   `IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"; node "$IK" …`.
