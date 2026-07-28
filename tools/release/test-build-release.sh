@@ -39,16 +39,27 @@ archive_has "$OUT/tron-claude-v$VERSION.tar.gz" "tron-v$VERSION/.claude-plugin/p
 archive_has "$OUT/tron-codex-v$VERSION.tar.gz" "tron-v$VERSION/.codex-plugin/plugin.json"
 archive_has "$OUT/tron-codex-v$VERSION.tar.gz" "tron-v$VERSION/.agents/plugins/marketplace.json"
 
-node - "$OUT/release-manifest.json" "$VERSION" "$COMMIT" <<'NODE'
+node - "$OUT/release-manifest.json" "$VERSION" "$COMMIT" "$ROOT/packages/package-map.json" <<'NODE'
 const fs = require("fs");
-const [path, version, commit] = process.argv.slice(2);
+const [path, version, commit, mapPath] = process.argv.slice(2);
 const release = JSON.parse(fs.readFileSync(path, "utf8"));
-if (release.version !== version || release.commit !== commit || release.packages.length !== 18) {
+const map = JSON.parse(fs.readFileSync(mapPath, "utf8"));
+// Two monolith harnesses plus every role package and repo bundle, per harness.
+const expected = 2 + (Object.keys(map.packages).length + Object.keys(map.repos || {}).length) * 2;
+if (release.version !== version || release.commit !== commit || release.packages.length !== expected) {
   throw new Error("release identity does not match the source commit");
 }
 for (const artifact of release.packages) {
   if (!artifact.sha256.match(/^[a-f0-9]{64}$/) || artifact.inventory.length === 0) {
     throw new Error(`invalid ${artifact.harness} integrity metadata`);
+  }
+}
+for (const repo of Object.keys(map.repos || {})) {
+  for (const harness of ["claude", "codex"]) {
+    const filename = `tron-repo-${repo}-${harness}-v${version}.tar.gz`;
+    if (!release.packages.some((artifact) => artifact.filename === filename)) {
+      throw new Error(`release omitted the ${repo} repo bundle for ${harness}`);
+    }
   }
 }
 NODE
@@ -66,6 +77,18 @@ for PACKAGE in core engineer designer content seo manager social video; do
   archive_has "$OUT/tron-$PACKAGE-claude-v$VERSION.tar.gz" ".claude-plugin/marketplace.json"
   archive_has "$OUT/tron-$PACKAGE-codex-v$VERSION.tar.gz" ".agents/plugins/marketplace.json"
 done
+
+# Repo bundles are release artifacts on the same footing as the role packages.
+while IFS= read -r REPO; do
+  for HARNESS in claude codex; do
+    ARCHIVE="$OUT/tron-repo-$REPO-$HARNESS-v$VERSION.tar.gz"
+    test -s "$ARCHIVE"
+    archive_has "$ARCHIVE" "skills/jira/SKILL.md"
+  done
+  archive_has "$OUT/tron-repo-$REPO-claude-v$VERSION.tar.gz" ".claude-plugin/marketplace.json"
+  archive_has "$OUT/tron-repo-$REPO-codex-v$VERSION.tar.gz" ".agents/plugins/marketplace.json"
+done < <(node -p "Object.keys(require('$ROOT/packages/package-map.json').repos || {}).join('\n')")
+archive_has "$OUT/tron-repo-marketing-pages-claude-v$VERSION.tar.gz" "skills/news-item/SKILL.md"
 
 (cd "$OUT" && shasum -a 256 -c SHA256SUMS)
 for ARTIFACT in "$OUT"/*; do

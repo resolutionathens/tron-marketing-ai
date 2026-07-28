@@ -180,6 +180,205 @@
       ]
     }
   },
+  "repos": {
+    "marketing-pages": {
+      "description": "Nuxt marketing site: content publishing, SEO, accessibility, and the CircleCI promotion flow.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "agents/lychee-link-runner.md",
+        "agents/optimize-images-runner.md",
+        "agents/unlighthouse-runner.md",
+        "agents/vale-prose-runner.md",
+        "tools/content",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "circleci",
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "git-pushtoprod",
+        "guide-item",
+        "landing-page-seo",
+        "link-check",
+        "news-item",
+        "open-worktree",
+        "optimize-images",
+        "prose-lint",
+        "security-and-hardening",
+        "seo-audit",
+        "ship-ticket",
+        "site-audit",
+        "start-ticket",
+        "test-driven-development",
+        "toolkit-item",
+        "weekly-update"
+      ]
+    },
+    "marketing-dynamic-landing-pages": {
+      "description": "Programmatic Nuxt landing pages: on-page SEO, accessibility, and the CircleCI promotion flow.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "agents/lychee-link-runner.md",
+        "agents/optimize-images-runner.md",
+        "agents/unlighthouse-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "circleci",
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "git-pushtoprod",
+        "landing-page-seo",
+        "link-check",
+        "open-worktree",
+        "optimize-images",
+        "security-and-hardening",
+        "seo-audit",
+        "ship-ticket",
+        "site-audit",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    },
+    "facilitron-ui": {
+      "description": "Shared Vue design-system library: component work and accessibility, finishing at the dev branch.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "brand-check",
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-dev",
+        "git-pr",
+        "open-worktree",
+        "security-and-hardening",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    },
+    "mabe-nuxt": {
+      "description": "Backend-for-frontend API and data layer on Cloudflare Workers, promoting master straight to production.",
+      "extends": ["core"],
+      "resources": [
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-pr",
+        "git-pushtoprod",
+        "open-worktree",
+        "security-and-hardening",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    },
+    "facilitron-support": {
+      "description": "Support site CMS and knowledge base on Cloudflare Workers, shipping straight to main.",
+      "extends": ["core"],
+      "resources": [
+        "agents/a11y-scan-runner.md",
+        "agents/lychee-link-runner.md",
+        "agents/vale-prose-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "a11y-scan",
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-pr",
+        "link-check",
+        "open-worktree",
+        "prose-lint",
+        "security-and-hardening",
+        "seo-audit",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    },
+    "tron-os": {
+      "description": "Control-plane runtime and desktop shell, shipping straight to main with no promotion branches.",
+      "extends": ["core"],
+      "resources": [
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-pr",
+        "open-worktree",
+        "security-and-hardening",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    },
+    "tron-marketing-ai": {
+      "description": "This skills plugin: instruction-layer edits and prose QA, shipping straight to master.",
+      "extends": ["core"],
+      "resources": [
+        "agents/lychee-link-runner.md",
+        "agents/vale-prose-runner.md",
+        "tools/git",
+        "tools/worktree"
+      ],
+      "skills": [
+        "close-worktree",
+        "code-review-and-quality",
+        "debugging-and-error-recovery",
+        "gh",
+        "git-commit",
+        "git-pr",
+        "link-check",
+        "open-worktree",
+        "prose-lint",
+        "security-and-hardening",
+        "start-ticket",
+        "test-driven-development",
+        "weekly-update"
+      ]
+    }
+  },
   "ownership": {
     "core": [
       "confluence",
