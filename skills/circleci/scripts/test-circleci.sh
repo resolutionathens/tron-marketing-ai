@@ -112,6 +112,25 @@ has "$O" '"ok":false' "a branch the repo does not declare has no URL"
 has "$O" '"declared":\["dev","production"\]' "failure lists what the repo does declare"
 pass "deploy-url <undeclared branch> → ok:false listing the declared ones"
 
+# A profile that exists but does not read is NOT the same as no profile: falling
+# back to the built-in would hand a marketing-pages checkout the plugin's table
+# while the repo was actively trying to override it.
+printf 'not json\n' > "$DECL/.tron/content-profile.json"
+rc=0; O="$(bash "$SCRIPT" deploy-url dev --repo "$DECL" 2>/dev/null)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 1 ]] || fail "an unreadable profile should exit 1, not fall back (got $rc)"
+has "$O" 'does not read as a version-1 profile' "the refusal names why it refused"
+pass "malformed profile → exit 1 rather than a silent fall back to the built-in"
+
+# --- help output must not spill past the header comment ----------------------
+# Both help paths slice this file's own header. A line-numbered range silently
+# drifts every time the header grows; assert the boundary instead.
+O="$(bash "$SCRIPT" --help)"
+has "$O" 'deploy-url <branch>' "help lists the deploy-url subcommand"
+has "$O" '2 usage error' "help includes the LAST header line"
+grep -q 'set -euo pipefail' <<<"$O" && fail "help spilled past the header into the script body"
+pass "--help prints the whole header comment and nothing after it"
+
 # --- usage / error contract --------------------------------------------------
 rc=0; bash "$SCRIPT" deploy-url --repo "$MP" >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "deploy-url with no branch should exit 2 (got $rc)"

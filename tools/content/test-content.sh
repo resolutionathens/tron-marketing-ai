@@ -300,6 +300,15 @@ rc=0; O="$(bash "$SCRIPT" collection toolkit --repo "$BADV" 2>&1)" || rc=$?
 has "$O" 'version-1' "failure names the version it speaks"
 pass "unknown profile version → exit 1 rather than reading moved fields"
 
+# --- help output must not spill past the header comment ----------------------
+# The help paths slice this script's own header. A line-numbered range silently
+# drifts every time the header grows; assert the boundary instead.
+O="$(bash "$SCRIPT" --help)"
+has "$O" 'content.sh paths' "help lists the paths subcommand"
+has "$O" '2 usage error' "help includes the LAST header line"
+grep -q 'set -euo pipefail' <<<"$O" && fail "help spilled past the header into the script body"
+pass "--help prints the whole header comment and nothing after it"
+
 # --- usage / error contract --------------------------------------------------
 rc=0; bash "$SCRIPT" slug >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "slug without title should exit 2 (got $rc)"

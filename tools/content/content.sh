@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --slug)   [[ $# -gt 1 ]] || usage_err "--slug requires a value";   SLUG="$2";   shift ;;
     --name)   [[ $# -gt 1 ]] || usage_err "--name requires a value";   NAME="$2";   shift ;;
     --index)  [[ $# -gt 1 ]] || usage_err "--index requires a value";  INDEX="$2";  shift ;;
-    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
+    -h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) ARGS+=("$1") ;;
   esac
@@ -337,6 +337,6 @@ case "$CMD" in
   rewrite-links) cmd_rewrite_links ;;
   check-link)    cmd_check_link ;;
   next-index)    cmd_next_index ;;
-  ""|help|-h|--help) sed -n '2,25p' "$0" ;;
+  ""|help|-h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0" ;;
   *) usage_err "unknown subcommand '$CMD' (try: check-repo, slug, rewrite-links, check-link, next-index, profile, paths, pipeline, collection, image)" ;;
 esac
