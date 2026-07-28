@@ -40,9 +40,9 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 ## Checklist
 
 ```
-- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + resolve the guides pipeline
+- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + confirm the repo declares a profile
 - [ ] Stage 1: read ticket + fetch Confluence draft + images; confirm slug
-- [ ] Stage 2: convert body images to webp + upload to the declared body folder; OG image; index card thumbnail
+- [ ] Stage 2: resolve the guides pipeline against the confirmed slug, then convert body images to webp + upload to the declared body folder; OG image; index card thumbnail
 - [ ] Stage 3: compose the guide page from the guide palette
 - [ ] Stage 4: register it in the index (the profile says whether this is needed)
 - [ ] Stage 5: verify renders, card shows, images + links resolve, prose-lint + a11y-scan
@@ -81,27 +81,21 @@ bash "$C" check-link /product/<path>
 GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
 ```
 
-## Preflight — repo guard, then resolve the pipeline
+## Preflight — repo guard + profile availability
 
-Two separate things, in this order. The guard decides **whether** you may write
-here; the profile says **where**. Never skip the guard because the profile resolved.
+Two separate things. The guard decides **whether** you may write here; the profile
+says **where**. Never skip the guard because the profile resolved.
+
+Neither needs the slug, so both run before Stage 1:
 
 ```bash
 bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
-
-PIPE_JSON="$(bash "$C" pipeline guides --slug <slug>)" || exit 1   # fails loudly if undeclared
-DEST="$(jq -r .destination         <<<"$PIPE_JSON")"   # where the .vue page goes
-ROUTE="$(jq -r .route              <<<"$PIPE_JSON")"
-REG_MODE="$(jq -r .registration.mode <<<"$PIPE_JSON")" # auto | manual
-REG_FILE="$(jq -r .registration.file <<<"$PIPE_JSON")" # the index to edit when manual
-jq -c '.components' <<<"$PIPE_JSON"                    # allowed / forbidden, with the why
+bash "$C" profile >/dev/null || exit 1   # this repo declares a content profile at all
 ```
 
-The destination is a **Vue page path**, and it is not necessarily `pages/…` — a repo
-on Nuxt 4 uses an `app/` srcDir. That is exactly the kind of fact this skill no longer
-carries: use `$DEST`. If the resolve fails, **stop and report what was missing**
-rather than falling back to a remembered path.
+**Do not resolve the pipeline yet** — `destination` and `route` are slug-derived, and
+the slug is not fixed until Stage 1 confirms it. The resolve step is the top of Stage 2.
 
 ## Stage 1 — Intake
 
@@ -117,23 +111,52 @@ Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>
 
 ## Stage 2 — Images
 
+The slug is fixed now, so resolve the pipeline first:
+
+```bash
+PIPE_JSON="$(bash "$C" pipeline guides --slug <slug>)" || exit 1   # fails loudly if undeclared
+DEST="$(jq -r .destination           <<<"$PIPE_JSON")"  # where the .vue page goes
+ROUTE="$(jq -r .route                <<<"$PIPE_JSON")"
+REG_MODE="$(jq -r .registration.mode <<<"$PIPE_JSON")"  # auto | manual
+REG_FILE="$(jq -r .registration.file <<<"$PIPE_JSON")"  # the index to edit when manual
+jq -c '.components' <<<"$PIPE_JSON"                     # allowed / forbidden, with the why
+```
+
+The destination is a **Vue page path**, and it is not necessarily `pages/…` — a repo
+on Nuxt 4 uses an `app/` srcDir. That is exactly the kind of fact this skill no longer
+carries: use `$DEST`. `pipeline` refuses a destination that still contains a literal
+`{slug}` or that escapes the repo, so a successful call means `$DEST` is safe to write.
+
 A guide has three image roles, and **they do not use the same reference format** —
-this is the single most error-prone step in the skill. Resolve each one:
+this is the single most error-prone step in the skill. The card is numbered, so read
+its prefix from the profile (loudly — never assume a default) and find the next index:
+
+```bash
+CARD_PREFIX="$(jq -er '(.images[]|select(.role=="card")).indexPrefix' <<<"$PIPE_JSON")" \
+  || { echo "profile declares no indexPrefix for the guides card role — cannot number the card" >&2; exit 1; }
+CARD_FOLDER="$(jq -r '(.images[]|select(.role=="card")).cdnFolder' <<<"$PIPE_JSON")"
+# list existing names in $CARD_FOLDER, then:
+NN="$(… | bash "$C" next-index --prefix "$CARD_PREFIX" --suffix .webp | jq -r .next)"
+```
+
+Then resolve each role:
 
 ```bash
 BODY="$(bash "$C" image guides body --slug <slug> --name <name>)"
 OG="$(bash "$C" image guides og --slug <slug>)"
-CARD="$(bash "$C" image guides card --index <NN>)"
-# each → {"uploadFolder":…,"uploadName":…,"reference":…,"valueFormat":…,"note":…}
+CARD="$(bash "$C" image guides card --index "$NN")"
+# each → {"uploadFolder":…,"uploadName":…,"reference":…,"url":…,"valueFormat":…,"note":…}
 ```
 
-Use `reference` verbatim wherever the value is written into the page. Reading the
-role's `note` is worth the two seconds: one of these three is stored as a full CDN
-URL while the others are relative, and mixing them up renders a broken image.
+Use `reference` verbatim wherever the value is written into the page, and `url` only
+when you need to fetch the asset to check it. Do not derive either from the other:
+`reference` is relative for the body and card roles, so prefixing it with the CDN base
+doubles the folder. Reading the role's `note` is worth the two seconds — one of these
+three is stored as a full CDN URL while the others are relative.
 
 - Guide-specific naming: [`reference/images.md`](reference/images.md)
 - Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
-- Card thumbnail: `"$GENCARD"` with `--folder "$(jq -r .uploadFolder <<<"$CARD")" --prefix "$(jq -r '.indexPrefix // "guide"' <<<"$CARD")"` (auto-numbers the next free index); invocation + result parsing live in the "Generate an index/card thumbnail from references" section of the shared doc above
+- Card thumbnail: `"$GENCARD"` with `--folder "$CARD_FOLDER" --prefix "$CARD_PREFIX"` (auto-numbers the next free index); invocation + result parsing live in the "Generate an index/card thumbnail from references" section of the shared doc above
 
 Run the image pipeline for all body images — no per-image subagents needed:
 
@@ -192,7 +215,13 @@ resolves at its URL but never appears on the index.
    curl -s "http://localhost:${PORT}${ROUTE}" | grep -oc "$(jq -r .uploadFolder <<<"$BODY")"
    ```
 2. **Index card:** Load the pipeline's `indexRoute`, confirm the new card shows.
-3. **Images resolve:** Spot-check the uploaded CDN URLs.
+3. **Images resolve:** Spot-check each role's `.url` — the fetchable CDN address, as
+   opposed to `.reference`, which is what you write into the page:
+   ```bash
+   for spec in "$BODY" "$OG" "$CARD"; do
+     curl -sIo /dev/null -w "%{http_code} $(jq -r .url <<<"$spec")\n" "$(jq -r .url <<<"$spec")"
+   done
+   ```
 4. **Links:** Run `bash "$C" rewrite-links "$DEST"` (facilitron.com → relative), then `bash "$C" check-link` each internal path. The repo's declared traps: `bash "$C" profile | jq -r '.internalLinks.exceptions[]? | "\(.wrong) → \(.right)"'`. Full flow: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, and the dash grep from [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 6. **Clean up:** Remove `/tmp/guide-<slug>` and dropped-in sources.

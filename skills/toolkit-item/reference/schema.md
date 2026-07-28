@@ -76,7 +76,7 @@ The permitted and forbidden blocks are declared per pipeline — read them rathe
 trusting this list:
 
 ```bash
-bash "$C" pipeline toolkit | jq -c '.components'
+bash "$C" pipeline toolkit --slug <slug> | jq -c '.components'
 ```
 
 In practice that resolves to two MDC block components — **`::checklist-group`** and

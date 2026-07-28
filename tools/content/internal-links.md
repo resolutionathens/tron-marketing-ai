@@ -40,10 +40,13 @@ so run it on every internal link regardless.
 ## When a link doesn't resolve
 
 `check-link` failing means no page serves that route. Find the real one by searching
-the repo's pages directory (`content.sh profile | jq -r .framework.pagesRoot`):
+the repo's pages directory, which the profile declares. Read it loudly — if the repo
+does not declare one, stop and say so rather than guessing `pages/` or `app/pages/`:
 
 ```bash
-find "$(bash "$C" profile | jq -r .framework.pagesRoot)" -type f -name '*.vue' | grep -i <keyword>
+PAGES="$(bash "$C" profile | jq -er '.framework.pagesRoot')" \
+  || { echo "profile declares no framework.pagesRoot — cannot locate this repo's pages" >&2; exit 1; }
+find "$PAGES" -type f -name '*.vue' | rg -i <keyword>
 ```
 
 Content routes for a given pipeline are also discoverable — `content.sh pipeline <name>`

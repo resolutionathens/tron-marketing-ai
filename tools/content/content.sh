@@ -133,7 +133,9 @@ profile_expand() {
     walk(fill)'
 }
 
-# Refuse to hand back a value that still carries an unfilled placeholder.
+# Refuse to hand back a value that still carries an unfilled placeholder. A literal
+# "{slug}" reaching a caller is worse than an error: skills assign these straight to
+# $DEST and write there, so the run "succeeds" into a nonsense path.
 require_filled() {
   local value="$1" what="$2"
   case "$value" in
@@ -141,6 +143,40 @@ require_filled() {
     *"{name}"*) usage_err "$what resolves to '$value' — pass --name" ;;
     *"{NN}"*)   usage_err "$what resolves to '$value' — pass --index" ;;
   esac
+}
+
+# Refuse a write target that escapes the repo. check-repo answers WHICH checkout may
+# be written to; this answers WHERE inside it. The profile is repo-supplied data, so
+# a wrong (or hostile) `destination` must not be able to steer a write outside the
+# tree just because the checkout passed the guard.
+require_contained() {
+  local rel="$1" what="$2" top dir phys
+  [[ -z "$rel" || "$rel" == "null" ]] && return 0
+  case "$rel" in
+    /*) profile_reject "$what" "$rel" "it is an absolute path; a content profile may only declare repo-relative destinations" ;;
+    ~*) profile_reject "$what" "$rel" "it starts with a home-directory reference" ;;
+  esac
+  case "/$rel/" in
+    */../*) profile_reject "$what" "$rel" "it contains a '..' segment" ;;
+  esac
+  # Lexically safe by here. Also refuse a symlinked parent that physically escapes.
+  top="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null || echo "$REPO")"
+  top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
+  dir="$top/$rel"; dir="${dir%/*}"
+  [[ -d "$dir" ]] || return 0
+  phys="$(cd "$dir" 2>/dev/null && pwd -P)" || return 0
+  case "$phys/" in
+    "$top"/*|"$top"/) ;;
+    *) profile_reject "$what" "$rel" "it resolves to '$phys', outside the repo at '$top'" ;;
+  esac
+}
+
+profile_reject() {
+  jq -nc --arg w "$1" --arg v "$2" --arg why "$3" '{
+    ok:false, needed:$w, value:$v,
+    reason:("refusing " + $w + " \"" + $v + "\" because " + $why +
+            ". Nothing was written. Fix the destination in the repo content profile.")}'
+  exit 1
 }
 
 cmd_profile() {
@@ -160,7 +196,22 @@ cmd_pipeline() {
               "\" belongs, so no file was written.")}'
     exit 1
   fi
-  jq -c --arg n "$n" '{ok:true,pipeline:$n} + .' <<<"$(profile_expand <<<"$p")"
+  p="$(profile_expand <<<"$p")"
+
+  # Validate the fields callers assign straight to a path variable. Template
+  # sub-objects (registration.entry) are deliberately left as templates — they carry
+  # {title}-style placeholders the skill fills with prose, and are never used as paths.
+  local dest route regfile
+  dest="$(jq -r '.destination // empty'      <<<"$p")"
+  route="$(jq -r '.route // empty'           <<<"$p")"
+  regfile="$(jq -r '.registration.file // empty' <<<"$p")"
+  require_filled "$dest"    "destination for pipeline '$n'"
+  require_filled "$route"   "route for pipeline '$n'"
+  require_filled "$regfile" "registration.file for pipeline '$n'"
+  require_contained "$dest"    "the destination for pipeline '$n'"
+  require_contained "$regfile" "the registration file for pipeline '$n'"
+
+  jq -c --arg n "$n" '{ok:true,pipeline:$n} + .' <<<"$p"
 }
 
 cmd_collection() {
@@ -174,6 +225,9 @@ cmd_collection() {
               "\" — it declares " + ($d | join(", ")) + ". Front-matter fields are unknown, so nothing was written.")}'
     exit 1
   fi
+  local cdir; cdir="$(jq -r '.dir // empty' <<<"$c")"
+  require_filled "$cdir" "dir for collection '$n'"
+  require_contained "$cdir" "the directory for collection '$n'"
   jq -c --arg n "$n" '{ok:true,collection:$n} + .' <<<"$c"
 }
 
@@ -221,8 +275,15 @@ cmd_image() {
       exit 1 ;;
   esac
 
+  # `reference` is what you WRITE into the content; `url` is where the asset LIVES.
+  # They differ for every valueFormat except absolute-url, so callers that need a
+  # fetchable URL (verification, spot-checks) take `url` instead of re-deriving one
+  # from `reference` — which would double the folder or mangle an absolute value.
+  base="$(jq -r '.cdn.baseUrl // empty' <<<"$PROFILE")"
   jq -c --arg folder "$folder" --arg file "$file" --arg ref "$ref" \
-    '{ok:true} + . + {uploadFolder:$folder,uploadName:$file,reference:$ref}' <<<"$a"
+    --arg url "${base:+${base%/}/$folder/$file}" \
+    '{ok:true} + . + {uploadFolder:$folder,uploadName:$file,reference:$ref}
+     + (if $url == "" then {} else {url:$url} end)' <<<"$a"
 }
 
 case "$CMD" in

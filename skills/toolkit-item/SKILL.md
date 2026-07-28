@@ -40,9 +40,9 @@ Publish a new item to `/resources/toolkit` on the marketing site — a checklist
 ## Checklist
 
 ```
-- [ ] 0. Preflight — confirm marketing-pages repo (content.sh check-repo)
-- [ ] 1. Read the source markdown — note title, audience, links, category
-- [ ] 2. Reformat into the profile's toolkit schema, write the item at the resolved destination
+- [ ] 0. Preflight — confirm marketing-pages repo (content.sh check-repo) + confirm the repo declares a profile
+- [ ] 1. Read the source markdown — note title, audience, links, category; derive + confirm the slug
+- [ ] 2. Resolve the toolkit pipeline against the confirmed slug, reformat into the profile's schema, write the item at the resolved destination
 - [ ] 2.5. Lint links with lychee; rewrite facilitron.com → relative; verify internal paths
 - [ ] 3. Build trimmed PDF via tron:md-to-pdf (LaTeX path); open for user sign-off
 - [ ] 4. Upload PDF to ImageKit (folder from `image toolkit pdf`)
@@ -87,28 +87,43 @@ GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-car
 
 ## Step by step
 
-### 0. Preflight — repo guard, then resolve the pipeline
+### 0. Preflight — repo guard + profile availability
 
-Two separate things, in this order. The guard decides **whether** you may write
-here; the profile says **where**. Never skip the guard because the profile resolved.
+Two separate things. The guard decides **whether** you may write here; the profile
+says **where**. Never skip the guard because the profile resolved.
+
+Neither needs the slug, so both run first:
 
 ```bash
 bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
+bash "$C" profile >/dev/null || exit 1   # this repo declares a content profile at all
+```
 
+**Do not resolve the pipeline yet** — `destination` is slug-derived, and the slug comes
+from the title you read in step 1. The resolve step is the top of step 2.
+
+If either command fails, **stop and report what was missing** — the message names
+the file it looked for and what it needed. Never fall back to a remembered path.
+
+### 1. Read source
+Find and read the source markdown. Note title, audience, links, category. Derive and
+confirm the slug from the title.
+
+### 2. Resolve the pipeline, then reformat into the toolkit schema
+
+The slug is fixed now, so resolve:
+
+```bash
 PIPE_JSON="$(bash "$C" pipeline toolkit --slug <slug>)" || exit 1   # fails loudly if undeclared
 DEST="$(jq -r .destination <<<"$PIPE_JSON")"
 ROUTE="$(jq -r .route      <<<"$PIPE_JSON")"
 SCHEMA="$(bash "$C" collection toolkit)" || exit 1
 ```
 
-If either resolve fails, **stop and report what was missing** — the message names
-the file it looked for and what it needed. Never fall back to a remembered path.
+`pipeline` refuses a destination that still contains a literal `{slug}` or that escapes
+the repo, so a successful call means `$DEST` is safe to write to.
 
-### 1. Read source
-Find and read the source markdown. Note title, audience, links, category.
-
-### 2. Reformat into toolkit schema
 Write the file at `$DEST`. The required front-matter fields, the optional ones, and
 the valid `category` values all come from `$SCHEMA` — do not carry them in your head:
 

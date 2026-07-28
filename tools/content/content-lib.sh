@@ -85,15 +85,8 @@ ct_profile_read() {
   cat "$path"
 }
 
-# Expand a profile path/name template: {slug}, {name}, {NN}.
-#   ct_expand 'articles/{slug}' my-post → articles/my-post
-ct_expand() {
-  local tpl="$1" slug="${2:-}" name="${3:-}" nn="${4:-}"
-  tpl="${tpl//\{slug\}/$slug}"
-  tpl="${tpl//\{name\}/$name}"
-  tpl="${tpl//\{NN\}/$nn}"
-  printf '%s' "$tpl"
-}
+# Template expansion ({slug}/{name}/{NN}) lives in content.sh's profile_expand, which
+# walks the whole JSON blob with jq rather than one string at a time.
 
 # Given existing filenames on stdin, echo the next free zero-padded 2-digit index
 # for <prefix>[-]NN<suffix>. Used for guide cards (guide-04.webp → 05).

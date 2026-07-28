@@ -159,11 +159,31 @@ O="$(bash "$SCRIPT" image guides og --slug g1 --repo "$ROOT")"; echo "  → $O"
 has "$O" '"reference":"https://ik.imagekit.io/facilitron/og/og-g1.webp"' "valueFormat absolute-url → full CDN URL"
 pass "image → filename / cdn-relative-path / absolute-url each resolve differently"
 
+# `url` is the fetchable CDN address for EVERY role, including the ones whose
+# `reference` is relative — so verification never has to rebuild a URL by hand
+# (doing so doubles the folder or mangles an already-absolute value).
+O="$(bash "$SCRIPT" image news featured --slug my-post --repo "$ROOT")"
+has "$O" '"url":"https://ik.imagekit.io/facilitron/blog-featured/my-post.webp"' "url is absolute even when reference is a bare filename"
+O="$(bash "$SCRIPT" image news body --slug my-post --name hero --repo "$ROOT")"
+has "$O" '"url":"https://ik.imagekit.io/facilitron/blog-posts/my-post/hero.webp"' "url is absolute even when reference is relative"
+O="$(bash "$SCRIPT" image guides og --slug g1 --repo "$ROOT")"
+[[ "$(jq -r .url <<<"$O")" == "$(jq -r .reference <<<"$O")" ]] || fail "for absolute-url roles, url and reference should agree"
+pass "image → url is the fetchable address for every role (== reference only when absolute-url)"
+
 O="$(bash "$SCRIPT" image guides card --index 07 --repo "$ROOT")"; echo "  → $O"
 has "$O" '"uploadName":"guide-07.webp"' "{NN} expands from --index"
 O="$(bash "$SCRIPT" image toolkit pdf --slug my-sop --repo "$ROOT")"; echo "  → $O"
 has "$O" '"uploadFolder":"toolkit/downloads"' "downloads[] roles resolve like images[]"
 pass "image → {NN} index expansion and downloads[] roles"
+
+# A profile with no cdn.baseUrl must omit `url` rather than emit a half-built one.
+NOCDN="$ROOT/nocdn"
+mkdir -p "$NOCDN/.tron"; git -C "$NOCDN" init -q
+jq 'del(.cdn)' "$PROF/content-profile.json" > "$NOCDN/.tron/content-profile.json"
+O="$(bash "$SCRIPT" image news featured --slug my-post --repo "$NOCDN")"; echo "  → $O"
+has "$O" '"reference":"my-post.webp"' "reference still resolves without a cdn baseUrl"
+jq -e 'has("url")' <<<"$O" >/dev/null 2>&1 && fail "url should be omitted when the profile declares no cdn.baseUrl"
+pass "no cdn.baseUrl → url omitted, never a half-built address"
 
 O="$(bash "$SCRIPT" collection toolkit --repo "$ROOT")"; echo "  → $O"
 has "$O" '"required":["title","description","date","category"]' "collection required fields"
@@ -198,6 +218,42 @@ echo "  → $O"
 [[ "$rc" == 2 ]] || fail "unfilled {slug} should exit 2 (got $rc)"
 has "$O" 'pass --slug' "refusal says which flag is missing"
 pass "unfilled {slug} → exit 2 rather than a literal placeholder in the output"
+
+# An unfilled {slug} must not escape via pipeline/collection either: skills assign
+# .destination straight to $DEST, so a literal placeholder would "succeed" into a
+# nonsense path. Same refusal as cmd_image.
+rc=0; O="$(bash "$SCRIPT" pipeline news --repo "$ROOT" 2>&1)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 2 ]] || fail "pipeline without --slug should exit 2 (got $rc)"
+has "$O" 'pass --slug' "pipeline refusal says which flag is missing"
+pass "pipeline without --slug → exit 2, never a destination containing a literal {slug}"
+
+# Template sub-objects are NOT paths and must survive: registration.entry carries
+# {title}/{NN} placeholders the skill fills with prose.
+O="$(bash "$SCRIPT" pipeline guides --slug g1 --repo "$ROOT")"
+has "$O" '"destination":"app/pages/resources/guides/g1.vue"' "guides destination still resolves"
+pass "pipeline validates path fields without flattening template sub-objects"
+
+# --- containment: the profile must not be able to steer a write out of the repo ---
+ESCAPE="$ROOT/escape"
+mkdir -p "$ESCAPE/.tron"; git -C "$ESCAPE" init -q
+for bad in '../../../etc/passwd.md' '/etc/passwd.md' 'ok/../../../outside.md'; do
+  jq --arg d "$bad" '.pipelines.news.destination = $d' "$PROF/content-profile.json" \
+    > "$ESCAPE/.tron/content-profile.json"
+  rc=0; O="$(bash "$SCRIPT" pipeline news --slug x --repo "$ESCAPE" 2>&1)" || rc=$?
+  [[ "$rc" == 1 ]] || fail "escaping destination '$bad' should exit 1 (got $rc)"
+  has "$O" '"ok":false' "escaping destination '$bad' is refused"
+  has "$O" 'Nothing was written' "refusal states nothing was written"
+done
+echo "  → $O"
+pass "destination escaping the repo (.. / absolute / mixed) → exit 1, refused by name"
+
+# A legitimate nested destination inside the repo still passes.
+jq '.pipelines.news.destination = "content/deep/nested/{slug}.md"' "$PROF/content-profile.json" \
+  > "$ESCAPE/.tron/content-profile.json"
+O="$(bash "$SCRIPT" pipeline news --slug x --repo "$ESCAPE")"
+has "$O" '"destination":"content/deep/nested/x.md"' "ordinary nested destination is allowed"
+pass "containment allows any ordinary repo-relative destination"
 
 BADV="$ROOT/badversion"
 mkdir -p "$BADV/.tron"; git -C "$BADV" init -q

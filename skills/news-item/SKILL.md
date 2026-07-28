@@ -40,9 +40,9 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 ## Checklist
 
 ```
-- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + resolve the news pipeline
+- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + confirm the repo declares a profile
 - [ ] Stage 1 — Intake: read ticket, fetch Confluence draft + images, confirm slug
-- [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
+- [ ] Stage 2 — Resolve the news pipeline against the confirmed slug, then images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
 - [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
 - [ ] Stage 4 — Verify: links, images resolve, served-HTML check on THIS worktree, prose-lint + a11y-scan
 - [ ] Verification loop: re-read against brief, check Facilitron voice, fix, repeat
@@ -78,29 +78,24 @@ bash "$C" rewrite-links "$DEST"
 bash "$C" check-link /product/<path>
 ```
 
-## Preflight — repo guard, then resolve the pipeline
+## Preflight — repo guard + profile availability
 
-Two separate things, in this order. The guard decides **whether** you may write
-here; the profile says **where**. Never skip the guard on the grounds that the
-profile resolved.
+Two separate things. The guard decides **whether** you may write here; the profile
+says **where**. Never skip the guard on the grounds that the profile resolved.
+
+Neither needs the slug, so both run before Stage 1:
 
 ```bash
 bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
+bash "$C" profile >/dev/null || exit 1   # this repo declares a content profile at all
 ```
 
-Then resolve everything this repo declares about news, once, up front:
+**Do not resolve the pipeline yet** — `destination` and `route` are slug-derived, and
+the slug is not fixed until Stage 1 confirms it. Resolving here means inventing a slug
+and re-resolving later. The resolve step is the top of Stage 2, once Stage 1 has one.
 
-```bash
-PIPE_JSON="$(bash "$C" pipeline news --slug <slug>)" || exit 1   # fails loudly if the repo declares no news pipeline
-DEST="$(jq -r .destination     <<<"$PIPE_JSON")"                 # where the article file goes
-ROUTE="$(jq -r .route          <<<"$PIPE_JSON")"                 # the URL it will serve at
-jq -r '.components.allowed[]'  <<<"$PIPE_JSON"                   # the MDC blocks this repo permits
-jq -r '.components.forbidden[]' <<<"$PIPE_JSON"                  # and the ones it does not
-bash "$C" collection news | jq -c '{required,optional,enums,defaults}'   # front-matter schema
-```
-
-If any of these fail, **stop and report what was missing** — the message names
+If either command fails, **stop and report what was missing** — the message names
 the file it looked for and what it needed. Do not fall back to a remembered path:
 an article written into a guessed directory looks like success and is only caught
 in review.
@@ -122,9 +117,23 @@ This writes `/tmp/news-<slug>/body.html` and `/tmp/news-<slug>/raw/<name>` per r
 
 **Gotcha:** The Confluence `/wiki/download/` servlet 401s with an API token. The shared script handles this via the API gateway. If going manual, use `curl -L ... "https://api.atlassian.com/ex/confluence/91c1b48f-c272-40fb-9c7f-cc5f23bb74d7/wiki<downloadLink>"`.
 
-## Stage 2 — Images
+## Stage 2 — Resolve the pipeline, then images
 
-Name each image after the section it illustrates.
+The slug is fixed now, so resolve everything this repo declares about news, once:
+
+```bash
+PIPE_JSON="$(bash "$C" pipeline news --slug <slug>)" || exit 1   # fails loudly if undeclared
+DEST="$(jq -r .destination      <<<"$PIPE_JSON")"                # where the article file goes
+ROUTE="$(jq -r .route           <<<"$PIPE_JSON")"                # the URL it will serve at
+jq -r '.components.allowed[]'   <<<"$PIPE_JSON"                  # the MDC blocks this repo permits
+jq -r '.components.forbidden[]' <<<"$PIPE_JSON"                  # and the ones it does not
+bash "$C" collection news | jq -c '{required,optional,enums,defaults}'   # front-matter schema
+```
+
+`pipeline` refuses to return a destination that still contains a literal `{slug}`, or
+one that escapes the repo, so a successful call means `$DEST` is safe to write to.
+
+Then the images. Name each one after the section it illustrates.
 
 - News-specific naming + paths: [`reference/images.md`](reference/images.md)
 - Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
@@ -135,11 +144,17 @@ type a CDN folder from memory:
 ```bash
 BODY="$(bash "$C" image news body --slug <slug> --name <name>)"   # per body image
 FEAT="$(bash "$C" image news featured --slug <slug>)"
-# each → {"uploadFolder":…,"uploadName":…,"reference":…,"valueFormat":…,"note":…}
+# each → {"uploadFolder":…,"uploadName":…,"reference":…,"url":…,"valueFormat":…,"note":…}
 ```
 
-`uploadFolder`/`uploadName` are the upload arguments; **`reference` is the exact
-string to write into the article** (see Stage 3).
+Three distinct values, and mixing them up is the classic failure:
+
+- `uploadFolder` / `uploadName` — the **upload** arguments
+- `reference` — the exact string to **write into the article** (see Stage 3)
+- `url` — the fetchable **CDN address**, for verification only
+
+Never build one from another. `reference` is often a bare filename or a relative
+path, so prefixing it with the CDN base gives a URL that 404s or doubles the folder.
 
 Run the image pipeline to convert and upload all body images in one shot — no per-image subagents needed:
 
@@ -197,9 +212,12 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
 ## Stage 4 — Verify & clean up
 
 1. **Links:** `lychee --no-progress --cache --accept 200,206,429 "$DEST"`
-2. **Images resolve:** Spot-check the featured image's live URL —
-   `bash "$C" image news featured --slug <slug> | jq -r '"\(.reference)"'` gives the
-   stored value; combine it with the profile's `cdn.baseUrl` and `uploadFolder` to fetch it.
+2. **Images resolve:** Spot-check the featured image's live URL. Take `.url` — the
+   fetchable CDN address — not `.reference`, which is the value you write into the
+   article and is usually a bare filename or a relative path:
+   ```bash
+   curl -sIo /dev/null -w '%{http_code}\n' "$(bash "$C" image news featured --slug <slug> | jq -r .url)"
+   ```
 3. **Served-HTML trap:** The news catch-all returns HTTP 200 even without the markdown file. Verify you're on THIS worktree's server by grepping rendered HTML:
    ```bash
    curl -s "http://localhost:<port>$ROUTE" | grep -oE '<title>[^<]*</title>'
