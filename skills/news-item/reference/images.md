@@ -15,19 +15,31 @@ its `ac:alt` attr is a starting point for both the filename and the `::fImg` alt
 text. Descriptive names beat numbered ones here because the article body is
 hand-assembled — a meaningful `src` is easier to place correctly than `-07`.
 
-The featured image is named after the slug (`<slug>.webp`), converted from the
-dropped-in `featuredimg.png` — or, if none was dropped in, generated via
-`generate-card.sh` with `--name <slug>.webp` (see SKILL.md Stage 2).
+The featured image is converted from the dropped-in `featuredimg.png` — or, if
+none was dropped in, generated via `generate-card.sh` (see SKILL.md Stage 2).
+Its output name is whatever the profile declares, not `featuredimg.webp`.
 
-## Destination folders
+## Destination folders — read them, don't type them
 
-Run the shared convert → upload → verify steps, uploading into these news folders
-(always pass `--name`):
+The CDN folders and file names belong to the consuming repo, so ask its profile.
+Run the shared convert → upload → verify steps with those values (always pass `--name`):
 
-- Featured image → `blog-featured` (uploaded as `<slug>.webp`)
-- Inline images → `blog-posts/<slug>` (uploaded as `<name>.webp`)
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" image news featured --slug <slug>
+bash "$C" image news body --slug <slug> --name <name>
+```
+
+Each returns `uploadFolder` and `uploadName` (the upload arguments) plus
+`reference` and `valueFormat`.
 
 ## Where each path resolves
 
-- Featured image → `blog-featured/<slug>.webp` (front matter `image:` resolves there)
-- Inline images → `blog-posts/<slug>/<name>.webp` (the `src` in `::image-text` / `::fImg`)
+`reference` is the value to write into the article, already formatted for the role:
+
+- The **featured** image is referenced from front matter.
+- The **body** images are referenced by the `src` on `::image-text` / `::fImg`.
+
+The two do not use the same format — one stores a bare filename because the
+renderer prefixes the folder, the other stores a CDN-relative path. That is
+exactly why you copy `reference` rather than assembling the string yourself.

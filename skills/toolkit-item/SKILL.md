@@ -18,7 +18,7 @@ allowed-tools:
   - Write
   - Task
   - AskUserQuestion
-description: "Add a new item (checklist, SOP, or template) to the Facilitron marketing-pages toolkit at /resources/toolkit. Handles the full workflow: reformatting raw markdown into the Nuxt-Content toolkit schema, writing to content/resources/toolkit/, building the branded PDF, uploading the PDF and card image to ImageKit, verifying internal links resolve, and cleaning up source files. Use for 'add a toolkit item', 'create a new checklist/SOP/template for the toolkit', 'publish this checklist', or dropping a raw markdown file and referencing the toolkit."
+description: "Add a new item (checklist, SOP, or template) to the Facilitron marketing-pages toolkit at /resources/toolkit. Handles the full workflow: reformatting raw markdown into the repo's declared toolkit schema, writing it to the destination the repo's content profile resolves, building the branded PDF, uploading the PDF and card image to ImageKit, verifying internal links resolve, and cleaning up source files. Use for 'add a toolkit item', 'create a new checklist/SOP/template for the toolkit', 'publish this checklist', or dropping a raw markdown file and referencing the toolkit."
 scout:
   surface: developer
   effects: [publish, cdn]
@@ -42,20 +42,23 @@ Publish a new item to `/resources/toolkit` on the marketing site — a checklist
 ```
 - [ ] 0. Preflight — confirm marketing-pages repo (content.sh check-repo)
 - [ ] 1. Read the source markdown — note title, audience, links, category
-- [ ] 2. Reformat into toolkit schema, write content/resources/toolkit/<slug>.md
+- [ ] 2. Reformat into the profile's toolkit schema, write the item at the resolved destination
 - [ ] 2.5. Lint links with lychee; rewrite facilitron.com → relative; verify internal paths
 - [ ] 3. Build trimmed PDF via tron:md-to-pdf (LaTeX path); open for user sign-off
-- [ ] 4. Upload PDF to ImageKit (toolkit/downloads/)
-- [ ] 5. Upload card image (convert to .webp) to ImageKit (toolkit/)
+- [ ] 4. Upload PDF to ImageKit (folder from `image toolkit pdf`)
+- [ ] 5. Upload card image (convert to .webp) to ImageKit (folder from `image toolkit card`)
 - [ ] 6. Clean up source files
 - [ ] 7. Verify loop + report paths/URLs
 ```
 
 ## What gets produced
 
-- `content/resources/toolkit/<slug>.md` — Nuxt-Content, toolkit schema
-- Branded PDF at `toolkit/downloads/<slug>.pdf`
-- Card image at `toolkit/<slug>.webp`
+The repo owns the paths — this skill owns the item. Read every destination from
+the consuming repo's content profile rather than typing it:
+
+- The item file — `pipeline toolkit → .destination`
+- The branded PDF — `image toolkit pdf → .uploadFolder` / `.uploadName`
+- The card image — `image toolkit card → .uploadFolder` / `.uploadName`
 - Source files cleaned up
 
 ## Inputs
@@ -64,7 +67,7 @@ Publish a new item to `/resources/toolkit` on the marketing site — a checklist
 |-------|-------|
 | Source markdown | Path to raw content (repo root, /tmp, Confluence, paste) |
 | Card image | Often `.webp`/`.png` dropped in repo root. If absent, ask or generate via `tron:gen-image` |
-| Category | `sop`, `checklist`, or `template` |
+| Category | One of the values in the profile's `collection toolkit → .enums.category` |
 | Slug | Lowercase-hyphenated from title. Confirm if ambiguous. |
 
 ## Schema & component reference
@@ -76,7 +79,7 @@ See [`reference/schema.md`](reference/schema.md) for: front-matter options, per-
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
 bash "$C" slug "<title>"
-bash "$C" rewrite-links content/resources/toolkit/<slug>.md
+bash "$C" rewrite-links "$DEST"
 bash "$C" check-link /product/<path>
 
 GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
@@ -84,23 +87,44 @@ GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-car
 
 ## Step by step
 
-### 0. Preflight — marketing-pages repo guard
+### 0. Preflight — repo guard, then resolve the pipeline
+
+Two separate things, in this order. The guard decides **whether** you may write
+here; the profile says **where**. Never skip the guard because the profile resolved.
+
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo | grep -q '"isMarketingPages":true' \
+bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
+
+PIPE_JSON="$(bash "$C" pipeline toolkit --slug <slug>)" || exit 1   # fails loudly if undeclared
+DEST="$(jq -r .destination <<<"$PIPE_JSON")"
+ROUTE="$(jq -r .route      <<<"$PIPE_JSON")"
+SCHEMA="$(bash "$C" collection toolkit)" || exit 1
 ```
+
+If either resolve fails, **stop and report what was missing** — the message names
+the file it looked for and what it needed. Never fall back to a remembered path.
 
 ### 1. Read source
 Find and read the source markdown. Note title, audience, links, category.
 
 ### 2. Reformat into toolkit schema
-Write `content/resources/toolkit/<slug>.md`. Four required front-matter fields: `title`, `description`, `date`, `category`. Follow the per-category skeleton in `reference/schema.md`.
+Write the file at `$DEST`. The required front-matter fields, the optional ones, and
+the valid `category` values all come from `$SCHEMA` — do not carry them in your head:
 
-**Internal links — rewrite, then verify each before saving:** run `bash "$C" rewrite-links content/resources/toolkit/<slug>.md` (facilitron.com → relative), then `bash "$C" check-link` each internal path. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
+```bash
+jq -r '.required[]'        <<<"$SCHEMA"
+jq -r '.optional[]'        <<<"$SCHEMA"
+jq -r '.enums.category[]'  <<<"$SCHEMA"   # an invalid value fails the build
+```
+
+Follow the per-category skeleton in `reference/schema.md`.
+
+**Internal links — rewrite, then verify each before saving:** run `bash "$C" rewrite-links "$DEST"` (facilitron.com → relative), then `bash "$C" check-link` each internal path. The repo's declared link traps: `bash "$C" profile | jq -r '.internalLinks.exceptions[]? | "\(.wrong) → \(.right)"'`. Full flow: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 
 ### 2.5. Lint links
 ```bash
-lychee --no-progress --cache --max-cache-age 1d --accept 200,206,429 content/resources/toolkit/<slug>.md
+lychee --no-progress --cache --max-cache-age 1d --accept 200,206,429 "$DEST"
 ```
 `--exclude-mail` is **not valid** in the installed lychee — omit it. Internal relative paths report as "Cannot find file" — that's expected; re-run with `--base-url http://localhost:3000` against the dev server for those.
 
@@ -112,30 +136,34 @@ Use the **LaTeX path** via `tron:md-to-pdf` (branded template, better tables/for
 ### 4. Upload PDF to ImageKit
 ```bash
 IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
-node "$IK" upload /tmp/facilitron-md-to-pdf/<slug>.pdf --name <slug>.pdf --folder toolkit/downloads
+PDF="$(bash "$C" image toolkit pdf --slug <slug>)" || exit 1
+node "$IK" upload /tmp/facilitron-md-to-pdf/<slug>.pdf \
+  --name "$(jq -r .uploadName <<<"$PDF")" --folder "$(jq -r .uploadFolder <<<"$PDF")"
 ```
-Always pass `--name` to avoid ImageKit's random suffix. If you see a broker auth error, the Cloudflare Access session expired — run `cloudflared access login https://secrets.facilitron.work`.
+Always pass `--name` to avoid ImageKit's random suffix. The front-matter `download:` value is `$(jq -r .reference <<<"$PDF")` — copy it verbatim; the renderer may prefix the folder itself, so adding it by hand produces a doubled path and a dead button. If you see a broker auth error, the Cloudflare Access session expired — run `cloudflared access login https://secrets.facilitron.work`.
 
 ### 5. Upload card image
-Run the image pipeline — copy/rename the source to `<slug>.png` so the output is `<slug>.webp`:
+Run the image pipeline — copy/rename the source so the output name matches what the profile declares:
 
 ```bash
 PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
+CARD_SPEC="$(bash "$C" image toolkit card --slug <slug>)" || exit 1
 mkdir -p /tmp/toolkit-card
-cp <source-image> /tmp/toolkit-card/<slug>.png
-CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest toolkit)
-# CARD: {"<slug>.webp": "https://ik.imagekit.io/facilitron/toolkit/<slug>.webp"}
+cp <source-image> "/tmp/toolkit-card/$(jq -r '.uploadName | sub("\\.webp$";".png")' <<<"$CARD_SPEC")"
+CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest "$(jq -r .uploadFolder <<<"$CARD_SPEC")")
 ```
 
-If no image was provided, generate one from existing toolkit cards as style references: `"$GENCARD"` with `--folder toolkit --name "<slug>.webp" --size 1536x1024` (toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size). Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
+The front-matter `image:` value is `$(jq -r .reference <<<"$CARD_SPEC")` — again, verbatim.
+
+If no image was provided, generate one from existing toolkit cards as style references: `"$GENCARD"` with `--folder "$(jq -r .uploadFolder <<<"$CARD_SPEC")" --name "$(jq -r .uploadName <<<"$CARD_SPEC")" --size 1536x1024` (toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size). Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
 
 ### 6. Clean up
-Remove source markdown and source image files. Don't touch `content/resources/toolkit/`.
+Remove source markdown and source image files. Don't touch the collection directory (`collection toolkit → .dir`).
 
 ### 7. Verify & report
 Validate → fix → repeat until clean. Check:
 - Internal links resolve (lychee + check-link)
-- Category is valid enum
+- Category is one of `jq -r '.enums.category[]' <<<"$SCHEMA"`
 - Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
 - `tron:prose-lint` and `tron:a11y-scan` pass
 - PDF carries only actionable content

@@ -40,7 +40,7 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 ## Checklist
 
 ```
-- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo)
+- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + resolve the news pipeline
 - [ ] Stage 1 — Intake: read ticket, fetch Confluence draft + images, confirm slug
 - [ ] Stage 2 — Images: name per-section, convert to webp, upload to ImageKit; if no featuredimg.png, generate one
 - [ ] Stage 3 — Write: front matter, body from body.html, internal links, ::fImg blocks
@@ -51,9 +51,13 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 
 ## What gets produced
 
-- `content/resources/news/<slug>.md` — Nuxt-Content markdown with `::fImg` blocks
-- Featured image at `blog-featured/<slug>.webp` (front-matter `image:`)
-- Inline images at `blog-posts/<slug>/<name>.webp`
+The repo owns the paths — this skill owns the article. Every destination and CDN
+folder below comes from the consuming repo's content profile, so read them rather
+than typing them:
+
+- The article file — `pipeline news → .destination`
+- The featured image — `image news featured → .uploadFolder` / `.uploadName`
+- The inline images — `image news body → .uploadFolder` / `.uploadName`
 - Local source files cleaned up
 
 ## Inputs
@@ -70,16 +74,36 @@ Publish a new article under `/resources/news` from a Jira ticket linking a Confl
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
 bash "$C" slug "<summary>"                 # → {"ok":true,"slug":"…"}
-bash "$C" rewrite-links content/resources/news/<slug>.md
+bash "$C" rewrite-links "$DEST"
 bash "$C" check-link /product/<path>
 ```
 
-## Preflight — marketing-pages repo guard
+## Preflight — repo guard, then resolve the pipeline
+
+Two separate things, in this order. The guard decides **whether** you may write
+here; the profile says **where**. Never skip the guard on the grounds that the
+profile resolved.
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo | grep -q '"isMarketingPages":true' \
+bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
 ```
+
+Then resolve everything this repo declares about news, once, up front:
+
+```bash
+PIPE_JSON="$(bash "$C" pipeline news --slug <slug>)" || exit 1   # fails loudly if the repo declares no news pipeline
+DEST="$(jq -r .destination     <<<"$PIPE_JSON")"                 # where the article file goes
+ROUTE="$(jq -r .route          <<<"$PIPE_JSON")"                 # the URL it will serve at
+jq -r '.components.allowed[]'  <<<"$PIPE_JSON"                   # the MDC blocks this repo permits
+jq -r '.components.forbidden[]' <<<"$PIPE_JSON"                  # and the ones it does not
+bash "$C" collection news | jq -c '{required,optional,enums,defaults}'   # front-matter schema
+```
+
+If any of these fail, **stop and report what was missing** — the message names
+the file it looked for and what it needed. Do not fall back to a remembered path:
+an article written into a guessed directory looks like success and is only caught
+in review.
 
 ## Stage 1 — Intake
 
@@ -105,16 +129,27 @@ Name each image after the section it illustrates.
 - News-specific naming + paths: [`reference/images.md`](reference/images.md)
 - Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
 
+Ask the profile where each role goes and how its value must be written — never
+type a CDN folder from memory:
+
+```bash
+BODY="$(bash "$C" image news body --slug <slug> --name <name>)"   # per body image
+FEAT="$(bash "$C" image news featured --slug <slug>)"
+# each → {"uploadFolder":…,"uploadName":…,"reference":…,"valueFormat":…,"note":…}
+```
+
+`uploadFolder`/`uploadName` are the upload arguments; **`reference` is the exact
+string to write into the article** (see Stage 3).
+
 Run the image pipeline to convert and upload all body images in one shot — no per-image subagents needed:
 
 ```bash
 PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
-IMAGES=$(bash "$PIPE" --src /tmp/news-<slug>/raw --dest blog-posts/<slug>)
-# IMAGES: {"pm-plan-intro.webp": "https://ik.imagekit.io/facilitron/blog-posts/<slug>/pm-plan-intro.webp", ...}
+IMAGES=$(bash "$PIPE" --src /tmp/news-<slug>/raw --dest "$(jq -r .uploadFolder <<<"$BODY")")
 ```
 
-The featured image has a different output name (`<slug>.webp`, not `featuredimg.webp`) and a
-different aspect (hero, not card) from the body images above.
+The featured image has a different output name and a different aspect (hero, not
+card) from the body images above.
 
 **A user-dropped `featuredimg.png` in the repo root always takes precedence.** If it's present,
 convert and upload it directly:
@@ -122,43 +157,59 @@ convert and upload it directly:
 ```bash
 TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"
 IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
-bash "$TOWEBP" featuredimg.png /tmp/news-<slug>/<slug>.webp
-node "$IK" upload /tmp/news-<slug>/<slug>.webp --name <slug>.webp --folder blog-featured
+bash "$TOWEBP" featuredimg.png "/tmp/news-<slug>/$(jq -r .uploadName <<<"$FEAT")"
+node "$IK" upload "/tmp/news-<slug>/$(jq -r .uploadName <<<"$FEAT")" \
+  --name "$(jq -r .uploadName <<<"$FEAT")" --folder "$(jq -r .uploadFolder <<<"$FEAT")"
 ```
 
 If no `featuredimg.png` was dropped, use the [featured-image fallback](reference/featured-image-fallback.md).
 
 ## Stage 3 — Write the article
 
-Create `content/resources/news/<slug>.md`. Front-matter (`news` collection schema), body from the markdown (extracted from `<markdown>` block) and the image filenames list (from `<images>` block). Choose components: `::image-text` (wrap-left/right), `::fImg` (centered), `::faq`, `::quote`.
+Create the file at `$DEST` (resolved in the preflight). Front matter follows the
+`news` collection schema you read from `collection news` — write every `required`
+field, respect `enums`, and take `defaults` as the starting point. Body comes from
+the `<markdown>` block and the `<images>` list. Choose components from the
+pipeline's `components.allowed`, and never reach for anything in `components.forbidden`.
 
-See `reference/components.md` for the full palette, front-matter shape, and MDC block syntax.
+**Image values: use `reference` verbatim.** The same webp is written three
+different ways depending on how the repo's renderer consumes it, and getting this
+wrong is the classic silent failure — the file uploads fine and the page renders a
+broken image. `image … → .reference` already applied the right rule (`filename`,
+`cdn-relative-path`, or `absolute-url`), so paste that value; do not prepend or
+strip a folder to make it "look right", and read the role's `note` when present.
+
+See `reference/components.md` for the MDC block syntax and how to choose between
+`::image-text` and `::fImg`.
 
 **Internal links — rewrite, then verify each before saving:**
 
 ```bash
-bash "$C" rewrite-links content/resources/news/<slug>.md   # facilitron.com → relative, in place
-bash "$C" check-link /product/<path>                       # once per internal path
+bash "$C" rewrite-links "$DEST"        # facilitron.com → relative, in place
+bash "$C" check-link /product/<path>   # once per internal path
+bash "$C" profile | jq -r '.internalLinks.exceptions[]? | "\(.wrong) → \(.right)  (\(.reason))"'
 ```
 
-Known trap: `/product/scheduling-and-reservations/` has no index page — link to `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
+That last line prints the repo's declared link traps. Full flow: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 
 Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels source filename.
 
 ## Stage 4 — Verify & clean up
 
-1. **Links:** `lychee --no-progress --cache --accept 200,206,429 content/resources/news/<slug>.md`
-2. **Images resolve:** Spot-check `https://ik.imagekit.io/facilitron/blog-featured/<slug>.webp`
-3. **Served-HTML trap:** News catch-all returns HTTP 200 even without the markdown file. Verify you're on THIS worktree's server by grepping rendered HTML:
+1. **Links:** `lychee --no-progress --cache --accept 200,206,429 "$DEST"`
+2. **Images resolve:** Spot-check the featured image's live URL —
+   `bash "$C" image news featured --slug <slug> | jq -r '"\(.reference)"'` gives the
+   stored value; combine it with the profile's `cdn.baseUrl` and `uploadFolder` to fetch it.
+3. **Served-HTML trap:** The news catch-all returns HTTP 200 even without the markdown file. Verify you're on THIS worktree's server by grepping rendered HTML:
    ```bash
-   curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oE '<title>[^<]*</title>'
-   curl -s "http://localhost:<port>/resources/news/<slug>" | grep -oc 'blog-posts/<slug>'
+   curl -s "http://localhost:<port>$ROUTE" | grep -oE '<title>[^<]*</title>'
+   curl -s "http://localhost:<port>$ROUTE" | grep -oc "$(bash "$C" image news body --slug <slug> --name x | jq -r .uploadFolder)"
    ```
    If no server is running yet (or ports are bound by siblings), start one:
    ```bash
    DS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/dev-server.sh"
    [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
-   PORT="$(bash "$DS" start --route /resources/news/<slug>)"
+   PORT="$(bash "$DS" start --route "$ROUTE")"
    ```
 4. **Prose & a11y:** Offer `tron:prose-lint` and `tron:a11y-scan` before publish.
 5. **Clean up:** Remove `featuredimg.png` from repo root if it was dropped in, and `/tmp/news-<slug>`.

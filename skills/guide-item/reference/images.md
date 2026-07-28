@@ -8,23 +8,35 @@ extra OG-image step.
 
 ## Body images — naming & destination
 
-Each image becomes a resized, descriptive, slug-scoped webp. Run the shared convert →
-upload → verify steps, uploading into these guide folders (always pass `--name`):
+Each image becomes a resized, descriptive, slug-scoped webp. The folders and file
+names belong to the consuming repo, so ask its profile and run the shared convert →
+upload → verify steps with those values (always pass `--name`):
 
-- Body images → `guides/<slug>` (uploaded as `<name>.webp`)
-- OG image → `og` (uploaded as `og-<slug>.webp`; 1200×630-ish — reuse the hero
-  illustration or a representative body image)
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" image guides body --slug <slug> --name <name>
+bash "$C" image guides og   --slug <slug>   # 1200×630-ish; reuse the hero or a representative body image
+bash "$C" image guides card --index <NN>
+```
 
-Body images are referenced by **relative provider path** (`guides/<slug>/<name>.webp`),
-never a full URL. The OG image IS a full URL in `useDynamicMeta` (Stage 3).
+Each returns `uploadFolder` / `uploadName` for the upload, and `reference` for the
+value you write into the page.
+
+**The three roles do not share a reference format.** Body and card images are
+referenced by relative provider path; the OG image is a full CDN URL in
+`useDynamicMeta`. `reference` has already applied the right rule per role, so copy
+it verbatim instead of assembling the string — and check the role's `note`, which
+calls out this exact difference.
 
 ## Card thumbnail — destination
 
 The index card is **generated to match the existing guide cards** via the shared
-generate-from-references workflow (see the shared doc). For guides the parameters are:
+generate-from-references workflow (see the shared doc). Take its parameters from the
+`card` role rather than hardcoding them:
 
-- index folder: `guides`
-- prefix: `guide` (so the next free number is e.g. `guide-05.webp`)
+- index folder → `uploadFolder`
+- prefix → `indexPrefix` (drives the next free number, e.g. `guide-05.webp`)
 
-Upload the result as `guides/guide-<NN>.webp`. This is the thumbnail the `index.vue` entry
-references in Stage 4 — distinct from the `guides/<slug>/` body-image folder.
+Upload the result as `uploadName`. This is the thumbnail the index entry references
+in Stage 4 — a different folder from the body images, which is why they resolve as
+two separate roles.

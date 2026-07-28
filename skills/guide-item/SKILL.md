@@ -40,22 +40,25 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 ## Checklist
 
 ```
-- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo)
+- [ ] Preflight: confirm marketing-pages repo (content.sh check-repo) + resolve the guides pipeline
 - [ ] Stage 1: read ticket + fetch Confluence draft + images; confirm slug
-- [ ] Stage 2: convert body images to webp + upload to guides/<slug>/; OG image; index card thumbnail
-- [ ] Stage 3: compose pages/resources/guides/<slug>.vue from the guide palette
-- [ ] Stage 4: append entry to guides array in index.vue
+- [ ] Stage 2: convert body images to webp + upload to the declared body folder; OG image; index card thumbnail
+- [ ] Stage 3: compose the guide page from the guide palette
+- [ ] Stage 4: register it in the index (the profile says whether this is needed)
 - [ ] Stage 5: verify renders, card shows, images + links resolve, prose-lint + a11y-scan
 - [ ] Clean up: remove /tmp/guide-<slug> and dropped-in sources
 ```
 
 ## What gets produced
 
-- `pages/resources/guides/<slug>.vue` — page composed from section components
-- Body images at `guides/<slug>/<name>.webp` (via `<NuxtImg provider="imagekit">`)
-- OG image at `og/og-<slug>.webp`
-- Card thumbnail at `guides/guide-<NN>.webp` (next free number)
-- New entry in `pages/resources/guides/index.vue`'s `guides` array
+The repo owns the paths — this skill owns the guide. Read every destination from
+the consuming repo's content profile rather than typing it:
+
+- The guide page — `pipeline guides → .destination`
+- Body images — `image guides body → .uploadFolder` / `.uploadName` (via `<NuxtImg provider="imagekit">`)
+- OG image — `image guides og`
+- Card thumbnail — `image guides card --index <NN>` (next free number)
+- An index entry, when `pipeline guides → .registration.mode` is `manual`
 - Source files cleaned up
 
 ## Inputs
@@ -72,18 +75,33 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
 bash "$C" slug "<title>"
-bash "$C" rewrite-links pages/resources/guides/<slug>.vue
+bash "$C" rewrite-links "$DEST"
 bash "$C" check-link /product/<path>
 
 GENCARD="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/generate-card.sh"
 ```
 
-## Preflight — marketing-pages repo guard
+## Preflight — repo guard, then resolve the pipeline
+
+Two separate things, in this order. The guard decides **whether** you may write
+here; the profile says **where**. Never skip the guard because the profile resolved.
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh" check-repo | grep -q '"isMarketingPages":true' \
+bash "$C" check-repo | grep -q '"isMarketingPages":true' \
   || { echo "✋ NOT in marketing-pages — switch checkouts first." >&2; exit 1; }
+
+PIPE_JSON="$(bash "$C" pipeline guides --slug <slug>)" || exit 1   # fails loudly if undeclared
+DEST="$(jq -r .destination         <<<"$PIPE_JSON")"   # where the .vue page goes
+ROUTE="$(jq -r .route              <<<"$PIPE_JSON")"
+REG_MODE="$(jq -r .registration.mode <<<"$PIPE_JSON")" # auto | manual
+REG_FILE="$(jq -r .registration.file <<<"$PIPE_JSON")" # the index to edit when manual
+jq -c '.components' <<<"$PIPE_JSON"                    # allowed / forbidden, with the why
 ```
+
+The destination is a **Vue page path**, and it is not necessarily `pages/…` — a repo
+on Nuxt 4 uses an `app/` srcDir. That is exactly the kind of fact this skill no longer
+carries: use `$DEST`. If the resolve fails, **stop and report what was missing**
+rather than falling back to a remembered path.
 
 ## Stage 1 — Intake
 
@@ -99,18 +117,29 @@ Writes `/tmp/guide-<slug>/body.html` and referenced images in `/tmp/guide-<slug>
 
 ## Stage 2 — Images
 
-Convert body images to webp, upload to `guides/<slug>/`. Also upload OG image and generate the index card thumbnail.
+A guide has three image roles, and **they do not use the same reference format** —
+this is the single most error-prone step in the skill. Resolve each one:
 
-- Guide-specific naming + paths: [`reference/images.md`](reference/images.md)
+```bash
+BODY="$(bash "$C" image guides body --slug <slug> --name <name>)"
+OG="$(bash "$C" image guides og --slug <slug>)"
+CARD="$(bash "$C" image guides card --index <NN>)"
+# each → {"uploadFolder":…,"uploadName":…,"reference":…,"valueFormat":…,"note":…}
+```
+
+Use `reference` verbatim wherever the value is written into the page. Reading the
+role's `note` is worth the two seconds: one of these three is stored as a full CDN
+URL while the others are relative, and mixing them up renders a broken image.
+
+- Guide-specific naming: [`reference/images.md`](reference/images.md)
 - Convert → upload → verify mechanics: [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md)
-- Card thumbnail: `"$GENCARD"` with `--folder guides --prefix guide` (auto-numbers `guide-NN.webp`); invocation + result parsing live in the "Generate an index/card thumbnail from references" section of the shared doc above
+- Card thumbnail: `"$GENCARD"` with `--folder "$(jq -r .uploadFolder <<<"$CARD")" --prefix "$(jq -r '.indexPrefix // "guide"' <<<"$CARD")"` (auto-numbers the next free index); invocation + result parsing live in the "Generate an index/card thumbnail from references" section of the shared doc above
 
 Run the image pipeline for all body images — no per-image subagents needed:
 
 ```bash
 PIPE="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/image-pipeline.sh"
-IMAGES=$(bash "$PIPE" --src /tmp/guide-<slug>/raw --dest guides/<slug>)
-# IMAGES: {"section-name.webp": "https://ik.imagekit.io/facilitron/guides/<slug>/section-name.webp", ...}
+IMAGES=$(bash "$PIPE" --src /tmp/guide-<slug>/raw --dest "$(jq -r .uploadFolder <<<"$BODY")")
 ```
 
 The OG image has a specific output name — handle it directly:
@@ -118,31 +147,39 @@ The OG image has a specific output name — handle it directly:
 ```bash
 TOWEBP="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/image/to-webp.sh"
 IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
-bash "$TOWEBP" <hero-source>.png /tmp/og-<slug>.webp
-node "$IK" upload /tmp/og-<slug>.webp --name og-<slug>.webp --folder og
+bash "$TOWEBP" <hero-source>.png "/tmp/$(jq -r .uploadName <<<"$OG")"
+node "$IK" upload "/tmp/$(jq -r .uploadName <<<"$OG")" \
+  --name "$(jq -r .uploadName <<<"$OG")" --folder "$(jq -r .uploadFolder <<<"$OG")"
 ```
 
 ## Stage 3 — Compose the page
 
-Create `pages/resources/guides/<slug>.vue`. This is the **judgment core — do not delegate.** Mirror an existing guide like `preventive-maintenance-strategy.vue`.
+Create the page at `$DEST`. This is the **judgment core — do not delegate.** Mirror an existing guide like `preventive-maintenance-strategy.vue` (find its siblings next to `$DEST`).
 
 **Structure:** hero → TOC → intro → 2-5 body sections → optional pull quote + dark "at a glance" → mid-page CTA → conclusion → FAQ.
 
 **Component map:** prose → `BaseSection`; takeaways → `callout`; point lists → `alternative` grids; numbered processes → timeline pattern; FAQs → `SectionAccordion`.
 
-**Wire `useDynamicMeta`** with title, keyword-rich description, route path, and full OG URL. Keep TOC `id`s in sync with `BaseSection id`s. Use `tron-` tokens only — no arbitrary Tailwind values.
+**Wire `useDynamicMeta`** with title, keyword-rich description, `$ROUTE`, and the OG image's `reference` (already the full URL). Keep TOC `id`s in sync with `BaseSection id`s. Use `tron-` tokens only — no arbitrary Tailwind values.
 
 See `reference/components.md` for the full palette — section skeleton, component props, draft-to-component mapping, `<script setup>` conventions, styling rules.
 
-**Do NOT use** `::fImg`/`::image-text` (those are for content collections). Guides are Vue: use `<NuxtImg provider="imagekit">`. Only the OG image uses a full URL.
+**Stay inside the pipeline's `components.allowed`** and never use anything in
+`components.forbidden` (printed in the preflight). For guides that means Vue
+components rather than MDC blocks: `<NuxtImg provider="imagekit">`, not `::fImg`.
 
 ## Stage 4 — Register in the index
 
-Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
+Only when `$REG_MODE` is `manual` (check it — a repo may auto-discover instead).
+Append an entry to `$REG_FILE`, in the shape the profile declares:
 
-```ts
-{ title: "<title>", description: "<card description>", image: "guides/guide-<NN>.webp", imageAlt: "", link: "/resources/guides/<slug>" }
+```bash
+jq -c '.registration.entry, .registration.array, .registration.note' <<<"$PIPE_JSON"
 ```
+
+Fill that template with the guide's title, card description, `$ROUTE` for the link, and
+the card image's `reference` value. Skipping this step is the classic guide bug: the page
+resolves at its URL but never appears on the index.
 
 ## Stage 5 — Verify & clean up
 
@@ -150,13 +187,13 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
    ```bash
    DS="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/dev-server.sh"
    [[ -f "$DS" ]] || { echo "dev-server.sh not found — set CLAUDE_PLUGIN_ROOT or run /plugin update" >&2; exit 1; }
-   PORT="$(bash "$DS" start --route /resources/guides/<slug>)"
-   curl -s "http://localhost:${PORT}/resources/guides/<slug>" | grep -oE '<title>[^<]*</title>'
-   curl -s "http://localhost:${PORT}/resources/guides/<slug>" | grep -oc 'guides/<slug>'
+   PORT="$(bash "$DS" start --route "$ROUTE")"
+   curl -s "http://localhost:${PORT}${ROUTE}" | grep -oE '<title>[^<]*</title>'
+   curl -s "http://localhost:${PORT}${ROUTE}" | grep -oc "$(jq -r .uploadFolder <<<"$BODY")"
    ```
-2. **Index card:** Load `/resources/guides`, confirm new card shows.
-3. **Images resolve:** Spot-check ImageKit URLs.
-4. **Links:** Run `bash "$C" rewrite-links pages/resources/guides/<slug>.vue` (facilitron.com → relative), then `bash "$C" check-link` each internal path. Known trap: `/product/scheduling-and-reservations/` has no index page — use `/product/facilitron-scheduling-and-reservations`. Full path table: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
+2. **Index card:** Load the pipeline's `indexRoute`, confirm the new card shows.
+3. **Images resolve:** Spot-check the uploaded CDN URLs.
+4. **Links:** Run `bash "$C" rewrite-links "$DEST"` (facilitron.com → relative), then `bash "$C" check-link` each internal path. The repo's declared traps: `bash "$C" profile | jq -r '.internalLinks.exceptions[]? | "\(.wrong) → \(.right)"'`. Full flow: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
 5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, and the dash grep from [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 6. **Clean up:** Remove `/tmp/guide-<slug>` and dropped-in sources.
 
@@ -164,8 +201,10 @@ Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
 
 | Mistake | Fix |
 |---------|-----|
-| Using `::fImg` instead of `<NuxtImg>` | Guides are Vue, not content collections |
-| Forgetting the index entry | Page works at URL but never appears on `/resources/guides` |
+| Using `::fImg` instead of `<NuxtImg>` | Guides are Vue, not content collections (it's in `components.forbidden`) |
+| Writing a guide to `pages/…` when the repo uses an `app/` srcDir | Use `$DEST` from `pipeline guides`, never a remembered path |
+| Prefixing or stripping a folder on an image value | Copy the role's `reference` verbatim; formats differ per role |
+| Forgetting the index entry | Page works at URL but never appears on the index route |
 | TOC anchor mismatch | `tocItems.id` must match `BaseSection id`; add `scroll-mt-36` |
 | Duplicate H1 | Hero already renders title; don't open body with `#` |
 | `content/QuoteSimple` vs `section/QuoteSimple` | Use `<SectionQuoteSimple>` for bgColor/borderBottom props |

@@ -7,8 +7,9 @@
 # These encode the deterministic backbone all three repeat by hand: the
 # marketing-pages preflight guard, slug derivation, the facilitron.com→relative
 # link rewrite (the #1 build-breaking step), internal-path validation against
-# pages/, and the next-free guide card index. The judgment — writing the copy,
-# choosing components, trimming the PDF — stays in each skill.
+# pages/, the next-free guide card index, and reading the consuming repo's
+# content profile. The judgment — writing the copy, choosing components,
+# trimming the PDF — stays in each skill.
 
 # True (rc 0) if <repo> (default cwd) is a marketing-pages checkout. Worktrees
 # match too — they share the origin remote.
@@ -54,6 +55,44 @@ ct_resolve_page() {
   done
   [[ -f "$base/[...slug].vue" ]] && { printf '%s\n' "$base/[...slug].vue"; return 0; }
   return 1
+}
+
+# --- repo content profile -----------------------------------------------------
+# The consuming repo declares its own paths, collection schema, components, and
+# CDN folders in `.tron/content-profile.json` (version 1). The plugin reads that
+# file instead of hardcoding one repo's layout. This is descriptive only — the
+# write guard is still ct_is_marketing_pages, which deliberately does NOT consult
+# the profile (a file inside the repo cannot vouch for the repo).
+
+CT_PROFILE_REL=".tron/content-profile.json"
+
+# Echo the profile path for <repo> (default cwd), or return 1 if absent.
+ct_profile_path() {
+  local repo="${1:-$(pwd)}" root
+  root="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null || echo "$repo")"
+  [[ -f "$root/$CT_PROFILE_REL" ]] || return 1
+  printf '%s\n' "$root/$CT_PROFILE_REL"
+}
+
+# Echo the profile JSON for <repo>, or return 1 (caller reports what it needed).
+# Rejects a profile whose `version` this plugin doesn't speak rather than
+# silently reading fields that may have moved.
+ct_profile_read() {
+  local repo="${1:-$(pwd)}" path v
+  path="$(ct_profile_path "$repo")" || return 1
+  v="$(jq -r '.version // empty' "$path" 2>/dev/null)" || return 1
+  [[ "$v" == "1" ]] || return 1
+  cat "$path"
+}
+
+# Expand a profile path/name template: {slug}, {name}, {NN}.
+#   ct_expand 'articles/{slug}' my-post → articles/my-post
+ct_expand() {
+  local tpl="$1" slug="${2:-}" name="${3:-}" nn="${4:-}"
+  tpl="${tpl//\{slug\}/$slug}"
+  tpl="${tpl//\{name\}/$name}"
+  tpl="${tpl//\{NN\}/$nn}"
+  printf '%s' "$tpl"
 }
 
 # Given existing filenames on stdin, echo the next free zero-padded 2-digit index

@@ -94,6 +94,119 @@ has "$O" '"rewritten":1' "reports one rewrite"
 grep -qF '[the guide](/resources/guides/x)' "$ROOT/doc.md" || fail "file should be rewritten in place"
 pass "rewrite-links <file> → in-place facilitron.com→relative"
 
+# --- repo content profile ----------------------------------------------------
+# A fixture standing in for the consuming repo's .tron/content-profile.json —
+# one pipeline per valueFormat, since that field is the whole point: the same
+# webp is referenced three different ways depending on how the renderer eats it.
+PROF="$ROOT/.tron"
+mkdir -p "$PROF"
+cat > "$PROF/content-profile.json" <<'JSON'
+{
+  "version": 1,
+  "cdn": { "baseUrl": "https://ik.imagekit.io/facilitron/" },
+  "collections": {
+    "toolkit": {
+      "dir": "content/resources/toolkit",
+      "required": ["title", "description", "date", "category"],
+      "optional": ["image", "download"],
+      "enums": { "category": ["sop", "checklist", "template"] }
+    }
+  },
+  "pipelines": {
+    "news": {
+      "destination": "content/resources/news/{slug}.md",
+      "route": "/resources/news/{slug}",
+      "components": { "allowed": ["fImg"], "forbidden": ["checklist-group"] },
+      "images": [
+        { "role": "featured", "cdnFolder": "blog-featured", "fileName": "{slug}.webp", "valueFormat": "filename" },
+        { "role": "body", "cdnFolder": "blog-posts/{slug}", "fileName": "{name}.webp", "valueFormat": "cdn-relative-path" }
+      ]
+    },
+    "guides": {
+      "destination": "app/pages/resources/guides/{slug}.vue",
+      "registration": { "mode": "manual", "file": "app/pages/resources/guides/index.vue" },
+      "images": [
+        { "role": "og", "cdnFolder": "og", "fileName": "og-{slug}.webp", "valueFormat": "absolute-url" },
+        { "role": "card", "cdnFolder": "guides", "fileName": "guide-{NN}.webp", "valueFormat": "cdn-relative-path" }
+      ]
+    },
+    "toolkit": {
+      "destination": "content/resources/toolkit/{slug}.md",
+      "images": [{ "role": "card", "cdnFolder": "toolkit", "fileName": "{slug}.webp", "valueFormat": "filename" }],
+      "downloads": [{ "role": "pdf", "cdnFolder": "toolkit/downloads", "fileName": "{slug}.pdf", "valueFormat": "filename" }]
+    }
+  }
+}
+JSON
+
+O="$(bash "$SCRIPT" pipeline news --slug my-post --repo "$ROOT")"; echo "  → $O"
+has "$O" '"destination":"content/resources/news/my-post.md"' "pipeline expands {slug} in destination"
+has "$O" '"route":"/resources/news/my-post"' "pipeline expands {slug} in route"
+pass "pipeline <name> --slug → destination/route resolved from the repo profile"
+
+O="$(bash "$SCRIPT" pipeline guides --slug g1 --repo "$ROOT")"; echo "  → $O"
+has "$O" '"destination":"app/pages/resources/guides/g1.vue"' "guides destination comes from the profile (Nuxt 4 app/ srcDir)"
+has "$O" '"mode":"manual"' "guides registration mode is declared, not assumed"
+pass "pipeline guides → repo-declared Vue destination + manual registration"
+
+# The three valueFormats must produce three genuinely different strings.
+O="$(bash "$SCRIPT" image news featured --slug my-post --repo "$ROOT")"; echo "  → $O"
+has "$O" '"uploadFolder":"blog-featured"' "featured upload folder"
+has "$O" '"reference":"my-post.webp"' "valueFormat filename → bare filename, no folder"
+O="$(bash "$SCRIPT" image news body --slug my-post --name hero --repo "$ROOT")"; echo "  → $O"
+has "$O" '"reference":"blog-posts/my-post/hero.webp"' "valueFormat cdn-relative-path → folder/name"
+O="$(bash "$SCRIPT" image guides og --slug g1 --repo "$ROOT")"; echo "  → $O"
+has "$O" '"reference":"https://ik.imagekit.io/facilitron/og/og-g1.webp"' "valueFormat absolute-url → full CDN URL"
+pass "image → filename / cdn-relative-path / absolute-url each resolve differently"
+
+O="$(bash "$SCRIPT" image guides card --index 07 --repo "$ROOT")"; echo "  → $O"
+has "$O" '"uploadName":"guide-07.webp"' "{NN} expands from --index"
+O="$(bash "$SCRIPT" image toolkit pdf --slug my-sop --repo "$ROOT")"; echo "  → $O"
+has "$O" '"uploadFolder":"toolkit/downloads"' "downloads[] roles resolve like images[]"
+pass "image → {NN} index expansion and downloads[] roles"
+
+O="$(bash "$SCRIPT" collection toolkit --repo "$ROOT")"; echo "  → $O"
+has "$O" '"required":["title","description","date","category"]' "collection required fields"
+has "$O" '"category":["sop","checklist","template"]' "collection enum values"
+pass "collection <name> → front-matter schema from the profile, not the skill"
+
+# --- profile failure contract: name what was needed, never guess a path -------
+NOPROF="$ROOT/noprofile"
+mkdir -p "$NOPROF"; git -C "$NOPROF" init -q
+rc=0; O="$(bash "$SCRIPT" pipeline news --slug x --repo "$NOPROF" 2>&1)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 1 ]] || fail "missing profile should exit 1 (got $rc)"
+has "$O" '"ok":false' "missing profile is a logical failure"
+has "$O" 'content-profile.json' "failure names the file it looked for"
+has "$O" 'pipeline' "failure names what it needed"
+pass "no profile → exit 1 naming the missing file and the need (no guessed path)"
+
+rc=0; O="$(bash "$SCRIPT" pipeline webinars --repo "$ROOT" 2>&1)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 1 ]] || fail "undeclared pipeline should exit 1 (got $rc)"
+has "$O" '"declared":["guides","news","toolkit"]' "failure lists what the repo DOES declare"
+pass "undeclared pipeline → exit 1 listing the declared ones"
+
+rc=0; O="$(bash "$SCRIPT" image news sidebar --slug x --repo "$ROOT" 2>&1)" || rc=$?
+[[ "$rc" == 1 ]] || fail "undeclared asset role should exit 1 (got $rc)"
+has "$O" '"declared":["featured","body"]' "failure lists the declared roles"
+pass "undeclared asset role → exit 1 listing the declared roles"
+
+# An unfilled {slug} must never reach front matter as a literal.
+rc=0; O="$(bash "$SCRIPT" image news featured --repo "$ROOT" 2>&1)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 2 ]] || fail "unfilled {slug} should exit 2 (got $rc)"
+has "$O" 'pass --slug' "refusal says which flag is missing"
+pass "unfilled {slug} → exit 2 rather than a literal placeholder in the output"
+
+BADV="$ROOT/badversion"
+mkdir -p "$BADV/.tron"; git -C "$BADV" init -q
+jq '.version = 99' "$PROF/content-profile.json" > "$BADV/.tron/content-profile.json"
+rc=0; O="$(bash "$SCRIPT" collection toolkit --repo "$BADV" 2>&1)" || rc=$?
+[[ "$rc" == 1 ]] || fail "unknown profile version should exit 1 (got $rc)"
+has "$O" 'version-1' "failure names the version it speaks"
+pass "unknown profile version → exit 1 rather than reading moved fields"
+
 # --- usage / error contract --------------------------------------------------
 rc=0; bash "$SCRIPT" slug >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "slug without title should exit 2 (got $rc)"

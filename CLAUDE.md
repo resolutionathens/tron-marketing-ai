@@ -139,6 +139,38 @@ declared model and its delegation note in sync.
 They run a preflight check (`tools/content/content.sh check-repo`) and refuse to write unless the
 current checkout is `marketing-pages`. Preserve that guard on any content-writing skill.
 
+The guard deliberately does **not** consult the content profile below: a file inside the repo
+cannot vouch for the repo. `check-repo` answers *whether* you may write; the profile answers
+*where*. Keep them separate.
+
+## Consuming-repo knowledge lives in the repo, not the skill (MD-2451)
+
+Anything true of only one consuming repo is at the wrong layer if it sits in a SKILL.md. The
+repo declares its own facts in `.tron/content-profile.json` (`version: 1`) — destinations,
+collection schema, permitted components, CDN folders, registration mode, link exceptions — and
+the plugin reads them:
+
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" pipeline   <name> --slug <slug>   # destination, route, components, registration
+bash "$C" collection <name>                 # required/optional/enums/defaults
+bash "$C" image      <pipeline> <role> …    # uploadFolder, uploadName, reference
+bash "$C" profile                           # the whole thing (framework, cdn, surfaces, internalLinks)
+```
+
+Two rules when you touch a content skill:
+
+- **Never hardcode a consuming repo's paths, schema, or destination folders.** Resolve them.
+  Every command above fails loudly, naming the file it looked for and what it needed; a skill
+  run against a repo that declares nothing must stop, never guess a path.
+- **Write `reference` verbatim.** Each image/download role declares a `valueFormat`
+  (`filename`, `cdn-relative-path`, or `absolute-url`) because renderers consume the same asset
+  three different ways. `content.sh image` applies the rule; hand-assembling the string is the
+  bug this exists to prevent.
+
+Only the content pipeline reads a profile today. Other skills still carry consuming-repo
+assumptions and are being migrated as each repo lands a profile.
+
 ## Conventions when authoring copy-producing skills
 
 - **Facilitron voice: no em dashes** in produced copy. Several skills restate this — when you add
