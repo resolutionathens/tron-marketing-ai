@@ -157,7 +157,14 @@ current checkout is `marketing-pages`. Preserve that guard on any content-writin
 - Keep package resource closures explicit in `packages/package-map.json`; do not infer shared
   tools or agents from prose. Cross-package handoffs are rewritten to the target skill's declared
   owner and validated during the build.
-- Run `bash tools/package/test-build-packages.sh` after changing package ownership, shared paths,
-  cross-skill handoffs, agents, or skill-local assets.
+- `packages/package-map.json` also carries a `repos` block: one bundle per consuming repo, in the
+  same `extends` / `skills` / `resources` shape as a role package, so a dispatched worker sees only
+  the skills its repo actually uses. A repo key builds as `tron-repo-<key>` (`marketing-pages` →
+  `tron-repo-marketing-pages`) and releases alongside the role packages, attested and checksummed
+  the same way. Repo bundles extend role packages (in practice `core`); they may not extend each
+  other, and nothing may extend them. Which bundle a repo gets is tron-os's call; what is in the
+  bundle is this repo's.
+- Run `bash tools/package/test-build-packages.sh` after changing package ownership, repo bundles,
+  shared paths, cross-skill handoffs, agents, or skill-local assets.
 - Local authoring loop: add the checkout as a directory marketplace
   (`/plugin marketplace add /path/to/tron-marketing-ai`) so edits apply without a push round-trip.

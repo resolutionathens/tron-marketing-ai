@@ -23,6 +23,13 @@ const path = require("path");
 const [root, out] = process.argv.slice(2);
 const map = JSON.parse(fs.readFileSync(path.join(root, "packages/package-map.json")));
 const inventory = JSON.parse(fs.readFileSync(path.join(out, "inventory.json")));
+const repos = map.repos || {};
+// Repo bundles build under a `repo-` prefixed key so they share the role
+// packages' schema, closure, and namespace passes without colliding with them.
+const bundles = {
+  ...map.packages,
+  ...Object.fromEntries(Object.entries(repos).map(([repo, bundle]) => [`repo-${repo}`, bundle])),
+};
 const owners = new Map(Object.entries(map.ownership)
   .flatMap(([owner, skills]) => skills.map((skill) => [skill, owner])));
 const skillSets = new Map(inventory.packages
@@ -32,15 +39,33 @@ const source = fs.readdirSync(path.join(root, "skills"))
   .filter((name) => fs.existsSync(path.join(root, "skills", name, "SKILL.md"))).sort();
 const owned = Object.values(map.ownership).flat().sort();
 if (JSON.stringify(source) !== JSON.stringify(owned)) throw new Error("ownership is not exhaustive");
-if (inventory.packages.length !== Object.keys(map.packages).length * 2) {
+if (inventory.packages.length !== Object.keys(bundles).length * 2) {
   throw new Error("both harnesses must build every package");
 }
 if (
   inventory.migration.monolith !== "tron" ||
   inventory.migration.mutuallyExclusive !== true ||
-  inventory.migration.rolePackages.length !== Object.keys(map.packages).length
+  inventory.migration.rolePackages.length !== Object.keys(map.packages).length ||
+  inventory.migration.repoBundles.length !== Object.keys(repos).length
 ) {
   throw new Error("migration metadata is incomplete");
+}
+// A repo bundle must never be mistaken for a role package by migration tooling.
+for (const repo of Object.keys(repos)) {
+  if (inventory.migration.rolePackages.includes(`tron-repo-${repo}`)) {
+    throw new Error(`repo bundle ${repo} leaked into the role package list`);
+  }
+  if (!inventory.migration.repoBundles.includes(`tron-repo-${repo}`)) {
+    throw new Error(`repo bundle ${repo} is missing from the migration metadata`);
+  }
+}
+for (const entry of inventory.packages) {
+  const expectedKind = Object.keys(repos).some((repo) => entry.package === `tron-repo-${repo}`)
+    ? "repo"
+    : "role";
+  if (entry.kind !== expectedKind) {
+    throw new Error(`${entry.package} is labelled ${entry.kind}, not ${expectedKind}`);
+  }
 }
 const validSelection = (packages) => {
   const selected = packages.filter((name) =>
@@ -55,7 +80,7 @@ if (
 ) {
   throw new Error("monolith XOR role-package migration rule is not enforced by the fixture");
 }
-for (const name of Object.keys(map.packages)) {
+for (const name of Object.keys(bundles)) {
   const claude = inventory.packages.find((entry) => entry.harness === "claude" && entry.package === `tron-${name}`);
   const codex = inventory.packages.find((entry) => entry.harness === "codex" && entry.package === `tron-${name}`);
   if (!claude || !codex || JSON.stringify(claude.skills) !== JSON.stringify(codex.skills)) {
@@ -79,7 +104,7 @@ for (const name of Object.keys(map.packages)) {
       if (rolledBack !== sourceSkill) {
         throw new Error(`${harness}/${name}/${skill} cannot roll back to monolith namespace`);
       }
-      for (const match of built.matchAll(/\btron-([a-z]+):([a-z0-9-]+)/g)) {
+      for (const match of built.matchAll(/\btron-([a-z0-9-]+):([a-z0-9-]+)/g)) {
         const [, target, targetSkill] = match;
         if (!skillSets.get(target)?.has(targetSkill)) {
           throw new Error(`${harness}/${name}/${skill} has unresolved handoff ${match[0]}`);
@@ -87,15 +112,15 @@ for (const name of Object.keys(map.packages)) {
       }
     }
   }
-  const expectedResources = new Set(map.packages[name].resources);
-  for (const parent of map.packages[name].extends || []) {
-    for (const resource of map.packages[parent].resources) expectedResources.add(resource);
+  const expectedResources = new Set(bundles[name].resources);
+  for (const parent of bundles[name].extends || []) {
+    for (const resource of bundles[parent].resources) expectedResources.add(resource);
   }
   if (JSON.stringify(claude.resources) !== JSON.stringify([...expectedResources].sort())) {
     throw new Error(`${name} resources differ from the declared closure`);
   }
 }
-for (const name of ["engineer", "designer", "content", "seo", "manager", "social", "video"]) {
+for (const name of Object.keys(bundles).filter((entry) => entry !== "core")) {
   const skills = inventory.packages.find((entry) => entry.harness === "claude" && entry.package === `tron-${name}`).skills;
   for (const coreSkill of map.packages.core.skills) {
     if (!skills.includes(coreSkill)) throw new Error(`${name} omitted core skill ${coreSkill}`);
@@ -176,6 +201,10 @@ const text = fs.readFileSync(process.argv[1], 'utf8');
 if (!text.includes('tron-content:news-item') || text.includes('tron-engineer:news-item')) process.exit(1);
 " "$OUT/claude/tron-engineer/skills/link-check/SKILL.md"
 
+test -f "$OUT/claude/tron-repo-marketing-pages/skills/news-item/SKILL.md"
+test -f "$OUT/claude/tron-repo-marketing-pages/tools/content/content.sh"
+test -f "$OUT/codex/tron-repo-facilitron-ui/agents/a11y-scan-runner.md"
+
 BAD_MAP="$OUT/unsafe-package-map.json"
 node - "$ROOT/packages/package-map.json" "$BAD_MAP" <<'NODE'
 const fs = require("fs");
@@ -189,4 +218,49 @@ if TRON_PACKAGE_MAP="$BAD_MAP" node "$ROOT/tools/package/build-packages.mjs" "$O
   exit 1
 fi
 
-printf 'PASS: all role packages have deterministic Claude/Codex inventories and local dependency closures.\n'
+# Adding repo bundles must leave every role package byte-identical, so a repo
+# scoping change can never silently alter what a role worker installs.
+NO_REPOS_MAP="$OUT/no-repos-package-map.json"
+node - "$ROOT/packages/package-map.json" "$NO_REPOS_MAP" <<'NODE'
+const fs = require("fs");
+const [source, target] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+delete map.repos;
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+TRON_PACKAGE_MAP="$NO_REPOS_MAP" node "$ROOT/tools/package/build-packages.mjs" "$OUT/no-repos" >/dev/null
+for PACKAGE in core engineer designer content seo manager social video; do
+  for HARNESS in claude codex; do
+    diff -r "$OUT/no-repos/$HARNESS/tron-$PACKAGE" "$OUT/$HARNESS/tron-$PACKAGE" >/dev/null || {
+      printf 'FAIL: repo bundles changed the generated %s/%s tree.\n' "$HARNESS" "$PACKAGE" >&2
+      exit 1
+    }
+  done
+done
+
+# A repo bundle is only useful if a bad declaration fails the build instead of
+# shipping a bundle that is missing, duplicated, or circular.
+reject_map() {
+  local label="$1"
+  local mutation="$2"
+  local bad="$OUT/reject-$label.json"
+  node - "$ROOT/packages/package-map.json" "$bad" "$mutation" <<'NODE'
+const fs = require("fs");
+const [source, target, mutation] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+new Function("map", mutation)(map);
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+  if TRON_PACKAGE_MAP="$bad" node "$ROOT/tools/package/build-packages.mjs" "$OUT/reject-$label" >/dev/null 2>&1; then
+    printf 'FAIL: build accepted %s.\n' "$label" >&2
+    exit 1
+  fi
+}
+reject_map unknown-skill 'map.repos["marketing-pages"].skills.push("not-a-real-skill")'
+reject_map unknown-parent 'map.repos["tron-os"].extends = ["not-a-real-package"]'
+reject_map repo-parent 'map.repos["tron-os"].extends = ["repo-mabe-nuxt"]'
+reject_map name-collision 'map.packages["repo-tron-os"] = { description: "x", resources: [], skills: [] }'
+reject_map bad-repo-key 'map.repos["Marketing Pages"] = { description: "x", resources: [], skills: [] }'
+reject_map unsafe-repo-resource 'map.repos["tron-os"].resources.push("../README.md")'
+
+printf 'PASS: all role packages and repo bundles have deterministic Claude/Codex inventories and local dependency closures.\n'

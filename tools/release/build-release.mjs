@@ -191,20 +191,18 @@ try {
     encoding: "utf8",
   });
   if (build.status !== 0) fail(build.stderr.trim() || "could not build role package matrix");
-  const packageMap = JSON.parse(
-    readFileSync(join(root, "packages", "package-map.json"), "utf8"),
-  );
-  for (const packageName of Object.keys(packageMap.packages)) {
-    for (const harness of ["claude", "codex"]) {
-      packages.push(
-        await archiveGenerated(
-          harness,
-          packageName,
-          version,
-          join(packageRoot, harness, `tron-${packageName}`),
-        ),
-      );
-    }
+  // The generated inventory is the single source of truth for what was built, so
+  // repo bundles ship without the release re-deriving the package map's shape.
+  const inventory = JSON.parse(readFileSync(join(packageRoot, "inventory.json"), "utf8"));
+  for (const entry of inventory.packages) {
+    packages.push(
+      await archiveGenerated(
+        entry.harness,
+        entry.package.replace(/^tron-/, ""),
+        version,
+        join(packageRoot, entry.harness, entry.package),
+      ),
+    );
   }
 } finally {
   rmSync(packageRoot, { recursive: true, force: true });

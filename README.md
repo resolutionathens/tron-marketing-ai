@@ -60,6 +60,20 @@ node tools/package/build-packages.mjs dist/packages
 bash tools/package/test-build-packages.sh
 ```
 
+### Repo bundles
+
+The same package map also declares a bundle per consuming repository under `repos`, using the
+identical `extends` / `skills` / `resources` shape. A repo key builds as `tron-repo-<key>`, so
+`marketing-pages` releases as `tron-repo-marketing-pages` for both harnesses. The point is scope: a
+worker dispatched into a repo installs only the skills that repo actually uses, which keeps the
+router surface small and keeps an irrelevant skill from misfiring. `tron-repo-facilitron-ui`, for
+instance, omits `git-pushtoprod` because that library finishes at its `dev` branch.
+
+Repo bundles extend role packages, never each other, and no package may extend a repo bundle. They
+go through the same dependency-closure, namespace-rewrite, and handoff validation as the role
+packages, and they ship in the same release with the same attestation and checksums. Which bundle a
+repository gets is decided outside this repo; what a bundle contains is decided here.
+
 The build emits matching Claude and Codex inventories from the same source and version. Generated
 skill prose rewrites an in-package `tron:<skill>` reference to the current package namespace. A
 reference outside the current inventory is rewritten to its declared owner, such as

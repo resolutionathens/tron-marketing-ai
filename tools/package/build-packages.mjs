@@ -33,6 +33,23 @@ if (output === root || output === resolve(root, "..") || output === "/") {
   throw new Error("package output must be a dedicated directory");
 }
 
+// A repo bundle is a package in every respect the builder cares about: same
+// `extends` / `skills` / `resources` shape, same closure and namespace passes.
+// Only its key is namespaced, so `repos: { "mabe-nuxt": … }` builds as
+// `tron-repo-mabe-nuxt` and can never collide with a role package name.
+const REPO_PREFIX = "repo-";
+const bundles = { ...map.packages };
+const bundleKinds = new Map(Object.keys(map.packages).map((name) => [name, "role"]));
+for (const [repo, bundle] of Object.entries(map.repos || {})) {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(repo)) {
+    throw new Error(`repo bundle ${repo} must be a lowercase slug`);
+  }
+  const name = `${REPO_PREFIX}${repo}`;
+  if (bundles[name]) throw new Error(`repo bundle ${repo} collides with package ${name}`);
+  bundles[name] = bundle;
+  bundleKinds.set(name, "repo");
+}
+
 function sourceSkills() {
   return readdirSync(join(root, "skills"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && existsSync(join(root, "skills", entry.name, "SKILL.md")))
@@ -56,11 +73,14 @@ function validateMap() {
     const stale = owned.filter((skill) => !actual.includes(skill));
     throw new Error(`ownership must classify every skill exactly once; missing=${missing}; stale=${stale}`);
   }
-  for (const [name, pkg] of Object.entries(map.packages)) {
+  for (const [name, pkg] of Object.entries(bundles)) {
     for (const parent of pkg.extends || []) {
-      if (!map.packages[parent]) throw new Error(`${name} extends unknown package ${parent}`);
+      if (!bundles[parent]) throw new Error(`${name} extends unknown package ${parent}`);
+      if (bundleKinds.get(parent) === "repo") {
+        throw new Error(`${name} extends repo bundle ${parent}; only role packages may be extended`);
+      }
     }
-    for (const skill of pkg.skills) {
+    for (const skill of pkg.skills || []) {
       if (!actual.includes(skill)) throw new Error(`${name} references unknown skill ${skill}`);
     }
   }
@@ -69,8 +89,8 @@ function validateMap() {
 function packageSkills(name, seen = new Set()) {
   if (seen.has(name)) throw new Error(`package extension cycle at ${name}`);
   seen.add(name);
-  const pkg = map.packages[name];
-  const skills = new Set(pkg.skills);
+  const pkg = bundles[name];
+  const skills = new Set(pkg.skills || []);
   for (const parent of pkg.extends || []) {
     for (const skill of packageSkills(parent, new Set(seen))) skills.add(skill);
   }
@@ -80,8 +100,8 @@ function packageSkills(name, seen = new Set()) {
 function packageResources(name, seen = new Set()) {
   if (seen.has(name)) throw new Error(`package extension cycle at ${name}`);
   seen.add(name);
-  const pkg = map.packages[name];
-  const resources = new Set(pkg.resources);
+  const pkg = bundles[name];
+  const resources = new Set(pkg.resources || []);
   for (const parent of pkg.extends || []) {
     for (const resource of packageResources(parent, new Set(seen))) resources.add(resource);
   }
@@ -131,12 +151,30 @@ function validateResource(resource, packageName) {
   assertContainedSource(absolute);
 }
 
+function bundleDescription(name, description) {
+  return bundleKinds.get(name) === "repo"
+    ? `Facilitron ${name.slice(REPO_PREFIX.length)} repo bundle: ${description}`
+    : `Facilitron ${name} package: ${description}`;
+}
+
+function bundleDisplayName(name) {
+  return bundleKinds.get(name) === "repo"
+    ? `Tron ${name.slice(REPO_PREFIX.length)}`
+    : `Tron ${name[0].toUpperCase()}${name.slice(1)}`;
+}
+
 function manifest(base, name, description) {
   return {
     ...base,
     name: `tron-${name}`,
-    description: `Facilitron ${name} package: ${description}`,
-    keywords: [...new Set([...(base.keywords || []), name, "role-scoped"])],
+    description: bundleDescription(name, description),
+    keywords: [
+      ...new Set([
+        ...(base.keywords || []),
+        name,
+        bundleKinds.get(name) === "repo" ? "repo-scoped" : "role-scoped",
+      ]),
+    ],
     skills: "./skills/",
   };
 }
@@ -147,7 +185,7 @@ function codexMarketplace(name) {
     ...codexMarketplaceBase,
     interface: {
       ...codexMarketplaceBase.interface,
-      displayName: `Tron ${name[0].toUpperCase()}${name.slice(1)}`,
+      displayName: bundleDisplayName(name),
     },
     plugins: codexMarketplaceBase.plugins.map((plugin, index) => index === 0 ? {
       ...plugin,
@@ -165,16 +203,20 @@ function claudeMarketplace(name, description) {
       ...plugin,
       name: packageName,
       source: ".",
-      description: `Facilitron ${name} package: ${description}`,
+      description: bundleDescription(name, description),
     } : plugin),
   };
 }
+
+// Validate before the closures are computed: an undeclared `extends` parent
+// otherwise surfaces as a TypeError from packageSkills instead of its own error.
+validateMap();
 
 const ownerBySkill = new Map(
   Object.entries(map.ownership).flatMap(([owner, skills]) => skills.map((skill) => [skill, owner])),
 );
 const skillSets = new Map(
-  Object.keys(map.packages).map((name) => [name, new Set(packageSkills(name))]),
+  Object.keys(bundles).map((name) => [name, new Set(packageSkills(name))]),
 );
 
 function rewriteNamespace(dir, packageName) {
@@ -262,12 +304,11 @@ function validateBundledReferences(dir, skills) {
   }
 }
 
-validateMap();
 rmSync(output, { recursive: true, force: true });
 mkdirSync(output, { recursive: true });
 
 const inventories = [];
-for (const [name, pkg] of Object.entries(map.packages)) {
+for (const [name, pkg] of Object.entries(bundles)) {
   const skills = packageSkills(name);
   const resources = packageResources(name);
   for (const resource of resources) validateResource(resource, name);
@@ -300,7 +341,13 @@ for (const [name, pkg] of Object.entries(map.packages)) {
     rewritePackageIdentity(destination, name);
     validateHandoffs(destination);
     validateBundledReferences(destination, skills);
-    inventories.push({ harness, package: `tron-${name}`, skills, resources });
+    inventories.push({
+      harness,
+      package: `tron-${name}`,
+      kind: bundleKinds.get(name),
+      skills,
+      resources,
+    });
   }
 }
 
@@ -312,6 +359,7 @@ writeFileSync(
     migration: {
       monolith: "tron",
       rolePackages: Object.keys(map.packages).map((name) => `tron-${name}`),
+      repoBundles: Object.keys(map.repos || {}).map((repo) => `tron-${REPO_PREFIX}${repo}`),
       mutuallyExclusive: true,
       rollbackNamespace: "tron",
     },

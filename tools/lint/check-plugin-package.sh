@@ -50,6 +50,8 @@ CLAUDE_CONFIG_DIR="$(mktemp -d "$TMP_PARENT/tron-claude-package.XXXXXX")"
 ROLE_BUILD_ROOT="$(mktemp -d "$TMP_PARENT/tron-role-build.XXXXXX")"
 ROLE_CODEX_HOME="$(mktemp -d "$TMP_PARENT/tron-role-codex.XXXXXX")"
 ROLE_CLAUDE_CONFIG_DIR="$(mktemp -d "$TMP_PARENT/tron-role-claude.XXXXXX")"
+REPO_CODEX_HOME="$(mktemp -d "$TMP_PARENT/tron-repo-codex.XXXXXX")"
+REPO_CLAUDE_CONFIG_DIR="$(mktemp -d "$TMP_PARENT/tron-repo-claude.XXXXXX")"
 LIVE_INSTALLED=false
 
 cleanup() {
@@ -58,7 +60,8 @@ cleanup() {
     codex plugin marketplace remove tron >/dev/null 2>&1 || true
   fi
   trash "$CODEX_HOME" "$CLAUDE_CONFIG_DIR" "$ROLE_BUILD_ROOT" \
-    "$ROLE_CODEX_HOME" "$ROLE_CLAUDE_CONFIG_DIR" || {
+    "$ROLE_CODEX_HOME" "$ROLE_CLAUDE_CONFIG_DIR" \
+    "$REPO_CODEX_HOME" "$REPO_CLAUDE_CONFIG_DIR" || {
     printf 'FAIL: could not trash package validation homes\n' >&2
     return 1
   }
@@ -147,6 +150,37 @@ if (!claudePlugin?.enabled || claudePlugin.version !== version) {
 }
 NODE
 
+# A repo bundle is released on the same footing as a role package, so it has to
+# install natively in both harnesses too, not just build.
+REPO_BUNDLE="$(node -p "Object.keys(require('$ROOT/packages/package-map.json').repos || {})[0] || ''")"
+if [ -n "$REPO_BUNDLE" ]; then
+  REPO_PACKAGE="tron-repo-$REPO_BUNDLE"
+  CODEX_HOME="$REPO_CODEX_HOME" \
+    codex plugin marketplace add "$ROLE_BUILD_ROOT/codex/$REPO_PACKAGE" --json >/dev/null
+  CODEX_HOME="$REPO_CODEX_HOME" codex plugin add "$REPO_PACKAGE@tron" --json >/dev/null
+  CLAUDE_CONFIG_DIR="$REPO_CLAUDE_CONFIG_DIR" \
+    claude plugin marketplace add "$ROLE_BUILD_ROOT/claude/$REPO_PACKAGE" --scope user >/dev/null
+  CLAUDE_CONFIG_DIR="$REPO_CLAUDE_CONFIG_DIR" \
+    claude plugin install "$REPO_PACKAGE@tron" --scope user >/dev/null
+  CODEX_HOME="$REPO_CODEX_HOME" codex plugin list --json > "$REPO_CODEX_HOME/plugins.json"
+  CLAUDE_CONFIG_DIR="$REPO_CLAUDE_CONFIG_DIR" \
+    claude plugin list --json > "$REPO_CLAUDE_CONFIG_DIR/plugins.json"
+  node - "$REPO_CODEX_HOME/plugins.json" "$REPO_CLAUDE_CONFIG_DIR/plugins.json" "$VERSION" "$REPO_PACKAGE" <<'NODE'
+const fs = require('fs');
+const [codexPath, claudePath, version, packageName] = process.argv.slice(2);
+const codex = JSON.parse(fs.readFileSync(codexPath, 'utf8'));
+const claude = JSON.parse(fs.readFileSync(claudePath, 'utf8'));
+const codexPlugin = codex.installed?.find((entry) => entry.pluginId === `${packageName}@tron`);
+const claudePlugin = claude.find((entry) => entry.id === `${packageName}@tron`);
+if (!codexPlugin?.enabled || codexPlugin.version !== version) {
+  throw new Error(`fresh Codex process cannot install the generated ${packageName} bundle`);
+}
+if (!claudePlugin?.enabled || claudePlugin.version !== version) {
+  throw new Error(`fresh Claude process cannot install the generated ${packageName} bundle`);
+}
+NODE
+fi
+
 if [ "$LIVE_SMOKE" = true ]; then
   claude --plugin-dir "$CLAUDE_ROOT" --print --max-budget-usd 0.50 \
     'Use the installed tron:brainstorm skill. Do not ask a question or call tools. Reply with exactly: CLAUDE-TRON-INSTALLED.' \
@@ -161,4 +195,4 @@ if [ "$LIVE_SMOKE" = true ]; then
     | grep -q 'CODEX-TRON-INSTALLED' || fail 'fresh Codex process could not invoke tron:brainstorm'
 fi
 
-printf 'PASS: Claude/Codex manifests share version %s; isolated monolith and role installs are discoverable with complete inventories.\n' "$VERSION"
+printf 'PASS: Claude/Codex manifests share version %s; isolated monolith, role, and repo-bundle installs are discoverable with complete inventories.\n' "$VERSION"
