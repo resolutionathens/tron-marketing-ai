@@ -28,6 +28,11 @@ site repo is a fact only the repo declares:
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
 ROOT="$(bash "$C" paths --repo <site-checkout> | jq -r .root)" || exit 1
-rsvg-convert -w 600 "$ROOT/public/img/logos/facilitron-logo.svg" \
-  -o "$SKILL_DIR/facilitron-logo.png"
+SVG="$ROOT/public/img/logos/facilitron-logo.svg"
+[ -f "$SVG" ] || { echo "md-to-pdf: no brand SVG at $SVG — locate it in $ROOT before regenerating" >&2; exit 1; }
+rsvg-convert -w 600 "$SVG" -o "$SKILL_DIR/facilitron-logo.png"
 ```
+
+The `public/` location is a framework convention, not something the profile declares, so it is
+checked rather than assumed. Rasterizing from a path that does not exist would leave the bundled
+PNG silently stale, which is exactly the failure this step exists to prevent.
