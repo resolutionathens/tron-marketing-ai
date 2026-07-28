@@ -1,10 +1,10 @@
 # News Item — Component palette
 
-The full MDC component reference for a `/resources/news` article. The page anatomy and
-components below come from the existing cluster articles and the slug renderer
-(`pages/resources/news/[...slug].vue`) — follow them rather than re-reading sibling
-articles each time. `school-facilities-maintenance-news-and-updates.md` is a clean
-concrete example if you want one.
+The MDC component reference for a news article. The page anatomy below describes how the
+slug renderer behaves — the renderer's own path, the article destination, and the set of
+permitted components come from the repo's content profile (`content.sh pipeline news`),
+so read them there rather than assuming this layout. `school-facilities-maintenance-news-and-updates.md`
+is a clean concrete example if you want one.
 
 ## Contents
 
@@ -19,20 +19,23 @@ concrete example if you want one.
 
 - **Hero** (`SectionHeroProduct`): an **eyebrow** built from the category label + the
   publish date (e.g. "Best Practices · April 24, 2026", auto from `categories` + `date`),
-  then the `title` and `description`, over the `blog-featured/<image>` hero image. So
+  then the `title` and `description`, over the featured hero image. So
   don't repeat the title as an `#` H1, and don't write the date or category into the body.
 - A **social-share** row after the body, and a **"Schedule a Demo" CTA**
   (`SectionBasicCta`) closing every article — don't author your own closing CTA.
-- **SEO** — meta tags and Article JSON-LD (`useArticleSchema`, using the `blog-featured`
-  image and `author`) are emitted automatically from front matter. The news schema has
-  **no** `meta_title`/`meta_description` (unlike toolkit) — `title`/`description` are it.
+- **SEO** — meta tags and Article JSON-LD (`useArticleSchema`, using the featured
+  image and `author`) are emitted automatically from front matter. Whether the schema
+  carries `meta_title`/`meta_description` is declared per collection in the profile —
+  check `content.sh collection news` rather than assuming.
 - The body renders inside Tailwind **`.prose`** at `max-w-6xl`, so plain markdown is
   styled automatically — no wrapper classes.
 
 ## Front matter
 
-Schema source: `content.config.ts`, the `news` collection. `title` and
-`description` are required; everything else is optional but use this shape:
+**Schema source: the repo's content profile**, not this file — read it with
+`content.sh collection news` and honour its `required`, `optional`, `enums`, and
+`defaults`. The shape below shows the house style for the values; the field list
+is whatever the profile says it is:
 
 ```yaml
 ---
@@ -41,14 +44,15 @@ author: Facilitron
 featured: false
 date: <today, YYYY-MM-DD>
 description: <1–2 sentence SEO meta description; work in the primary keyword>
-image: <slug>.webp
+image: <the `reference` value from `content.sh image news featured`>
 categories:
   - b2b
   - best-practices
 ---
 ```
 
-`image:` is just the filename — `[...slug].vue` prefixes `blog-featured/`. Common
+Do not hand-build the `image:` value. Its format is declared per-role in the
+profile and differs between the featured image and body images. Common
 `categories` values: `b2b`, `best-practices`, `facilitron-university`,
 `in-the-news`. A cluster/how-to article is almost always `b2b` + `best-practices`.
 
@@ -66,10 +70,9 @@ the `<images>` list. Orchestrator-side concerns only:
   snippets. That's review material for you, not article body: resolve any unfinished
   thought it surfaces (e.g. a bare path meant to become a link), then drop the section.
 - **Internal links — verify each one before saving.** This is the top build/UX
-  pitfall; SKILL.md Stage 3 runs `content.sh rewrite-links` + `check-link`. One-line
-  rule: `/product/scheduling-and-reservations/` has **no index page** — link to
-  `/product/facilitron-scheduling-and-reservations` (full table:
-  `tools/content/internal-links.md`, linked from SKILL.md).
+  pitfall; SKILL.md Stage 3 runs `content.sh rewrite-links` + `check-link`, and reads
+  the repo's declared link traps from `content.sh profile → .internalLinks.exceptions`
+  (flow: `tools/content/internal-links.md`, linked from SKILL.md).
 
 ## Inline images — `::image-text` vs `::fImg`
 
@@ -81,7 +84,7 @@ component to use:
   layout that stacks on mobile. The adjacent prose becomes the slot body:
 
   ```markdown
-  ::image-text{src="blog-posts/<slug>/<name>.webp" alt="<real description>" position="right"}
+  ::image-text{src="<reference from `content.sh image news body`>" alt="<real description>" position="right"}
   The paragraph(s) that Confluence floated next to this image go here and
   render in the text column beside it.
   ::
@@ -105,7 +108,7 @@ component to use:
   ```markdown
   ::fImg
   ---
-  src: "blog-posts/<slug>/<name>.webp"
+  src: "<reference from `content.sh image news body`>"
   format: "webp"
   alt: "<real description>"
   ---
@@ -114,9 +117,9 @@ component to use:
 
   Optional `width` (string, e.g. `"450"`) and `classProp` override sizing.
 
-For both: `src` is the ImageKit path **without** the leading slash or CDN base,
-and `alt` is required for WCAG compliance (the marketing site has an active
-accessibility mandate) — write a genuine description of the photo, never reuse the
+For both: `src` is the role's `reference` value copied verbatim, and `alt` is
+required for WCAG compliance (the marketing site has an active accessibility
+mandate) — write a genuine description of the photo, never reuse the
 `pexels-...` source filename.
 
 ## FAQ section

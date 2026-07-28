@@ -2,8 +2,10 @@
 
 Reference material for Stage 3 (Compose the page). The SKILL.md owns the workflow and
 judgment; this file is the palette, the skeleton, and the mapping/styling rules you
-follow when composing `pages/resources/guides/<slug>.vue`. Mirror an existing guide such
-as `preventive-maintenance-strategy.vue` for the full pattern.
+follow when composing the guide page. Its path is `$DEST`, resolved in the SKILL.md
+preflight from the repo's content profile — never assume a `pages/…` location. Mirror
+an existing guide such as `preventive-maintenance-strategy.vue` (a sibling of `$DEST`)
+for the full pattern.
 
 ## Contents
 
@@ -83,7 +85,7 @@ sections, pull quote, and dark section flex to the content.
   badges + `DisplayFeatureCard variant="compact"` (see `preventive-maintenance-strategy.vue`).
 - **An "at a glance" / best-practices block** → the dark raw `<section class="bg-tron-asphalt-800 …">` with a `v-for` of `bg-white/5` bordered cards (full-bleed, so NOT `BaseSection`).
 - **An FAQ** → a `faqItems` array → `SectionAccordion`.
-- **Images** → `<NuxtImg provider="imagekit" src="guides/<slug>/<name>.webp" alt="…" class="w-full rounded-lg" sizes="500px md:1200px lg:1800px" />`. `alt` is required (WCAG) — write a real description, never the source filename.
+- **Images** → `<NuxtImg provider="imagekit" src="<the `reference` from `content.sh image guides body`>" alt="…" class="w-full rounded-lg" sizes="500px md:1200px lg:1800px" />`. Copy `reference` verbatim — the body role's format differs from the OG role's. `alt` is required (WCAG) — write a real description, never the source filename.
 
 ## `<script setup>` conventions
 
@@ -116,7 +118,7 @@ useDynamicMeta(
   title,
   description,
   route.path,
-  "https://ik.imagekit.io/facilitron/og/og-<slug>.webp", // full OG URL
+  "<the `reference` from `content.sh image guides og`>", // already the full CDN URL
 );
 ```
 
@@ -137,7 +139,7 @@ no `import` line needed. Guide detail pages do **not** call `useJsonLd`/`useArti
 
 ## Reference: working example
 
-`pages/resources/guides/preventive-maintenance-strategy.vue` is the cleanest end-to-end
+`preventive-maintenance-strategy.vue`, alongside `$DEST`, is the cleanest end-to-end
 example — hero + TOC, `v-for` data arrays (`tocItems`, `faqItems`, `implementationSteps`,
 `comparisonTable`), the timeline pattern, the dark section, the mid-page CTA, and the
 `useDynamicMeta` call with an OG image.
