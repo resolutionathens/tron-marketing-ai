@@ -185,6 +185,43 @@ has "$O" '"reference":"my-post.webp"' "reference still resolves without a cdn ba
 jq -e 'has("url")' <<<"$O" >/dev/null 2>&1 && fail "url should be omitted when the profile declares no cdn.baseUrl"
 pass "no cdn.baseUrl → url omitted, never a half-built address"
 
+# --- paths: the source-tree roots read-only skills search ---------------------
+# The regression this guards: marketing-pages moved to a Nuxt 4 app/ srcDir but
+# left a near-empty root pages/ behind, so a skill probing `-d "$repo/pages"`
+# still "found" a tree and searched nothing. Roots come from the profile only.
+PATHFIX="$ROOT/paths"
+mkdir -p "$PATHFIX/.tron" "$PATHFIX/app/pages" "$PATHFIX/pages"; git -C "$PATHFIX" init -q
+jq '. + {framework:{name:"nuxt",major:4,srcDir:"app",pagesRoot:"app/pages",contentRoot:"content"}}' \
+  "$PROF/content-profile.json" > "$PATHFIX/.tron/content-profile.json"
+O="$(bash "$SCRIPT" paths --repo "$PATHFIX")"; echo "  → $O"
+has "$O" '"pagesRoot":"app/pages"' "pagesRoot comes from the profile, not from probing for pages/"
+has "$O" '"framework":"nuxt"' "the framework name is re-keyed so it cannot be read as the repo name"
+[[ "$(jq -r .pagesRootAbs <<<"$O")" == "$(cd "$PATHFIX" && pwd -P)/app/pages" ]] \
+  || fail "pagesRootAbs should be the absolute app/pages, not the stale root pages/"
+pass "paths → framework roots from the profile, plus absolute <key>Abs forms"
+
+# Undeclared keys are omitted rather than guessed at a conventional location.
+jq -e 'has("contentComponentsDir")' <<<"$O" >/dev/null 2>&1 \
+  && fail "an undeclared framework key should be omitted, not invented"
+pass "paths → omits framework keys the repo does not declare"
+
+rc=0; O="$(bash "$SCRIPT" paths --repo "$ROOT" 2>&1)" || rc=$?
+echo "  → $O"
+[[ "$rc" == 1 ]] || fail "a profile with no framework block should exit 1 (got $rc)"
+has "$O" 'declares no' "failure names the missing block"
+has "$O" 'framework' "failure names the framework block by name"
+pass "no framework block → exit 1 naming it, never a guessed source root"
+
+# A framework root that escapes the repo is refused like any other profile path.
+ESCP="$ROOT/paths-escape"
+mkdir -p "$ESCP/.tron"; git -C "$ESCP" init -q
+jq '. + {framework:{srcDir:"../../elsewhere"}}' "$PROF/content-profile.json" \
+  > "$ESCP/.tron/content-profile.json"
+rc=0; O="$(bash "$SCRIPT" paths --repo "$ESCP" 2>&1)" || rc=$?
+[[ "$rc" == 1 ]] || fail "escaping srcDir should exit 1 (got $rc)"
+has "$O" '"ok":false' "escaping srcDir is refused"
+pass "framework root escaping the repo → refused by the same containment check"
+
 O="$(bash "$SCRIPT" collection toolkit --repo "$ROOT")"; echo "  → $O"
 has "$O" '"required":["title","description","date","category"]' "collection required fields"
 has "$O" '"category":["sop","checklist","template"]' "collection enum values"
