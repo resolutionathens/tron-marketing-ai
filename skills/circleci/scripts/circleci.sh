@@ -24,7 +24,8 @@
 #
 # Pure/offline subcommands (no token, no network):
 #   slug       [--repo PATH]            derive gh/Org/repo from the origin remote
-#   deploy-url <branch> [--repo|--slug] marketing-pages per-branch URL lookup
+#   deploy-url <branch> [--repo|--slug] per-branch deploy URL, from the repo's
+#                                       declared deploy.branches when present
 #
 # CLI passthrough (need the `circleci` binary; print the CLI's own output):
 #   validate   [-c FILE]                circleci config validate
@@ -65,7 +66,7 @@ while [[ $# -gt 0 ]]; do
     --from-failed) FROM_FAILED=1 ;;
     --grep-urls) GREP_URLS=1 ;;
     --once) ONCE=1 ;;
-    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
+    -h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) ARGS+=("$1") ;;
   esac
@@ -158,25 +159,77 @@ cmd_slug() {
   else jq -nc '{ok:false,slug:null,reason:"origin remote is not a github/bitbucket URL — pass --slug"}'; exit 1; fi
 }
 
+# Which branch deploys where is the consuming repo's fact, so the repo gets to
+# declare it: `deploy.branches` in .tron/content-profile.json, read through the
+# shared profile reader rather than a second one. The built-in marketing-pages
+# table below is a labelled fallback kept only so this keeps working until that
+# repo declares the block; the `source` field says which one answered.
+content_sh() {
+  local c="${CLAUDE_PLUGIN_ROOT:-}"
+  [[ -n "$c" ]] && c="$c/tools/content/content.sh"
+  [[ -f "${c:-}" ]] || c="$(cd "$(dirname "$0")/../../.." 2>/dev/null && pwd)/tools/content/content.sh"
+  [[ -f "${c:-}" ]] || return 1
+  printf '%s' "$c"
+}
+
+profile_deploy_branches() {
+  local c out
+  c="$(content_sh)" || return 1
+  # A repo that declares no profile is the ordinary case here and falls through to
+  # the built-in. A profile that EXISTS but does not read is not: silently treating
+  # a malformed declaration as "undeclared" hands back the built-in table for a repo
+  # that was trying to override it. Surface that one.
+  # Runs in a command substitution, so it cannot exit the script itself: it emits
+  # the refusal JSON and returns 2, and the caller turns that into exit 1.
+  if ! out="$(bash "$c" profile --repo "$REPO" 2>/dev/null)"; then
+    if [[ -f "$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null || echo "$REPO")/.tron/content-profile.json" ]]; then
+      jq -nc '{ok:false,error:"this repo has a .tron/content-profile.json that does not read as a version-1 profile — refusing to fall back to the built-in deploy table, since a malformed declaration is not the same as no declaration. Run content.sh profile against the repo for the specific reason."}'
+      return 2
+    fi
+    return 1
+  fi
+  jq -ce '.deploy.branches // empty' <<<"$out" 2>/dev/null
+}
+
 cmd_deploy_url() {
   local branch="${ARGS[0]:-$BRANCH}"
   [[ -z "$branch" ]] && usage_err "deploy-url requires a <branch> argument"
-  local slug reponame
+  local slug reponame declared entry prc=0
   slug="${SLUG:-$(derive_slug "$REPO" || true)}"; reponame="${slug##*/}"
+
+  declared="$(profile_deploy_branches)" || prc=$?
+  # 2 = the repo declares a profile that does not read. Refuse rather than fall back.
+  if [[ "$prc" == 2 ]]; then printf '%s\n' "$declared"; exit 1; fi
+
+  if [[ "$prc" == 0 && -n "$declared" ]]; then
+    entry="$(jq -c --arg b "$branch" '.[$b] // empty' <<<"$declared")"
+    if [[ -z "$entry" ]]; then
+      jq -nc --arg b "$branch" --arg r "${reponame:-unknown}" \
+        --argjson d "$(jq -c 'keys' <<<"$declared")" '{
+        ok:false, repo:$r, branch:$b, url:null, declared:$d, source:"repo-profile",
+        reason:("this repo declares deploy URLs for " + ($d | join(", ")) +
+                " — \"" + $b + "\" is not one of them, so it has no preview URL")}'
+      exit 1
+    fi
+    jq -c --arg b "$branch" --arg r "${reponame:-unknown}" \
+      '{ok:true,repo:$r,branch:$b,source:"repo-profile"} + .' <<<"$entry"
+    return
+  fi
+
   if [[ "$reponame" == "marketing-pages" ]]; then
     local url env
     case "$branch" in
       dev)        url="https://morning-coast.facilitron.com"; env="Development" ;;
       staging)    url="https://staging.facilitron.com";       env="Staging" ;;
       production) url="https://www.facilitron.com";            env="Production" ;;
-      *) jq -nc --arg b "$branch" '{ok:false,repo:"marketing-pages",branch:$b,url:null,reason:"only dev/staging/production deploy — feature branches have no preview until merged to dev"}'; exit 1 ;;
+      *) jq -nc --arg b "$branch" '{ok:false,repo:"marketing-pages",branch:$b,url:null,source:"builtin-fallback",reason:"only dev/staging/production deploy — feature branches have no preview until merged to dev"}'; exit 1 ;;
     esac
     jq -nc --arg b "$branch" --arg u "$url" --arg e "$env" \
-      '{ok:true,repo:"marketing-pages",branch:$b,environment:$e,url:$u,reason:"canonical per-branch CircleCI→S3+CloudFront URL"}'
+      '{ok:true,repo:"marketing-pages",branch:$b,environment:$e,url:$u,source:"builtin-fallback",reason:"canonical per-branch CircleCI→S3+CloudFront URL, from the plugin'"'"'s built-in table — marketing-pages has not yet declared deploy.branches in its content profile"}'
     return
   fi
   jq -nc --arg b "$branch" --arg r "${reponame:-unknown}" \
-    '{ok:false,repo:$r,branch:$b,url:null,reason:"per-branch URL table only known for marketing-pages — check this repo'"'"'s README Environments section"}'
+    '{ok:false,repo:$r,branch:$b,url:null,source:null,reason:"this repo declares no deploy.branches in .tron/content-profile.json and the plugin has no built-in table for it — check the repo'"'"'s README Environments section"}'
   exit 1
 }
 
@@ -293,6 +346,6 @@ case "$CMD" in
   validate)   cmd_validate ;;
   process)    cmd_process ;;
   local)      cmd_local ;;
-  ""|help|-h|--help) sed -n '2,40p' "$0" ;;
+  ""|help|-h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0" ;;
   *) usage_err "unknown subcommand '$CMD' (try: me, status, workflows, watch, logs, deploy-url, validate …)" ;;
 esac

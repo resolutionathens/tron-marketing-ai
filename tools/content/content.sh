@@ -15,6 +15,7 @@
 # Repo content profile (.tron/content-profile.json in the consuming repo) — the
 # repo declares its own paths/schema/CDN folders; the plugin never hardcodes them:
 #   content.sh profile      [--repo PATH]                  → the whole profile
+#   content.sh paths        [--repo PATH]                  → framework roots (srcDir/pagesRoot/contentRoot), + <key>Abs
 #   content.sh pipeline     <name> [--slug S]              → destination/route/components, {slug} expanded
 #   content.sh collection   <name>                         → front-matter schema (required/optional/enums/defaults)
 #   content.sh image        <pipeline> <role> [--slug S] [--name N] [--index NN]
@@ -38,7 +39,7 @@ while [[ $# -gt 0 ]]; do
     --slug)   [[ $# -gt 1 ]] || usage_err "--slug requires a value";   SLUG="$2";   shift ;;
     --name)   [[ $# -gt 1 ]] || usage_err "--name requires a value";   NAME="$2";   shift ;;
     --index)  [[ $# -gt 1 ]] || usage_err "--index requires a value";  INDEX="$2";  shift ;;
-    -h|--help) sed -n '2,26p' "$0"; exit 0 ;;
+    -h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) ARGS+=("$1") ;;
   esac
@@ -184,6 +185,45 @@ cmd_profile() {
   jq -c '.' <<<"$PROFILE"
 }
 
+# Where the consuming repo keeps its source tree. Read-only skills (existing-page
+# search, brand-token lookup, SEO handoff) need the same roots the write pipelines
+# do, and a stale guess is worse than an error here: searching a pre-Nuxt-4 `pages/`
+# that still exists but holds nothing returns "no match" and scopes a redesign
+# ticket as net-new. Only declared keys are emitted — nothing is inferred.
+cmd_paths() {
+  profile_or_die "the framework paths"
+  local f root
+  f="$(jq -c '.framework // empty' <<<"$PROFILE")"
+  if [[ -z "$f" ]]; then
+    jq -nc --arg p "$(ct_profile_path "$REPO")" '{
+      ok:false, needed:"framework paths", expected:$p,
+      reason:($p + " declares no \"framework\" block, so the source tree layout (srcDir, pagesRoot, contentRoot) is unknown. " +
+              "Add one to that repo rather than assuming a layout — a search against a guessed root silently finds nothing.")}'
+    exit 1
+  fi
+  root="$(git -C "$REPO" rev-parse --show-toplevel 2>/dev/null || echo "$REPO")"
+  root="$(cd "$root" 2>/dev/null && pwd -P)"
+
+  # Path-valued keys are validated and echoed back absolute as <key>Abs, so callers
+  # can `find`/`grep` them straight without re-joining against the repo root.
+  local abs='{}' k v
+  for k in srcDir pagesRoot contentRoot contentComponentsDir contentConfig; do
+    v="$(jq -r --arg k "$k" '.[$k] // empty' <<<"$f")"
+    [[ -z "$v" ]] && continue
+    require_contained "$v" "the $k declared by the content profile"
+    abs="$(jq -c --arg k "${k}Abs" --arg v "$root/$v" '. + {($k): $v}' <<<"$abs")"
+  done
+
+  # `.name` is the framework's name; re-key it so it can't be read as the repo's.
+  jq -c --arg root "$root" --arg repo "$(jq -r '.repo.name // empty' <<<"$PROFILE")" \
+    --argjson abs "$abs" \
+    '{ok:true, root:$root}
+     + (if $repo == "" then {} else {repo:$repo} end)
+     + (. | with_entries(select(.key != "name")))
+     + (if has("name") then {framework: .name} else {} end)
+     + $abs' <<<"$f"
+}
+
 cmd_pipeline() {
   local n="${ARGS[0]:-}"; [[ -z "$n" ]] && usage_err "pipeline requires a <name> (e.g. news, guides, toolkit)"
   profile_or_die "pipeline '$n'"
@@ -289,6 +329,7 @@ cmd_image() {
 case "$CMD" in
   check-repo)    cmd_check_repo ;;
   profile)       cmd_profile ;;
+  paths)         cmd_paths ;;
   pipeline)      cmd_pipeline ;;
   collection)    cmd_collection ;;
   image)         cmd_image ;;
@@ -296,6 +337,6 @@ case "$CMD" in
   rewrite-links) cmd_rewrite_links ;;
   check-link)    cmd_check_link ;;
   next-index)    cmd_next_index ;;
-  ""|help|-h|--help) sed -n '2,26p' "$0" ;;
-  *) usage_err "unknown subcommand '$CMD' (try: check-repo, slug, rewrite-links, check-link, next-index, profile, pipeline, collection, image)" ;;
+  ""|help|-h|--help) sed -e '1d' -e '/^set -euo pipefail$/,$d' "$0" ;;
+  *) usage_err "unknown subcommand '$CMD' (try: check-repo, slug, rewrite-links, check-link, next-index, profile, paths, pipeline, collection, image)" ;;
 esac

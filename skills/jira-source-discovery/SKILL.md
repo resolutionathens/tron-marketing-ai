@@ -96,7 +96,7 @@ When the user states the repo or destination type, trust that over inference.
 
 ### 4. Search for existing matching page
 
-If the work type is a marketing-pages landing page, product page, or content item, check whether a page matching the subject already exists. See `reference/existing-page-search.md`.
+If the work type is a landing page, product page, or content item in the target repo, check whether a page matching the subject already exists. The search resolves that repo's pages and content roots from its own content profile rather than assuming a layout. See `reference/existing-page-search.md`.
 
 ### 5. Pull source metadata
 

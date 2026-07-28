@@ -54,15 +54,31 @@ Check a design asset or rendered page against the Facilitron brand system and re
 Pull the canonical tokens rather than relying on memory:
 
 - **Brand knowledge** in tron-os: `knowledge/brand/` (palette, type, logo rules) if present.
-- **`tron-` Tailwind tokens** in the marketing-pages repo — grep the Tailwind config / theme for the
-  color scale the design system actually ships:
+- **`tron-` Tailwind tokens** in the repo that ships the design system. Ask that repo where its
+  source tree is rather than assuming a layout — the assets directory moves with the framework's
+  srcDir, and grepping a stale root returns nothing while looking like a clean pass:
 
 ```bash
-# in the marketing-pages checkout
-grep -rEn "tron-[a-z]+" tailwind.config.* app/assets 2>/dev/null | head
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+ROOTS="$(bash "$C" paths --repo <design-system-checkout>)" || exit 1   # names what it needed
+ROOT="$(jq -r .root <<<"$ROOTS")"; SRC="$(jq -r '.srcDirAbs // .root' <<<"$ROOTS")"
+
+# The srcDir is declared; `assets/` and the config filename are Tailwind/Nuxt
+# conventions on top of it. Confirm at least one real source before grepping, so a
+# repo that arranges them differently is a stated blocker and not an empty result.
+FOUND=()
+for p in "$ROOT"/tailwind.config.* "$SRC/assets"; do [ -e "$p" ] && FOUND+=("$p"); done
+[ ${#FOUND[@]} -gt 0 ] || { echo "brand-check: no tailwind config or $SRC/assets in $ROOT — cannot resolve the token allow-list" >&2; exit 1; }
+grep -rEn "tron-[a-z]+" "${FOUND[@]}" | head
 ```
 
-Treat those tokens as the allow-list. Anything outside it is a finding.
+Two ways this stops rather than guesses, and both matter: if `content.sh paths` fails the checkout
+declares no content profile and its layout is unknown; if the roots resolve but neither token
+source is there, the repo arranges its design system differently. Either way, say which repo and
+which file you needed and stop. Never grep a directory that may not exist and report the empty
+result as "no off-palette colors" — a clean audit nobody ran is worse than an error.
+
+Treat the tokens you find as the allow-list. Anything outside it is a finding.
 
 ## Sampling colors from an asset
 

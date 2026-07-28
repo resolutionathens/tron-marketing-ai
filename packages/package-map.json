@@ -7,6 +7,7 @@
         "agents/confluence-transformer.md",
         "tools/broker",
         "tools/confluence",
+        "tools/content",
         "tools/image",
         "tools/imagekit",
         "tools/jira",

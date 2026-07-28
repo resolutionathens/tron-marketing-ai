@@ -56,7 +56,7 @@ The **pandoc-from-markdown** path (`build.ts`) is a **fallback** — reach for i
 
 ## Default path — author in LaTeX from the template
 
-The skill ships a Facilitron-branded starter at `$SKILL_DIR/template.tex`, styled to mirror the marketing-pages site (`assets/css/tailwind.css`). It pre-wires: the logo; the brand fonts (Inter body / Archivo display / IBM Plex Mono figures); `tron-asphalt-900` ink for text and headings (not pure black) with `tron-primary-600` links; an `\eyebrow{...}` kicker and an Archivo-ExtraLight hero title matching the site's weight-200 `frame-h1`; rounded `tron-primary-50` stat cards with a `primary-500` accent bar (`\stat{number}{label}` inside a `tcbraster`, the site's "callout" pattern); dashboard-style tables (gray-200 header via `\thd{}` + white/`gray-100` zebra + thin asphalt rules); the `\num{...}` mono-figure macro; and `\fchk` (outline checkbox).
+The skill ships a Facilitron-branded starter at `$SKILL_DIR/template.tex`, styled to mirror the site's Tailwind theme (in marketing-pages today: `app/assets/css/tailwind.css` — resolve it as `<srcDirAbs>/assets/css/tailwind.css` from `content.sh paths` rather than typing a path, since the assets directory moves with the framework's srcDir). It pre-wires: the logo; the brand fonts (Inter body / Archivo display / IBM Plex Mono figures); `tron-asphalt-900` ink for text and headings (not pure black) with `tron-primary-600` links; an `\eyebrow{...}` kicker and an Archivo-ExtraLight hero title matching the site's weight-200 `frame-h1`; rounded `tron-primary-50` stat cards with a `primary-500` accent bar (`\stat{number}{label}` inside a `tcbraster`, the site's "callout" pattern); dashboard-style tables (gray-200 header via `\thd{}` + white/`gray-100` zebra + thin asphalt rules); the `\num{...}` mono-figure macro; and `\fchk` (outline checkbox).
 
 ```bash
 mkdir -p /tmp/facilitron-md-to-pdf
@@ -119,12 +119,29 @@ It writes both the cleaned intermediate `<slug>.md` and the final `<slug>.pdf` i
 Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/facilitron-md-to-pdf`). Then:
 
 1. Open the resulting PDF(s) so the user can review (`open <pdf-path>`).
-2. After approval, upload to ImageKit using the imagekit CLI:
+2. After approval, ask the consuming repo where the PDF belongs and what to call it. The CDN
+   folder, the filename, and the string that goes into front matter are that repo's facts, and the
+   third is not derivable from the first two:
+
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name <filename>.pdf --folder <imagekit-folder>
+   C="${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/content/content.sh"
+   A="$(bash "$C" image <pipeline> <role> --slug <slug> --repo <checkout>)" || exit 1  # e.g. toolkit pdf
+   FOLDER="$(jq -r .uploadFolder <<<"$A")"; NAME="$(jq -r .uploadName <<<"$A")"
+   REF="$(jq -r .reference <<<"$A")"; FIELD="$(jq -r '.field // empty' <<<"$A")"
+   ```
+
+3. Upload to ImageKit with exactly those values:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name "$NAME" --folder "$FOLDER"
    ```
    Always pass `--name` so ImageKit doesn't append a random suffix to the filename.
-3. Reference the uploaded PDF from the markdown via the appropriate front-matter field (e.g., `download: <filename>.pdf` for toolkit items).
+4. Write `$REF` into the `$FIELD` front-matter key **verbatim**. Do not rebuild it from `$FOLDER`
+   and `$NAME`: each role declares a `valueFormat`, and a renderer that already prefixes its own
+   folder turns a helpfully-prefixed value into a doubled CDN path that 404s. When you need a
+   fetchable address (a spot-check), take `.url` — never concatenate one from `reference`.
+
+   If `content.sh image` fails, that repo declares no such pipeline or role. Say what you needed
+   and stop; do not invent a folder.
 
 ## What goes into the PDF
 

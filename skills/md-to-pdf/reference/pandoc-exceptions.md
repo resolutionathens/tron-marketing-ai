@@ -20,9 +20,19 @@ Use `longtable` instead of `tabular` when a table spans pages so headers repeat.
 
 ## Updating the logo
 
-`facilitron-logo.png` is rasterized from the marketing-pages SVG. When the brand logo changes:
+`facilitron-logo.png` is rasterized from the brand SVG shipped by the site repo. When the brand
+logo changes, resolve that repo's root from its content profile rather than typing a checkout path
+— the SVG lives under the repo's `public/` (a framework convention), but which checkout is the
+site repo is a fact only the repo declares:
 
 ```bash
-rsvg-convert -w 600 <marketing-pages>/public/img/logos/facilitron-logo.svg \
-  -o "$SKILL_DIR/facilitron-logo.png"
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+ROOT="$(bash "$C" paths --repo <site-checkout> | jq -r .root)" || exit 1
+SVG="$ROOT/public/img/logos/facilitron-logo.svg"
+[ -f "$SVG" ] || { echo "md-to-pdf: no brand SVG at $SVG — locate it in $ROOT before regenerating" >&2; exit 1; }
+rsvg-convert -w 600 "$SVG" -o "$SKILL_DIR/facilitron-logo.png"
 ```
+
+The `public/` location is a framework convention, not something the profile declares, so it is
+checked rather than assumed. Rasterizing from a path that does not exist would leave the bundled
+PNG silently stale, which is exactly the failure this step exists to prevent.

@@ -99,7 +99,8 @@ repo isn't clear from context, ask the user which repo the ticket is for rather 
 
 Assign **every** MD-project ticket to its creator on creation with `--assignee '@me'` — this routes a
 ticket you create to you and a teammate's ticket to them, which is correct even in the repos shared
-with the wider team (`marketing-pages`, `marketing-dynamic-landing-pages`):
+with the wider team (that list lives with the prefix table in
+[tools/jira/conventions.md](../../tools/jira/conventions.md), not here):
 
 ```bash
 acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>' --description '<description>' --assignee '@me'

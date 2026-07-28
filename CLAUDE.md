@@ -155,6 +155,7 @@ C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
 bash "$C" pipeline   <name> --slug <slug>   # destination, route, components, registration
 bash "$C" collection <name>                 # required/optional/enums/defaults
 bash "$C" image      <pipeline> <role> …    # uploadFolder, uploadName, reference
+bash "$C" paths                             # framework roots: srcDir, pagesRoot, contentRoot (+ <key>Abs)
 bash "$C" profile                           # the whole thing (framework, cdn, surfaces, internalLinks)
 ```
 
@@ -168,8 +169,16 @@ Two rules when you touch a content skill:
   three different ways. `content.sh image` applies the rule; hand-assembling the string is the
   bug this exists to prevent.
 
-Only the content pipeline reads a profile today. Other skills still carry consuming-repo
-assumptions and are being migrated as each repo lands a profile.
+Read-only skills resolve the same way. `brand-check`, `landing-page-seo`, `md-to-pdf`,
+`jira-source-discovery`, and `circleci` read the repo's declared roots through `content.sh paths`
+instead of probing for a conventional directory. Probing is what rots: marketing-pages moved to a
+Nuxt 4 `app/` srcDir and left an empty root `pages/` behind, so `[ -d "$repo/pages" ]` still
+succeeded and the search that followed found nothing — reported as "no existing page", which scopes
+a redesign ticket as net-new.
+
+`seo-report` is **not** migrated: it depends on tron-search-console, which declares no profile. It
+keeps its paths in the skill until that repo lands one — deferring is correct here, half-migrating
+is not.
 
 ## Conventions when authoring copy-producing skills
 
