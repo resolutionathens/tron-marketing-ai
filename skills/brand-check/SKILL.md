@@ -54,15 +54,22 @@ Check a design asset or rendered page against the Facilitron brand system and re
 Pull the canonical tokens rather than relying on memory:
 
 - **Brand knowledge** in tron-os: `knowledge/brand/` (palette, type, logo rules) if present.
-- **`tron-` Tailwind tokens** in the marketing-pages repo — grep the Tailwind config / theme for the
-  color scale the design system actually ships:
+- **`tron-` Tailwind tokens** in the repo that ships the design system. Ask that repo where its
+  source tree is rather than assuming a layout — the assets directory moves with the framework's
+  srcDir, and grepping a stale root returns nothing while looking like a clean pass:
 
 ```bash
-# in the marketing-pages checkout
-grep -rEn "tron-[a-z]+" tailwind.config.* app/assets 2>/dev/null | head
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+ROOTS="$(bash "$C" paths --repo <design-system-checkout>)" || exit 1   # names what it needed
+ROOT="$(jq -r .root <<<"$ROOTS")"; SRC="$(jq -r '.srcDirAbs // .root' <<<"$ROOTS")"
+grep -rEn "tron-[a-z]+" "$ROOT"/tailwind.config.* "$SRC/assets" 2>/dev/null | head
 ```
 
-Treat those tokens as the allow-list. Anything outside it is a finding.
+If `content.sh paths` fails, that checkout declares no content profile and its layout is unknown.
+Say which repo you needed and stop — do not grep a guessed directory and report the empty result
+as "no off-palette colors."
+
+Treat the tokens you find as the allow-list. Anything outside it is a finding.
 
 ## Sampling colors from an asset
 
