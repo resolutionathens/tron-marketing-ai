@@ -27,7 +27,7 @@ instead of reassembling `curl … | jq …` by hand.
 | Raw step logs (`--grep-urls` for deployed URLs) | `circleci.sh logs --job N [--tail 250] [--grep-urls]`        |
 | Rerun (everything or `--from-failed`) / trigger | `circleci.sh rerun --workflow ID` · `trigger`                |
 | Derive `gh/Org/repo` from the origin remote     | `circleci.sh slug`                                           |
-| **marketing-pages** per-branch URL              | `circleci.sh deploy-url <dev\|staging\|production>`          |
+| Per-branch deploy URL (repo-declared)           | `circleci.sh deploy-url <branch>` — see `source` in output   |
 | Config validate / process / local run           | `circleci.sh validate` · `process` · `local --job-name NAME` |
 
 It authenticates through the org-secret broker (`secrets.facilitron.work/circleci/*`)

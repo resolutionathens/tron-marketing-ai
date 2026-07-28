@@ -63,13 +63,23 @@ Get a token from https://app.circleci.com/settings/user/tokens.
 
 `circleci config validate`/`process`/`local` still use the local `circleci` CLI (no token involved). Unauthenticated broker requests or missing fallback token return `{"ok":false,"error":"..."}`.
 
-## Facilitron deploy URLs (marketing-pages)
+## Facilitron deploy URLs
 
 `circleci.sh deploy-url <branch>` is the canonical lookup — don't reconstruct the
-URLs from memory. One gotcha worth knowing: the `dev` alias is **morning-coast**
-(`morning-coast.facilitron.com`), not `dev.facilitron.com`. Only
-`dev`/`staging`/`production` deploy — feature branches do not get preview URLs.
-Check each repo's README for sibling repos.
+URLs from memory. Which branch deploys where is the consuming repo's fact, so it
+answers from that repo's `deploy.branches` block in `.tron/content-profile.json`
+when one is declared. The `source` field in the output says which table answered:
+
+| `source`           | Meaning                                                            |
+| ------------------ | ------------------------------------------------------------------ |
+| `repo-profile`     | The repo declared it. Authoritative.                               |
+| `builtin-fallback` | The plugin's legacy marketing-pages table, kept until that repo declares the block. |
+
+One gotcha worth knowing about that legacy table: the `dev` alias is
+**morning-coast** (`morning-coast.facilitron.com`), not `dev.facilitron.com`.
+Only `dev`/`staging`/`production` deploy — feature branches do not get preview
+URLs. A repo with neither a declared table nor a built-in one returns `ok:false`
+pointing at its README rather than guessing a hostname.
 
 ## Config validation & local execution
 

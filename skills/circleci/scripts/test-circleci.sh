@@ -76,11 +76,41 @@ has "$O" '"ok":false' "feature branch has no preview"
 has "$O" 'merged to dev' "feature branch explains the no-preview reason"
 pass "deploy-url <feature> → ok:false (no per-PR preview)"
 
+has "$O" '"source":"builtin-fallback"' "the built-in table labels itself as the fallback"
+pass "deploy-url without a declared table → answers from the labelled built-in"
+
 OTHER="$(mkrepo other 'git@github.com:Facilitron/marketing-dynamic-landing-pages.git')"
 O="$(bash "$SCRIPT" deploy-url dev --repo "$OTHER" 2>/dev/null || true)"; echo "  → $O"
-has "$O" '"ok":false' "non-marketing-pages repo routes to its README"
+has "$O" '"ok":false' "a repo with neither a declared table nor a built-in one fails"
 has "$O" 'README' "reason points at the repo README"
 pass "deploy-url for a sibling repo → ok:false (check README)"
+
+# --- deploy-url from the repo's own profile ----------------------------------
+# The branch→URL map is the consuming repo's fact. When it declares one, that
+# table wins over the plugin's built-in — including for marketing-pages itself,
+# so the built-in can be deleted once the repo declares the block.
+DECL="$(mkrepo declared 'git@github.com:Facilitron/marketing-pages.git')"
+mkdir -p "$DECL/.tron"
+cat > "$DECL/.tron/content-profile.json" <<'JSON'
+{
+  "version": 1,
+  "deploy": {
+    "branches": {
+      "dev": { "environment": "Development", "url": "https://declared-dev.example.com" },
+      "production": { "environment": "Production", "url": "https://declared-prod.example.com" }
+    }
+  }
+}
+JSON
+O="$(bash "$SCRIPT" deploy-url dev --repo "$DECL")"; echo "  → $O"
+has "$O" '"source":"repo-profile"' "a declared table is labelled as the repo's"
+has "$O" 'declared-dev.example.com' "the declared URL wins over the built-in marketing-pages table"
+pass "deploy-url → the repo's declared deploy.branches overrides the built-in"
+
+O="$(bash "$SCRIPT" deploy-url staging --repo "$DECL" 2>/dev/null || true)"; echo "  → $O"
+has "$O" '"ok":false' "a branch the repo does not declare has no URL"
+has "$O" '"declared":\["dev","production"\]' "failure lists what the repo does declare"
+pass "deploy-url <undeclared branch> → ok:false listing the declared ones"
 
 # --- usage / error contract --------------------------------------------------
 rc=0; bash "$SCRIPT" deploy-url --repo "$MP" >/dev/null 2>&1 || rc=$?
