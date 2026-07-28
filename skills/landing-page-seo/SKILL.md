@@ -36,6 +36,14 @@ Git-free: produces the spec; a git user makes the edits.
   keywords** (from `tron:keyword-research`).
 - Run `tron:seo-audit` first if you don't already have the page's current state.
 
+To name the source file behind a route, ask the owning repo rather than guessing at its layout —
+`check-link` resolves a route the same way the framework does, including catch-alls:
+
+```bash
+C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
+bash "$C" check-link /<route> --repo <checkout>   # → {"exists":true,"resolved":"app/pages/…"}
+```
+
 ## The spec (what to deliver)
 
 ```markdown
@@ -79,6 +87,8 @@ H2/H3 structure that covers the intent + supporting terms.
 
 ## Handoff
 
-Write `/tmp/seo/onpage-spec-<slug>.md`. The implementation is a marketing-pages change — hand to a
-git user (`tron:start-ticket` → edit → `tron:git-pr`) or file via `tron:board-scaffold`. Summarize
-the title/meta/H1 changes + the single highest-impact fix.
+Write `/tmp/seo/onpage-spec-<slug>.md`. The implementation lands in whichever repo serves the page —
+name it in the spec (`bash "$C" paths --repo <checkout> | jq -r .repo`) rather than assuming, since
+the same skill runs against the marketing site and the dynamic landing pages. Hand to a git user
+(`tron:start-ticket` → edit → `tron:git-pr`) or file via `tron:board-scaffold`. Summarize the
+title/meta/H1 changes + the single highest-impact fix.
