@@ -29,20 +29,17 @@ cat >"$SHIM/gh" <<'EOF'
 #   GH_STUB_LOG      file that `pr comment` writes its --body/--body-file into
 #   GH_STUB_EDIT_RC  exit code for `pr edit` (default 0)
 #   GH_STUB_COMMENT_ERR  if set, `pr comment` prints this to stderr and exits 1
-#   GH_STUB_SLUG     nameWithOwner for `repo view` (default o/r)
-#   GH_STUB_SLUG_FAIL  if set, `repo view` exits 1 (owner/repo unresolvable)
 #   GH_STUB_REVIEWS  JSON array returned for `api .../pulls/N/reviews`
 #   GH_STUB_REVIEWS_SEQUENCE_FILE  one JSON response per line, consumed per poll
 #   GH_STUB_PR_COMMENTS  JSON array returned for `api .../pulls/N/comments`
+#   GH_STUB_API_LOG  file each requested `api` path is appended to, so a test
+#                    can assert which owner/repo slug the script resolved
 case "$1 $2" in
   "pr view")
     [[ -n "${GH_STUB_FILES:-}" ]] && printf '%s\n' "$GH_STUB_FILES"
     exit 0 ;;
-  "repo view")
-    if [[ -n "${GH_STUB_SLUG_FAIL:-}" ]]; then exit 1; fi
-    printf '%s\n' "${GH_STUB_SLUG:-o/r}"
-    exit 0 ;;
   "api "*)
+    [[ -n "${GH_STUB_API_LOG:-}" ]] && printf '%s\n' "$2" >> "$GH_STUB_API_LOG"
     case "$2" in
       *"/reviews")
         if [[ -n "${GH_STUB_REVIEWS_SEQUENCE_FILE:-}" && -s "$GH_STUB_REVIEWS_SEQUENCE_FILE" ]]; then
@@ -188,10 +185,17 @@ O="$(GH_STUB_EDIT_RC=1 bash "$SCRIPT" request-review --pr 7)"; rc=$?
 has "$O" '"requested":false' "failure degrades to requested:false"
 pass "request-review: gh failure → ok:true requested:false exit 0"
 
+# ---- await-review: real repo fixtures for origin-derived slug resolution -----
+# derive_origin_slug reads `git remote get-url origin` directly (not gh), so
+# these tests need real repos with controllable remotes rather than a stub.
+SLUGREPO="$ROOT/slug-repo"; mkdir -p "$SLUGREPO"
+git -C "$SLUGREPO" init -q; git -C "$SLUGREPO" remote add origin https://github.com/o/r.git
+NOREMOTE="$ROOT/no-remote-repo"; mkdir -p "$NOREMOTE"; git -C "$NOREMOTE" init -q
+
 # ---- await-review: Copilot left inline comments -------------------------------
 export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://github.com/o/r/pull/7#pullrequestreview-1"}]'
 export GH_STUB_PR_COMMENTS='[{"user":{"login":"Copilot"},"path":"skills/x/SKILL.md","line":12,"body":"Consider X.","html_url":"https://c/1"},{"user":{"login":"somehuman"},"path":"a","line":1,"body":"ignore me","html_url":"https://c/2"}]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"status":"commented"' "review with inline comments → commented"
 has "$O" '"commentCount":1' "only Copilot's inline comment is counted"
 has "$O" 'Consider X.' "the comment body is returned for the worker to address"
@@ -201,7 +205,7 @@ pass "await-review: Copilot inline comments → status commented, comments[] car
 # ---- await-review: Copilot reviewed with no inline comments -------------------
 export GH_STUB_REVIEWS='[{"user":{"login":"copilot-pull-request-reviewer[bot]"},"state":"APPROVED","html_url":"https://x"}]'
 export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"status":"no-comments"' "reviewed with 0 inline comments → no-comments"
 has "$O" '"commentCount":0' "no-comments carries commentCount 0"
 pass "await-review: Copilot review, no inline comments → status no-comments (bot login variant matched)"
@@ -211,7 +215,7 @@ pass "await-review: Copilot review, no inline comments → status no-comments (b
 # a later page. Two concatenated array documents must still be found.
 export GH_STUB_REVIEWS=$'[{"user":{"login":"somehuman"},"state":"COMMENTED"}]\n[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://x"}]'
 export GH_STUB_PR_COMMENTS=$'[]\n[{"user":{"login":"Copilot"},"path":"a","line":2,"body":"page-two comment","html_url":"https://c/9"}]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"status":"commented"' "Copilot review on page two is still found"
 has "$O" '"commentCount":1' "page-two inline comment is counted, not dropped"
 has "$O" 'page-two comment' "multi-page comment body is carried"
@@ -220,7 +224,7 @@ pass "await-review: multi-page --paginate output slurped correctly (no misclassi
 # ---- await-review: Copilot never posts within the window ----------------------
 export GH_STUB_REVIEWS='[{"user":{"login":"somehuman"},"state":"COMMENTED"}]'
 export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; echo "  → $O"
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"status":"timeout"' "no Copilot review before deadline → timeout"
 has "$O" 'no Copilot review within 0s' "timeout reason names the bound"
 pass "await-review: no Copilot review → status timeout (degrades gracefully, no hang)"
@@ -228,7 +232,7 @@ pass "await-review: no Copilot review → status timeout (degrades gracefully, n
 # ---- await-review: PENDING Copilot review is not treated as landed ------------
 export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"PENDING"}]'
 export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"
 has "$O" '"status":"timeout"' "a PENDING (unsubmitted) Copilot review does not count as landed"
 pass "await-review: PENDING review ignored → timeout"
 
@@ -238,34 +242,52 @@ printf '%s\n%s\n' \
   '[{"user":{"login":"Copilot"},"state":"PENDING"}]' \
   '[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x/submitted"}]' \
   > "$REVIEWS_SEQUENCE"
-O="$(GH_STUB_REVIEWS_SEQUENCE_FILE="$REVIEWS_SEQUENCE" bash "$SCRIPT" await-review --pr 7 --timeout 2 --interval 0)"
+O="$(GH_STUB_REVIEWS_SEQUENCE_FILE="$REVIEWS_SEQUENCE" bash "$SCRIPT" await-review --pr 7 --timeout 2 --interval 0 --repo-dir "$SLUGREPO")"
 has "$O" '"status":"no-comments"' "poll continues after pending response until submitted review lands"
 has "$O" 'https://x/submitted' "result comes from the later submitted review"
 [[ ! -s "$REVIEWS_SEQUENCE" ]] || fail "await-review should consume both poll responses"
 pass "await-review: PENDING response retains polling loop until review completion"
 
 # ---- await-review: owner/repo unresolvable degrades to error, never hangs -----
-O="$(GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"; rc=$?
+O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$NOREMOTE")"; rc=$?
 [[ "$rc" == 0 ]] || fail "await-review must never fail the lifecycle on slug resolution (rc=$rc)"
 has "$O" '"status":"error"' "unresolvable slug → benign error status"
-pass "await-review: slug resolution failure → ok:true status error, exit 0"
+pass "await-review: slug resolution failure (no origin remote) → ok:true status error, exit 0"
+unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
+
+# ---- await-review: owner/repo resolves from origin, not upstream (MD-2506) ----
+# derive_origin_slug must read `origin` specifically — `gh repo view` (no
+# explicit repo argument) prefers `upstream` over `origin` when both remotes
+# are configured, which resolved the wrong repo in a fork/upstream layout.
+TWOREMOTE="$ROOT/two-remote-repo"; mkdir -p "$TWOREMOTE"
+git -C "$TWOREMOTE" init -q
+git -C "$TWOREMOTE" remote add origin https://github.com/origin-owner/origin-repo.git
+git -C "$TWOREMOTE" remote add upstream https://github.com/upstream-owner/upstream-repo.git
+API_LOG="$ROOT/api-calls.log"; : > "$API_LOG"
+export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x"}]'
+export GH_STUB_PR_COMMENTS='[]'
+O="$(GH_STUB_API_LOG="$API_LOG" bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$TWOREMOTE")"; echo "  → $O"
+has "$O" '"status":"no-comments"' "two-remote repo still resolves and completes the poll"
+has "$(cat "$API_LOG")" 'repos/origin-owner/origin-repo/pulls' "gh api path uses origin's owner/repo"
+if grep -q 'upstream-owner' "$API_LOG"; then fail "must not resolve to the upstream remote's owner/repo"; fi
+pass "await-review: owner/repo resolves from origin even with an upstream remote present"
 unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
 
 # ---- await-review: MD-2194 operator override skips the poll entirely ----------
-# GH_STUB_SLUG_FAIL is set so any gh call the poll would make (repo view, api
-# reviews/comments) fails the test — proves the skip happens before any gh call.
-O="$(TRON_COPILOT_UNAVAILABLE=1 GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7)"; rc=$?
+# --repo-dir points at NOREMOTE (no origin at all) — proves the skip happens
+# before slug resolution or any gh call, since resolution there would fail.
+O="$(TRON_COPILOT_UNAVAILABLE=1 bash "$SCRIPT" await-review --pr 7 --repo-dir "$NOREMOTE")"; rc=$?
 [[ "$rc" == 0 ]] || fail "await-review with operator flag must never fail the lifecycle (rc=$rc)"
 has "$O" '"status":"skipped"' "operator flag set → status skipped"
 has "$O" '"waitedSeconds":0' "skipped status carries no wait"
 has "$O" 'TRON_COPILOT_UNAVAILABLE' "reason names the operator flag"
-pass "await-review: TRON_COPILOT_UNAVAILABLE=1 → status skipped, no gh calls, exit 0"
+pass "await-review: TRON_COPILOT_UNAVAILABLE=1 → status skipped, no slug resolution needed, exit 0"
 
-O="$(TRON_COPILOT_UNAVAILABLE=true GH_STUB_SLUG_FAIL=1 bash "$SCRIPT" await-review --pr 7)"
+O="$(TRON_COPILOT_UNAVAILABLE=true bash "$SCRIPT" await-review --pr 7 --repo-dir "$NOREMOTE")"
 has "$O" '"status":"skipped"' "operator flag 'true' (case-insensitive) → status skipped"
 pass "await-review: TRON_COPILOT_UNAVAILABLE=true → status skipped"
 
-O="$(TRON_COPILOT_UNAVAILABLE=0 GH_STUB_SLUG=o/r bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0)"
+O="$(TRON_COPILOT_UNAVAILABLE=0 bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"
 has "$O" '"status":"timeout"' "operator flag '0' is not truthy → normal poll runs"
 pass "await-review: TRON_COPILOT_UNAVAILABLE=0 → not treated as unavailable"
 
@@ -274,15 +296,15 @@ pass "await-review: TRON_COPILOT_UNAVAILABLE=0 → not treated as unavailable"
 # observes the resolved default via timeoutSeconds without ever waiting it out.
 export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x"}]'
 export GH_STUB_PR_COMMENTS='[]'
-O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --interval 0)"; echo "  → $O"
+O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"timeoutSeconds":120' "TRON_DISPATCH_ID set, no --timeout → tightened 120s default"
 pass "await-review: dispatched worker with no --timeout override → 120s default (was 600s)"
 
-O="$(env -u TRON_DISPATCH_ID bash "$SCRIPT" await-review --pr 7 --interval 0)"; echo "  → $O"
+O="$(env -u TRON_DISPATCH_ID bash "$SCRIPT" await-review --pr 7 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
 has "$O" '"timeoutSeconds":600' "no TRON_DISPATCH_ID, no --timeout → unchanged 600s default"
 pass "await-review: interactive run with no --timeout override → 600s default unchanged"
 
-O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --timeout 5 --interval 0)"
+O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --timeout 5 --interval 0 --repo-dir "$SLUGREPO")"
 has "$O" '"timeoutSeconds":5' "explicit --timeout overrides the dispatched default"
 pass "await-review: explicit --timeout still wins over the dispatched default"
 unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
