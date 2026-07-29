@@ -17,6 +17,6 @@ alex.ProfanityUnlikely = NO
 
 # Ignore Nuxt/MDC component fences (::card … ::, including nested ::: variants and
 # {prop} attribute braces) — they are markup, not prose.
-BlockIgnores = (?s) *(:{2,}[\w-]+(\{[^{}\n]*\})?.*?\n *:{2,})
+BlockIgnores = (?s) *(::+[\w-]+(\{[^{}\n]*\})?.*?\n *::+)
 # Ignore inline/display math ($…$ and $$…$$) and inline code spans.
 TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`)
