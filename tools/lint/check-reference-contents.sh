@@ -13,7 +13,10 @@
 # The threshold is 100 lines; the list must appear inside the first 20 so it
 # survives the truncation it exists to defend against. Headings inside fenced
 # code blocks are not sections — the docs that carry markdown templates would
-# otherwise have to index their own examples.
+# otherwise have to index their own examples. Both CommonMark fence characters
+# count: a tilde fence hiding template headings would otherwise be read as real
+# sections and fail a compliant doc, and a false positive in a lint blocks
+# unrelated work.
 #
 #   bash tools/lint/check-reference-contents.sh [repo-root]
 set -euo pipefail
@@ -35,17 +38,29 @@ scanned=0
 # under `## Contents`, then reports sections no item names.
 audit() {
   awk -v head_lines="$HEAD_LINES" '
-    function fence_len(line) {
-      if (match(line, /^[[:space:]]*`+/) == 0) return 0
+    # Sets fence_char/fence_run to the leading fence run, or fence_char="" when
+    # the line does not open or close one. CommonMark allows both ` and ~.
+    function read_fence(line) {
+      fence_char = ""
+      fence_run = 0
+      if (match(line, /^[[:space:]]*`{3,}/) == 0 && match(line, /^[[:space:]]*~{3,}/) == 0) return
       run = substr(line, RSTART, RLENGTH)
       sub(/^[[:space:]]*/, "", run)
-      return length(run) >= 3 ? length(run) : 0
+      fence_char = substr(run, 1, 1)
+      fence_run = length(run)
     }
     {
-      len = fence_len($0)
-      if (len > 0) {
-        if (open_fence == 0) open_fence = len
-        else if (len >= open_fence) open_fence = 0
+      read_fence($0)
+      if (fence_char != "") {
+        # A fence closes only on the same character and a run at least as long,
+        # so a ``` inside a ~~~ block (or a shorter run) does not reopen prose.
+        if (open_fence == 0) {
+          open_fence = fence_run
+          open_char = fence_char
+        } else if (fence_char == open_char && fence_run >= open_fence) {
+          open_fence = 0
+          open_char = ""
+        }
         next
       }
       if (open_fence > 0) next

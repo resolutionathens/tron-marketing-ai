@@ -122,6 +122,33 @@ bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "headings insid
 pass "ignores ## headings inside fenced code blocks, including a nested fence"
 
 reset_fixture
+{
+  echo "# Tilde fences hide template copy too"
+  echo
+  echo "## Contents"
+  echo
+  echo "- [Real section](#real-section)"
+  echo
+  echo "## Real section"
+  echo
+  echo '~~~markdown'
+  echo "## Not a section, it is template copy"
+  echo '```'
+  echo "a backtick run must not close a tilde fence"
+  echo '```'
+  echo "## Also template copy"
+  echo '~~~'
+  body 120
+} >"$FIXTURE/skills/example/reference/tilde-fenced.md"
+bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1 \
+  || { cat "$LOG" >&2; fail "headings inside a ~~~ fence should not count as sections"; }
+if rg -q 'does not name the section "Not a section' "$LOG"; then
+  cat "$LOG" >&2
+  fail "a tilde-fenced template heading must not be reported as a section"
+fi
+pass "ignores ## headings inside a ~~~ fence, which a backtick run must not close"
+
+reset_fixture
 trash "$FIXTURE/tools/example/compliant.md"
 if bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1; then
   fail "an empty scan should not report a false green"
