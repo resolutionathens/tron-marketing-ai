@@ -4,23 +4,66 @@
 # ignore both the `::` and `:::` MDC fence variants without swallowing prose
 # outside them.
 #
-# Hermetic: uses only the bundled Vale style + Vocab (no `Packages`/`vale sync`,
-# so no network dependency); SKIPs cleanly if the `vale` binary is absent.
+# The comma check below is vale-independent and runs unconditionally — it's
+# the assertion CI actually exercises, since CI never installs vale. It fails
+# on any future edit that reintroduces a comma (e.g. a `{n,m}` quantifier),
+# not just on a snapshot of today's string. It's scoped to BlockIgnores only:
+# TokenIgnores on the next line legitimately contains a comma (a genuine
+# two-pattern list), so the test also asserts the check doesn't false-positive
+# there.
+#
+# Below that, if `vale` is installed locally, a richer check exercises the
+# real regex end-to-end against Vale's bundled styles (no `Packages`/`vale
+# sync`, so still no network dependency) and confirms both fence variants are
+# ignored while outside prose still lints. That part SKIPs cleanly in CI.
 #
 #   bash skills/prose-lint/scripts/test-vale-ini-template.sh
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SKILL_DIR="$(cd "$HERE/.." && pwd)"
+TEMPLATE="$SKILL_DIR/vale-ini.template"
+
+PASS=0
+pass() { echo "  ok: $*"; PASS=$((PASS+1)); }
+fail() { echo "  FAIL: $*" >&2; exit 1; }
+
+[ -f "$TEMPLATE" ] || fail "vale-ini.template not found at $TEMPLATE"
+
+BLOCK_IGNORES="$(grep '^BlockIgnores' "$TEMPLATE" | sed 's/^BlockIgnores = //')"
+TOKEN_IGNORES="$(grep '^TokenIgnores' "$TEMPLATE" | sed 's/^TokenIgnores = //')"
+
+[ -n "$BLOCK_IGNORES" ] || fail "no BlockIgnores line found in vale-ini.template"
+[ -n "$TOKEN_IGNORES" ] || fail "no TokenIgnores line found in vale-ini.template"
+
+# --- Vale-independent: this is the assertion CI actually runs. ---
+
+case "$BLOCK_IGNORES" in
+  *,*) fail "BlockIgnores contains a comma — Vale splits *Ignores values on commas, so this will break with an E201 parse error (the {n,m}-quantifier bug this test guards against): $BLOCK_IGNORES" ;;
+esac
+pass "BlockIgnores contains no comma"
+
+# Scoping check: the rule above must apply to BlockIgnores only. TokenIgnores
+# is a genuine two-pattern list and is expected to contain a comma; if a
+# broader "no *Ignores key may contain a comma" check were written instead,
+# this would catch it failing on legitimate input.
+case "$TOKEN_IGNORES" in
+  *,*) pass "TokenIgnores legitimately contains a comma (two-pattern list) — confirms the check above is scoped to BlockIgnores only" ;;
+  *) fail "TokenIgnores has no comma — expected it to still be a two-pattern list; if this changed, the scoping assumption behind this test needs a re-check" ;;
+esac
+
+if printf '%s' "$BLOCK_IGNORES" | grep -qE '\{[0-9]+,'; then
+  fail "BlockIgnores contains a {n,...} quantifier, which reintroduces a comma: $BLOCK_IGNORES"
+fi
+pass "BlockIgnores contains no {n,...} quantifier"
+
+# --- Vale-dependent: richer end-to-end check, SKIPs cleanly where vale isn't installed (e.g. CI). ---
 
 if ! command -v vale >/dev/null 2>&1; then
-  echo "SKIP: vale not installed — skipping vale-ini.template regression test"
+  echo "SKIP: vale not installed — skipping the end-to-end vale-ini.template check"
+  echo "vale-ini.template BlockIgnores regression: $PASS checks passed (+ 1 skipped)"
   exit 0
 fi
-
-BLOCK_IGNORES="$(grep '^BlockIgnores' "$SKILL_DIR/vale-ini.template" | sed 's/^BlockIgnores = //')"
-TOKEN_IGNORES="$(grep '^TokenIgnores' "$SKILL_DIR/vale-ini.template" | sed 's/^TokenIgnores = //')"
-[ -n "$BLOCK_IGNORES" ] || { echo "FAIL: no BlockIgnores line found in vale-ini.template" >&2; exit 1; }
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/prose-lint-blockignores.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -62,10 +105,6 @@ Final closing remark outside every fence, meant to trigger a finding down here t
 EOF
 
 OUT="$(cd "$WORK" && vale --output=line fixture.md 2>&1)" || true
-
-PASS=0
-pass() { echo "  ok: $*"; PASS=$((PASS+1)); }
-fail() { echo "  FAIL: $*" >&2; echo "$OUT" >&2; exit 1; }
 
 if printf '%s\n' "$OUT" | grep -q 'E201'; then
   fail "BlockIgnores/TokenIgnores regex failed to parse (E201)"
