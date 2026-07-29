@@ -55,11 +55,15 @@ bash "$SCRIPT" "$REPO_ROOT" >/dev/null || fail "should pass on the real repo"
 pass "passes clean on the real repo"
 
 reset_fixture
-{ echo "# Short reference"; echo; echo "## Only section"; body 40; } \
+# Exactly 100 lines — the threshold itself, which must stay exempt.
+{ echo "# Short reference"; echo; echo "## Only section"; body 97; } \
   >"$FIXTURE/skills/example/reference/short.md"
+[ "$(wc -l <"$FIXTURE/skills/example/reference/short.md" | tr -d '[:space:]')" = 100 ] \
+  || fail "fixture should be exactly 100 lines to pin the threshold"
 bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "should pass on compliant + short docs"; }
-rg -q 'check-reference-contents: OK \(1 of 2' "$LOG" || { cat "$LOG" >&2; fail "should scan 2 docs and check only the long one"; }
-pass "exempts a doc at or under the 100-line threshold"
+rg -q 'check-reference-contents: OK \(1 of 2 reference docs over 100 lines\)' "$LOG" \
+  || { cat "$LOG" >&2; fail "should scan 2 docs and check only the long one"; }
+pass "exempts a doc of exactly 100 lines and checks only the longer one"
 
 reset_fixture
 { echo "# Long and bare"; echo; echo "## Section"; body 120; } \

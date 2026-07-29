@@ -70,8 +70,10 @@ expect_fail() {
   pass "$2"
 }
 
-bash "$SCRIPT" "$REPO_ROOT" >/dev/null || fail "should pass on the real repo"
-pass "passes clean on the real repo"
+bash "$SCRIPT" "$REPO_ROOT" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "should pass on the real repo"; }
+rg -q 'check-audit-delegation: OK \(checked 5 audit skills\)' "$LOG" \
+  || { cat "$LOG" >&2; fail "should report all 5 contracted audit skills as checked"; }
+pass "passes on the real repo with all 5 contracted audit skills checked"
 
 reset_fixture
 bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "should pass on a correct fixture"
@@ -101,5 +103,9 @@ expect_fail 'FAIL site-audit: missing runner agent agents/unlighthouse-runner\.m
 reset_fixture
 write_agent a11y-scan-runner some-other-runner
 expect_fail 'FAIL a11y-scan: .*declares name "some-other-runner"' "rejects a runner whose declared name drifted"
+
+reset_fixture
+trash "$FIXTURE/skills/optimize-images"
+expect_fail 'FAIL optimize-images: missing skills/optimize-images/SKILL\.md' "rejects a contracted audit skill that disappeared"
 
 echo "check-audit-delegation smoke: $PASS assertions passed"
