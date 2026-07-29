@@ -122,13 +122,21 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
 Step 3's base resolver before creating the PR.
 
+Resolve `owner/repo` from the origin remote — never hardcode a slug, since this plugin ships to
+many consuming repos under different orgs:
+
+```bash
+SLUG="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)"
+[ -n "$SLUG" ] || { echo "error: could not resolve owner/repo from the origin remote" >&2; exit 1; }
+```
+
 Write the body to a temp file and pass it via `--body-file`:
 
 ```bash
 cat > /tmp/.pr-body.md <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH"
+gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH" --repo "$SLUG"
 ```
 
 ## Steps 7–8: Copilot review + retro comment
