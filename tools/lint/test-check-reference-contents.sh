@@ -68,14 +68,58 @@ pass "exempts a doc of exactly 100 lines and checks only the longer one"
 reset_fixture
 { echo "# Long and bare"; echo; echo "## Section"; body 120; } \
   >"$FIXTURE/skills/example/reference/bare.md"
-expect_fail 'FAIL skills/example/reference/bare\.md: 123 lines and no "## Contents" list in the first 20' \
+expect_fail 'FAIL skills/example/reference/bare\.md: 123 lines and has no "## Contents" list' \
   "rejects a long reference doc with no contents list"
 
 reset_fixture
-{ echo "# Contents too far down"; body 25; echo "## Contents"; echo; echo "- [Section](#section)"; body 100; } \
+{ echo "# Contents too far down"; body 25; echo "## Contents"; echo; echo "- [Section](#section)"; echo; echo "## Section"; body 100; } \
   >"$FIXTURE/tools/example/late.md"
-expect_fail 'FAIL tools/example/late\.md: 129 lines and no "## Contents" list in the first 20' \
+expect_fail 'FAIL tools/example/late\.md: 131 lines and puts its "## Contents" list on line 27, past the first 20 lines' \
   "rejects a contents list pushed past the truncation window"
+
+reset_fixture
+{ echo "# Heading but no entries"; echo; echo "## Contents"; echo; echo "## Section"; body 120; } \
+  >"$FIXTURE/skills/example/reference/empty-list.md"
+expect_fail 'FAIL skills/example/reference/empty-list\.md: 125 lines and has an empty "## Contents" list' \
+  "rejects a contents heading carrying no entries"
+
+reset_fixture
+{
+  echo "# Drifted list"
+  echo
+  echo "## Contents"
+  echo
+  echo "- [Kept in sync](#kept-in-sync)"
+  echo
+  echo "## Kept in sync"
+  body 60
+  echo "## Added later and never indexed"
+  body 60
+} >"$FIXTURE/tools/example/drifted.md"
+expect_fail 'FAIL tools/example/drifted\.md: 128 lines and has a "## Contents" list that does not name the section "Added later and never indexed"' \
+  "rejects a contents list that has drifted from the sections"
+
+reset_fixture
+{
+  echo "# Template headings are not sections"
+  echo
+  echo "## Contents"
+  echo
+  echo "- [Real section](#real-section)"
+  echo
+  echo "## Real section"
+  echo
+  echo '````markdown'
+  echo "## Not a section, it is template copy"
+  echo '```'
+  echo "nested fence inside the outer one"
+  echo '```'
+  echo "## Also template copy"
+  echo '````'
+  body 120
+} >"$FIXTURE/skills/example/reference/fenced.md"
+bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "headings inside fenced blocks should not count as sections"; }
+pass "ignores ## headings inside fenced code blocks, including a nested fence"
 
 reset_fixture
 trash "$FIXTURE/tools/example/compliant.md"
