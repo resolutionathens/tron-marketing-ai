@@ -48,6 +48,19 @@ set -euo pipefail
 log() { echo "git-pr-retro: $*" >&2; }
 usage_err() { echo "git-pr-retro.sh: $*" >&2; exit 2; }
 
+# Derive owner/repo from the `origin` remote itself — `gh repo view` (no arg)
+# prefers `upstream` over `origin` when both are configured, so it silently
+# resolves the wrong repo (exit 0) in a fork/upstream layout. Mirrors
+# circleci.sh's derive_slug.
+derive_origin_slug() {
+  local url
+  url="$(git remote get-url origin 2>/dev/null)" || return 1
+  [[ -n "$url" ]] || return 1
+  url="${url%.git}"
+  [[ "$url" =~ github\.com[:/]([^/]+)/([^/]+)$ ]] || return 1
+  printf '%s/%s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+}
+
 command -v jq >/dev/null 2>&1 || usage_err "jq is required but not on PATH"
 
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
@@ -211,10 +224,11 @@ cmd_await_review() {
   # from elsewhere (this is the last subcommand, so cd'ing the process is fine).
   cd "$DIR" 2>/dev/null || { jq -nc --arg d "$DIR" '{ok:true,status:"error",commentCount:0,waitedSeconds:0,reason:("repo-dir not accessible: " + $d)}'; return 0; }
 
-  # Resolve owner/repo once (from the worktree), so gh api paths are unambiguous.
+  # Resolve owner/repo once (from the worktree's origin remote), so gh api
+  # paths are unambiguous.
   local slug
-  if ! slug="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)" || [[ -z "$slug" ]]; then
-    jq -nc --arg n "$PR" '{ok:true,status:"error",commentCount:0,waitedSeconds:0,reason:"could not resolve owner/repo — skipping Copilot wait"}'
+  if ! slug="$(derive_origin_slug)" || [[ -z "$slug" ]]; then
+    jq -nc --arg n "$PR" '{ok:true,status:"error",commentCount:0,waitedSeconds:0,reason:"could not resolve owner/repo from the origin remote — skipping Copilot wait"}'
     return 0
   fi
 

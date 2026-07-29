@@ -188,7 +188,7 @@ API with a locally-held credential. `okf.mjs` is the **inverse**: `TRON_API_URL`
 fallback for the rare dispatch that has no `TRON_API_URL` at all.
 
 A known intermittent TLS handshake failure to the broker affects some workers — see
-[tron-os's broker known-issues playbook](https://github.com/Facilitron/tron-os/blob/3086c8402611369e59af12cbbcf5e5de2f00ded0/knowledge/playbooks/org-secret-broker.md#known-issues).
+[tron-os's broker known-issues playbook](https://github.com/resolutionathens/tron-os/blob/3086c8402611369e59af12cbbcf5e5de2f00ded0/knowledge/playbooks/org-secret-broker.md#known-issues).
 The fallback path exists precisely so that failure doesn't dead-end a run. Skills run
 identically under the experimental pi harness.
 

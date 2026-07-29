@@ -122,13 +122,28 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
 Step 3's base resolver before creating the PR.
 
+Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
+selection) — never hardcode a slug, since this plugin ships to many consuming repos under
+different orgs:
+
+```bash
+ORIGIN_URL="$(git remote get-url origin 2>/dev/null)"
+[ -n "$ORIGIN_URL" ] || { echo "error: no origin remote configured" >&2; exit 1; }
+ORIGIN_URL="${ORIGIN_URL%.git}"
+if [[ "$ORIGIN_URL" =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then
+  SLUG="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+else
+  echo "error: origin remote is not a github.com URL: $ORIGIN_URL" >&2; exit 1
+fi
+```
+
 Write the body to a temp file and pass it via `--body-file`:
 
 ```bash
 cat > /tmp/.pr-body.md <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH"
+gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH" --repo "$SLUG"
 ```
 
 ## Steps 7–8: Copilot review + retro comment
