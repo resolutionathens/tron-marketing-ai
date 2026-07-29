@@ -8,7 +8,7 @@ the command catalog.
 ## Contents
 
 - Scripted subcommands (`scripts/circleci.sh`)
-- Common harness recipes (raw v2 API)
+- Common harness recipes (raw v2 API via the broker)
 - CLI side: config validation & local execution
 - Output handling
 

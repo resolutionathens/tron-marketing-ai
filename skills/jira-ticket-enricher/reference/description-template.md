@@ -1,5 +1,10 @@
 # Description template — base shape and a worked example
 
+## Contents
+
+- [Base template](#base-template)
+- [Worked example](#worked-example)
+
 ## Base template
 
 The base shape is the shared [ticket rubric](../../../tools/ticket/ticket-rubric.md)'s machine

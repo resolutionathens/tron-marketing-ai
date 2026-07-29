@@ -107,6 +107,16 @@ bash tools/lint/check-fastpath-resolvers.sh       # lint the real repo
 bash tools/lint/test-check-fastpath-resolvers.sh  # the lint's own smoke test
 ```
 
+### Progressive-disclosure structure lint
+
+A long reference doc is read partially, so its scope has to be visible in the opening lines. The
+lint owns the threshold and the reason; it fails with the offending path and its line count:
+
+```bash
+bash tools/lint/check-reference-contents.sh       # lint the real repo
+bash tools/lint/test-check-reference-contents.sh  # the lint's own smoke test
+```
+
 ---
 
 ## 2. Audit-skill delegation smoke (the delegate → runner chain)
@@ -137,17 +147,14 @@ For each row, issue the smoke query and confirm:
 3. The runner returns a report (or a clean "tool not installed" message with the install
    hint), and the skill **relays** it rather than re-doing the work.
 
-A static check that every audit skill still names its runner:
+The static half of that chain is linted, so it does not need checking by hand:
 
 ```bash
-for s in a11y-scan link-check prose-lint site-audit optimize-images; do
-  grep -ql 'runner' "skills/$s/SKILL.md" && echo "OK  $s names a runner" \
-    || echo "BAD $s does not mention a runner"
-done
+bash tools/lint/check-audit-delegation.sh       # lint the real repo
+bash tools/lint/test-check-audit-delegation.sh  # the lint's own smoke test
 ```
 
-If a skill stops delegating, fix the SKILL.md so it hands off — and keep the skill's declared
-model (`haiku`) and its delegation note in sync, per CLAUDE.md.
+If a skill stops delegating, fix the SKILL.md so it hands off.
 
 ---
 
@@ -176,12 +183,12 @@ You can still run any scenario by hand: install the plugin as a directory market
 (`/plugin marketplace add /path/to/tron-marketing-ai`), issue the `query`, and check the
 result against `expected_behavior`.
 
-The harness validates JSON as it loads; to check parsing independently:
+The harness validates JSON as it loads, and a lint parses every scenario and golden run without
+running the harness (nothing else covers them in CI):
 
 ```bash
-for f in $(find evaluations skills/*/example -name '*.json'); do
-  python3 -m json.tool "$f" >/dev/null && echo "OK $f" || echo "BAD $f"
-done
+bash tools/lint/check-evaluation-json.sh       # lint the real repo
+bash tools/lint/test-check-evaluation-json.sh  # the lint's own smoke test
 ```
 
 ### Testing across Haiku / Sonnet / Opus

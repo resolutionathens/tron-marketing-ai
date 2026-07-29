@@ -92,8 +92,6 @@ the workflow + judgment in SKILL.md.
 - **References stay one level deep from SKILL.md.** SKILL.md links the reference file directly;
   a reference file must not chain to another (Claude only partially reads nested links). If two
   reference files are both needed, link both from SKILL.md.
-- **Reference files over 100 lines start with a `## Contents` list** of their `##` sections, so
-  a partial read still shows the full scope.
 - **Shared prose used by more than one skill lives once under `tools/<area>/<name>.md`** and is
   linked directly from each consuming SKILL.md (still one level deep) — don't copy it into each
   skill's `reference/`. The content image pipeline is the model: the convert → upload → verify
@@ -130,8 +128,7 @@ the workflow + judgment in SKILL.md.
 `a11y-scan`, `link-check`, `prose-lint`, `site-audit`, `optimize-images` are
 thin orchestrators: the SKILL.md resolves the target and hands off to a matching `agents/*-runner.md`
 that does the mechanical run. The **skill** stays cheap (`haiku`); the **agent** carries whatever
-model the work needs (e.g. `vale-prose-runner` is `sonnet` for prose judgment). Keep the skill's
-declared model and its delegation note in sync.
+model the work needs (e.g. `vale-prose-runner` is `sonnet` for prose judgment).
 
 ## Content-pipeline repo guard
 
