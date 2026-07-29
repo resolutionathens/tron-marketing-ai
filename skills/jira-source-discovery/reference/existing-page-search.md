@@ -1,5 +1,14 @@
 # Existing-page search — page and content tickets
 
+## Contents
+
+- [1. Pull search terms from the ticket](#1-pull-search-terms-from-the-ticket)
+- [2. Resolve the local checkout and its source roots](#2-resolve-the-local-checkout-and-its-source-roots)
+- [3. Search the resolved roots](#3-search-the-resolved-roots)
+- [4. Fall back to a remote search when no local checkout resolves](#4-fall-back-to-a-remote-search-when-no-local-checkout-resolves)
+- [5. Confirm a candidate against the live site](#5-confirm-a-candidate-against-the-live-site)
+- [6. Record the result in the enriched description](#6-record-the-result-in-the-enriched-description)
+
 Before drafting a landing page or content ticket as net-new, check whether a page matching the
 subject already exists and is live. A ticket that reads "build the Attendee Management page"
 can just as easily mean "redesign/migrate the Attendee Management page that already ships at
