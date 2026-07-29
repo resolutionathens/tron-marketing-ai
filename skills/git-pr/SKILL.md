@@ -122,12 +122,19 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
 Step 3's base resolver before creating the PR.
 
-Resolve `owner/repo` from the origin remote — never hardcode a slug, since this plugin ships to
-many consuming repos under different orgs:
+Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
+selection) — never hardcode a slug, since this plugin ships to many consuming repos under
+different orgs:
 
 ```bash
-SLUG="$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null)"
-[ -n "$SLUG" ] || { echo "error: could not resolve owner/repo from the origin remote" >&2; exit 1; }
+ORIGIN_URL="$(git remote get-url origin 2>/dev/null)"
+[ -n "$ORIGIN_URL" ] || { echo "error: no origin remote configured" >&2; exit 1; }
+ORIGIN_URL="${ORIGIN_URL%.git}"
+if [[ "$ORIGIN_URL" =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then
+  SLUG="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+else
+  echo "error: origin remote is not a github.com URL: $ORIGIN_URL" >&2; exit 1
+fi
 ```
 
 Write the body to a temp file and pass it via `--body-file`:
