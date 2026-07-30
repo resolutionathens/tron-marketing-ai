@@ -6,6 +6,10 @@ on:
 jobs:
   plugin-package:
     name: Claude and Codex package validation
+    # Hosted macOS runners are deliberate and free here: this repo is public, so standard
+    # GitHub-hosted minutes are not billed (unlike tron-os, which is private). Confirmed via
+    # billable.MACOS.total_ms = 0 on a 161s run of this workflow. Do not move this job to a
+    # self-hosted runner on the belief that hosted macOS costs money (MD-2545).
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,7 +18,13 @@ jobs:
           node-version: 20
       - name: Install plugin CLIs and cleanup dependency
         run: |
-          npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
+          # Track @latest rather than pinning a version: a fixed pin drifts stale and lets
+          # check-plugin-package.sh prove the plugin installs into releases nobody runs,
+          # which is exactly where an install-time incompatibility would hide. The tradeoff
+          # is a new upstream release can turn this CI red on an unrelated PR - that is the
+          # desired signal, since it means the plugin is broken for consumers right now
+          # (MD-2545).
+          npm install --global @openai/codex@latest @anthropic-ai/claude-code@latest
           brew install trash ripgrep
       - name: Validate native Claude and Codex package installations
         run: bash tools/lint/check-plugin-package.sh
