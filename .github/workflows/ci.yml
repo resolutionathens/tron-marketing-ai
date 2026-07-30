@@ -6,37 +6,15 @@ on:
 jobs:
   plugin-package:
     name: Claude and Codex package validation
-    # GitHub-hosted macOS, deliberately, and NOT the self-hosted runner used by tron-os.
-    #
-    # tron-os pins its macOS work to a self-hosted runner because hosted macOS bills Actions
-    # minutes at a 10x multiplier and once caused a billing lockout (MD-2174). That reasoning
-    # does not transfer: tron-os is PRIVATE, this repo is PUBLIC, and standard GitHub-hosted
-    # runners are free on public repositories. GitHub's own accounting confirms it rather than
-    # us inferring it — the timing API reports billable.MACOS.total_ms = 0 for a run of this
-    # workflow that took 161s of wall clock. Do not "optimize" this onto a self-hosted runner
-    # again without re-checking that number.
-    #
-    # Hosted is also the better environment for this particular job, not merely the cheaper
-    # one. check-plugin-package.sh validates that the plugin installs cleanly into fresh
-    # Claude and Codex homes; a developer machine already has both CLIs, their auth, and their
-    # config, so it cannot honestly prove fresh-install behavior. The ephemeral runner is the
-    # only clean room available. The local Layer-1 gate that tron:git-pr runs before opening a
-    # PR is the fast check; this is the hermetic one, and they are not redundant.
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # @latest rather than a version pin. The pins this step used to carry (codex 0.144.4,
-      # claude 2.1.215) had drifted older than the CLIs in real use, so the job was validating
-      # the plugin against releases no consumer was running, which is exactly where an
-      # install-time incompatibility would hide. Tracking latest means an upstream CLI release
-      # can turn this job red on an unrelated PR; that is the signal we want, because it means
-      # the plugin is broken for consumers right now.
       - name: Install plugin CLIs and cleanup dependency
         run: |
-          npm install --global @openai/codex@latest @anthropic-ai/claude-code@latest
+          npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
           brew install trash ripgrep
       - name: Validate native Claude and Codex package installations
         run: bash tools/lint/check-plugin-package.sh
