@@ -26,5 +26,5 @@ generate-from-references workflow (see the shared doc). For guides the parameter
 - index folder: `guides`
 - prefix: `guide` (so the next free number is e.g. `guide-05.webp`)
 
-Upload the result as `guides/guide-<NN>.webp`. This is the thumbnail the `index.vue` entry
-references in Stage 4 — distinct from the `guides/<slug>/` body-image folder.
+Upload the result as `guides/guide-<NN>.webp`. This is the thumbnail the `resource-guides.ts`
+entry references in Stage 4 — distinct from the `guides/<slug>/` body-image folder.

@@ -44,7 +44,7 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 - [ ] Stage 1: read ticket + fetch Confluence draft + images; confirm slug
 - [ ] Stage 2: convert body images to webp + upload to guides/<slug>/; OG image; index card thumbnail
 - [ ] Stage 3: compose pages/resources/guides/<slug>.vue from the guide palette
-- [ ] Stage 4: append entry to guides array in index.vue
+- [ ] Stage 4: append entry to resourceGuides array in app/data/resource-guides.ts
 - [ ] Stage 5: verify renders, card shows, images + links resolve, prose-lint + a11y-scan
 - [ ] Clean up: remove /tmp/guide-<slug> and dropped-in sources
 ```
@@ -55,7 +55,7 @@ Publish a new guide under `/resources/guides` — a **hand-composed Vue page** (
 - Body images at `guides/<slug>/<name>.webp` (via `<NuxtImg provider="imagekit">`)
 - OG image at `og/og-<slug>.webp`
 - Card thumbnail at `guides/guide-<NN>.webp` (next free number)
-- New entry in `pages/resources/guides/index.vue`'s `guides` array
+- New entry in `app/data/resource-guides.ts`'s `resourceGuides` array
 - Source files cleaned up
 
 ## Inputs
@@ -138,7 +138,7 @@ See `reference/components.md` for the full palette — section skeleton, compone
 
 ## Stage 4 — Register in the index
 
-Guides are not auto-discovered. Append to `pages/resources/guides/index.vue`:
+Guides are not auto-discovered. Append to the `resourceGuides` array in `app/data/resource-guides.ts` — this is the single registry both `pages/resources/guides/index.vue` and site search (`useContentSearch.ts`) consume:
 
 ```ts
 { title: "<title>", description: "<card description>", image: "guides/guide-<NN>.webp", imageAlt: "", link: "/resources/guides/<slug>" }
