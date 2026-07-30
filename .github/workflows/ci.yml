@@ -6,21 +6,68 @@ on:
 jobs:
   plugin-package:
     name: Claude and Codex package validation
-    runs-on: macos-latest
+    # Self-hosted on Ian's Apple Silicon Mac, matching tron-os's release workflow. Never a
+    # GitHub-hosted macOS runner: they bill Actions minutes at a 10x multiplier, and on this
+    # account that already caused a billing lockout (tron-os MD-2174). Self-hosted runs are
+    # unbilled. macOS is not optional for this suite — run-layer1-tests.sh exists to exercise
+    # the real Bash 3.2 and BSD-coreutils runtime the plugin's scripts ship against, so the
+    # answer is a local runner, not a cheaper Linux one.
+    runs-on: [self-hosted, macOS, ARM64]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install plugin CLIs and cleanup dependency
+
+      # The CLIs go in a job-local prefix under RUNNER_TEMP, never `npm install --global`.
+      # This runner is a working developer machine: a global install would rewrite the codex
+      # and claude in daily use on every CI run, and the pins this workflow used to carry
+      # (claude 2.1.215, codex 0.144.4) were both OLDER than the machine's own, so each run
+      # silently downgraded them. An isolated prefix cannot touch the host's install, and
+      # check-plugin-package.sh already isolates CODEX_HOME/CLAUDE_CONFIG_DIR, so neither the
+      # binaries nor the plugin config of the host are in play.
+      #
+      # `@latest`, not a pin: what this job validates is that the plugin installs cleanly in
+      # the CLIs consumers actually run, so a stale pin would hide a real incompatibility.
+      # The tradeoff is accepted deliberately — an upstream CLI release can turn this job red
+      # on an unrelated PR, and that is the signal we want, since it means the plugin is
+      # broken for consumers right now.
+      - name: Install Claude and Codex CLIs into an isolated prefix
         run: |
-          npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
-          brew install trash ripgrep
+          set -euo pipefail
+          PREFIX="$RUNNER_TEMP/plugin-clis"
+          mkdir -p "$PREFIX"
+          npm install --prefix "$PREFIX" --no-save --no-audit --no-fund \
+            @openai/codex@latest @anthropic-ai/claude-code@latest
+          echo "$PREFIX/node_modules/.bin" >> "$GITHUB_PATH"
+
+      # Fail with a clear message if the runner host is missing a dependency, rather than
+      # letting a script die on a bare "command not found" ten steps later. trash and rg come
+      # from the host (brew); node comes from the host toolchain.
+      - name: Verify tooling resolves, CLIs from the isolated prefix
+        run: |
+          set -euo pipefail
+          missing=0
+          for cmd in node codex claude trash rg; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              echo "::error::$cmd is not on the runner PATH; install it on the runner host"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          for cmd in codex claude; do
+            case "$(command -v "$cmd")" in
+              "$RUNNER_TEMP"/*) ;;
+              *) echo "::error::$cmd resolved to $(command -v "$cmd"), not the isolated prefix"; exit 1 ;;
+            esac
+          done
+          echo "node $(node --version), claude $(claude --version), codex $(codex --version)"
+
       - name: Validate native Claude and Codex package installations
         run: bash tools/lint/check-plugin-package.sh
+
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
+
       - name: Validate role package ownership and dependency closure
         run: bash tools/package/test-build-packages.sh
+
       - name: Run Layer-1 lints
         run: bash tools/lint/run-layer1-tests.sh
