@@ -90,7 +90,9 @@ Infer from the summary, source, and user context. Common Facilitron patterns:
 
 Return one of the canonical `Type` values defined in
 [`tools/ticket/ticket-rubric.md`](../../tools/ticket/ticket-rubric.md); do not maintain a separate
-work-type vocabulary in this skill.
+work-type vocabulary in this skill. The target repo comes from the ticket's `Repo:` field or its
+summary PREFIX, for which [`tools/jira/conventions.md`](../../tools/jira/conventions.md) is
+canonical.
 
 When the user states the repo or destination type, trust that over inference.
 

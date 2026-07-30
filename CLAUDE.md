@@ -89,9 +89,20 @@ Keep the SKILL.md body under 500 lines. When it grows past that (or carries bulk
 schemas, or command catalogs), split the detail into `skills/<name>/reference/*.md` and keep
 the workflow + judgment in SKILL.md.
 
-- **References stay one level deep from SKILL.md.** SKILL.md links the reference file directly;
-  a reference file must not chain to another (Claude only partially reads nested links). If two
-  reference files are both needed, link both from SKILL.md.
+- **A reference file must not link another reference file.** SKILL.md links each reference doc
+  directly; a doc reachable only through a second reference doc is one Claude may never open, since
+  it reads a linked doc partially and follows a chain of them less reliably still. If two reference
+  files are both needed, link both from SKILL.md. Linking *out* of the `reference/` layer is not
+  chaining, and a reference doc may link exactly two kinds of target: shared prose under
+  `tools/<area>/<name>.md` and root-level repo docs (`WORKER_CONTRACT.md`, `README.md`). Those are
+  single-source leaves that the rule below tells skills to link rather than restate. The two rules
+  are one policy, not a conflict: the SKILL.md is what makes shared prose reachable at depth one,
+  and a reference doc's link to the same doc is an additional cross-reference, never the only path
+  to it. That list is closed — a reference doc may not link another skill's `SKILL.md` either, since
+  reaching into a second skill is a dependency its own SKILL.md should declare, not a link at
+  depth two.
+  `tools/lint/check-reference-chaining.sh` enforces exactly this. The absolute form of the rule
+  forbade what the shared-prose rule requires, and drifted to ten violations unnoticed (MD-2541).
 - **Shared prose used by more than one skill lives once under `tools/<area>/<name>.md`** and is
   linked directly from each consuming SKILL.md (still one level deep) — don't copy it into each
   skill's `reference/`. The content image pipeline is the model: the convert → upload → verify

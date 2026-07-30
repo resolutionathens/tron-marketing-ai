@@ -3,7 +3,7 @@
 Use this richer structure when the user says the work is in `marketing-pages` and the items are `/resources/toolkit` items (checklists, SOPs, templates) sourced from a Google Doc.
 
 This playbook layers on top of the shared [ticket rubric](../../../tools/ticket/ticket-rubric.md)
-base shape (see [description-template.md](description-template.md)), not in place of it: the
+base shape, not in place of it: the
 fenced machine header comes first (`Type: content`, `Deliverable type: toolkit`, and the
 content section markers `Destination:`/`Format:`/`SEO target:`/`Draft:`), then this playbook's
 richer sections follow.
