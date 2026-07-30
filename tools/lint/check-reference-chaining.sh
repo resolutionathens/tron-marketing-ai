@@ -9,12 +9,18 @@
 # that lives in a different skill (a broken link), and toolkit-playbook.md, the
 # other end of the pair, was an orphan nothing linked at all.
 #
-# Linking *out* of the reference/ layer is not chaining and is deliberately
-# allowed: shared prose under tools/<area>/<name>.md and root-level repo docs
-# (WORKER_CONTRACT.md, README.md) are single-source leaves that CLAUDE.md tells
-# skills to link rather than restate. Forbidding those would put this rule in
-# conflict with that one, which is how the absolute form drifted to ten
+# Linking *out* of the reference/ layer is not chaining, and two kinds of target
+# are allowed: shared prose under tools/<area>/<name>.md and root-level repo docs
+# (WORKER_CONTRACT.md, README.md). Those are single-source leaves that CLAUDE.md
+# tells skills to link rather than restate; forbidding them would put this rule
+# in conflict with that one, which is how the absolute form drifted to ten
 # violations without anyone noticing.
+#
+# The allowlist is closed, matching CLAUDE.md: another skill's SKILL.md is not an
+# allowed target either, since reaching into a second skill is a dependency that
+# skill's own SKILL.md should declare rather than a link buried at depth two. The
+# tools/ form requires the <area> subdirectory because that is the layout
+# CLAUDE.md mandates for shared prose.
 #
 # Links inside fenced code blocks are examples, not links — tools/voice/
 # facilitron-voice.md carries the copy-me snippet for its own path — so fences
@@ -121,7 +127,7 @@ while IFS= read -r file; do
         # A root-level repo doc has no directory component left once resolved.
         case "$resolved" in
           */*)
-            echo "FAIL $file:$line links \`$resolved\`, which is neither shared prose under tools/ nor a root-level repo doc" >&2
+            echo "FAIL $file:$line links \`$resolved\`, which is not an allowed target — a reference doc may link only tools/<area>/*.md shared prose or a root-level repo doc" >&2
             fail=1
             ;;
         esac

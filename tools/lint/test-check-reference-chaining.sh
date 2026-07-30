@@ -82,8 +82,8 @@ reset_fixture
   echo
   echo "See [alpha's skill body](../../alpha/SKILL.md)."
 } >"$FIXTURE/skills/beta/reference/skill-link.md"
-expect_fail 'FAIL skills/beta/reference/skill-link\.md:3 links `skills/alpha/SKILL\.md`, which is neither shared prose under tools/ nor a root-level repo doc' \
-  "rejects a link that is neither shared prose nor a root-level repo doc"
+expect_fail 'FAIL skills/beta/reference/skill-link\.md:3 links `skills/alpha/SKILL\.md`, which is not an allowed target' \
+  "rejects a link to another skill's SKILL.md, which the closed allowlist excludes"
 
 reset_fixture
 {
