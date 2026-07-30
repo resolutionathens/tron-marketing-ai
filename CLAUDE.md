@@ -89,9 +89,15 @@ Keep the SKILL.md body under 500 lines. When it grows past that (or carries bulk
 schemas, or command catalogs), split the detail into `skills/<name>/reference/*.md` and keep
 the workflow + judgment in SKILL.md.
 
-- **References stay one level deep from SKILL.md.** SKILL.md links the reference file directly;
-  a reference file must not chain to another (Claude only partially reads nested links). If two
-  reference files are both needed, link both from SKILL.md.
+- **A reference file must not link another reference file.** SKILL.md links each reference doc
+  directly; a doc reachable only through a second reference doc is one Claude may never open, since
+  it reads a linked doc partially and follows a chain of them less reliably still. If two reference
+  files are both needed, link both from SKILL.md. Linking *out* of the `reference/` layer is not
+  chaining and is allowed: shared prose under `tools/<area>/<name>.md` and root-level repo docs
+  (`WORKER_CONTRACT.md`, `README.md`) are single-source leaves that the rule below tells skills to
+  link rather than restate, so a reference doc may point at them too.
+  `tools/lint/check-reference-chaining.sh` enforces exactly this — the absolute form of the rule
+  forbade what the shared-prose rule requires, and drifted to ten violations unnoticed (MD-2541).
 - **Shared prose used by more than one skill lives once under `tools/<area>/<name>.md`** and is
   linked directly from each consuming SKILL.md (still one level deep) — don't copy it into each
   skill's `reference/`. The content image pipeline is the model: the convert → upload → verify

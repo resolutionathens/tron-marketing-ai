@@ -54,7 +54,7 @@ mkdir -p /tmp/tron-enrich-jira-ticket
 
 ### 1. Draft the enriched description
 
-Use the base shape in `reference/description-template.md` — it has a full worked example. The base shape is the rubric's fenced machine header (spine + the section markers for the ticket's `Type`) followed by human prose. Add only the prose sections a ticket needs, and never include empty sections.
+Use the base shape in `reference/description-template.md` — it has a full worked example. The base shape is the rubric's fenced machine header (spine + the section markers for the ticket's `Type`) followed by human prose. Add only the prose sections a ticket needs, and never include empty sections. For a `marketing-pages` `/resources/toolkit` item sourced from a Google Doc, layer `reference/toolkit-playbook.md` on top of that base shape.
 
 Fill the machine header from the sources you gathered or were given: `Done`, `Type`, `Deliverable type`, `Context`, `Decision`, and the `Type`'s section markers. Do not invent a value for a marker you cannot ground in a real source.
 

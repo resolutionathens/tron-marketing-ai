@@ -46,7 +46,7 @@ Add only the sections a ticket needs. For content/SEO work, add a `## Source SEO
 with meta title, meta description, and slug. For a Figma-driven ticket, list the Figma file, the
 page being replaced, and the asset location under `## Sources`. For a marketing-pages landing
 page or content ticket, add the existing-page search result (match or no match) under
-`## Sources` per [reference/existing-page-search.md](existing-page-search.md). Do not include
+`## Sources`, as the `tron:jira-source-discovery` skill produces it. Do not include
 empty sections.
 
 The rubric's `Acceptance criteria:` marker (inside the fenced header, for engineering tickets)
