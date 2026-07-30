@@ -60,6 +60,8 @@ Fill the machine header from the sources you gathered or were given: `Done`, `Ty
 
 When the destination repo is known, also emit the `Destination repo:` line under `## Sources` verbatim — the literal label text and backtick-wrapped value. Do not paraphrase it. tron-os's dispatch router greps this marker to route work.
 
+The rubric itself is the shared [`tools/ticket/ticket-rubric.md`](../../tools/ticket/ticket-rubric.md) — the single source of truth for the spine, the per-type section markers, and the verdict ladder.
+
 ### 2. Self-check against the rubric before writing
 
 ```bash
