@@ -37,11 +37,31 @@ fail=0
 scanned=0
 links=0
 
-# links_in <file> — print "<line> <target>" for every inline markdown link to a
-# relative .md path outside fenced code blocks. Absolute URLs, mailto:, and
-# bare #anchors are not paths and are skipped.
+# links_in <file> — print "<line> <target>" for every markdown link to a relative
+# .md path outside fenced code blocks, covering inline links, angle-bracketed
+# destinations, and reference-style definitions. Absolute URLs, mailto:, and bare
+# #anchors are not paths and are skipped.
+#
+# Optional link titles are stripped before the .md test: `[x](foo.md "title")`
+# would otherwise fail the test and be dropped, letting a chain hide behind a
+# title rather than being reported.
 links_in() {
   awk '
+    # clean(t) — reduce a raw link destination to the bare path: drop an optional
+    # title, then angle brackets, then any #anchor.
+    function clean(t) {
+      sub(/[[:space:]]+["'"'"'(].*$/, "", t)
+      if (t ~ /^<.*>$/) t = substr(t, 2, length(t) - 2)
+      sub(/#.*$/, "", t)
+      return t
+    }
+    # emit(t, n) — print a cleaned destination when it is a relative .md path.
+    function emit(t, n) {
+      if (t == "") return
+      if (t ~ /^[a-zA-Z][a-zA-Z0-9+.-]*:/) return
+      if (t !~ /\.md$/) return
+      print n " " t
+    }
     function read_fence(line) {
       fence_char = ""
       fence_run = 0
@@ -64,15 +84,18 @@ links_in() {
         next
       }
       if (open_fence > 0) next
+      # A reference-style definition: [label]: destination "optional title"
+      if ($0 ~ /^[[:space:]]*\[[^]]+\][[:space:]]*:[[:space:]]*[^[:space:]]/) {
+        target = $0
+        sub(/^[[:space:]]*\[[^]]+\][[:space:]]*:[[:space:]]*/, "", target)
+        emit(clean(target), NR)
+        next
+      }
       rest = $0
       while (match(rest, /\]\([^)]*\)/) > 0) {
         target = substr(rest, RSTART + 2, RLENGTH - 3)
         rest = substr(rest, RSTART + RLENGTH)
-        sub(/#.*$/, "", target)
-        if (target == "") continue
-        if (target ~ /^[a-zA-Z][a-zA-Z0-9+.-]*:/) continue
-        if (target !~ /\.md$/) continue
-        print NR " " target
+        emit(clean(target), NR)
       }
     }
   ' "$1"
@@ -105,6 +128,26 @@ normalize() {
   printf '%s\n' "$out"
 }
 
+# allowed <resolved-path> — true for the two permitted targets: shared prose at
+# exactly tools/<area>/<name>.md, and a root-level repo doc. A `*` in a case
+# pattern matches `/` too, so `tools/*/*.md` would also accept tools/a/b/c.md;
+# the depth is checked by segment count instead.
+allowed() {
+  case "$1" in
+    */*) ;;
+    *) return 0 ;;
+  esac
+  case "$1" in
+    tools/*) ;;
+    *) return 1 ;;
+  esac
+  case "${1#tools/}" in
+    */*/*) return 1 ;;
+    */*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 while IFS= read -r file; do
   [ -n "$file" ] || continue
   scanned=$((scanned + 1))
@@ -122,15 +165,11 @@ while IFS= read -r file; do
         echo "FAIL $file:$line chains to the reference doc \`$resolved\` — link it from SKILL.md instead" >&2
         fail=1
         ;;
-      tools/*/*.md) ;;
-      *.md)
-        # A root-level repo doc has no directory component left once resolved.
-        case "$resolved" in
-          */*)
-            echo "FAIL $file:$line links \`$resolved\`, which is not an allowed target — a reference doc may link only tools/<area>/*.md shared prose or a root-level repo doc" >&2
-            fail=1
-            ;;
-        esac
+      *)
+        if ! allowed "$resolved"; then
+          echo "FAIL $file:$line links \`$resolved\`, which is not an allowed target — a reference doc may link only tools/<area>/<name>.md shared prose or a root-level repo doc" >&2
+          fail=1
+        fi
         ;;
     esac
   done <<EOF

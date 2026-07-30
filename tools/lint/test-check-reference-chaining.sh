@@ -85,6 +85,50 @@ reset_fixture
 expect_fail 'FAIL skills/beta/reference/skill-link\.md:3 links `skills/alpha/SKILL\.md`, which is not an allowed target' \
   "rejects a link to another skill's SKILL.md, which the closed allowlist excludes"
 
+# `*` matches `/` in a case pattern, so a `tools/*/*.md` glob would have accepted
+# any depth under tools/. CLAUDE.md mandates exactly tools/<area>/<name>.md.
+reset_fixture
+mkdir -p "$FIXTURE/tools/image/nested"
+: >"$FIXTURE/tools/image/nested/deep.md"
+{
+  echo "# Too deep under tools/"
+  echo
+  echo "See [a nested doc](../../../tools/image/nested/deep.md)."
+} >"$FIXTURE/skills/beta/reference/deep.md"
+expect_fail 'FAIL skills/beta/reference/deep\.md:3 links `tools/image/nested/deep\.md`, which is not an allowed target' \
+  "rejects shared prose nested deeper than tools/<area>/<name>.md"
+
+reset_fixture
+: >"$FIXTURE/tools/loose.md"
+{
+  echo "# No <area> segment"
+  echo
+  echo "See [a loose doc](../../../tools/loose.md)."
+} >"$FIXTURE/skills/beta/reference/loose.md"
+expect_fail 'FAIL skills/beta/reference/loose\.md:3 links `tools/loose\.md`, which is not an allowed target' \
+  "rejects a tools/ doc with no <area> segment"
+
+# A title after the path must not let a chain slip through: the raw destination
+# is `existing-page-search.md "Search"`, which fails a bare .md test.
+reset_fixture
+{
+  echo "# Titles, angle brackets, and reference-style links"
+  echo
+  echo 'Per [one](existing-page-search.md "The search").'
+  echo "Per [two](<source-types.md>)."
+  echo "Per [three][ref]."
+  echo
+  echo "[ref]: components.md 'Components'"
+} >"$FIXTURE/skills/beta/reference/link-forms.md"
+if bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1; then
+  fail "chains hidden behind titles, angle brackets, or reference definitions should fail"
+fi
+for hidden in existing-page-search source-types components; do
+  rg -q "chains to the reference doc \`skills/beta/reference/$hidden\.md\`" "$LOG" \
+    || { cat "$LOG" >&2; fail "should report the chain to $hidden.md"; }
+done
+pass "parses titled, angle-bracketed, and reference-style links, not just bare inline ones"
+
 reset_fixture
 {
   echo "# Walks out of the repo"
