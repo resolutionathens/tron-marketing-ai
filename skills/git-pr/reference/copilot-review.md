@@ -85,6 +85,7 @@ up:
 
 ```bash
 RETRO_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-retro-body.XXXXXX")"
+trap 'rm -f "$RETRO_BODY"' EXIT
 cat > "$RETRO_BODY" <<'EOF'
 **What went well:**
 **Friction / surprises:**
@@ -93,7 +94,7 @@ cat > "$RETRO_BODY" <<'EOF'
 FOLLOW-UP:
 EOF
 bash "$SKILL_DIR/scripts/git-pr-retro.sh" retro-comment --pr "<N>" \
-  --model "<your model ID>" --body-file "$RETRO_BODY" && rm -f "$RETRO_BODY"
+  --model "<your model ID>" --body-file "$RETRO_BODY"
 ```
 
 The script adds the `<!-- tron-retro -->` marker (required for the OS reviewer), the `### Retro`

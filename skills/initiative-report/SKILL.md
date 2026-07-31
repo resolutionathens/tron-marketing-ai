@@ -54,7 +54,8 @@ bash "$SKILL_DIR/scripts/initiative-report.sh" fetch <PARENT-KEY>
 Output is one JSON object: `{parent, counts: {total, done, in_progress, to_do}, descendants,
 truncated}`. If `truncated` is true, some level returned exactly `--limit` rows (default 200) —
 re-run with a higher `--limit` and note the board is larger than one page. The full descendant
-detail is also saved to `/tmp/manager/<PARENT>-descendants.json`. For a Theme the same walk applies
+detail is discarded by default. Pass `--keep-dir <durable-path>` to retain an explicit snapshot.
+For a Theme the same walk applies
 (its Initiatives are just the first level down); optionally summarize per-Initiative as well as
 the rollup.
 
@@ -113,8 +114,9 @@ page.
 Write the summary:
 
 ```bash
-mkdir -p /tmp/manager
-# then write /tmp/manager/<slug>-status.md
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/initiative-report.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+# Write a shareable report to an explicitly selected durable path, not this workspace.
 ```
 
 Offer `tron:md-to-pdf` for a polished version, or fold into the manager's `weekly-update`.

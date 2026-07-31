@@ -160,8 +160,8 @@ $body
 
   local url has_tokens=false full_file err_file err
   [[ -n "$tokens" ]] && has_tokens=true
-  full_file="$(mktemp)"
-  err_file="$(mktemp)"
+  full_file="$(mktemp "${TMPDIR:-/tmp}/tron-pr-retro-body.XXXXXX")"
+  err_file="$(mktemp "${TMPDIR:-/tmp}/tron-pr-retro-error.XXXXXX")"
   trap 'rm -f "$full_file" "$err_file"' RETURN
   printf '%s' "$full" > "$full_file"
   if ! url="$(gh pr comment "$PR" --body-file "$full_file" 2>"$err_file")"; then

@@ -51,8 +51,9 @@ bash "$SKILL_DIR/scripts/board-triage.sh" fetch --project ABC --stale-days 7
 Output is one JSON object: `{project, total, truncated, unassigned, stale, missing_metadata,
 blocked, wip_load}` — each bucket a list of `{key, summary, status, assignee, priority, duedate,
 updated, parent, parent_summary}`. If `truncated` is true the board is larger than `--limit`;
-paginate or raise the limit. The raw enriched array is saved to `/tmp/manager/triage-enriched.json`
-for any follow-up query. If the script exits non-zero on Jira, surface the auth error and stop.
+paginate or raise the limit. Raw Jira snapshots are discarded by default. Pass `--keep-dir <durable-path>`
+only when a follow-up needs the candidate keys and enriched JSON. If the script exits non-zero on Jira,
+surface the auth error and stop.
 
 ## Manual fallback (if script unavailable)
 
@@ -61,17 +62,18 @@ for any follow-up query. If the script exits non-zero on Jira, surface the auth 
 Pull the candidate keys with search, then **enrich each with `view`** (where those fields resolve):
 
 ```bash
-mkdir -p /tmp/manager
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/board-triage.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
 
 # 1. Candidate set (keys + the fields search does return). Raise the limit / paginate — MCR has
 #    more than 200 non-Done items, and --limit 200 silently truncates.
 acli jira workitem search --jql 'project = MCR AND statusCategory != Done ORDER BY updated ASC' \
-  --limit 500 --json | jq -r '.[].key' > /tmp/manager/triage-keys.txt
+  --limit 500 --json | jq -r '.[].key' > "$WORK/triage-keys.txt"
 
 # 2. Enrich: updated, duedate, and parent only exist on the full item view.
 while read k; do
   acli jira workitem view "$k" --fields '*all' --json
-done < /tmp/manager/triage-keys.txt | jq -s '.'
+done < "$WORK/triage-keys.txt" | jq -s '.'
 ```
 
 Enrichment is what powers lenses 2–3 below; without it, only Unassigned, WIP-load, and status are

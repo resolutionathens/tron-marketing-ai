@@ -54,6 +54,10 @@ O="$(run fetch MCR-355 2>/dev/null)"
 jq -e . >/dev/null <<<"$O" || fail "output is not valid JSON"
 [[ "$(jq -r '.parent.key' <<<"$O")" == "MCR-355" ]] || fail "parent should be MCR-355"
 pass "fetch: valid JSON with the parent resolved"
+[[ ! -e "$ROOT/tmp/manager/MCR-355-descendants.json" ]] || fail "raw detail must not be retained without --keep-dir"
+KEEP="$ROOT/retained"; run fetch MCR-355 --keep-dir "$KEEP" >/dev/null 2>&1
+[[ -s "$KEEP/MCR-355-descendants.json" ]] || fail "--keep-dir should retain explicit detail"
+pass "cleanup: raw detail discarded by default and retained only with --keep-dir"
 
 K="$(jq -c '[.descendants[].key] | sort' <<<"$O")"
 [[ "$K" == '["MCR-401","MCR-402","MCR-501"]' ]] \

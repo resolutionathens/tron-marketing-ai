@@ -49,7 +49,10 @@ Take a Jira ticket and its discovered sources, then draft and write an enriched,
 ## Fast path
 
 ```bash
-mkdir -p /tmp/tron-enrich-jira-ticket
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/tron-enrich-jira-ticket.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+MD="$WORK/<KEY>.md"
+ADF_FILE="$WORK/<KEY>.adf.json"
 ```
 
 ### 1. Draft the enriched description
@@ -66,7 +69,7 @@ The rubric itself is the shared [`tools/ticket/ticket-rubric.md`](../../tools/ti
 
 ```bash
 TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
-bash "$TICKET_DIR/rubric-lint.sh" --file /tmp/tron-enrich-jira-ticket/<KEY>.md \
+bash "$TICKET_DIR/rubric-lint.sh" --file "$MD" \
   --summary "<the ticket's current summary>" | jq '{verdict, missing}'
 ```
 
@@ -80,8 +83,8 @@ bash "$TICKET_DIR/rubric-lint.sh" --key <KEY> | jq '{verdict, missing}'
 
 ```bash
 ADF="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs"
-node "$ADF" < /tmp/tron-enrich-jira-ticket/<KEY>.md > /tmp/tron-enrich-jira-ticket/<KEY>.adf.json
-acli jira workitem edit --key <KEY> --description-file /tmp/tron-enrich-jira-ticket/<KEY>.adf.json --yes
+node "$ADF" < "$MD" > "$ADF_FILE"
+acli jira workitem edit --key <KEY> --description-file "$ADF_FILE" --yes
 ```
 
 ### 4. Verify
