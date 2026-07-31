@@ -17,29 +17,25 @@ this file and nothing more, because a Jira comment should not sound like a press
 
 ## The mechanical layer is Vale, not this file
 
-The banned-word list lives in `skills/prose-lint/styles/Facilitron/*.yml` and is enforced by
-`tron:prose-lint`. **Do not restate it here.** Those rules already cover marketing fluff
-(`world-class`, `seamless`, `empower`, `unlock`, `elevate`, `delve`, `in today's`, and two dozen
-more), wordiness (`leverage` to `use`, `utilize` to `use`, `in order to` to `to`), hedging, house
-terminology (`preventive`, never `preventative`), brand capitalization, and link text.
+Every rule a regex can check lives in `skills/prose-lint/styles/Facilitron/*.yml` and is enforced by
+`tron:prose-lint`: banned marketing language, wordiness substitutions, hedging, house terminology,
+brand capitalization, link text, and dashes. **Do not restate any of those words here.** Read the
+pack when you want the current list; it is the list.
 
-Keeping one banlist in one place is the point: the prose file and the Vale pack disagreed for a
-release about whether en dashes were banned, and only the prose file knew (MD-2574). When a new word
-needs banning, add a token to the Vale pack. When judgment needs stating, add it here.
+Keeping one banlist in one place is the point. The prose file and the Vale pack disagreed for a
+release about which dashes were banned, and only the prose file knew (MD-2574). Naming a term in
+both places is how that happens: the copy in one drifts and nothing fails. When a new word needs
+banning, add a token to the pack. When judgment needs stating, add it here.
 
-## The rule
-
-No em dashes (`—`) or en dashes (`–`) in produced copy. They read as an AI tell and they make casual
-writing feel formal. `Facilitron.EmDash` catches both at error level, but scan the draft yourself
-before publishing rather than trusting you avoided them while writing:
+The dashes are worth knowing while you draft rather than at lint time, so: no em or en dashes in
+produced copy. They read as an AI tell. The pack catches both at error level, and the AP-style
+press-release dateline is the one exemption (`TokenIgnores` in `vale-ini.template` skips the bolded
+dateline run). Every other dash in a release is still a finding. Scan before publishing rather than
+trusting you avoided them while writing:
 
 ```bash
 grep -n '[—–]' <file>
 ```
-
-**The one exception** is the AP-style press-release dateline, where the em dash is part of the wire
-format. `TokenIgnores` in `vale-ini.template` exempts the bolded dateline run, so a press release
-lints clean apart from it. Every other dash in that release is still a finding.
 
 ## Universal judgment
 
@@ -52,8 +48,8 @@ Tone is plain and confident. The copy is confident because it is specific, not b
   never restate a known figure with different numbers. If it cannot be sourced, cut the sentence
   rather than softening it to "many."
 - **Name the limits of a claim.** Volunteering what something is not, or what it does not cover, is
-  what authority sounds like here. It is not hedging; hedging is `very`, `basically`, `essentially`,
-  and Vale already flags those.
+  what authority sounds like here. That is not hedging. Hedging is the intensifier that weakens the
+  sentence it decorates, and the pack flags those by name.
 - **One primary CTA**, and it comes last. Secondary links are fine in a newsletter.
 - **Lead with the finding or the task**, not with a windup. No rhetorical question standing in for a
   first sentence, and no opening line that would work for any company in any industry.

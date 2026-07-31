@@ -168,10 +168,13 @@ if ! printf '%s\n' "$DATE_OUT" | grep -qE '^dateline\.md:7:[0-9]+:Facilitron\.Em
 fi
 pass "a stray en dash is caught (was unenforced before MD-2574)"
 
-# A bolded run with no year must not inherit the dateline exemption, or any bold
-# phrase would become a lint-free zone.
+# A TokenIgnores match is invisible to EVERY rule, so the dateline pattern must be
+# dateline-shaped, not merely "bold with a year in it". A bold run carrying a year
+# but no month name must still lint, or any such phrase becomes a lint-free zone.
 cat > "$WORK/fluff.md" <<'EOF'
 **Los Gatos-Saratoga UHSD** can unlock and elevate outcomes.
+
+**In 2026 we unlock seamless value** across the district.
 EOF
 
 FLUFF_OUT="$(cd "$WORK" && vale --output=line fluff.md 2>&1)" || true
@@ -181,5 +184,22 @@ for token in unlock elevate; do
   fi
 done
 pass "bare unlock/elevate are caught, and a yearless bold run is not exempt"
+
+if ! printf '%s\n' "$FLUFF_OUT" | grep -qE '^fluff\.md:3:'; then
+  fail "a bold run with a year but no month was exempted; the dateline pattern is too broad and would hide every rule inside it"
+fi
+pass "bold + year without a month name is NOT dateline-exempt"
+
+# Word boundaries: `elevate` must not fire on `elevators`, which is real
+# vocabulary in a facilities-maintenance corpus.
+cat > "$WORK/boundary.md" <<'EOF'
+Inspect elevators and elevator controls on the published schedule.
+EOF
+
+BOUND_OUT="$(cd "$WORK" && vale --output=line boundary.md 2>&1)" || true
+if printf '%s\n' "$BOUND_OUT" | grep -q 'MarketingFluff'; then
+  fail "MarketingFluff fired on 'elevators' — the fluff tokens must respect word boundaries"
+fi
+pass "'elevators' does not trip the elevate token"
 
 echo "vale-ini.template BlockIgnores + MD-2574 dateline regression: $PASS checks passed"

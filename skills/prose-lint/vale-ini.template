@@ -25,6 +25,13 @@ BlockIgnores = (?s) *(::+[\w-]+(\{[^{}\n]*\})?.*?\n *::+)
 # the dash is correct. It is exempted here rather than in Facilitron.EmDash
 # because RE2 has no lookaround, so the rule itself cannot say "except after a
 # city and a year". Matching the whole bolded run works for every variant.
+#
+# A TokenIgnores match is invisible to EVERY rule, not just EmDash, so this
+# pattern has to be dateline-shaped rather than merely bold: it requires a month
+# name AND a following 4-digit year inside the run. Requiring only a year would
+# turn any bold phrase containing one (`**In 2026 we unlock value**`) into a
+# lint-free zone.
+#
 # The pattern needs no literal comma on purpose: Vale splits *Ignores values on
 # commas, so `[^*\n]*` spans the city/state/date commas instead of naming them.
-TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`), (\*\*[A-Z][^*\n]*\d{4}[^*\n]*\*\*)
+TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`), (\*\*[A-Z][^*\n]*(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Aug|Sept|Oct|Nov|Dec)[^*\n]*\d{4}[^*\n]*\*\*)

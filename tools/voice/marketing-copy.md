@@ -38,7 +38,7 @@ gets re-derived.
 
 ## The stance
 
-These are the positions the copy actually argues. They are load-bearing, and a draft that contradicts
+These are the positions the copy argues. They are load-bearing, and a draft that contradicts
 one is off-voice even when every sentence is clean.
 
 - **Community use is a governance question, not an operations question.** The failure mode is not

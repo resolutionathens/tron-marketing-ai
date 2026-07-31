@@ -26,9 +26,11 @@ under the plugin root.
    - **Register** — does person and formality match this format's row in the register table? Second
      person or "we" in a toolkit item is the most common miss; a social post written at
      press-release formality is the next.
-   - **Claims** — is every figure in *The proof set* or otherwise sourced? Flag numbers that read
-     invented, restated with different digits than the proof set, or softened to "many" to dodge
-     sourcing. A claim with no number, name, or step behind it is a finding.
+   - **Claims** — scoped to **quantified** claims, not every sentence. Flag a figure that is absent
+     from *The proof set* and carries no source, one restated with different digits than the proof
+     set, and a quantity softened to "many" or "most" where the real number was available. Stance
+     sentences, transitions, and qualitative framing are not claims; flagging them buries the
+     findings that matter.
    - **Red flags** — walk the list in *Red flags*. Report the ones present.
 
 ## Rules
