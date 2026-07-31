@@ -77,8 +77,10 @@ repository gets is decided outside this repo; what a bundle contains is decided 
 The build emits matching Claude and Codex inventories from the same source and version. Generated
 skill prose rewrites an in-package `tron:<skill>` reference to the current package namespace. A
 reference outside the current inventory is rewritten to its declared owner, such as
-`tron-content:news-item`, making the cross-role handoff explicit instead of pretending the skill is
-local. The generated inventory records the monolith and scoped package IDs plus their
+`tron-engineer:news-item`, making the cross-role handoff explicit instead of pretending the skill is
+local. Repository-writing content pipelines belong to engineering and the `marketing-pages` repo
+bundle; `tron-content` stays limited to drafting, critique, and content QA. The generated inventory
+records the monolith and scoped package IDs plus their
 mutual-exclusion rule so migration tooling can validate that a consumer enables exactly one
 distribution shape.
 

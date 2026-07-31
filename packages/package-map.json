@@ -54,13 +54,16 @@
         "git-dev",
         "git-pr",
         "git-pushtoprod",
+        "guide-item",
         "link-check",
+        "news-item",
         "open-worktree",
         "security-and-hardening",
         "ship-ticket",
         "site-audit",
         "start-ticket",
         "test-driven-development",
+        "toolkit-item",
         "weekly-update"
       ]
     },
@@ -88,36 +91,26 @@
       ]
     },
     "content": {
-      "description": "Content drafting, critique, publishing, and prose QA skills.",
+      "description": "Content drafting, critique, and prose QA skills.",
       "extends": ["core"],
       "resources": [
         "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/optimize-images-runner.md",
         "agents/vale-prose-runner.md",
-        "tools/content",
-        "tools/git",
-        "tools/worktree"
+        "tools/content"
       ],
       "skills": [
         "brainstorm",
         "case-study",
         "email-campaign",
         "grill",
-        "guide-item",
-        "git-commit",
-        "git-dev",
-        "git-pr",
         "link-check",
         "md-to-pdf",
-        "news-item",
         "onesheet",
         "optimize-images",
         "press-release",
         "prose-lint",
-        "toolkit-item",
-        "close-worktree",
-        "start-ticket",
         "weekly-update"
       ]
     },
@@ -413,13 +406,16 @@
       "git-dev",
       "git-pr",
       "git-pushtoprod",
+      "guide-item",
       "link-check",
+      "news-item",
       "open-worktree",
       "security-and-hardening",
       "ship-ticket",
       "site-audit",
       "start-ticket",
       "test-driven-development",
+      "toolkit-item",
       "weekly-update"
     ],
     "designer": [
@@ -435,12 +431,9 @@
       "case-study",
       "email-campaign",
       "grill",
-      "guide-item",
-      "news-item",
       "onesheet",
       "press-release",
-      "prose-lint",
-      "toolkit-item"
+      "prose-lint"
     ],
     "seo": [
       "keyword-research",
