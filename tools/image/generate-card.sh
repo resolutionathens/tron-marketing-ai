@@ -8,16 +8,16 @@
 # Usage:
 #   generate-card.sh --folder <ik-folder> --prompt "<subject>" \
 #     (--prefix <guide> | --name <slug.webp>) \
-#     [--size <WxH>] [--refs <n>] [--no-upload]
+#     [--size <WxH>] [--refs <n>] [--no-upload [--output <path>]]
 #
 # --prefix guide    → auto-numbers: guide-06.webp (next after existing guide-*.webp)
 # --name  slug.webp → uses that exact filename (toolkit, news use this)
 # --size  1536x1024 → passed to gen-image.sh via GENIMG_SIZE (default: 1024x1024)
 # --refs  3         → number of reference images to download (default: 3)
-# --no-upload       → generate + convert but skip ImageKit upload (for local testing)
+# --no-upload       → generate + convert but skip ImageKit upload; --output selects its durable file
 #
 # Prints JSON on stdout:
-#   {"ok":true,"file":"/tmp/…/name.webp","name":"name.webp","folder":"guides","url":"…"}
+#   {"ok":true,"file":"<durable output path when --no-upload>","name":"name.webp","folder":"guides","url":"…"}
 # or, for --prefix runs:
 #   {"ok":true,"file":"…","name":"guide-06.webp","folder":"guides","url":"…","next":"06"}
 set -euo pipefail
@@ -45,6 +45,7 @@ NAME=""
 SIZE="1024x1024"
 REFS_COUNT=3
 UPLOAD=true
+OUTPUT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --size)      [[ $# -gt 1 ]] || { printf '{"ok":false,"error":"--size requires a value"}\n' >&2; exit 1; };      SIZE="$2";        shift 2 ;;
     --refs)      [[ $# -gt 1 ]] || { printf '{"ok":false,"error":"--refs requires a value"}\n' >&2; exit 1; };      REFS_COUNT="$2";  shift 2 ;;
     --no-upload) UPLOAD=false;     shift   ;;
+    --output)    [[ $# -gt 1 ]] || { printf '{"ok":false,"error":"--output requires a value"}\n' >&2; exit 1; }; OUTPUT="$2"; shift 2 ;;
     *) printf '{"ok":false,"error":"unknown argument: %s"}\n' "$1" >&2; exit 1 ;;
   esac
 done
@@ -73,8 +75,10 @@ fi
 set -a; source ~/.env 2>/dev/null || true; set +a
 
 # ── 1. download reference images ────────────────────────────────────────────
-REFS_DIR="$(mktemp -d /tmp/card-refs-XXXXXX)"
-trap 'rm -rf "$REFS_DIR"' EXIT
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/generate-card.XXXXXX")"
+REFS_DIR="$WORK_DIR/refs"
+mkdir -p "$REFS_DIR"
+trap 'rm -rf "$WORK_DIR"' EXIT
 
 node "$IK" list --path "$FOLDER" --sort DESC_CREATED --limit "$REFS_COUNT" | \
   python3 -c "
@@ -101,7 +105,6 @@ for f in json.load(sys.stdin):
 fi
 
 # ── 3. generate image ────────────────────────────────────────────────────────
-WORK_DIR="$(mktemp -d /tmp/generate-card-XXXXXX)"
 OUT_PNG="$WORK_DIR/card.png"
 
 # The style-diversity note is baked in so every caller gets it automatically.
@@ -117,14 +120,20 @@ bash "$TOWEBP" "$OUT_PNG" "$OUT_WEBP" >&2
 # ── 5. upload ────────────────────────────────────────────────────────────────
 if $UPLOAD; then
   node "$IK" upload "$OUT_WEBP" --name "$NAME" --folder "$FOLDER" >&2
+  FILE="$OUT_WEBP"
+else
+  [[ -n "$OUTPUT" ]] || OUTPUT="$PWD/$NAME"
+  mkdir -p "$(dirname "$OUTPUT")"
+  cp "$OUT_WEBP" "$OUTPUT"
+  FILE="$OUTPUT"
 fi
 
 URL="https://ik.imagekit.io/facilitron/${FOLDER}/${NAME}"
 
 if [[ -n "$NEXT" ]]; then
   printf '{"ok":true,"file":"%s","name":"%s","folder":"%s","url":"%s","next":"%s"}\n' \
-    "$OUT_WEBP" "$NAME" "$FOLDER" "$URL" "$NEXT"
+    "$FILE" "$NAME" "$FOLDER" "$URL" "$NEXT"
 else
   printf '{"ok":true,"file":"%s","name":"%s","folder":"%s","url":"%s"}\n' \
-    "$OUT_WEBP" "$NAME" "$FOLDER" "$URL"
+    "$FILE" "$NAME" "$FOLDER" "$URL"
 fi

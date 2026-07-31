@@ -121,7 +121,18 @@ cmd_start() {
     [[ -z "$p" ]] && { log "no free port found in 4001-4010"; exit 1; }
   fi
 
-  local log_file="/tmp/dev-server-${p}.log"
+  local state_file="${TMPDIR:-/tmp}/dev-server-${p}.state"
+  local state_dir log_file started=0
+  # The state file makes stop the explicit owner of this run's unique log workspace.
+  state_dir="$(mktemp -d "${TMPDIR:-/tmp}/dev-server-${p}.XXXXXX")"
+  log_file="$state_dir/nuxt.log"
+  printf '%s\n' "$state_dir" > "$state_file"
+  cleanup_failed_start() {
+    local rc=$?
+    if [[ "$started" -eq 0 ]]; then rm -f "$state_file"; rm -rf "$state_dir"; fi
+    return "$rc"
+  }
+  trap cleanup_failed_start RETURN
   log "starting Nuxt on :$p (repo=$root, log=$log_file)"
 
   # Launch the server in the background from the repo root.
@@ -146,6 +157,7 @@ cmd_start() {
     if server_responds "$p"; then
       if route_healthy "$p"; then
         log "server up on :$p${ROUTE:+ (route $ROUTE healthy)}"
+        started=1
         printf '%s\n' "$p"
         return 0
       fi
@@ -182,6 +194,13 @@ cmd_stop() {
     log "stopped server on :$p"
   else
     log "nothing listening on :$p — already gone"
+  fi
+  local state_file="${TMPDIR:-/tmp}/dev-server-${p}.state"
+  if [[ -f "$state_file" ]]; then
+    local state_dir
+    state_dir="$(cat "$state_file")"
+    rm -f "$state_file"
+    [[ -n "$state_dir" ]] && rm -rf "$state_dir"
   fi
 }
 

@@ -96,7 +96,8 @@ one marker per line with literal URLs, so triage parses exactly what you wrote. 
 the [rubric template](../../tools/ticket/ticket-rubric.md#the-template-body). Repeat any link you want
 clickable as a normal link in the prose below the block.
 
-Write the description markdown to a temp file, e.g. `/tmp/tron-create-ticket/<slug>.md`.
+Use one private workspace under `TMPDIR` and own it with an exit trap. The Markdown and ADF are
+scratch files: remove them after Jira consumes the ADF, including when linting or the Jira write fails.
 
 ### 4. Self-check against the rubric, then create
 
@@ -110,20 +111,23 @@ Resolve the shared tools once, then lint and create:
 ```bash
 TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
 ADF="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs"
-mkdir -p /tmp/tron-create-ticket
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/tron-create-ticket.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+MD="$WORK/<slug>.md"
+ADF_FILE="$WORK/<slug>.adf.json"
 
 # 1. Self-check the drafted description (offline) against the rubric.
 #    Pass --summary so a valid PREFIX satisfies engineering's Repo requirement.
-bash "$TICKET_DIR/rubric-lint.sh" --file /tmp/tron-create-ticket/<slug>.md \
+bash "$TICKET_DIR/rubric-lint.sh" --file "$MD" \
   --summary "TRON-PLUGIN: <summary>" | jq '{verdict, missing}'
 # → iterate on the markdown until .verdict == "high: actionable"
 
 # 2. Convert to ADF and create the ticket.
-node "$ADF" < /tmp/tron-create-ticket/<slug>.md > /tmp/tron-create-ticket/<slug>.adf.json
+node "$ADF" < "$MD" > "$ADF_FILE"
 acli jira workitem create \
   --project MD --type Task \
   --summary "TRON-PLUGIN: <summary>" \
-  --description-file /tmp/tron-create-ticket/<slug>.adf.json \
+  --description-file "$ADF_FILE" \
   --assignee "@me"
 
 # 3. Verify the LIVE ticket lints high (round-trips through Jira's stored ADF).

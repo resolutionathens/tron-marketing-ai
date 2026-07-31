@@ -78,14 +78,17 @@ When generating a toolkit/guide card (no local refs available), download 3 recen
 
 ```bash
 IK="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs"
-mkdir -p /tmp/card-refs
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/card-refs.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT
+REFS="$WORK/refs"
+mkdir -p "$REFS"
 node "$IK" list --path toolkit --limit 3 | \
   python3 -c "
 import sys, json
 for f in json.load(sys.stdin):
     print(f['url'].split('?')[0], f['name'])
 " | while read -r url name; do
-    curl -sf -o "/tmp/card-refs/$name" "$url"
+    curl -sf -o "$REFS/$name" "$url"
   done
 ```
 
@@ -100,7 +103,7 @@ Toolkit cards are 1600×901 (landscape). Generate matching aspect:
 
 ```bash
 GENIMG_SIZE=1536x1024 bash "$SKILL_DIR/scripts/gen-image.sh" \
-  /tmp/card-refs "<prompt>" /tmp/card-<slug>.png
+  "$REFS" "<prompt>" "<explicit durable output path>/card-<slug>.png"
 ```
 
 ## Notes

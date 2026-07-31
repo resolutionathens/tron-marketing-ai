@@ -5,6 +5,10 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/a11y-scan.sh"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a11y-cleanup-smoke.XXXXXX")"
+mkdir -p "$ROOT/tmp"
+trap 'rm -rf "$ROOT"' EXIT
+export TMPDIR="$ROOT/tmp"
 export A11Y_DRY_RUN=1
 
 fail=0
@@ -78,6 +82,34 @@ expect_rc2 "bad-args: not a URL"                  "not-a-url"
 expect_rc2 "bad-args: unknown flag"               https://www.facilitron.com --frobnicate
 expect_rc2 "bad-args: --standard without value"   https://www.facilitron.com --standard
 expect_rc2 "bad-args: sitemap with two URLs"      https://a.example/sitemap.xml https://b.example/x --sitemap
+
+if [[ -z "$(command ls -A "$TMPDIR")" ]]; then echo "ok  : cleanup: dry-run leaves isolated TMPDIR empty"; else echo "FAIL: cleanup left: $(command ls -A "$TMPDIR")"; fail=1; fi
+
+# A real scanner result stays just long enough for the runner to read it; the runner owns
+# successful-result cleanup. Scanner failures must clean their own workspace.
+mkdir -p "$ROOT/bin"
+cat > "$ROOT/bin/npx" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${A11Y_FAKE:-}" == fail ]]; then exit 1; fi
+dir=""; save=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dir) dir="$2"; shift 2; continue ;;
+    --save) save="$2"; shift 2; continue ;;
+  esac
+  shift
+done
+mkdir -p "$dir"; printf '[]' > "$dir/$save"
+EOF
+chmod +x "$ROOT/bin/npx"
+unset A11Y_DRY_RUN
+out="$(PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/ok 2>/dev/null)"
+[[ -s "$out" ]] && rm -rf "$(dirname "$out")" || { echo "FAIL: success did not provide a result for runner cleanup"; fail=1; }
+rc=0; A11Y_FAKE=fail PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/fail >/dev/null 2>&1 || rc=$?
+[[ "$rc" == 1 && -z "$(command ls -A "$TMPDIR")" ]] && echo "ok  : cleanup: success handoff and scanner failure both leave no scratch" || { echo "FAIL: scanner failure cleanup"; fail=1; }
+rg -q 'trap .*dirname.*RESULTS' "$HERE/../../../agents/a11y-scan-runner.md" \
+  && echo "ok  : cleanup: runner owns successful result-directory removal" \
+  || { echo "FAIL: runner cleanup contract missing"; fail=1; }
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }

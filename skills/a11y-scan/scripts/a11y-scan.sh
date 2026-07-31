@@ -75,6 +75,12 @@ fi
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/a11y-scan.XXXXXX")"
 RESULTS="$OUT/a11y-results.json"
 CONFIG="$OUT/pa11yci.json"
+cleanup_failed_scan() {
+  local rc=$?
+  if [ "$rc" -ne 0 ]; then rm -rf "$OUT"; fi
+  return "$rc"
+}
+trap cleanup_failed_scan EXIT
 
 write_config() { # <with-urls|defaults-only> — the pa11y-ci config the runner used to hand-write
   {
@@ -126,6 +132,8 @@ log "running: ${cmd[*]}"
 if [ -n "${A11Y_DRY_RUN:-}" ]; then
   printf '%s\n' "${cmd[*]}"
   [ -f "$CONFIG" ] && cat "$CONFIG"
+  rm -rf "$OUT"
+  trap - EXIT
   exit 0
 fi
 

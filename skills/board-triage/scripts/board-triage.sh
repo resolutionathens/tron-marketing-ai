@@ -24,8 +24,7 @@
 #   --stale-days N   In Progress staleness threshold in days (default 14)
 #   --now DATE       override "today" for stale/overdue math (tests)
 #
-# Side effect: writes the candidate keys and the raw enriched array to
-# /tmp/manager/ (triage-keys.txt, triage-enriched.json) for follow-up queries.
+# Raw Jira snapshots are discarded unless --keep-dir explicitly selects a durable destination.
 #
 # Output: one JSON object on stdout; narration on stderr. Exit 0 success /
 # 1 logical failure (e.g. Jira auth) / 2 usage error.
@@ -45,13 +44,14 @@ case "$CMD" in
   *) usage_err "unknown subcommand '$CMD' (try: fetch, help)" ;;
 esac
 
-PROJECT="MCR"; LIMIT=500; STALE_DAYS=14; NOW=""
+PROJECT="MCR"; LIMIT=500; STALE_DAYS=14; NOW=""; KEEP_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --project) PROJECT="${2:-}"; shift ;;
     --limit) LIMIT="${2:-}"; shift ;;
     --stale-days) STALE_DAYS="${2:-}"; shift ;;
     --now) NOW="${2:-}"; shift ;;
+    --keep-dir) KEEP_DIR="${2:-}"; shift ;;
     -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
     *) usage_err "unknown flag '$1'" ;;
   esac
@@ -69,7 +69,7 @@ fi
 
 command -v acli >/dev/null 2>&1 || { log "acli not found — install the Atlassian CLI and run: acli jira auth"; exit 1; }
 
-mkdir -p /tmp/manager
+if [[ -n "$KEEP_DIR" ]]; then mkdir -p "$KEEP_DIR"; fi
 
 # ---- 1. candidate set (keys only — search's field set is fixed) -------------
 JQL="project = $PROJECT AND statusCategory != Done ORDER BY updated ASC"
@@ -79,7 +79,8 @@ if ! SEARCH="$(acli jira workitem search --jql "$JQL" --limit "$LIMIT" --json 2>
 fi
 [[ -n "$SEARCH" ]] || SEARCH="[]"
 
-jq -r '.[].key' <<<"$SEARCH" > /tmp/manager/triage-keys.txt
+KEYS="$(jq -r '.[].key' <<<"$SEARCH")"
+if [[ -n "$KEEP_DIR" ]]; then printf '%s\n' "$KEYS" > "$KEEP_DIR/triage-keys.txt"; fi
 COUNT="$(jq 'length' <<<"$SEARCH")"
 TRUNCATED=false
 [[ "$COUNT" -ge "$LIMIT" ]] && { TRUNCATED=true; log "result count hit --limit $LIMIT — board may be larger, paginate"; }
@@ -90,9 +91,9 @@ ENRICHED="$(
   while IFS= read -r k; do
     [[ -z "$k" ]] && continue
     acli jira workitem view "$k" --fields '*all' --json 2>/dev/null || true
-  done < /tmp/manager/triage-keys.txt | jq -s '.'
+  done <<<"$KEYS" | jq -s '.'
 )"
-printf '%s\n' "$ENRICHED" > /tmp/manager/triage-enriched.json
+if [[ -n "$KEEP_DIR" ]]; then printf '%s\n' "$ENRICHED" > "$KEEP_DIR/triage-enriched.json"; fi
 
 # ---- 3. digest into buckets ---------------------------------------------------
 STALE_CUTOFF="$(jq -rn --arg now "$NOW" --argjson d "$STALE_DAYS" \
