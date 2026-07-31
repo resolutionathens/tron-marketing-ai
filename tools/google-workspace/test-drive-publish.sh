@@ -50,6 +50,7 @@ OUT="$(run_publish create-doc --folder-id folder-123 --name 'Campaign draft' --s
 [[ "$(sed -n '1p' "$ROOT/requests.log")" == 'drive files get --params {"fileId":"folder-123","fields":"id,mimeType,trashed","supportsAllDrives":true}' ]] || fail "create-doc should validate the exact folder destination"
 CREATE_DOC_REQ="$(sed -n '2p' "$ROOT/requests.log")"
 has "$CREATE_DOC_REQ" 'drive files create --params {"fields":"id,mimeType,name,webViewLink","supportsAllDrives":true} --json {"name":"Campaign draft","parents":["folder-123"],"mimeType":"application/vnd.google-apps.document"} --upload ' "create-doc request should contain exact destination metadata"
+[[ "$CREATE_DOC_REQ" == *' --upload '*'draft.md' ]] || fail "create-doc upload path should retain the source .md extension: $CREATE_DOC_REQ"
 [[ -f "$ROOT/draft.md" ]] || fail "create-doc removed the caller-owned source"
 [[ -z "$(find "$ROOT/tmp" -mindepth 1 -maxdepth 1 -print -quit)" ]] || fail "create-doc left temporary upload files"
 pass "document creation imports the draft into the exact folder and cleans up"

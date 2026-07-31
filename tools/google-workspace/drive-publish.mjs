@@ -95,7 +95,7 @@ let workspace;
 let uploadPath;
 try {
   workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'drive-publish-'));
-  uploadPath = path.join(workspace, 'source');
+  uploadPath = path.join(workspace, path.basename(values['source-file']));
   fs.copyFileSync(values['source-file'], uploadPath);
 
   const fields = 'id,mimeType,name,webViewLink';
