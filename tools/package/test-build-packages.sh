@@ -120,6 +120,67 @@ for (const name of Object.keys(bundles)) {
     throw new Error(`${name} resources differ from the declared closure`);
   }
 }
+const expectedContentSkills = [
+  "brainstorm",
+  "case-study",
+  "confluence",
+  "confluence-publish",
+  "create-ticket",
+  "drive-publish",
+  "email-campaign",
+  "enrich-jira-ticket",
+  "grill",
+  "jira",
+  "jira-comment",
+  "jira-source-discovery",
+  "jira-ticket-enricher",
+  "link-check",
+  "md-to-pdf",
+  "okf-query",
+  "onesheet",
+  "optimize-images",
+  "press-release",
+  "prose-lint",
+  "ticket-lint",
+  "weekly-update",
+];
+const expectedContentResources = [
+  "agents/confluence-transformer.md",
+  "agents/facilitron-voice-judge.md",
+  "agents/lychee-link-runner.md",
+  "agents/optimize-images-runner.md",
+  "agents/vale-prose-runner.md",
+  "tools/broker",
+  "tools/confluence",
+  "tools/content",
+  "tools/google-workspace",
+  "tools/image",
+  "tools/imagekit",
+  "tools/jira",
+  "tools/lint/run-layer1-tests.sh",
+  "tools/md-to-adf",
+  "tools/okf",
+  "tools/skill",
+  "tools/ticket",
+  "tools/voice",
+];
+const websitePublishingSkills = ["guide-item", "news-item", "toolkit-item"];
+for (const harness of ["claude", "codex"]) {
+  const content = inventory.packages.find((entry) =>
+    entry.harness === harness && entry.package === "tron-content");
+  if (JSON.stringify(content.skills) !== JSON.stringify(expectedContentSkills)) {
+    throw new Error(`${harness}/content has an unexpected skill inventory: ${content.skills}`);
+  }
+  if (JSON.stringify(content.resources) !== JSON.stringify(expectedContentResources)) {
+    throw new Error(`${harness}/content has an unexpected resource inventory: ${content.resources}`);
+  }
+  const marketingPages = inventory.packages.find((entry) =>
+    entry.harness === harness && entry.package === "tron-repo-marketing-pages");
+  const retained = marketingPages.skills.filter((skill) => websitePublishingSkills.includes(skill));
+  if (JSON.stringify(retained) !== JSON.stringify(websitePublishingSkills)) {
+    throw new Error(`${harness}/marketing-pages lost website-publishing skills: ${retained}`);
+  }
+}
 for (const name of Object.keys(bundles).filter((entry) => entry !== "core")) {
   const skills = inventory.packages.find((entry) => entry.harness === "claude" && entry.package === `tron-${name}`).skills;
   for (const coreSkill of map.packages.core.skills) {
@@ -193,15 +254,22 @@ test -f "$OUT/codex/tron-designer/tools/imagekit/imagekit.mjs"
 node -e "
 const fs = require('fs');
 const text = fs.readFileSync(process.argv[1], 'utf8');
-if (!text.includes('tron-content:news-item')) process.exit(1);
+if (!text.includes('tron-engineer:news-item') || text.includes('tron-content:news-item')) process.exit(1);
 " "$OUT/claude/tron-content/skills/link-check/SKILL.md"
 node -e "
 const fs = require('fs');
 const text = fs.readFileSync(process.argv[1], 'utf8');
-if (!text.includes('tron-content:news-item') || text.includes('tron-engineer:news-item')) process.exit(1);
+if (!text.includes('tron-engineer:news-item') || text.includes('tron-content:news-item')) process.exit(1);
 " "$OUT/claude/tron-engineer/skills/link-check/SKILL.md"
 
-test -f "$OUT/claude/tron-repo-marketing-pages/skills/news-item/SKILL.md"
+for HARNESS in claude codex; do
+  for SKILL in guide-item news-item toolkit-item; do
+    test -f "$OUT/$HARNESS/tron-repo-marketing-pages/skills/$SKILL/SKILL.md"
+    test ! -e "$OUT/$HARNESS/tron-content/skills/$SKILL"
+  done
+  test ! -e "$OUT/$HARNESS/tron-content/tools/git"
+  test ! -e "$OUT/$HARNESS/tron-content/tools/worktree"
+done
 test -f "$OUT/claude/tron-repo-marketing-pages/tools/content/content.sh"
 test -f "$OUT/codex/tron-repo-facilitron-ui/agents/a11y-scan-runner.md"
 

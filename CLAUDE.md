@@ -147,11 +147,13 @@ thin orchestrators: the SKILL.md resolves the target and hands off to a matching
 that does the mechanical run. The **skill** stays cheap (`haiku`); the **agent** carries whatever
 model the work needs (e.g. `vale-prose-runner` is `sonnet` for prose judgment).
 
-## Content-pipeline repo guard
+## Website-publishing pipeline repo guard
 
-`news-item`, `toolkit-item`, `guide-item` write into the `marketing-pages` repo.
+`news-item`, `toolkit-item`, `guide-item` are engineering-owned website-publishing skills that write
+into the `marketing-pages` repo. They belong in the engineering and `marketing-pages` repo bundles,
+not the git-free content role bundle.
 They run a preflight check (`tools/content/content.sh check-repo`) and refuse to write unless the
-current checkout is `marketing-pages`. Preserve that guard on any content-writing skill.
+current checkout is `marketing-pages`. Preserve that guard on any website-publishing skill.
 
 The guard deliberately does **not** consult the content profile below: a file inside the repo
 cannot vouch for the repo. `check-repo` answers *whether* you may write; the profile answers
@@ -173,7 +175,7 @@ bash "$C" paths                             # framework roots: srcDir, pagesRoot
 bash "$C" profile                           # the whole thing (framework, cdn, surfaces, internalLinks)
 ```
 
-Two rules when you touch a content skill:
+Two rules when you touch a website-publishing skill:
 
 - **Never hardcode a consuming repo's paths, schema, or destination folders.** Resolve them.
   Every command above fails loudly, naming the file it looked for and what it needed; a skill
