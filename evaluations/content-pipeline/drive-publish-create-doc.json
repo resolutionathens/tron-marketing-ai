@@ -1,0 +1,11 @@
+{
+  "skills": ["drive-publish"],
+  "query": "Publish the supplied campaign-brief.md draft as a native Google Doc named Campaign brief in Drive folder ID folder-123, then give me its durable URL.",
+  "files": ["campaign-brief.md"],
+  "expected_behavior": [
+    "Uses the dedicated drive-publish capability and the authenticated gws identity without requesting credentials",
+    "Creates a native Google Doc only in the explicitly supplied folder ID folder-123",
+    "Uses the finished draft as the imported document content and removes its operation-scoped temporary copy",
+    "Returns the exact file ID, Google Docs MIME type, name, and durable Drive URL"
+  ]
+}

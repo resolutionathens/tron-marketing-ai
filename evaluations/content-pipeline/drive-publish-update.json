@@ -1,0 +1,11 @@
+{
+  "skills": ["drive-publish"],
+  "query": "Replace Drive file ID file-9001 with this revised PDF. Keep the name revised-report.pdf and do not create a new file.",
+  "files": ["revised-report.pdf"],
+  "expected_behavior": [
+    "Uses update only because the destination file ID file-9001 was explicitly supplied",
+    "Targets that exact file ID and never searches by filename or guesses a destination",
+    "Does not fall back to creating a duplicate if the update fails",
+    "Returns the exact updated file ID, MIME type, name, and durable Drive URL"
+  ]
+}
