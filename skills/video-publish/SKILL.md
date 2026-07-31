@@ -1,7 +1,7 @@
 ---
 name: video-publish
-model: sonnet
-effort: low
+model: opus
+effort: medium
 description: "Build the publishing kit for a finished video — SEO title, description with timestamped chapters, tags, thumbnail brief, end-screen/CTA, and per-platform cutdown specs (aspect ratios and length for YouTube/IG/FB/LI). Use when video is ready to ship: 'publish kit for the DevFees webinar', 'YouTube title + description for this video', 'chapters for the recording'. Git-free — produces the metadata and specs; the upload happens in YouTube/the social tools."
 allowed-tools:
   - Bash
@@ -66,7 +66,9 @@ YouTube / the social schedulers. Serves the webinar-sharing + YouTube-series wor
 
 ## Rules
 
-- Titles/descriptions are real SEO surface — front-load the keyword, write for humans. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)).
+- Titles/descriptions are real SEO surface — front-load the keyword, write for humans. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
+  and the brand voice ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)). No
+  clickbait titles and no keyword stuffing.
 - Chapters must map to actual timestamps; don't invent them — pull from the transcript/brief.
 - Accessibility: always note captions/subtitles. Don't fabricate metrics or claims.
 

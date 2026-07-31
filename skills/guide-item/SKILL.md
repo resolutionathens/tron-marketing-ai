@@ -223,7 +223,7 @@ resolves at its URL but never appears on the index.
    done
    ```
 4. **Links:** Run `bash "$C" rewrite-links "$DEST"` (facilitron.com → relative), then `bash "$C" check-link` each internal path. The repo's declared traps: `bash "$C" profile | jq -r '.internalLinks.exceptions[]? | "\(.wrong) → \(.right)"'`. Full flow: [`../../tools/content/internal-links.md`](../../tools/content/internal-links.md)
-5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, and the dash grep from [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
+5. **Prose & a11y:** `tron:prose-lint`, `tron:a11y-scan`, and the dash grep from [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md). Draft against the brand voice in [tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md).
 6. **Clean up:** Remove `/tmp/guide-<slug>` and dropped-in sources.
 
 ## Common pitfalls

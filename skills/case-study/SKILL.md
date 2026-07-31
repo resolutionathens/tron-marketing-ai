@@ -64,7 +64,9 @@ have yet — never open with an empty Results block when one question would fill
 
 ## Drafting rules
 
-- Marketing voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
+- Marketing voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md) and
+  [tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md). The district is the
+  protagonist, not Facilitron.
 - Lead with the outcome; back every claim with a metric or a quote.
 - If a key metric or quote is missing, flag it with `> TODO:` rather than inventing it. Use
   **AskUserQuestion** for the few facts that change the story.

@@ -1,7 +1,7 @@
 ---
 name: video-brief
-model: sonnet
-effort: medium
+model: opus
+effort: high
 description: "Turn a video request or ticket into a production-ready brief — purpose, audience, key message, script/voiceover, and a shot list — so an editor can go straight to work. Use when video wants to plan a piece: 'brief the support video for X', 'script the DevFees feature video', 'shot list for the webinar cutdown', or a CCAL Video ticket. Produces a brief, script, and shot list, and points downstream to the production chain (Rough Cut, GFX, Color, Sound, Deliverables) and to remotion-narrated-film for generated/narrated explainers. Git-free — it plans; editing happens in the NLE."
 allowed-tools:
   - Bash
@@ -80,7 +80,10 @@ Write `/tmp/video/<slug>-brief.md` (slug = kebab-case of the title):
 
 ## Rules
 
-- Match Facilitron voice in on-screen copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
+- Match Facilitron voice in on-screen copy and voiceover: see
+  [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md) and
+  [tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md). Script lines are spoken, so
+  write sentences someone would actually say aloud.
 - Don't pad — every shot earns its place against the length budget.
 - Use **AskUserQuestion** only for the few unknowns that change the cut (length, platform, CTA).
 

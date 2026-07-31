@@ -179,7 +179,9 @@ Remove source markdown and source image files. Don't touch the collection direct
 Validate → fix → repeat until clean. Check:
 - Internal links resolve (lychee + check-link)
 - Category is one of `jq -r '.enums.category[]' <<<"$SCHEMA"`
-- Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
+- Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)) and the
+  brand voice ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)): second person
+  and imperative throughout, never "we"
 - `tron:prose-lint` and `tron:a11y-scan` pass
 - PDF carries only actionable content
 - ImageKit filenames match front-matter values exactly

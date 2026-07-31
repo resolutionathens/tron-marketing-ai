@@ -29,11 +29,17 @@ example-heavy.
 | ------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `haiku` / `low`           | Pure orchestration — resolve a target, shell out, hand off. No judgment. | `jira`, `confluence`, all 5 audit skills (the _agent_ does any heavier work)                    |
 | `sonnet` / `low`–`medium` | Most skills: light judgment, drafting, git flows, board ops.             | `git-commit`, `seo-audit`, `board-triage`, `figma-to-imagekit`                                  |
-| `opus` / `high`           | Long-form generation and critique where quality dominates cost.          | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `press-release`, `brainstorm`, `grill` |
+| `opus` / `high`           | Long-form generation and critique where quality dominates cost.          | every content skill — `news-item`, `guide-item`, `toolkit-item`, `case-study`, `press-release`, `social-post`, `spotlight`, `email-campaign`, `onesheet`, `video-brief`, `video-publish` (`medium`), plus `brainstorm`, `grill` |
 
 When you add or edit a skill, pick the cheapest tier that does the job. An orchestration-only
 skill set to `sonnet` is a routing bug (this is what was wrong with `a11y-scan`). If a skill says
 "runs on Haiku to keep cost low," its frontmatter must agree.
+
+**One exception to "cheapest tier": a skill that drafts published copy is `opus`, regardless of how
+short the output is.** A social post is three sentences and still carries the brand voice, the stance,
+and the proof set from `tools/voice/marketing-copy.md` (MD-2574). Cost scales with output length here,
+not with the tier, and the failure mode of a cheap tier is copy that lints clean and sounds wrong.
+This covers drafting only; QA and orchestration around content stay on the cheapest tier that works.
 
 ### The `scout:` block (required on every skill — MD-2006/MD-2007)
 

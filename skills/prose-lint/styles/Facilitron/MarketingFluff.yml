@@ -26,7 +26,14 @@ tokens:
   - frictionless
   - empower(?:s|ed|ing)?
   - unleash
-  - unlock the power of
+  # Bare `unlock` supersedes the narrower `unlock the power of` it replaces: a
+  # 2026 corpus pass (MD-2574) found the plain verb is the form that actually
+  # ships, and the longer phrase is a subset of this pattern.
+  - unlock(?:s|ed|ing)?
+  - elevate(?:s|d|ing)?
+  - delve(?:s|d|ing)?
+  # Curly and straight apostrophes both appear in the corpus.
+  - in today['’]s
   - take it to the next level
   - move the needle
   - circle back

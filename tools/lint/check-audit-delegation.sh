@@ -21,10 +21,13 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${1:-$(cd "$HERE/../.." && pwd)}"
 cd "$ROOT"
 
-# <skill>:<runner agent>
+# <skill>:<runner agent>[,<runner agent>…] — a skill may delegate to more than
+# one runner, as prose-lint does: vale-prose-runner carries the mechanical Vale
+# pass, facilitron-voice-judge carries the brand-voice pass (MD-2574). Every
+# runner listed is checked, so inlining either pass back into the skill fails.
 PAIRS="a11y-scan:a11y-scan-runner
 link-check:lychee-link-runner
-prose-lint:vale-prose-runner
+prose-lint:vale-prose-runner,facilitron-voice-judge
 site-audit:unlighthouse-runner
 optimize-images:optimize-images-runner"
 
@@ -49,10 +52,9 @@ frontmatter_field() {
 while IFS= read -r pair; do
   [ -n "$pair" ] || continue
   skill="${pair%%:*}"
-  runner="${pair##*:}"
+  runners="${pair##*:}"
   checked=$((checked + 1))
   skill_doc="skills/$skill/SKILL.md"
-  agent_doc="agents/$runner.md"
 
   if [ ! -f "$skill_doc" ]; then
     echo "FAIL $skill: missing $skill_doc" >&2
@@ -66,22 +68,33 @@ while IFS= read -r pair; do
     fail=1
   fi
 
-  if ! grep -qF -- "$runner" "$skill_doc"; then
-    echo "FAIL $skill: $skill_doc no longer names its runner \"$runner\" — a skill that runs the tool itself instead of delegating is a regression" >&2
-    fail=1
-  fi
+  # Split the comma-separated runner list without arrays, so this stays portable
+  # to the bash 3.2 that ships with macOS.
+  while [ -n "$runners" ]; do
+    runner="${runners%%,*}"
+    case "$runners" in
+      *,*) runners="${runners#*,}" ;;
+      *) runners="" ;;
+    esac
+    agent_doc="agents/$runner.md"
 
-  if [ ! -f "$agent_doc" ]; then
-    echo "FAIL $skill: missing runner agent $agent_doc" >&2
-    fail=1
-    continue
-  fi
+    if ! grep -qF -- "$runner" "$skill_doc"; then
+      echo "FAIL $skill: $skill_doc no longer names its runner \"$runner\" — a skill that runs the tool itself instead of delegating is a regression" >&2
+      fail=1
+    fi
 
-  agent_name="$(frontmatter_field "$agent_doc" name)"
-  if [ "$agent_name" != "$runner" ]; then
-    echo "FAIL $skill: $agent_doc declares name \"$agent_name\", must be \"$runner\" so the skill's handoff resolves" >&2
-    fail=1
-  fi
+    if [ ! -f "$agent_doc" ]; then
+      echo "FAIL $skill: missing runner agent $agent_doc" >&2
+      fail=1
+      continue
+    fi
+
+    agent_name="$(frontmatter_field "$agent_doc" name)"
+    if [ "$agent_name" != "$runner" ]; then
+      echo "FAIL $skill: $agent_doc declares name \"$agent_name\", must be \"$runner\" so the skill's handoff resolves" >&2
+      fail=1
+    fi
+  done
 done <<EOF
 $PAIRS
 EOF

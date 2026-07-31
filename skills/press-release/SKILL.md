@@ -55,7 +55,7 @@ FOR IMMEDIATE RELEASE
 # <Headline — active, specific, no hype>
 ### <Subhead — the so-what in one line>
 
-**<CITY, State> — <Month Day, Year>** — <Lead paragraph: the news in 1–2 sentences, most
+**<CITY, State>, <Month Day, Year> —** <Lead paragraph: the news in 1-2 sentences, most
 newsworthy first (inverted pyramid).>
 
 <Body paragraph 1: context + detail.>
@@ -78,10 +78,14 @@ newsworthy first (inverted pyramid).>
 ## Drafting rules
 
 - Inverted pyramid: the news leads, detail follows.
-- Facilitron voice in body prose ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md));
-  AP-ish style; third person; no marketing superlatives in the body. The AP-style **dateline** em
-  dash (`**<CITY, State> — <Date>** —` in the template above) is the one documented exception to the
-  no-em-dash rule — keep it there and only there.
+- Facilitron voice in body prose ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
+  and the brand voice, stance, and proof set in
+  [tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md). AP-ish style; no marketing
+  superlatives in the body. The **dateline** em dash is the one documented exception to the
+  no-em-dash rule. Keep the dash *inside* the bolded run (`**<CITY, State>, <Date> —**` or
+  `**<CITY, State> — <Date>**`, both of which the corpus uses), because that is exactly what
+  `TokenIgnores` exempts in the Vale pack. A second dash after the closing `**` is not exempt and
+  will fail the lint.
 - Don't fabricate quotes or numbers. Missing quote/stat → `> TODO:` and ask with **AskUserQuestion**
   for the few that matter.
 
