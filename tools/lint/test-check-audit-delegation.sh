@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Smoke for check-audit-delegation.sh: a correct fixture passes, and each of the
-# four regressions the lint exists to stop makes it fail with a message naming
-# the offending skill — a model drifted off haiku, a dropped runner handoff, a
+# regressions the lint exists to stop makes it fail with a message naming the
+# offending skill — a model drifted off haiku, a dropped runner handoff, a
 # missing runner agent, and a runner whose declared name no longer matches.
+# A skill may contract several runners (prose-lint has two since MD-2574), so
+# dropping either one is covered too.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -17,11 +19,11 @@ trap 'trash "$FIXTURE" "$LOG"' EXIT
 
 PAIRS="a11y-scan:a11y-scan-runner
 link-check:lychee-link-runner
-prose-lint:vale-prose-runner
+prose-lint:vale-prose-runner,facilitron-voice-judge
 site-audit:unlighthouse-runner
 optimize-images:optimize-images-runner"
 
-# write_skill <skill> <runner> <model> — a minimally valid audit-skill doc.
+# write_skill <skill> <runner[,runner…]> <model> — a minimally valid audit-skill doc.
 write_skill() {
   mkdir -p "$FIXTURE/skills/$1"
   cat >"$FIXTURE/skills/$1/SKILL.md" <<EOF
@@ -54,7 +56,16 @@ reset_fixture() {
   while IFS= read -r pair; do
     [ -n "$pair" ] || continue
     write_skill "${pair%%:*}" "${pair##*:}" haiku
-    write_agent "${pair##*:}" "${pair##*:}"
+    # A skill may contract more than one runner; each needs its own agent doc.
+    runners="${pair##*:}"
+    while [ -n "$runners" ]; do
+      runner="${runners%%,*}"
+      case "$runners" in
+        *,*) runners="${runners#*,}" ;;
+        *) runners="" ;;
+      esac
+      write_agent "$runner" "$runner"
+    done
   done <<EOF
 $PAIRS
 EOF
@@ -80,8 +91,18 @@ bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "should pass on a correct fixture"
 pass "passes on a correct fixture"
 
 reset_fixture
-write_skill prose-lint vale-prose-runner sonnet
+write_skill prose-lint vale-prose-runner,facilitron-voice-judge sonnet
 expect_fail 'FAIL prose-lint: .*declares model "sonnet", must be "haiku"' "rejects an audit skill promoted off haiku"
+
+# MD-2574: prose-lint contracts two runners. Dropping either one must fail, or a
+# pass could be silently inlined back into the haiku orchestrator.
+reset_fixture
+write_skill prose-lint vale-prose-runner haiku
+expect_fail 'FAIL prose-lint: .*no longer names its runner "facilitron-voice-judge"' "rejects a multi-runner skill that dropped its second runner"
+
+reset_fixture
+write_skill prose-lint facilitron-voice-judge haiku
+expect_fail 'FAIL prose-lint: .*no longer names its runner "vale-prose-runner"' "rejects a multi-runner skill that dropped its first runner"
 
 reset_fixture
 mkdir -p "$FIXTURE/skills/link-check"
