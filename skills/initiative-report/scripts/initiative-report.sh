@@ -13,8 +13,7 @@
 #   --limit N   per-level search page size (default 200; if any level returns
 #               exactly N rows, "truncated":true is set — paginate that level)
 #
-# Side effect: writes the descendant detail array to
-# /tmp/manager/<parent>-descendants.json for follow-up queries.
+# Raw Jira detail is discarded unless --keep-dir explicitly selects a durable destination.
 #
 # Output: one JSON object on stdout — {parent, descendants, counts, truncated};
 # narration on stderr. Exit 0 success / 1 logical failure (e.g. Jira auth) /
@@ -34,10 +33,11 @@ case "$CMD" in
   *) : ;;                                # bare key/flags → implicit fetch
 esac
 
-PARENT=""; LIMIT=200
+PARENT=""; LIMIT=200; KEEP_DIR=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --limit) LIMIT="${2:-}"; shift ;;
+    --keep-dir) KEEP_DIR="${2:-}"; shift ;;
     -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) [[ -n "$PARENT" ]] && usage_err "one parent key only (got '$PARENT' and '$1')"; PARENT="$1" ;;
@@ -51,7 +51,7 @@ done
 
 command -v acli >/dev/null 2>&1 || { log "acli not found — install the Atlassian CLI and run: acli jira auth"; exit 1; }
 
-mkdir -p /tmp/manager
+if [[ -n "$KEEP_DIR" ]]; then mkdir -p "$KEEP_DIR"; fi
 
 # csv() squeezes runs of spaces/newlines into single commas and trims the ends,
 # so jq's newline-separated key output becomes a valid JQL list (no leading or
@@ -91,7 +91,7 @@ if [ -n "${all// /}" ]; then
 else
   DETAIL="[]"
 fi
-printf '%s\n' "$DETAIL" > "/tmp/manager/${PARENT}-descendants.json"
+if [[ -n "$KEEP_DIR" ]]; then printf '%s\n' "$DETAIL" > "$KEEP_DIR/${PARENT}-descendants.json"; fi
 
 # ---- 4. digest ------------------------------------------------------------------
 jq -n \

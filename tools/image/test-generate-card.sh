@@ -20,7 +20,7 @@ FAKE="$(mktemp -d "${TMPDIR:-/tmp}/gencard-test.XXXXXX")"
 trap 'rm -rf "$FAKE"' EXIT
 
 mkdir -p "$FAKE/tools/content" "$FAKE/tools/image" "$FAKE/tools/imagekit" \
-          "$FAKE/tools/skill" "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home"
+          "$FAKE/tools/skill" "$FAKE/skills/gen-image/scripts" "$FAKE/bin" "$FAKE/home" "$FAKE/tmp"
 
 # Real unit under test for numbering: the shared content-lib primitives.
 cp "$REPO_ROOT/tools/content/content-lib.sh" "$FAKE/tools/content/content-lib.sh"
@@ -71,9 +71,9 @@ run_gencard() {
   shift 2
   out="$FAKE/${phase}.stdout"
   err="$FAKE/${phase}.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" \
     perl -MPOSIX=setsid -e 'defined setsid() or die "setsid failed: $!\n"; exec @ARGV' \
-    bash "$GENCARD" "$@" --no-upload >"$out" 2>"$err" &
+    bash "$GENCARD" "$@" --no-upload --output "$FAKE/outputs/${phase}.webp" >"$out" 2>"$err" &
   pid=$!
   elapsed=0
   while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 20 ]; do
@@ -107,9 +107,9 @@ run_gencard_from_codex_cache() {
   local list_json="$1" out err
   out="$FAKE/codex-cache.stdout"
   err="$FAKE/codex-cache.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" FAKE_LIST="$list_json" \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" FAKE_LIST="$list_json" \
     bash "$FAKE/tools/image/generate-card.sh" \
-      --folder toolkit --name codex-cache.webp --prompt "test subject" --no-upload >"$out" 2>"$err" || {
+    --folder toolkit --name codex-cache.webp --prompt "test subject" --no-upload --output "$FAKE/outputs/codex-cache.webp" >"$out" 2>"$err" || {
         cat "$err" >&2
         return 1
       }
@@ -201,6 +201,12 @@ if has "$out" '"name":"codex-cache.webp"'; then
   pass "Codex cache: resolves gen-image without CLAUDE_PLUGIN_ROOT"
 else
   fail "Codex cache fallback: got: $out"
+fi
+
+if [[ -z "$(command ls -A "$FAKE/tmp")" ]] && [[ -f "$FAKE/outputs/prefix-existing.webp" ]]; then
+  pass "cleanup: no generate-card workspace remains; --output is the only durable no-upload file"
+else
+  fail "cleanup: TMPDIR or requested output unexpected (tmp: $(command ls -A "$FAKE/tmp"))"
 fi
 
 # ---- 7. Missing gen-image preserves the JSON error contract -------------

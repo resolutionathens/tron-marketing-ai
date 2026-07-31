@@ -62,6 +62,10 @@ jq -e . >/dev/null <<<"$O" || fail "output is not valid JSON"
 [[ "$(jq -r '.total' <<<"$O")" == "5" ]] || fail "total should be 5"
 [[ "$(jq -r '.truncated' <<<"$O")" == "false" ]] || fail "5 < limit → truncated:false"
 pass "fetch: valid JSON, total=5, not truncated"
+[[ ! -e "$ROOT/tmp/manager/triage-enriched.json" ]] || fail "raw snapshot must not be retained without --keep-dir"
+KEEP="$ROOT/retained"; run fetch "${NOWFLAGS[@]}" --keep-dir "$KEEP" >/dev/null 2>&1
+[[ -s "$KEEP/triage-keys.txt" && -s "$KEEP/triage-enriched.json" ]] || fail "--keep-dir should retain explicit snapshots"
+pass "cleanup: snapshots discarded by default and retained only with --keep-dir"
 
 [[ "$(jq -c '[.unassigned[].key]' <<<"$O")" == '["MCR-1"]' ]] \
   || fail "unassigned should be exactly MCR-1 (MCR-5 is not actionable) — got $(jq -c '[.unassigned[].key]' <<<"$O")"

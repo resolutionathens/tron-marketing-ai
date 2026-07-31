@@ -57,6 +57,12 @@ PATH_ONLY="$(printf '%s' "$TARGET" | sed -E 's#^https?://[^/]+##; s#[?#].*$##; s
 [ -n "$ORIGIN" ] || { log "could not parse an origin from '$TARGET'"; exit 2; }
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/unlighthouse.XXXXXX")"
+cleanup_failed_audit() {
+  local rc=$?
+  if [ "$rc" -ne 0 ]; then rm -rf "$OUT"; fi
+  return "$rc"
+}
+trap cleanup_failed_audit EXIT
 
 args=(--site "$ORIGIN" --build-static --reporter csvExpanded --output-path "$OUT" --no-cache)
 [ -n "$SAMPLES" ]  && args+=(--samples "$SAMPLES")
@@ -98,6 +104,8 @@ log "running: npx -y unlighthouse-ci ${args[*]}"
 # actually downloading Chromium / hitting the network.
 if [ -n "${UNLH_DRY_RUN:-}" ]; then
   printf 'npx -y unlighthouse-ci %s\n' "${args[*]}"
+  rm -rf "$OUT"
+  trap - EXIT
   exit 0
 fi
 # unlighthouse-ci is the HEADLESS binary. NEVER the bare `unlighthouse` binary, which

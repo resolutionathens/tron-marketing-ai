@@ -140,10 +140,12 @@ fi
 Write the body to a temp file and pass it via `--body-file`:
 
 ```bash
-cat > /tmp/.pr-body.md <<'EOF'
+PR_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-pr-body.XXXXXX")"
+trap 'rm -f "$PR_BODY"' EXIT
+cat > "$PR_BODY" <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file /tmp/.pr-body.md --base "$BASE" --head "$BRANCH" --repo "$SLUG"
+gh pr create --title "<title>" --body-file "$PR_BODY" --base "$BASE" --head "$BRANCH" --repo "$SLUG"
 ```
 
 ## Steps 7–8: Copilot review + retro comment

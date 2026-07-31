@@ -5,6 +5,10 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/site-audit.sh"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/site-audit-cleanup-smoke.XXXXXX")"
+mkdir -p "$ROOT/tmp"
+trap 'rm -rf "$ROOT"' EXIT
+export TMPDIR="$ROOT/tmp"
 export UNLH_DRY_RUN=1
 
 fail=0
@@ -64,6 +68,23 @@ check   "regex-escape: plus is escaped"            "--include-urls ^/c\\+\\+" "$
 # 6. Always headless reporter + temp output path.
 check   "always: csvExpanded reporter"             "--reporter csvExpanded" "$out"
 check   "always: --build-static"                   "--build-static" "$out"
+if [[ -z "$(command ls -A "$TMPDIR")" ]]; then echo "ok  : cleanup: dry-run leaves isolated TMPDIR empty"; else echo "FAIL: cleanup left: $(command ls -A "$TMPDIR")"; fail=1; fi
+
+mkdir -p "$ROOT/bin"
+cat > "$ROOT/bin/npx" <<'EOF'
+#!/usr/bin/env bash
+[[ "${UNLH_FAKE:-}" == fail ]] && exit 1
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == --output-path ]]; then mkdir -p "$2"; printf 'url,performance\n' > "$2/ci-result.csv"; shift 2; continue; fi
+  shift
+done
+EOF
+chmod +x "$ROOT/bin/npx"
+unset UNLH_DRY_RUN
+out="$(PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/ok 2>/dev/null)"
+[[ -s "$out" ]] && rm -rf "$(dirname "$out")" || { echo "FAIL: success did not provide a CSV for runner cleanup"; fail=1; }
+rc=0; UNLH_FAKE=fail PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/fail >/dev/null 2>&1 || rc=$?
+[[ "$rc" == 1 && -z "$(command ls -A "$TMPDIR")" ]] && echo "ok  : cleanup: success handoff and audit failure both leave no scratch" || { echo "FAIL: audit failure cleanup"; fail=1; }
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }

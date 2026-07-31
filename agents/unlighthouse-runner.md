@@ -27,6 +27,7 @@ SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/site-audit.sh)"
 
 # Run it. It prints the absolute path to the parsed CSV on stdout.
 CSV="$(bash "$SKILL_DIR/scripts/site-audit.sh" "<target-url>" [--page|--full] [--samples N] [--desktop])"
+trap 'rm -rf "$(dirname "$CSV")"' EXIT
 ```
 
 **Scope modes (the script picks real `unlighthouse-ci` flags for you):**
@@ -47,6 +48,7 @@ First run downloads Chromium (a few hundred MB) — expect a slow first pass.
 
 Read the CSV path the script printed (its `ci-result.csv`). Columns: Performance, SEO,
 Accessibility, Best Practices (0–100), plus per-page LCP/CLS/TBT.
+The CSV directory is scratch space: finish the summary before returning so the trap can remove it.
 Return: the lowest-scoring pages and the **biggest-impact opportunities grouped** (e.g.
 "5 pages have LCP > 4s, all share the same hero image") — NOT the full table.
 Note: unlighthouse's a11y score is a sanity check only — it does not replace axe/pa11y.

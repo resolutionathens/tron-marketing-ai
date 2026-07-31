@@ -29,6 +29,7 @@ SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/a11y-scan.sh)"
 
 # Run it. It prints the absolute path to the JSON results file on stdout.
 RESULTS="$(bash "$SKILL_DIR/scripts/a11y-scan.sh" "<url>" [<url>…] [--sitemap] [--pa11y] [--standard WCAG2AA])"
+trap 'rm -rf "$(dirname "$RESULTS")"' EXIT
 ```
 
 **Modes (the script picks the right engine and real flags for you):**
@@ -47,6 +48,7 @@ violations are found — findings are the product. Exit 1 = no results; 2 = bad 
 ## Triage & return
 
 Read the JSON results file the script printed.
+The result directory is scratch space: summarize it before returning, then let the trap remove it.
 Buckets: **Errors** (definite WCAG failures — fix), **Warnings** (likely — manual review), **Notices** (informational — usually skip).
 Watch for Facilitron-common issues: missing alt on images, color contrast < 4.5:1, missing form labels, icon-only buttons missing aria-label, heading-order skips.
 **Group findings by issue type across pages** (not page-by-page) so patterns can be fixed in one shot. Give counts by severity.

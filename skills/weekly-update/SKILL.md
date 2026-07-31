@@ -137,14 +137,16 @@ Hey <RECIPIENT> and <MANAGER>,
 
 ## Step 5 — Copy to clipboard
 
-Write the composed body to a file, then copy from it:
+Write the composed body to a private scratch file, copy it, then remove it on every exit path:
 
 ```bash
-cat > /tmp/weekly-update-body.txt <<'BODY'
+BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/weekly-update-body.XXXXXX")"
+trap 'rm -f "$BODY_FILE"' EXIT
+cat > "$BODY_FILE" <<'BODY'
 <the composed email body>
 BODY
 if command -v pbcopy >/dev/null 2>&1; then
-  pbcopy < /tmp/weekly-update-body.txt
+  pbcopy < "$BODY_FILE"
 fi
 ```
 
