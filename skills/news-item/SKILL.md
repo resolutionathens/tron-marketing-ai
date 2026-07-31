@@ -234,4 +234,4 @@ Every image needs real `alt` text (WCAG compliance). Never reuse the Pexels sour
 
 ## Verification loop
 
-Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.
+Validate → fix → repeat until clean. Check: SEO keywords in title/description/H2s, Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)) and the brand voice, stance, and proof set ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)), alt text on every image, internal links resolve, served-HTML check passed. Then clean up. Only the article file should be tracked in git.

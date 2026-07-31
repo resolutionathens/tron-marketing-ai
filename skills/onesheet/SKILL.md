@@ -1,7 +1,7 @@
 ---
 name: onesheet
-model: sonnet
-effort: medium
+model: opus
+effort: high
 description: "Draft a Facilitron product / feature onesheet — a single-page sell sheet (headline, value props, proof points, how-it-works, CTA) structured for a branded PDF. Use for 'draft a onesheet for Streaming', 'product one-pager for Tickets', 'sell sheet for MCR-265', or 'product summary flyer'. Produces structured markdown ready for tron:md-to-pdf. Git-free — drafts the content; PDF render and asset work are separate steps."
 allowed-tools:
   - Bash
@@ -71,7 +71,10 @@ cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 ## Drafting rules
 
 - One page. Ruthless: 3 value props, 3 steps, 1 proof block.
-- Benefits over features. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). No unsupported claims (flag gaps with `> TODO:`).
+- Benefits over features. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
+  and the brand voice, stance, and proof set ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)).
+  No unsupported claims (flag gaps with `> TODO:`); pull figures from the proof set rather than
+  inventing them.
 - Use **AskUserQuestion** only for audience + the single primary CTA if unclear.
 
 ## Handoff

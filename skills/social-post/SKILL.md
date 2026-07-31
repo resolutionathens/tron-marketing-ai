@@ -1,7 +1,7 @@
 ---
 name: social-post
-model: sonnet
-effort: medium
+model: opus
+effort: high
 description: "Draft a Facilitron social post from a topic, asset, or link — a master caption plus per-platform variants for Instagram, Facebook, and LinkedIn, each with the right length, hashtags, CTA, and image/aspect note. Use for 'draft a social post for X', 'IG/FB/LI copy for the Summer Summit recap', 'caption for this', or a CCAL Social Post ticket. For people/district/facility spotlights use tron:spotlight. Git-free — produces copy; scheduling happens in the social tools."
 allowed-tools:
   - Bash
@@ -62,7 +62,9 @@ happens in the social tools. For spotlights (new-hire / district / facility / pe
 
 ## Rules
 
-- Facilitron voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md). One primary CTA per post.
+- Facilitron voice: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md) and
+  [tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md), whose register table gives
+  the person, CTA count, and hard nos for a social post.
 - Tailor per platform — don't paste the same caption three times. IG is visual + hashtags, FB is
   conversational + link, LI is professional + insight-led.
 - Always include **alt text** for the image. Don't invent facts, names, dates, or stats.

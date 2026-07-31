@@ -1,7 +1,7 @@
 ---
 name: spotlight
-model: sonnet
-effort: medium
+model: opus
+effort: high
 description: "Draft a Facilitron spotlight social post — new-hire, people, district, facility, or customer — in the house structure (who/what plus a human angle, quote, and CTA), with per-platform variants for IG/FB/LI. Use for 'new hire spotlight for X', 'district spotlight for Conejo Valley', 'facility spotlight', or a CCAL spotlight ticket. Git-free — produces the copy; scheduling happens in the social tools."
 allowed-tools:
   - Bash
@@ -70,7 +70,9 @@ CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
 
 ## Rules
 
-- Human-first and genuine, not corporate. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)). Get names/titles exactly right.
+- Human-first and genuine, not corporate. Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md))
+  and the brand voice ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)). Get
+  names/titles exactly right.
 - Never fabricate a quote, role, or fact — flag gaps and confirm.
 - Always include alt text and the photo spec.
 
