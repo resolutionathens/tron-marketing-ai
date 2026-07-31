@@ -67,7 +67,10 @@ async function request(path, token, options = {}) {
     response = await fetch(`${brokerBase}/wiki${path}`, {
       ...options,
       headers: {
-        'cf-access-token': token,
+        // The broker contract uses CF-Access-Token for the service token minted by
+        // `cloudflared access token` (tools/broker/README.md). This is intentionally
+        // not Cf-Access-Jwt-Assertion, which applies to a different Access flow.
+        'CF-Access-Token': token,
         ...(options.body ? { 'content-type': 'application/json' } : {}),
       },
     });

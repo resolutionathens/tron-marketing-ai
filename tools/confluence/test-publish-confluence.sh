@@ -66,6 +66,10 @@ run_publish() {
   PATH="$ROOT/bin:$PATH" CONFLUENCE_BROKER_BASE="$BASE" CONFLUENCE_SITE_BASE="https://facilitron.atlassian.net/wiki" node "$SCRIPT" "$@"
 }
 
+rg -q -F "'CF-Access-Token': token" "$SCRIPT" || fail "publisher must use the broker contract's canonical auth header"
+! rg -q -F "'Cf-Access-Jwt-Assertion':" "$SCRIPT" || fail "publisher must not use the browser-session assertion header"
+pass "authentication uses the broker contract's CF-Access-Token header"
+
 OUT="$(run_publish create --space-id 111 --parent-id 222 --title 'Quarterly plan' --body-file "$ROOT/deliverable.html")"
 [[ "$OUT" == '{"ok":true,"action":"create","pageId":"4242","version":1,"title":"Quarterly plan","url":"https://facilitron.atlassian.net/wiki/spaces/MKT/pages/4242/Quarterly+plan"}' ]] || fail "create should return exact destination metadata: $OUT"
 CREATE_REQ="$(sed -n '1p' "$ROOT/requests.jsonl")"
