@@ -8,7 +8,7 @@
     "Structures the draft to fit one page: headline + one-line positioning, subhead, 3 value props (benefits not features), a 3-step How it works, a single proof block, and a Get started CTA",
     "Uses only real proof points (metrics, customer names, integrations) and flags any unsupported claim or missing proof with > TODO: rather than inventing it",
     "Produces copy with no em dashes (Facilitron voice), ruthlessly tight (3 value props, 3 steps, 1 proof block)",
-    "Writes the draft to /tmp/content/<slug>-onesheet.md as structured markdown ready for tron:md-to-pdf",
+    "Publishes the structured markdown to the preselected Drive or Confluence destination, then gives it to tron:md-to-pdf with a separately resolved durable PDF destination",
     "Stays git-free, routes any hero/visual through tron:gen-image or tron:figma-to-imagekit, and confirms before producing the final PDF"
   ]
 }

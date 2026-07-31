@@ -26,6 +26,11 @@ scout:
 
 # /seo-report — work with the Search Console report
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the SEO report. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 The GSC report is **already produced** by `tron-search-console` (the "Facilitron GSC Analyzer"). This
 skill does NOT re-pull or re-derive Search Console data — it helps you **get** that report and then
 **work with it**: summarize it, translate it for leadership, turn it into slides, and file the
@@ -75,5 +80,6 @@ segmentation (cf. MCR-335 district-level tracking). Keep this supplementary; GSC
 
 ## Output
 
-A shareable summary (markdown, default `/tmp/seo/seo-report-<period>.md`) plus whichever deliverable was
+A shareable summary drafted at `$WORK/seo-report-<period>.md` and published to the resolved durable
+destination, plus whichever deliverable was
 asked for, and a short list of the follow-up tasks the data warrants.

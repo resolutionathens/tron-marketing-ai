@@ -33,6 +33,11 @@ scout:
 
 # Weekly Update Generator
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the weekly update. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner metadata, use a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. Clipboard copying remains an optional convenience after durable publication, not the final destination. This skill never writes repository content or performs Git operations.
+
 Produces a plain-text email body in the team's 6-section template, copied to clipboard via `pbcopy`. Works Jira-only (GitHub optional). Never auto-sends.
 
 Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see

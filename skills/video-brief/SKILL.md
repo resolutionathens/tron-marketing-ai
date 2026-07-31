@@ -26,6 +26,11 @@ scout:
 
 # /video-brief — Video brief, script & shot list
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the video brief. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Turn a video request into a **brief an editor can act on** without back-and-forth. Git-free: it
 plans (brief + script + shot list); the edit happens in the editor. Most video work lives on the
 **CCAL** board (issue type `Video`, with the Rough Cut → GFX → Color → Sound → Deliverables chain).
@@ -54,7 +59,8 @@ plans (brief + script + shot list); the edit happens in the editor. Most video w
 
 ## Output: brief + script + shot list
 
-Write `/tmp/video/<slug>-brief.md` (slug = kebab-case of the title):
+Draft `$WORK/<slug>-brief.md` (slug = kebab-case of the title), then publish it to the resolved
+durable destination:
 
 ```markdown
 # <title> — video brief

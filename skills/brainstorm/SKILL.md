@@ -4,9 +4,11 @@ model: opus
 effort: high
 description: "Collaborative one-question-at-a-time ideation for a marketing idea before you commit to producing it — a content topic, a campaign, positioning, a name, a new landing page. Use for '/brainstorm', 'I have an idea', 'help me think through', 'workshop this idea', or a vague hypothesis with no plan yet. Asks one question at a time to surface assumptions, then writes a structured Ideation Note. Does NOT produce the content — it produces the thinking."
 allowed-tools:
+  - Bash
   - AskUserQuestion
   - Read
   - Write
+  - Skill
 scout:
   surface: true
   title: "Brainstorm an idea"
@@ -23,6 +25,11 @@ scout:
 ---
 
 # /brainstorm — Ideation Workshop
+
+## Durable delivery gate
+
+Resolve the durable destination before drafting the Ideation Note. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
 
 For the fuzzy front end — when you have a hunch but haven't pinned down audience, angle, or viability. Output is an Ideation Note a content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`) turns into a real page.
 
@@ -70,7 +77,7 @@ RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
 [ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
 SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/brainstorm.sh)"
-bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] [--out PATH]
+bash "$SKILL_DIR/scripts/brainstorm.sh" save "<idea name>" [--audience S] [--format F] --out "$WORK/ideation-<slug>.md"
 ```
 
 Then edit the file to fill in all 6 stage answers. Use the template in `reference/ideation-note-template.md`. Facilitron voice in the note's copy: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).

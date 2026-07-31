@@ -26,6 +26,11 @@ scout:
 
 # /keyword-research — Keyword research + clustering
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the keyword map. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. Website work uses the durable source URL as the engineering handoff; this skill never writes repository content or performs Git operations.
+
 Build a **keyword map** for a topic or page: clusters by intent, mapped to target URLs, with gaps and
 quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and content drafting.
 
@@ -73,6 +78,7 @@ Page-2 queries to push (pos 11–20).
 Intents/terms with no page yet → content ideas.
 ```
 
-Write `/tmp/seo/keyword-map-<slug>.md`. Hand quick wins to `tron:landing-page-seo`; hand content
+Draft `$WORK/keyword-map-<slug>.md`, publish it to the resolved durable destination, and return its
+approved source URL for any website handoff. Hand quick wins to `tron:landing-page-seo`; hand content
 gaps to the content role (`tron:case-study` / `tron:guide-item`). Summarize the primary targets +
 top 3 quick wins.

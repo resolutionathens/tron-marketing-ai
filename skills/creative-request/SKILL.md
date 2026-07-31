@@ -42,6 +42,11 @@ scout:
 
 # /creative-request — Creative intake → design brief
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the creative brief. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Turn a raw MCR creative/design ticket into a review-ready design brief and asset plan. Git-free — routes production to `tron:figma-to-imagekit` / `tron:gen-image` / `tron:md-to-pdf`.
 
 ## Workflow
@@ -77,7 +82,7 @@ Use `AskUserQuestion` with concrete options for anything ambiguous (brand color,
 
 ### 5. Write the brief
 
-Save to `/tmp/creative/<KEY>-brief.md`:
+Draft `$WORK/<KEY>-brief.md`, then publish it to the resolved durable destination:
 
 ```markdown
 # <KEY> — <deliverable> creative brief

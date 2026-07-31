@@ -59,6 +59,10 @@ bash "$SCRIPT" save 'Defaults Only' --out "$ROOT/def.md" --force >/dev/null 2>&1
 pass "save --force → overwrites"
 
 # --- usage / error contract --------------------------------------------------
+rc=0; bash "$SCRIPT" save 'Missing destination' >/dev/null 2>&1 || rc=$?
+[[ "$rc" -eq 2 ]] || fail "save without --out should exit 2 (got $rc)"
+pass "save without --out → exit 2"
+
 rc=0; bash "$SCRIPT" save >/dev/null 2>&1 || rc=$?
 [[ "$rc" -eq 2 ]] || fail "save without name should exit 2 (got $rc)"
 pass "save with no name → exit 2"

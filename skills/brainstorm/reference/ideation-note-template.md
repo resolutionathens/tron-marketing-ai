@@ -1,7 +1,7 @@
 # Ideation Note template
 
 The structured artifact `/brainstorm` produces after Stage 6. Save to a working path
-(`/tmp/ideation-<slug>.md`, or alongside the user's notes if they prefer). The
+(`$WORK/ideation-<slug>.md` before publication). The
 `scripts/brainstorm.sh save` fast path writes this skeleton for you.
 
 ```markdown

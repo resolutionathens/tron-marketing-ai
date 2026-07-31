@@ -27,6 +27,11 @@ scout:
 
 # /landing-page-seo — Landing-page optimization spec
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the SEO spec. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. The published URL is the approved source for the engineering implementer; this skill never writes repository content or performs Git operations.
+
 Turn a target keyword set + a page into a **concrete on-page change list** a developer can implement.
 Git-free: produces the spec; a git user makes the edits.
 
@@ -87,7 +92,8 @@ H2/H3 structure that covers the intent + supporting terms.
 
 ## Handoff
 
-Write `/tmp/seo/onpage-spec-<slug>.md`. The implementation lands in whichever repo serves the page —
+Draft `$WORK/onpage-spec-<slug>.md`, publish it to the resolved durable destination, and return the
+approved source URL in the website handoff. The implementation lands in whichever repo serves the page —
 name it in the spec (`bash "$C" paths --repo <checkout> | jq -r .repo`) rather than assuming, since
 the same skill runs against the marketing site and the dynamic landing pages. Hand to a git user
 (`tron:start-ticket` → edit → `tron:git-pr`) or file via `tron:board-scaffold`. Summarize the

@@ -98,6 +98,16 @@ warn="$(bun "$HERE/build.ts" "$TMP/tables.md" --out "$OUT" --emit-md 2>&1 >/dev/
 contains     "table-heavy: warns on a 5-col table"     "5-column table" "$warn"
 contains     "table-heavy: hint uses the sed command"  's|@@SKILLDIR@@|' "$warn"
 contains     "table-heavy: cites the real section"     'Two paths — default to LaTeX' "$warn"
+
+# A destination must be resolved by the calling skill before generation. The renderer therefore
+# refuses to silently place a completed artifact under /tmp when --out was omitted.
+if bun "$HERE/build.ts" "$TMP/fixture.md" --emit-md >"$TMP/no-out.stdout" 2>"$TMP/no-out.stderr"; then
+  echo "FAIL: build succeeded without required --out"
+  fail=1
+else
+  no_out_error="$(cat "$TMP/no-out.stderr")"
+  contains "destination: --out required before generation" "--out is required" "$no_out_error"
+fi
 not_contains "table-heavy: no broken cp hint"          "cp " "$warn"
 
 # Fixture 4: light table (2 cols, 1 table) → no warning

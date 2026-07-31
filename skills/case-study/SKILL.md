@@ -31,6 +31,11 @@ scout:
 
 # /case-study — Customer / district case study drafter
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the case study. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. For a website handoff, the published URL is the approved source consumed by `tron:guide-item` or `tron:news-item`; this skill never writes the repository or performs Git work.
+
 Turn raw inputs into a publish-ready **case study** in Facilitron's house structure, without losing
 the source facts. Git-free: it writes a markdown draft and routes publishing to the right skill.
 
@@ -73,7 +78,8 @@ have yet — never open with an empty Results block when one question would fill
 
 ## Output + handoff
 
-Write to a draft path (default `/tmp/content/<slug>-case-study.md`) with front matter stub:
+Draft `$WORK/<slug>-case-study.md` with this content stub, then publish it to the resolved durable
+destination:
 
 ```markdown
 ---

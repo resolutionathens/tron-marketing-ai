@@ -2,11 +2,13 @@
 name: md-to-pdf
 model: sonnet
 effort: medium
-description: "Convert a Facilitron Nuxt-Content markdown file into a branded PDF, authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use for 'make a PDF of this', 'convert markdown to PDF', 'generate a PDF download for the toolkit', or 'turn this markdown into a downloadable branded document'. A pandoc-from-markdown fallback exists for quick prose-only output. Output goes to /tmp/facilitron-md-to-pdf by default."
+description: "Convert a Facilitron Nuxt-Content markdown file into a branded PDF, authored from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes). Use for 'make a PDF of this', 'convert markdown to PDF', 'generate a PDF download for the toolkit', or 'turn this markdown into a downloadable branded document'. A pandoc-from-markdown fallback exists for quick prose-only output. Resolves Google Drive or an explicit durable local folder before generation and never treats temporary output as final."
 allowed-tools:
   - Bash
   - Read
   - Write
+  - AskUserQuestion
+  - Skill
 scout:
   surface: true
   title: "Make a branded PDF"
@@ -24,6 +26,15 @@ scout:
 ---
 
 # Facilitron Markdown → PDF
+
+## Durable delivery gate
+
+Resolve the durable destination before drafting or generating the PDF: an explicit Drive folder or
+file ID, or an explicit non-temporary local folder selected by the user. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): capture review,
+owner, approver, target, Jira, asset, and handoff metadata; render inside a uniquely created scratch
+directory; publish or copy and verify the final PDF; return the complete success block; and clean
+scratch on success and failure. This skill never writes repository content or performs Git work.
 
 Convert Facilitron Nuxt-Content markdown into branded PDFs.
 
@@ -59,11 +70,12 @@ The **pandoc-from-markdown** path (`build.ts`) is a **fallback** — reach for i
 The skill ships a Facilitron-branded starter at `$SKILL_DIR/template.tex`, styled to mirror the site's Tailwind theme (in marketing-pages today: `app/assets/css/tailwind.css` — resolve it as `<srcDirAbs>/assets/css/tailwind.css` from `content.sh paths` rather than typing a path, since the assets directory moves with the framework's srcDir). It pre-wires: the logo; the brand fonts (Inter body / Archivo display / IBM Plex Mono figures); `tron-asphalt-900` ink for text and headings (not pure black) with `tron-primary-600` links; an `\eyebrow{...}` kicker and an Archivo-ExtraLight hero title matching the site's weight-200 `frame-h1`; rounded `tron-primary-50` stat cards with a `primary-500` accent bar (`\stat{number}{label}` inside a `tcbraster`, the site's "callout" pattern); dashboard-style tables (gray-200 header via `\thd{}` + white/`gray-100` zebra + thin asphalt rules); the `\num{...}` mono-figure macro; and `\fchk` (outline checkbox).
 
 ```bash
-mkdir -p /tmp/facilitron-md-to-pdf
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/facilitron-md-to-pdf.XXXXXX")"
+trap 'rm -rf "$WORK"' EXIT HUP INT TERM
 # Substitute @@SKILLDIR@@ with this skill's bundled dir so the font + logo paths resolve
-sed "s|@@SKILLDIR@@|$SKILL_DIR|g" "$SKILL_DIR/template.tex" > /tmp/facilitron-md-to-pdf/<slug>.tex
+sed "s|@@SKILLDIR@@|$SKILL_DIR|g" "$SKILL_DIR/template.tex" > "$WORK/<slug>.tex"
 # Edit <slug>.tex — replace the title and example sections (the EDIT: markers) with real content
-xelatex -interaction=nonstopmode -output-directory=/tmp/facilitron-md-to-pdf /tmp/facilitron-md-to-pdf/<slug>.tex
+xelatex -interaction=nonstopmode -output-directory="$WORK" "$WORK/<slug>.tex"
 ```
 
 Edit the `EDIT:` markers for your content. The template uses `\graphicspath` to keep `\includegraphics{facilitron-logo.png}` resolving even when copied to `/tmp`, and references the vendored brand fonts in `fonts/` via the `@@SKILLDIR@@` token (substituted with `$SKILL_DIR` by the `sed` above), so it works with no further setup or system font install. **Run `xelatex` twice** if hyperref complains about needing a rerun for outlines.
@@ -83,11 +95,11 @@ For a small number of tables in an otherwise prose document, see [pandoc excepti
 A quick path for plain prose with no tables or forms. It renders in Helvetica (not the brand fonts) and is "dumb on purpose" — it pipes the markdown through pandoc with the logo and title bolted on top.
 
 ```bash
-bun "$SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>]
+bun "$SKILL_DIR/build.ts" <file.md> [file.md ...] --out "$WORK"
 ```
 
 - One or more markdown file paths (positional)
-- `--out <dir>` — optional output directory (default: `/tmp/facilitron-md-to-pdf`)
+- `--out <dir>` — required operation-scoped scratch directory
 
 It writes both the cleaned intermediate `<slug>.md` and the final `<slug>.pdf` into the output directory.
 
@@ -114,34 +126,13 @@ It writes both the cleaned intermediate `<slug>.md` and the final `<slug>.pdf` i
 
 ---
 
-## Shared finish — review then upload
+## Shared finish — review then publish
 
-Whichever path you used, the PDF lands wherever you wrote it (default `/tmp/facilitron-md-to-pdf`). Then:
-
-1. Open the resulting PDF(s) so the user can review (`open <pdf-path>`).
-2. After approval, ask the consuming repo where the PDF belongs and what to call it. The CDN
-   folder, the filename, and the string that goes into front matter are that repo's facts, and the
-   third is not derivable from the first two:
-
-   ```bash
-   C="${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/content/content.sh"
-   A="$(bash "$C" image <pipeline> <role> --slug <slug> --repo <checkout>)" || exit 1  # e.g. toolkit pdf
-   FOLDER="$(jq -r .uploadFolder <<<"$A")"; NAME="$(jq -r .uploadName <<<"$A")"
-   REF="$(jq -r .reference <<<"$A")"; FIELD="$(jq -r '.field // empty' <<<"$A")"
-   ```
-
-3. Upload to ImageKit with exactly those values:
-   ```bash
-   node "${CLAUDE_PLUGIN_ROOT:-$SKILL_DIR/../..}/tools/imagekit/imagekit.mjs" upload <path-to-pdf> --name "$NAME" --folder "$FOLDER"
-   ```
-   Always pass `--name` so ImageKit doesn't append a random suffix to the filename.
-4. Write `$REF` into the `$FIELD` front-matter key **verbatim**. Do not rebuild it from `$FOLDER`
-   and `$NAME`: each role declares a `valueFormat`, and a renderer that already prefixes its own
-   folder turns a helpfully-prefixed value into a doubled CDN path that 404s. When you need a
-   fetchable address (a spot-check), take `.url` — never concatenate one from `reference`.
-
-   If `content.sh image` fails, that repo declares no such pipeline or role. Say what you needed
-   and stop; do not invent a folder.
+Open the scratch PDF for review. After the requested review state is known, publish it to the Drive
+destination with `tron:drive-publish`, or copy it to the selected durable local folder and verify the
+absolute path exists. Return the complete durable-deliverable success block. For website-bound
+PDFs, engineering consumes the durable source URL and owns any CDN upload, repository reference,
+front matter, component syntax, branch, and deployment work. The cleanup trap then removes `$WORK`.
 
 ## What goes into the PDF
 

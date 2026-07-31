@@ -31,6 +31,11 @@ scout:
 
 # /email-campaign — Email & newsletter drafter
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the email. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Draft review-ready email copy for Facilitron's lifecycle and newsletter programs. Git-free: produces
 copy; sending lives in the ESP. Serves the MCR Email & Lifecycle initiatives (Facility Forward
 newsletter, District Launch Emails, Onboarding Emails, announcements).
@@ -79,5 +84,6 @@ newsletter, District Launch Emails, Onboarding Emails, announcements).
 
 ## Handoff
 
-Write to `/tmp/content/<slug>-email.md` (slug = kebab-case of the title). Offer `tron:grill` for a copy pass. Note: the copy is pasted
+Draft `$WORK/<slug>-email.md` (slug = kebab-case of the title), publish it to the resolved durable
+destination, and return the success metadata. Offer `tron:grill` for a copy pass. Note: the copy is pasted
 into the ESP (Customer.io / HubSpot / etc.) by the owner; this skill stops at approved copy.

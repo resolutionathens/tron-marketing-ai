@@ -27,6 +27,11 @@ scout:
 
 # /press-release — Press release drafter
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the press release. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Draft a clean, standard-format **press release** from an announcement brief. Git-free: produces a
 review-ready markdown draft. Serves the MCR "Press Releases" and "Media Outreach" initiatives.
 
@@ -91,7 +96,8 @@ newsworthy first (inverted pyramid).>
 
 ## Output + handoff
 
-Write to `/tmp/content/<slug>-press-release.md`. Offer:
+Draft `$WORK/<slug>-press-release.md`, publish it to the resolved durable destination, and return the
+success metadata. Offer:
 
 - `tron:grill` for a credibility pass before it goes out.
 - `tron:md-to-pdf` for a distributable PDF.

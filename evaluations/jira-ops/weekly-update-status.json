@@ -6,6 +6,8 @@
     "Runs the bundled weekly-activity.sh to fetch the window's Jira (and GitHub when available) activity rather than re-deriving the JQL and date math by hand, defaulting to since-last-Monday",
     "Asks the three soft questions (blockers, decisions, cross-team) in a single batched AskUserQuestion call",
     "Composes Kristina's 6-section template as a plain-text email body (no markdown, no em dashes), applying the roll-up rule for multi-ticket bullets",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Copies the body to the clipboard via pbcopy and never auto-sends — the user pastes and sends it themselves"
   ]
 }

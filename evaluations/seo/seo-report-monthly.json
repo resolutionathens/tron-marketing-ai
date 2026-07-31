@@ -7,6 +7,8 @@
     "Interprets the GSC markdown into a shareable SEO summary plus a leadership translation and slide inputs",
     "Proposes concrete follow-up tasks off the data",
     "Optionally pulls GA4 context via the analytics MCP when useful",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays git-free: interprets and repackages the report, does not branch or commit"
   ]
 }
