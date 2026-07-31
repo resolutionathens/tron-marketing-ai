@@ -1,0 +1,11 @@
+{
+  "skills": ["confluence-publish"],
+  "query": "Publish this finished content deliverable as a new Confluence page in space ID 111 under parent page ID 222, then give me its durable URL.",
+  "files": ["deliverable.html"],
+  "expected_behavior": [
+    "Uses the dedicated confluence-publish capability instead of changing the read-only confluence skill",
+    "Creates the page only under the explicitly supplied space ID 111 and parent page ID 222",
+    "Passes the completed content from its existing file without placing the deliverable in temporary storage",
+    "Returns the created page ID, version, title, and durable Confluence URL"
+  ]
+}
