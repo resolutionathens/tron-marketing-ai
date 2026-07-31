@@ -85,6 +85,9 @@ out="$(PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/ok 2>/de
 [[ -s "$out" ]] && rm -rf "$(dirname "$out")" || { echo "FAIL: success did not provide a CSV for runner cleanup"; fail=1; }
 rc=0; UNLH_FAKE=fail PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/fail >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 1 && -z "$(command ls -A "$TMPDIR")" ]] && echo "ok  : cleanup: success handoff and audit failure both leave no scratch" || { echo "FAIL: audit failure cleanup"; fail=1; }
+rg -q 'trap .*dirname.*CSV' "$HERE/../../../agents/unlighthouse-runner.md" \
+  && echo "ok  : cleanup: runner owns successful result-directory removal" \
+  || { echo "FAIL: runner cleanup contract missing"; fail=1; }
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }
