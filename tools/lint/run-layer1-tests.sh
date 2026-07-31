@@ -20,6 +20,8 @@ cd "$ROOT"
 fail=0
 failed=""
 total=0
+skipped=0
+skipped_tests=""
 
 tests="$(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort)"
 if [ -n "${CI:-}" ]; then
@@ -34,10 +36,15 @@ while IFS= read -r t; do
   total=$((total + 1))
   # GitHub Actions folds ::group::/::endgroup:: blocks; harmless locally.
   echo "::group::$t"
-  if bash "$t"; then
+  bash "$t"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
     echo "PASS: $t"
+  elif [ "$rc" -eq 77 ]; then
+    echo "SKIP: $t"
+    skipped_tests="$skipped_tests  $t"$'\n'
+    skipped=$((skipped + 1))
   else
-    rc=$?
     echo "FAIL: $t (exit $rc)"
     failed="$failed  $t"$'\n'
     fail=1
@@ -57,4 +64,9 @@ if [ "$fail" -ne 0 ]; then
   printf '%s' "$failed"
   exit 1
 fi
-echo "All $total layer-1 test-*.sh passed (or skipped cleanly)."
+passed=$((total - skipped))
+echo "All $total layer-1 test-*.sh completed: $passed passed, $skipped skipped."
+if [ "$skipped" -ne 0 ]; then
+  echo "SKIPPED layer-1 tests:"
+  printf '%s' "$skipped_tests"
+fi

@@ -63,8 +63,8 @@ fi
 if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${CI:-}" ]; then
   echo "SKIP: exec fallback tests — unauthenticated in CI (PATH C is unreliable headless)"
   echo
-  [ "$fail" -eq 0 ] && echo "ALL PASS (skipped unauthenticated tests)" || { echo "FAILURES above"; exit 1; }
-  exit 0
+  [ "$fail" -eq 0 ] || { echo "FAILURES above"; exit 1; }
+  exit 77
 fi
 
 mkfake() {
