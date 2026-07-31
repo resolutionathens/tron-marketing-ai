@@ -20,14 +20,15 @@ cd "$ROOT"
 fail=0
 failed=""
 total=0
+skipped=0
+skipped_tests=""
 
 tests="$(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort)"
 if [ -n "${CI:-}" ]; then
-  # gen-image's test scripts are excluded on CI only (still run locally): they
-  # hit environment-fragile setup on GitHub's macOS runners even though
-  # they're hermetic (stubbed gen-image.sh/curl/node) and reproduce green
-  # locally on the same commit.
-  tests="$(printf '%s\n' "$tests" | grep -v -e '/gen-image/scripts/test-gen-image\.sh$' -e '/image/test-generate-card\.sh$')"
+  # gen-image test now skips unauthenticated exec tests on CI via CI= guard in the
+  # test itself, so it runs cleanly in CI. Only exclude test-generate-card.sh which
+  # is image publishing related and requires ImageKit auth.
+  tests="$(printf '%s\n' "$tests" | grep -v -e '/image/test-generate-card\.sh$')"
 fi
 
 while IFS= read -r t; do
@@ -35,10 +36,15 @@ while IFS= read -r t; do
   total=$((total + 1))
   # GitHub Actions folds ::group::/::endgroup:: blocks; harmless locally.
   echo "::group::$t"
-  if bash "$t"; then
+  bash "$t"
+  rc=$?
+  if [ "$rc" -eq 0 ]; then
     echo "PASS: $t"
+  elif [ "$rc" -eq 77 ]; then
+    echo "SKIP: $t"
+    skipped_tests="$skipped_tests  $t"$'\n'
+    skipped=$((skipped + 1))
   else
-    rc=$?
     echo "FAIL: $t (exit $rc)"
     failed="$failed  $t"$'\n'
     fail=1
@@ -58,4 +64,9 @@ if [ "$fail" -ne 0 ]; then
   printf '%s' "$failed"
   exit 1
 fi
-echo "All $total layer-1 test-*.sh passed (or skipped cleanly)."
+passed=$((total - skipped))
+echo "All $total layer-1 test-*.sh completed: $passed passed, $skipped skipped."
+if [ "$skipped" -ne 0 ]; then
+  echo "SKIPPED layer-1 tests:"
+  printf '%s' "$skipped_tests"
+fi
