@@ -1,0 +1,11 @@
+{
+  "skills": ["drive-publish"],
+  "query": "Upload final-report.pdf as application/pdf to Drive folder ID folder-123 and return the durable destination.",
+  "files": ["final-report.pdf"],
+  "expected_behavior": [
+    "Validates the explicitly supplied Drive folder before uploading",
+    "Uploads the exact source file with its name and application/pdf MIME type",
+    "Does not leave the final artifact or an upload copy in temporary storage",
+    "Returns the exact file ID, MIME type, name, and durable Drive URL"
+  ]
+}
