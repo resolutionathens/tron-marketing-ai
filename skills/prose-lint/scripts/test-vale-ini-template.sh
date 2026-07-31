@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-# Regression test for MD-2539: BlockIgnores in vale-ini.template must stay a
+# Regression tests for vale-ini.template: MD-2539 (BlockIgnores parsing) and
+# MD-2574 (the AP dateline exemption and both dash tokens, at the end).
+#
+# MD-2539: BlockIgnores in vale-ini.template must stay a
 # single comma-free regex (Vale splits its value on commas), and must still
 # ignore both the `::` and `:::` MDC fence variants without swallowing prose
 # outside them.
@@ -126,4 +129,57 @@ if ! printf '%s\n' "$OUT" | grep -qE '^fixture\.md:1:'; then
 fi
 pass "prose outside the fences still produces findings"
 
-echo "vale-ini.template BlockIgnores regression: $PASS checks passed"
+# --- MD-2574: the dateline exemption and both dash tokens. ---
+#
+# Facilitron.EmDash is an error-level rule that must fire on a stray em OR en
+# dash but never on the AP press-release dateline, where the dash is correct.
+# The exemption lives in TokenIgnores rather than in the rule because RE2 has no
+# lookaround. Both dateline variants in the corpus are covered here: the dash
+# trailing inside the bold run, and the dash separating city from date.
+
+cat > "$WORK/dateline.md" <<'EOF'
+**LOS GATOS, Calif., July 1, 2026 —** For decades districts treated this as routine.
+
+**LOS GATOS, Calif. — February 24, 2026**, Facilitron today announced the framework.
+
+This sentence has a stray em dash — right here.
+
+This sentence has a stray en dash – right here.
+
+**Los Gatos-Saratoga UHSD** had no clear picture of usage.
+EOF
+
+DATE_OUT="$(cd "$WORK" && vale --output=line dateline.md 2>&1)" || true
+
+for line in 1 3; do
+  if printf '%s\n' "$DATE_OUT" | grep -qE "^dateline\.md:$line:[0-9]+:Facilitron\.EmDash"; then
+    fail "EmDash fired on the AP dateline (line $line); TokenIgnores should exempt the bolded run"
+  fi
+done
+pass "both AP dateline variants stay exempt from EmDash"
+
+if ! printf '%s\n' "$DATE_OUT" | grep -qE '^dateline\.md:5:[0-9]+:Facilitron\.EmDash'; then
+  fail "EmDash did not fire on a stray em dash (line 5)"
+fi
+pass "a stray em dash is still caught"
+
+if ! printf '%s\n' "$DATE_OUT" | grep -qE '^dateline\.md:7:[0-9]+:Facilitron\.EmDash'; then
+  fail "EmDash did not fire on a stray en dash (line 7) — the en dash token is the MD-2574 gap"
+fi
+pass "a stray en dash is caught (was unenforced before MD-2574)"
+
+# A bolded run with no year must not inherit the dateline exemption, or any bold
+# phrase would become a lint-free zone.
+cat > "$WORK/fluff.md" <<'EOF'
+**Los Gatos-Saratoga UHSD** can unlock and elevate outcomes.
+EOF
+
+FLUFF_OUT="$(cd "$WORK" && vale --output=line fluff.md 2>&1)" || true
+for token in unlock elevate; do
+  if ! printf '%s\n' "$FLUFF_OUT" | grep -q "'$token'"; then
+    fail "MarketingFluff did not catch '$token' — bare verb tokens are the MD-2574 addition"
+  fi
+done
+pass "bare unlock/elevate are caught, and a yearless bold run is not exempt"
+
+echo "vale-ini.template BlockIgnores + MD-2574 dateline regression: $PASS checks passed"

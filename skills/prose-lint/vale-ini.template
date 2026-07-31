@@ -18,5 +18,13 @@ alex.ProfanityUnlikely = NO
 # Ignore Nuxt/MDC component fences (::card … ::, including nested ::: variants and
 # {prop} attribute braces) — they are markup, not prose.
 BlockIgnores = (?s) *(::+[\w-]+(\{[^{}\n]*\})?.*?\n *::+)
-# Ignore inline/display math ($…$ and $$…$$) and inline code spans.
-TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`)
+# Ignore inline/display math ($…$ and $$…$$), inline code spans, and the bolded
+# AP press-release dateline. The dateline carries an em dash in every variant the
+# corpus uses (`**LOS GATOS, Calif., July 1, 2026 —**` and
+# `**LOS GATOS, Calif. — February 24, 2026**` both ship), and it is the one place
+# the dash is correct. It is exempted here rather than in Facilitron.EmDash
+# because RE2 has no lookaround, so the rule itself cannot say "except after a
+# city and a year". Matching the whole bolded run works for every variant.
+# The pattern needs no literal comma on purpose: Vale splits *Ignores values on
+# commas, so `[^*\n]*` spans the city/state/date commas instead of naming them.
+TokenIgnores = (\$+[^\n$]+\$+), (`[^`\n]+`), (\*\*[A-Z][^*\n]*\d{4}[^*\n]*\*\*)

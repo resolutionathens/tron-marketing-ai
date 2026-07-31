@@ -1,6 +1,16 @@
 extends: existence
-message: "Avoid em-dashes — prefer commas, periods, or parentheses for tighter prose."
-level: warning
+message: "Avoid '%s' in Facilitron copy: rewrite as two sentences, a comma, or a colon."
+level: error
 nonword: true
+# Both dashes, not just the em dash. The en dash went unenforced here for as long
+# as the prose guidance banned it (MD-2574), so a draft could carry one past a
+# clean lint. Level is error because tools/voice/facilitron-voice.md states this
+# as an absolute rule for produced copy, and a warning let the two layers drift.
+#
+# The AP press-release dateline is the one exception. It is not excepted here,
+# because RE2 has no lookaround: the exemption is a TokenIgnores entry in
+# vale-ini.template that skips the whole bolded dateline run, which is where the
+# dash sits in every variant the corpus uses.
 tokens:
   - '—'
+  - '–'
