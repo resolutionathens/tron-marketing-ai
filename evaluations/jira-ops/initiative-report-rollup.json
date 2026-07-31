@@ -6,7 +6,7 @@
     "Resolves the initiative tree by walking every level of descendants (BFS), not just direct children",
     "Computes percent complete over the full descendant set and breaks down child tickets by status",
     "Reports what shipped, what's in flight, blockers, and what's next in plain, exec-readable prose with no em dashes and no editorializing beyond what the tickets show",
-    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
     "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays git-free: reads the board and writes a shareable summary"
   ]

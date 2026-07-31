@@ -93,8 +93,7 @@ H2/H3 structure that covers the intent + supporting terms.
 ## Handoff
 
 Draft `$WORK/onpage-spec-<slug>.md`, publish it to the resolved durable destination, and return the
-approved source URL in the website handoff. The implementation lands in whichever repo serves the page —
-name it in the spec (`bash "$C" paths --repo <checkout> | jq -r .repo`) rather than assuming, since
-the same skill runs against the marketing site and the dynamic landing pages. Hand to a git user
-(`tron:start-ticket` → edit → `tron:git-pr`) or file via `tron:board-scaffold`. Summarize the
-title/meta/H1 changes + the single highest-impact fix.
+approved-source URL as `Durable source`. For website-bound work, set `Website handoff` to the named
+engineering publishing skill that owns the target surface; do not include repository paths,
+implementation syntax, branch steps, or deployment instructions. Summarize the title/meta/H1
+changes and the single highest-impact fix for the engineering handoff.

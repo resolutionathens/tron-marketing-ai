@@ -6,7 +6,7 @@
     "Identifies the email type (newsletter) and shapes the output accordingly, with multiple subject-line options, preview text, a structured body, and a clear CTA",
     "Writes in Facilitron voice with no em dashes and short sentences, keeping one primary CTA (secondary links allowed in a newsletter)",
     "Does not invent product claims or dates; uses AskUserQuestion for audience + primary CTA when unclear",
-    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
     "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays git-free: produces review-ready copy and leaves sending to the ESP"
   ]

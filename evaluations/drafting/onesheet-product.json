@@ -7,7 +7,7 @@
     "Produces structured single-page markdown with headline, value props, proof points, how-it-works, and CTA sized for a branded PDF",
     "Uses > TODO: placeholders instead of fabricating stats or customer numbers",
     "Produces copy with no em dashes (Facilitron voice)",
-    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
     "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays git-free and hands the PDF render off to tron:md-to-pdf as a separate step"
   ]

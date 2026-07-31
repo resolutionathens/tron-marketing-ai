@@ -6,7 +6,7 @@
     "Pulls the Jira ticket and any linked Confluence/Figma brief to ground the intake rather than starting from a blank brief",
     "Pins down the deliverable specs (dimensions, format, brand tokens, deadline) via AskUserQuestion for anything the ticket does not already state",
     "Produces a review-ready design brief plus an asset plan / checklist for the swag item",
-    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
     "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Routes the actual asset export downstream to tron:figma-to-imagekit or tron:gen-image rather than exporting assets itself",
     "Stays git-free (does not branch, commit, or open PRs)"

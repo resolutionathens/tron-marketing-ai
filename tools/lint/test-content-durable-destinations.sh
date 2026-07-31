@@ -59,9 +59,12 @@ rg -q 'never create or switch branches, open worktrees, write repository content
 for relative in $EVALUATIONS; do
   file="$ROOT/$relative"
   rg -qi '(durable|approved-source)' "$file" || fail "$relative does not check a durable destination"
-  rg -qi 'review state' "$file" || fail "$relative does not check review state"
-  rg -qi 'owner' "$file" || fail "$relative does not check owner metadata"
-  rg -qi 'scratch workspace' "$file" || fail "$relative does not check scratch cleanup"
+  for field in 'review state' 'owner' 'approver' 'target surface' 'Jira' 'asset' 'website handoff'; do
+    rg -qi "$field" "$file" || fail "$relative does not check $field metadata"
+  done
+  rg -qi 'scratch workspace' "$file" || fail "$relative does not check scratch workspace ownership"
+  rg -qi '(success and failure|success or failure|success and on failure|publishing success or failure)' "$file" || fail "$relative does not check cleanup on success and failure"
+  rg -qi '(git-free|(never|no |does not|without ).*(repo|repository|Git|branch|worktree|commit|pull request| PR))' "$file" || fail "$relative does not check the repository/Git boundary"
 done
 
 if rg -n 'expects? .*deliverable.*(/tmp|\$TMPDIR)|Writes? .* to /tmp|output PDF under /tmp|draft path \(e\.g\. /tmp' "$ROOT/evaluations"; then

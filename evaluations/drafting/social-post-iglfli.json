@@ -6,7 +6,7 @@
     "Produces a master caption plus per-platform Instagram / Facebook / LinkedIn variants in the IG/FB/LI sub-task pattern, each length- and hashtag-appropriate with an image/aspect note",
     "Writes in Facilitron voice with no em dashes and a single primary CTA per post",
     "Uses AskUserQuestion only when the primary CTA or audience is unclear, rather than interrogating by default",
-    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target, Jira, asset, and website handoff metadata",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
     "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays git-free: produces copy and hands off to the social tools for scheduling"
   ]
