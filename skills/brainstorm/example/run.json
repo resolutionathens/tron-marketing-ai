@@ -7,7 +7,7 @@
     "Asks one question at a time and waits for the answer before the next, never dumping all the questions in a single message",
     "Walks the 6 stages in order: frame the problem (not the solution), identify a specific audience, pressure-test real vs imagined demand, imagine the do-nothing vs lands-perfectly outcome, risk & constraint check, inputs & adjacency",
     "Does NOT produce the content itself (no outline or draft) — it produces the thinking and grounds any angle in the specific audience from Stage 2",
-    "Saves a single structured Ideation Note (e.g. /tmp/ideation-<slug>.md), preferably via the bundled scripts/brainstorm.sh save helper, without clobbering an existing note",
+    "Drafts a single structured Ideation Note in a unique scratch workspace, preferably via scripts/brainstorm.sh --out, publishes it to the preselected Drive or Confluence destination without clobbering, and cleans scratch",
     "Ends the Ideation Note with a Next Step that hands the idea to the right production skill (tron:news-item, tron:guide-item, tron:toolkit-item, tron:landing-page-seo, or /grill)",
     "Produces copy with no em dashes (Facilitron voice)"
   ]

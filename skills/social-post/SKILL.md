@@ -26,6 +26,11 @@ scout:
 
 # /social-post — Social post + per-platform variants
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the social copy. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Draft a Facilitron social post as a **master caption + IG / FB / LI variants** — matching the
 `IG:` / `FB:` / `LI Panel:` sub-task pattern the CCAL board uses. Git-free: produces copy; scheduling
 happens in the social tools. For spotlights (new-hire / district / facility / people), use
@@ -72,6 +77,7 @@ happens in the social tools. For spotlights (new-hire / district / facility / pe
 
 ## Handoff
 
-Write `/tmp/social/<slug>-post.md` (slug = kebab-case of the title). Source imagery from the designer (`tron:gen-image` /
+Draft `$WORK/<slug>-post.md` (slug = kebab-case of the title), publish it to the resolved durable
+destination, and return the success metadata. Source imagery from the designer (`tron:gen-image` /
 `tron:figma-to-imagekit`); video cutdowns from `tron:video-publish`. The per-platform sub-tasks can
 be filed via the manager's `tron:board-scaffold`. Scheduling is done by the owner in the social tools.

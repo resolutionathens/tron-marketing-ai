@@ -31,6 +31,11 @@ scout:
 
 # /onesheet — Product onesheet drafter
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the onesheet. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence for the text, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. `tron:md-to-pdf` separately resolves the final PDF's Drive or durable local destination. Neither skill writes repository content or performs Git operations.
+
 Draft a tight one-page **sell sheet** for a Facilitron product or feature, structured so it renders
 cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 
@@ -79,6 +84,8 @@ cleanly to a branded PDF. Git-free. Serves the MCR "Onesheets" initiative.
 
 ## Handoff
 
-Write to `/tmp/content/<slug>-onesheet.md` (slug = kebab-case of the title), then render with **`tron:md-to-pdf`** for the branded PDF.
+Draft `$WORK/<slug>-onesheet.md` (slug = kebab-case of the title), publish the text to the resolved
+durable destination, then render with **`tron:md-to-pdf`**, which separately resolves the branded
+PDF's durable destination.
 If it needs a hero/visual, route imagery through `tron:gen-image` or `tron:figma-to-imagekit`
 (designer). Confirm before producing the final PDF. Summarize the positioning + any `TODO:` gaps.

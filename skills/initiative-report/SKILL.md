@@ -25,6 +25,11 @@ scout:
 
 # /initiative-report — Initiative / theme progress roll-up
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the report. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, use the script's unique scratch workspace, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Summarize where a Marketing Initiative, Theme, Epic, or Campaign stands. Git-free: reads the board,
 writes a status summary for sharing up.
 

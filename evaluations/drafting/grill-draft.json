@@ -5,6 +5,8 @@
   "expected_behavior": [
     "Reads the draft and interrogates it critically: surfaces hidden assumptions, vague or unbacked claims, missing edge cases, and the pushback a reviewer or customer will raise",
     "Produces a Grill Memo with prioritized findings and a concrete fix for each, rather than rewriting the copy itself",
+    "Before drafting, resolves an explicit Drive or Confluence destination plus review state, owner, and approver; success returns the exact durable URL and all target surface, Jira, asset, and website handoff metadata",
+    "Uses one unique scratch workspace, removes it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR",
     "Stays in its lane: finds weakness in the argument, does not check mechanics, and points to /prose-lint, /link-check, and /code-review for prose, links, and code",
     "Stays git-free (does not branch, commit, or edit the content tree) - it critiques and hands back"
   ]

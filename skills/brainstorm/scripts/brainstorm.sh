@@ -6,11 +6,11 @@
 # this script only does the mechanical save.
 #
 # Usage:
-#   brainstorm.sh save <idea-name> [--audience S] [--format F] [--out PATH]
+#   brainstorm.sh save <idea-name> [--audience S] [--format F] --out PATH
 #       slugifies <idea-name>, seeds the bundled template's front-matter
 #       (created=today, audience, format), writes it, and prints the path.
-#       Default out: /tmp/ideation-<slug>.md  (won't clobber — errors if exists
-#       unless --force).
+#       The caller supplies a path inside its unique scratch workspace. The script
+#       won't clobber it unless --force is passed.
 #   brainstorm.sh slug <text>     → print the slug only (pure, offline)
 #
 # Output: `save` prints the written path on stdout, narration on stderr.
@@ -62,7 +62,8 @@ cmd_save() {
   local idea="${ARGS[0]:-}"; [[ -z "$idea" ]] && usage_err "save requires <idea-name>"
   local slug; slug="$(slugify "$idea")"
   [[ -z "$slug" ]] && usage_err "<idea-name> slugified to empty"
-  local out="${OUT:-/tmp/ideation-$slug.md}"
+  [[ -n "$OUT" ]] || usage_err "save requires --out inside the operation-scoped scratch workspace"
+  local out="$OUT"
   [[ -e "$out" && "$FORCE" -ne 1 ]] && { log "refusing to clobber existing $out (pass --force)"; exit 1; }
 
   local today; today="$(date +%F)"

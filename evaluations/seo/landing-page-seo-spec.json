@@ -6,6 +6,7 @@
     "Produces a prescriptive change spec (recommended title/meta/H1, heading outline, content additions, internal links, schema, technical/CWV fixes), not a diagnosis",
     "Builds on tron:seo-audit (current state) and tron:keyword-research (targets) rather than re-running them from scratch",
     "Keeps every recommendation specific and implementable by a developer, with no vague 'improve content' hand-waves",
-    "Writes the spec to /tmp/seo/ and stays git-free, handing the implementation to a git user as a marketing-pages change"
+    "Resolves Drive or Confluence before drafting, publishes the spec, and returns the exact approved-source URL, review state, owner, approver, target surface, Jira key, assets, and named website handoff",
+    "Uses one unique scratch workspace and removes it on success and failure; never writes a repo, branches, commits, or opens a PR"
   ]
 }

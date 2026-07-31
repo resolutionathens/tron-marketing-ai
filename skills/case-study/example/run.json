@@ -7,7 +7,7 @@
     "Pulls available inputs (Jira ticket via acli, any Confluence brief via tron:confluence) and treats the quantified Results metrics as the spine of the draft",
     "Uses AskUserQuestion to secure the 3-4 headline metrics and an attributable customer pull-quote (speaker plus title) before drafting, rather than opening with an empty Results block",
     "Structures the draft in the Facilitron house format: Header, Challenge, Solution, Results (with metrics + pull-quote), Looking ahead",
-    "Produces a markdown draft at a draft path (e.g. /tmp/content/<slug>-case-study.md) with a front-matter stub including title, summary, customer, and metrics",
+    "Publishes a markdown draft to the preselected Drive or Confluence destination with title, summary, customer, and metrics, returning review, owner, and website handoff metadata",
     "Produces copy with no em dashes (Facilitron voice), leads with the outcome, backs every claim with a metric or quote, and flags genuinely missing facts with > TODO: rather than inventing them",
     "Stays git-free (does not branch, commit, or write to the content tree) and offers handoff to tron:guide-item / tron:news-item or tron:md-to-pdf, confirming before any publish step"
   ]

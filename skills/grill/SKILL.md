@@ -4,10 +4,13 @@ model: opus
 effort: high
 description: "Critical-interrogation pass on a piece of marketing content or a brief before it ships — surfaces hidden assumptions, vague claims, missing edge cases, and the pushback a reviewer or customer will have. Use for '/grill', 'grill this', 'stress-test this', 'poke holes in', 'red-team this', or pasting a draft and asking for tough questions before publish. Output is a Grill Memo with prioritized findings and concrete fixes. This finds weakness; it does not check mechanics — pair with /prose-lint (prose), /link-check (links), and /code-review (code)."
 allowed-tools:
+  - Bash
   - Read
+  - Write
   - Grep
   - Glob
   - AskUserQuestion
+  - Skill
 scout:
   surface: true
   title: "Stress-test a draft"
@@ -24,6 +27,11 @@ scout:
 ---
 
 # /grill — Critical Interrogation Pass
+
+## Durable delivery gate
+
+Resolve the durable destination before drafting the Grill Memo. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never edits repository content or performs Git operations.
 
 Take an existing piece of content and find every weak spot before a reviewer or customer does. `/grill` asks the harder question — _is this argument sound, specific, and complete?_ Mechanical checks belong to `/prose-lint`, `/link-check`, `/code-review`.
 
@@ -62,7 +70,8 @@ Use the per-type checklist from `reference/grill-me.md`:
 
 ### Step 4 — Produce the Grill Memo
 
-Save to `/tmp/grill-<slug>.md`. This skill writes the memo only — it does not edit the artifact.
+Draft `$WORK/grill-<slug>.md`, then publish it to the resolved durable destination. This skill writes
+the memo only; it does not edit the artifact.
 
 ```markdown
 # Grill Memo — {Name}

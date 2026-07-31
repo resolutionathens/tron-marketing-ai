@@ -6,6 +6,7 @@
     "Gathers candidate keywords and pulls real query data from Search Console where possible rather than inventing volumes",
     "Clusters terms by search intent (informational / commercial / transactional) and maps each cluster to a target page",
     "Surfaces quick wins (page-2 / position 11-20 queries) and gaps (intents with no page yet) as distinct sections",
-    "Writes a keyword-map brief to /tmp/seo/ and hands quick wins to tron:landing-page-seo; stays git-free"
+    "Resolves Drive or Confluence before drafting, publishes the keyword map there, and returns the exact durable URL, review state, owner, approver, target surface, Jira key, assets, and website handoff",
+    "Uses one unique scratch workspace and removes it on success and failure; stays git-free and hands quick wins to tron:landing-page-seo using the approved-source URL"
   ]
 }

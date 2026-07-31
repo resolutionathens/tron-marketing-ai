@@ -33,6 +33,11 @@ scout:
 
 # Weekly Update Generator
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the weekly update. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner metadata, use a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. Clipboard copying remains an optional convenience after durable publication, not the final destination. This skill never writes repository content or performs Git operations.
+
 Produces a plain-text email body in the team's 6-section template, copied to clipboard via `pbcopy`. Works Jira-only (GitHub optional). Never auto-sends.
 
 Jira auth is `acli`'s own per-user OAuth session, not a brokered token — see
@@ -135,22 +140,31 @@ Hey <RECIPIENT> and <MANAGER>,
 - **Section 6 optional.** Omit if nothing notable.
 - **Look up Jira keys mentioned in user answers** before composing — write from the substance, not the key.
 
-## Step 5 — Copy to clipboard
+## Step 5 — Publish, then optionally copy
 
-Write the composed body to a private scratch file, copy it, then remove it on every exit path:
+Follow the durable delivery gate before composing: create `$WORK` with the contract's cleanup trap,
+then write the body to `$WORK/weekly-update.txt`:
 
 ```bash
-BODY_FILE="$(mktemp "${TMPDIR:-/tmp}/weekly-update-body.XXXXXX")"
-trap 'rm -f "$BODY_FILE"' EXIT
+BODY_FILE="$WORK/weekly-update.txt"
 cat > "$BODY_FILE" <<'BODY'
 <the composed email body>
 BODY
+```
+
+Publish that file to the preselected Drive or Confluence destination through the matching publisher
+skill. Only after publication succeeds, optionally copy the same scratch file to the clipboard:
+
+```bash
 if command -v pbcopy >/dev/null 2>&1; then
   pbcopy < "$BODY_FILE"
 fi
 ```
 
-Print the full body for user review. If `pbcopy` succeeded, tell them: "On your clipboard. Paste into a new email." If `pbcopy` is unavailable (e.g. not on macOS), print the body and say it could not be copied — the user copies it from the terminal.
+Return the contract's complete success block and print the full body for user review. If `pbcopy`
+succeeded, tell them: "Published and on your clipboard. Paste into a new email." If `pbcopy` is
+unavailable, say it could not be copied. Keep the `$WORK` cleanup trap active through publication,
+the success response, and every failure path.
 
 ## Edge cases
 

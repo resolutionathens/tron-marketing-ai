@@ -26,6 +26,11 @@ scout:
 
 # /video-publish — Video publishing kit
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the publishing kit. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Produce everything that wraps a finished video for release — title, description, chapters, tags,
 thumbnail brief, and the platform cutdown specs. Git-free: it writes the kit; the upload happens in
 YouTube / the social schedulers. Serves the webinar-sharing + YouTube-series work.
@@ -74,6 +79,7 @@ YouTube / the social schedulers. Serves the webinar-sharing + YouTube-series wor
 
 ## Handoff
 
-Write `/tmp/video/<slug>-publish.md` (slug = kebab-case of the title). For social cutdowns, hand the copy to `tron:social-post`
+Draft `$WORK/<slug>-publish.md` (slug = kebab-case of the title), publish it to the resolved durable
+destination, and return the success metadata. For social cutdowns, hand the copy to `tron:social-post`
 (per-platform variants). Offer to drop the title/description on the ticket via `tron:jira-comment`
 (confirm first). The actual upload/scheduling is done by the owner in YouTube / the social tools.

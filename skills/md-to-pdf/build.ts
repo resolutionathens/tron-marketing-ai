@@ -8,7 +8,7 @@
 // - Runs pandoc with xelatex to produce a PDF
 //
 // Usage:
-//   bun "$CLAUDE_SKILL_DIR/build.ts" <file.md> [file.md ...] [--out <dir>] [--emit-md]
+//   bun "$CLAUDE_SKILL_DIR/build.ts" <file.md> [file.md ...] --out <scratch-dir> [--emit-md]
 //
 // --emit-md stops after the parse/clean stage: it writes the intermediate
 // markdown (front matter stripped, ::faq expanded, checklists converted, logo +
@@ -25,7 +25,7 @@ const SKILL_DIR = dirname(fileURLToPath(import.meta.url));
 const LOGO_PATH = join(SKILL_DIR, "facilitron-logo.png");
 
 const args = process.argv.slice(2);
-let outDir = "/tmp/facilitron-md-to-pdf";
+let outDir: string | undefined;
 let emitMdOnly = false;
 const files: string[] = [];
 for (let i = 0; i < args.length; i++) {
@@ -39,7 +39,12 @@ for (let i = 0; i < args.length; i++) {
 }
 
 if (files.length === 0) {
-  console.error("Usage: build.ts <file.md> [file.md ...] [--out <dir>]");
+  console.error("Usage: build.ts <file.md> [file.md ...] --out <scratch-dir>");
+  process.exit(1);
+}
+
+if (!outDir) {
+  console.error("--out is required; resolve the durable destination first and render in an operation-scoped scratch directory");
   process.exit(1);
 }
 
@@ -107,7 +112,7 @@ function maybeWarnTableHeavy(md: string, slug: string): void {
       `⚠️  Heads up: this markdown has ${reason}.`,
       `   Pandoc/xelatex tables can break across pages awkwardly and squish wide columns.`,
       `   For better tabular layout, escalate to raw LaTeX:`,
-      `     sed "s|@@SKILLDIR@@|${SKILL_DIR}|g" ${SKILL_DIR}/template.tex > /tmp/facilitron-md-to-pdf/${slug}.tex`,
+      `     sed "s|@@SKILLDIR@@|${SKILL_DIR}|g" ${SKILL_DIR}/template.tex > <scratch-dir>/${slug}.tex`,
       `   See SKILL.md → "Two paths — default to LaTeX".`,
       ``,
     ].join("\n"),

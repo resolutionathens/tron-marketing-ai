@@ -4,8 +4,8 @@
   "files": ["sop.md"],
   "expected_behavior": [
     "Renders the markdown from the Facilitron-branded LaTeX template (brand fonts, logo, eyebrow kicker, stat cards, dashboard tables, fillable checkboxes) rather than plain default styling",
-    "Writes the output PDF under /tmp/facilitron-md-to-pdf by default unless the user names another destination",
+    "Before generation, requires an explicit Drive folder/file ID or a user-selected non-temporary local folder and rejects temporary or repository destinations",
     "Reserves the pandoc-from-markdown path as a fallback for quick prose-only output, not the primary branded render",
-    "Reports the output path and does not fabricate content that is not in the source markdown"
+    "Generates inside one unique scratch workspace, cleans it on success and failure, performs no repository or Git work, and returns the exact durable Drive URL or verified absolute path plus review state, owner, approver, target surface, Jira key, asset references, and website handoff"
   ]
 }

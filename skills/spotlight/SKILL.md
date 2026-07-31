@@ -26,6 +26,11 @@ scout:
 
 # /spotlight — Spotlight post drafter
 
+## Durable delivery gate
+
+Resolve the durable destination before drafting the spotlight. Follow
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+
 Draft a Facilitron **spotlight** — the most common recurring social format (new-hire, people,
 district/facility, customer) — in the house structure, with IG/FB/LI variants. Git-free. Serves the
 CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
@@ -78,5 +83,6 @@ CCAL "New Hire Spotlights" and "Facility/District Spotlights" campaigns.
 
 ## Handoff
 
-Write `/tmp/social/<slug>-spotlight.md` (slug = kebab-case of the title). For non-spotlight posts use `tron:social-post`; for a
+Draft `$WORK/<slug>-spotlight.md` (slug = kebab-case of the title), publish it to the resolved durable
+destination, and return the success metadata. For non-spotlight posts use `tron:social-post`; for a
 deeper customer story use `tron:case-study`. Imagery via the designer; scheduling by the owner.
