@@ -1,0 +1,11 @@
+{
+  "skills": ["confluence-publish"],
+  "query": "Update Confluence page ID 9001 with this revised final deliverable. Do not create a new page.",
+  "files": ["deliverable.html"],
+  "expected_behavior": [
+    "Targets only the explicitly supplied existing page ID 9001",
+    "Reads the current page version and updates that page with the next version number",
+    "Does not search for a page by title and does not fall back to creating a duplicate",
+    "Returns the updated page ID, version, title, and durable Confluence URL"
+  ]
+}

@@ -20,6 +20,7 @@
       ],
       "skills": [
         "confluence",
+        "confluence-publish",
         "create-ticket",
         "enrich-jira-ticket",
         "jira",
@@ -388,6 +389,7 @@
   "ownership": {
     "core": [
       "confluence",
+      "confluence-publish",
       "create-ticket",
       "enrich-jira-ticket",
       "jira",
