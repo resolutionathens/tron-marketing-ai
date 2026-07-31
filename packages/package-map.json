@@ -88,6 +88,7 @@
       "description": "Content drafting, critique, publishing, and prose QA skills.",
       "extends": ["core"],
       "resources": [
+        "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/optimize-images-runner.md",
         "agents/vale-prose-runner.md",
@@ -122,6 +123,7 @@
       "extends": ["core"],
       "resources": [
         "agents/a11y-scan-runner.md",
+        "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/unlighthouse-runner.md",
         "agents/vale-prose-runner.md",
@@ -187,6 +189,7 @@
       "extends": ["core"],
       "resources": [
         "agents/a11y-scan-runner.md",
+        "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/optimize-images-runner.md",
         "agents/unlighthouse-runner.md",
@@ -310,6 +313,7 @@
       "extends": ["core"],
       "resources": [
         "agents/a11y-scan-runner.md",
+        "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/vale-prose-runner.md",
         "tools/git",
@@ -358,6 +362,7 @@
       "description": "This skills plugin: instruction-layer edits and prose QA, shipping straight to master.",
       "extends": ["core"],
       "resources": [
+        "agents/facilitron-voice-judge.md",
         "agents/lychee-link-runner.md",
         "agents/vale-prose-runner.md",
         "tools/git",
