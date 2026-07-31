@@ -23,11 +23,10 @@ total=0
 
 tests="$(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort)"
 if [ -n "${CI:-}" ]; then
-  # gen-image's test scripts are excluded on CI only (still run locally): they
-  # hit environment-fragile setup on GitHub's macOS runners even though
-  # they're hermetic (stubbed gen-image.sh/curl/node) and reproduce green
-  # locally on the same commit.
-  tests="$(printf '%s\n' "$tests" | grep -v -e '/gen-image/scripts/test-gen-image\.sh$' -e '/image/test-generate-card\.sh$')"
+  # gen-image test now skips unauthenticated exec tests on CI via CI= guard in the
+  # test itself, so it runs cleanly in CI. Only exclude test-generate-card.sh which
+  # is image publishing related and requires ImageKit auth.
+  tests="$(printf '%s\n' "$tests" | grep -v -e '/image/test-generate-card\.sh$')"
 fi
 
 while IFS= read -r t; do
