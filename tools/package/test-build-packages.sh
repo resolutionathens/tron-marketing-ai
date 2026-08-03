@@ -195,6 +195,24 @@ for (const entry of inventory.packages) {
   if (manifest.name !== entry.package || manifest.version !== inventory.version) {
     throw new Error(`${entry.harness}/${role} manifest identity is invalid`);
   }
+  const expectedContract = {
+    schemaVersion: 1,
+    root: ".",
+    skills: Object.fromEntries(Object.entries({
+      "create-ticket": ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"],
+      jira: ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket"],
+    }).filter(([skill]) => entry.skills.includes(skill))),
+  };
+  if (JSON.stringify(manifest.resourceContract) !== JSON.stringify(expectedContract)) {
+    throw new Error(`${entry.harness}/${role} resource contract differs from the exact skill closure`);
+  }
+  for (const resources of Object.values(manifest.resourceContract.skills)) {
+    for (const resource of resources) {
+      if (!fs.existsSync(path.join(packageRoot, resource))) {
+        throw new Error(`${entry.harness}/${role} contract names missing resource ${resource}`);
+      }
+    }
+  }
   if (entry.harness === "codex") {
     const marketplace = JSON.parse(fs.readFileSync(
       path.join(packageRoot, ".agents/plugins/marketplace.json"),

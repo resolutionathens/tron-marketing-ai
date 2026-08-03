@@ -164,6 +164,14 @@ function bundleDisplayName(name) {
 }
 
 function manifest(base, name, description) {
+  const skills = packageSkills(name);
+  const sourceContract = base.resourceContract;
+  const resourceContract = sourceContract ? {
+    ...sourceContract,
+    skills: Object.fromEntries(
+      Object.entries(sourceContract.skills || {}).filter(([skill]) => skills.includes(skill)),
+    ),
+  } : undefined;
   return {
     ...base,
     name: `tron-${name}`,
@@ -176,6 +184,7 @@ function manifest(base, name, description) {
       ]),
     ],
     skills: "./skills/",
+    ...(resourceContract ? { resourceContract } : {}),
   };
 }
 
