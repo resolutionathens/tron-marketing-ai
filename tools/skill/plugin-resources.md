@@ -11,6 +11,8 @@ The `resourceContract` object in both plugin manifests is the machine-readable s
 `schemaVersion: 1` means each `skills.<name>` value is the complete list of root-relative files or
 directories an installer must materialize with that skill. Paths keep their repository layout beneath
 the declared `root` (`.`). Installers must not flatten them or infer dependencies from Markdown links.
+The role/repo package builder consumes this map directly and unions each included skill's declared paths
+into the copied resource closure; package-map resource lists are not required to repeat the contract.
 
 At runtime, use `tools/skill/resolve-plugin-root.sh`. It accepts the skill name followed by every exact
 path the current operation requires. It prefers `TRON_PLUGIN_ROOT`, honors the Claude compatibility

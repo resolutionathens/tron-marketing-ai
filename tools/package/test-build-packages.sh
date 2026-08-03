@@ -349,4 +349,26 @@ reject_map name-collision 'map.packages["repo-tron-os"] = { description: "x", re
 reject_map bad-repo-key 'map.repos["Marketing Pages"] = { description: "x", resources: [], skills: [] }'
 reject_map unsafe-repo-resource 'map.repos["tron-os"].resources.push("../README.md")'
 
+# The manifest's per-skill resourceContract is installer input, not descriptive
+# metadata. Even if an aggregate package declaration omits those paths, the
+# builder must materialize the exact closure for every included contracted skill.
+CONTRACT_MAP="$OUT/contract-only-resources.json"
+node - "$ROOT/packages/package-map.json" "$CONTRACT_MAP" <<'NODE'
+const fs = require("fs");
+const [source, target] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+const contracted = new Set(["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"]);
+map.packages.core.resources = map.packages.core.resources.filter((resource) => !contracted.has(resource));
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+TRON_PACKAGE_MAP="$CONTRACT_MAP" node "$ROOT/tools/package/build-packages.mjs" "$OUT/contract-only" >/dev/null
+for HARNESS in claude codex; do
+  for RESOURCE in tools/jira tools/md-to-adf tools/skill tools/ticket tools/voice; do
+    test -e "$OUT/contract-only/$HARNESS/tron-core/$RESOURCE" || {
+      printf 'FAIL: resourceContract did not materialize %s for %s/tron-core.\n' "$RESOURCE" "$HARNESS" >&2
+      exit 1
+    }
+  done
+done
+
 printf 'PASS: all role packages and repo bundles have deterministic Claude/Codex inventories and local dependency closures.\n'
