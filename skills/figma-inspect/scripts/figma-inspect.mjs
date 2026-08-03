@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 
 const brokerApp = (process.env.FIGMA_BROKER_APP || 'https://secrets.facilitron.work').replace(/\/$/, '');
+const brokerBase = (process.env.FIGMA_BROKER_BASE || brokerApp).replace(/\/$/, '');
 
 function fail(message, code = 1) {
   console.error(`figma-inspect: ${message}`);
@@ -31,7 +32,7 @@ function accessToken() {
 async function brokerJson(path, token, { optional = false } = {}) {
   let response;
   try {
-    response = await fetch(`${brokerApp}${path}`, {headers:{'CF-Access-Token':token}, signal:AbortSignal.timeout(15000)});
+    response = await fetch(`${brokerBase}${path}`, {headers:{'CF-Access-Token':token}, signal:AbortSignal.timeout(15000)});
   } catch (error) {
     if (optional) return null;
     fail(`broker request failed for ${path}: ${error.message}`, 4);

@@ -51,7 +51,7 @@ start_server() {
 }
 
 start_server success
-OUT="$(FIGMA_ACCESS_TOKEN=must-not-be-used FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/design/AbC123/Footer?node-id=10-20')"
+OUT="$(FIGMA_ACCESS_TOKEN=must-not-be-used FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="https://access.example" FIGMA_BROKER_BASE="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/design/AbC123/Footer?node-id=10-20')"
 has "$OUT" '"name":"Footer"' "selected node returned"
 has "$OUT" '"width":1440' "frame dimensions returned"
 has "$OUT" '"layoutMode":"HORIZONTAL"' "layout data returned"
@@ -60,7 +60,7 @@ has "$OUT" '"renderedReference":"https://render.example/footer.png"' "rendered r
 has "$(cat "$ROOT/hits")" '"token":"worker-token"' "broker Access token sent"
 has "$(cat "$ROOT/hits")" '/figma/v1/files/AbC123/nodes?ids=10%3A20' "node endpoint selected"
 
-OUT="$(FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/file/AbC123/Footer-library')"
+OUT="$(FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="https://access.example" FIGMA_BROKER_BASE="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/file/AbC123/Footer-library')"
 has "$OUT" '"name":"Footer library"' "file URL returns the document tree"
 has "$OUT" '"renderedReference":null' "file inspection does not request a rendered node"
 has "$(cat "$ROOT/hits")" '"url":"/figma/v1/files/AbC123"' "file endpoint selected"
@@ -68,11 +68,12 @@ kill "$SERVER_PID"; wait "$SERVER_PID" 2>/dev/null || true; SERVER_PID=""
 
 start_server unauthorized
 set +e
-OUT="$(FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/design/AbC123/Footer?node-id=10-20' 2>&1)"
+OUT="$(FIGMA_INSPECT_ACCESS_TOKEN=worker-token FIGMA_BROKER_APP="https://access.example" FIGMA_BROKER_BASE="http://127.0.0.1:$PORT" node "$SCRIPT" inspect 'https://figma.com/design/AbC123/Footer?node-id=10-20' 2>&1)"
 RC=$?
 set -e
 [ "$RC" -eq 3 ] || fail "unconnected OAuth should exit 3, got $RC"
 has "$OUT" '/figma/oauth/start' "authorization error includes connection URL"
+has "$OUT" 'https://access.example/figma/oauth/start' "connection URL uses the Access app, not the request-base override"
 has "$OUT" 'your Figma account' "authorization error names per-user connection"
 
 echo "figma-inspect tests passed"

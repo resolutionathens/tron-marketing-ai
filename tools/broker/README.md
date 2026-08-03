@@ -103,7 +103,7 @@ loopback stub — no `cloudflared`, no real broker, fully offline. Conventions p
 | `imagekit.mjs` | `IMAGEKIT_BROKER_APP` | `IMAGEKIT_BROKER_BASE` / `IMAGEKIT_BROKER_UPLOAD` | `IMAGEKIT_ACCESS_TOKEN` |
 | `fetch-confluence.sh` | `CONFLUENCE_BROKER_APP` | `CONFLUENCE_BROKER_BASE` | (Access session) |
 | `okf.mjs` | `OKF_BROKER_APP` | `OKF_BROKER_BASE` | `OKF_ACCESS_TOKEN` |
-| `figma-inspect.mjs` | `FIGMA_BROKER_APP` | `FIGMA_BROKER_APP` | `FIGMA_INSPECT_ACCESS_TOKEN` |
+| `figma-inspect.mjs` | `FIGMA_BROKER_APP` | `FIGMA_BROKER_BASE` | `FIGMA_INSPECT_ACCESS_TOKEN` |
 
 Setting the `*_ACCESS_TOKEN` var skips `cloudflared` entirely (hand it a dummy token in tests);
 pointing the `*_BASE` var at a loopback server exercises the broker code path without the network.
