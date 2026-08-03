@@ -281,6 +281,10 @@ if (!text.includes('tron-engineer:news-item') || text.includes('tron-content:new
 " "$OUT/claude/tron-engineer/skills/link-check/SKILL.md"
 
 for HARNESS in claude codex; do
+  test -f "$OUT/$HARNESS/tron-engineer/skills/figma-inspect/scripts/figma-inspect.mjs"
+  for REPO in marketing-pages marketing-dynamic-landing-pages facilitron-ui; do
+    test -f "$OUT/$HARNESS/tron-repo-$REPO/skills/figma-inspect/SKILL.md"
+  done
   for SKILL in guide-item news-item toolkit-item; do
     test -f "$OUT/$HARNESS/tron-repo-marketing-pages/skills/$SKILL/SKILL.md"
     test ! -e "$OUT/$HARNESS/tron-content/skills/$SKILL"
