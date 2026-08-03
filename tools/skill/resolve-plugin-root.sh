@@ -14,13 +14,6 @@ shift 2
 
 self_dir="$(cd "$(dirname "$0")" && pwd)"
 self_root="$(cd "$self_dir/../.." && pwd)"
-claude_cache="$HOME/.claude/plugins/cache"
-claude_marketplaces="$HOME/.claude/plugins/marketplaces"
-codex_cache="$HOME/.codex/plugins/cache"
-codex_marketplaces="$HOME/.codex/plugins/marketplaces"
-opencode_config="$HOME/.config/opencode"
-release_store="$HOME/Library/Application Support/tron-os/tron-releases/versions"
-
 has_all() {
   local root="$1"
   shift
@@ -42,9 +35,14 @@ if [[ -n "${TRON_PLUGIN_ROOT:-}" ]]; then
   exit 1
 fi
 
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]] && has_all "$CLAUDE_PLUGIN_ROOT" "$@"; then
-  printf '%s\n' "$CLAUDE_PLUGIN_ROOT"
-  exit 0
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+  if has_all "$CLAUDE_PLUGIN_ROOT" "$@"; then
+    printf '%s\n' "$CLAUDE_PLUGIN_ROOT"
+    exit 0
+  fi
+  printf 'tron:%s: CLAUDE_PLUGIN_ROOT is set to an incomplete installation: %s. Install or update the complete Tron package at that root.\n' \
+    "$name" "$CLAUDE_PLUGIN_ROOT" >&2
+  exit 1
 fi
 
 if [[ -n "${CLAUDE_SKILL_DIR:-}" ]]; then
@@ -53,25 +51,13 @@ if [[ -n "${CLAUDE_SKILL_DIR:-}" ]]; then
     printf '%s\n' "$skill_parent"
     exit 0
   fi
+  printf 'tron:%s: CLAUDE_SKILL_DIR does not belong to a complete installation: %s. Install or update that complete Tron package.\n' \
+    "$name" "$CLAUDE_SKILL_DIR" >&2
+  exit 1
 fi
 
 if has_all "$self_root" "$@"; then
   printf '%s\n' "$self_root"
-  exit 0
-fi
-
-candidate="$({
-  find "$claude_cache" "$claude_marketplaces" "$codex_cache" "$codex_marketplaces" \
-    "$opencode_config" "$release_store" -maxdepth 8 -type f \
-    -path '*/tools/skill/resolve-plugin-root.sh' 2>/dev/null || true
-} | while IFS= read -r resolver; do
-  root="${resolver%/tools/skill/resolve-plugin-root.sh}"
-  has_all "$root" "$@" || continue
-  printf '%s\n' "$root"
-done | LC_ALL=C sort | tail -1)"
-
-if [[ -n "$candidate" ]]; then
-  printf '%s\n' "$candidate"
   exit 0
 fi
 

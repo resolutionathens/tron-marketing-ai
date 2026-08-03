@@ -14,9 +14,9 @@ the declared `root` (`.`). Installers must not flatten them or infer dependencie
 
 At runtime, use `tools/skill/resolve-plugin-root.sh`. It accepts the skill name followed by every exact
 path the current operation requires. It prefers `TRON_PLUGIN_ROOT`, honors the Claude compatibility
-variables, derives the root from its own installed location, then searches supported Claude, Codex,
-OpenCode, and Tron release-store locations. A partial installation fails with the missing path and an
-install/update instruction.
+variables, and otherwise validates the package root that contains the resolver. OpenCode skills bind to
+their known `$HOME/.config/opencode` package root. The resolver never selects tools from a different
+installation: a partial package fails with the missing path and an install/update instruction.
 
 `TRON_PLUGIN_ROOT` is the harness-neutral explicit override. A harness that does not materialize the
 declared tree must populate it with the absolute package root. Never continue with raw Markdown when the

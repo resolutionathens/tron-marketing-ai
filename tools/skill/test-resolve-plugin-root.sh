@@ -40,6 +40,19 @@ for portable_file in "$RESOLVER" "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/sk
 done
 pass "resolver and both skill bootstraps avoid GNU-only version sorting"
 
+if rg -q 'claude_cache|claude_marketplaces|codex_cache|codex_marketplaces|release_store|candidate=' "$RESOLVER"; then
+  fail "resolver searches ambient installations instead of staying package-local"
+fi
+pass "resolver contains no ambient cross-install selection path"
+
+for skill_doc in "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/skills/jira/SKILL.md"; do
+  rg -qF '[ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" ]' "$skill_doc" \
+    || fail "$skill_doc does not bind an OpenCode invocation to its own package root"
+  rg -q 'find .*resolve-plugin-root\.sh' "$skill_doc" \
+    && fail "$skill_doc can select a resolver from another installed package"
+done
+pass "both skill bootstraps bind OpenCode locally and never search for a foreign resolver"
+
 INSTALL="$FIXTURE/home/.config/opencode"
 mkdir -p "$INSTALL/skills/create-ticket" "$INSTALL/skills/jira" "$INSTALL/tools/skill"
 INSTALL="$(cd "$INSTALL" && pwd)"
@@ -98,6 +111,13 @@ VERDICT="$(env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
 [ "$VERDICT" = "high: actionable" ] || fail "clean install lint verdict was '$VERDICT'"
 pass "clean install lints a complete ticket draft"
 
+AMBIENT="$FIXTURE/home/.claude/plugins/cache/tron/99.99.99"
+mkdir -p "$AMBIENT/skills/create-ticket" "$AMBIENT/tools/skill"
+cp "$ROOT/skills/create-ticket/SKILL.md" "$AMBIENT/skills/create-ticket/SKILL.md"
+cp "$RESOLVER" "$AMBIENT/tools/skill/resolve-plugin-root.sh"
+cp -R "$ROOT/tools/md-to-adf" "$AMBIENT/tools"
+cp -R "$ROOT/tools/ticket" "$AMBIENT/tools"
+
 trash "$INSTALL/tools/ticket/ticket-rubric.md"
 mkdir -p "$FIXTURE/bin"
 cat >"$FIXTURE/bin/sort" <<'EOF'
@@ -120,6 +140,10 @@ case "$ERROR" in
   *) fail "partial-install diagnostic was not actionable: $ERROR" ;;
 esac
 pass "partial installs fail with the missing exact path and an actionable update instruction"
+case "$ERROR" in
+  *"$AMBIENT"*) fail "partial OpenCode skill crossed into an ambient complete package: $ERROR" ;;
+esac
+pass "partial invoking package never binds to a newer complete ambient installation"
 
 set +e
 ERROR="$(TRON_PLUGIN_ROOT="$FIXTURE/not-an-install" HOME="$FIXTURE/home" \
@@ -133,5 +157,21 @@ case "$ERROR" in
   *) fail "invalid explicit-root diagnostic was not actionable: $ERROR" ;;
 esac
 pass "an invalid explicit portable root fails closed instead of selecting an ambient install"
+
+for compatibility_var in CLAUDE_PLUGIN_ROOT CLAUDE_SKILL_DIR; do
+  set +e
+  ERROR="$(env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
+    "$compatibility_var=$FIXTURE/not-an-install" HOME="$FIXTURE/home" \
+    bash "$INSTALL/tools/skill/resolve-plugin-root.sh" create-ticket \
+    tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh 2>&1)"
+  STATUS=$?
+  set -e
+  [ "$STATUS" -ne 0 ] || fail "$compatibility_var unexpectedly fell through to another install"
+  case "$ERROR" in
+    *"$compatibility_var"*"incomplete installation"*|*"$compatibility_var"*"does not belong to a complete installation"*) ;;
+    *) fail "$compatibility_var diagnostic was not actionable: $ERROR" ;;
+  esac
+done
+pass "invalid Claude compatibility roots also fail closed at their invoking package"
 
 printf 'PASS: portable plugin-root resolution and clean installed Jira tooling.\n'
