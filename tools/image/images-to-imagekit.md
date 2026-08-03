@@ -101,16 +101,23 @@ NAME=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)[
 FILE=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin)['file'])")
 ```
 
-**Toolkit** (slug-based naming — `--name` sets the exact filename; landscape cards need `--size`):
+**Toolkit** (slug-based naming — `--name` sets the exact filename; landscape cards need `--size`; uses news feature images as style references):
 
 ```bash
 RESULT=$(bash "$GENCARD" \
-  --folder toolkit \
-  --name "<slug>.webp" \
+  --folder news \
+  --name "<slug-temp>.webp" \
   --size 1536x1024 \
+  --refs 3 \
   --prompt "<subject prompt for this item>" )
+# Move the result from news folder to toolkit folder with final name
+# (The prompt automatically applies the style-diversity instruction)
 ```
 
-The prompt should describe the subject; `generate-card.sh` appends the style-diversity
-instruction automatically. If card generation is unavailable, fall back to asking the user
-for a card image or pulling one from Figma — but generate-from-references is the default.
+The prompt should describe the subject and emphasize Facilitron's abstract geometry
+(deep navy, cyan/violet linework, geometric composition). Topic cues may coexist only when
+the composition remains strongly abstract and geometric — geometry must be primary, not
+secondary. `generate-card.sh` appends the style-diversity instruction automatically
+and uses the three most recent news feature images as style references. If card generation
+is unavailable, fall back to asking the user for a card image or pulling one from Figma —
+but generate-from-references is the default.

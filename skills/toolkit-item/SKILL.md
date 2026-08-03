@@ -170,7 +170,9 @@ CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest "$(jq -r .uploadFolder <<<"$C
 
 The front-matter `image:` value is `$(jq -r .reference <<<"$CARD_SPEC")` — again, verbatim.
 
-If no image was provided, generate one from existing toolkit cards as style references: `"$GENCARD"` with `--folder "$(jq -r .uploadFolder <<<"$CARD_SPEC")" --name "$(jq -r .uploadName <<<"$CARD_SPEC")" --size 1536x1024` (toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size). Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
+If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards): `"$GENCARD"` with `--folder news --name <temp.webp> --size 1536x1024 --refs 3` (to get news imagery), then move/rename the output to toolkit's folder and naming. Toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size.
+
+The image prompt should prioritize Facilitron's abstract geometry (deep navy, cyan/violet linework, geometric composition). Topic cues are permitted only when the composition remains strongly abstract and geometric — geometry must be primary, not secondary decoration. Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
 
 ### 6. Clean up
 Remove source markdown and source image files. Don't touch the collection directory (`collection toolkit → .dir`).
@@ -182,7 +184,8 @@ Validate → fix → repeat until clean. Check:
 - Facilitron voice ([tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md)) and the
   brand voice ([tools/voice/marketing-copy.md](../../tools/voice/marketing-copy.md)): second person
   and imperative throughout, never "we"
-- `tron:prose-lint` and `tron:a11y-scan` pass
+- `tron:prose-lint` passes
+- **a11y-scan:** Required only if the change touches reusable page, template, or component code, or a ticket explicitly requests it. Markdown-only additions using the existing renderer skip a11y-scan since rendering and page structure are unchanged.
 - PDF carries only actionable content
 - ImageKit filenames match front-matter values exactly
 
