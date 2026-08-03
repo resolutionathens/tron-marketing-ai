@@ -35,7 +35,7 @@ const server = http.createServer((req, res) => {
   if (req.url === '/figma/oauth/status') return send(res, 200, mode === 'unauthorized' ? {connected:false} : {connected:true});
   if (req.url === '/figma/v1/files/AbC123?depth=1') return send(res, 200, {document:{id:'0:0',name:'Footer library',type:'DOCUMENT'},components:{'C:1':{name:'Button'}},componentSets:{'CS:1':{name:'Button states'}},styles:{'S:1':{name:'Heading/Large',styleType:'TEXT'}}});
   if (req.url === '/figma/v1/files/AbC123') return send(res, 200, {document:{id:'0:0',name:'Footer library',type:'DOCUMENT',children:[{id:'10:20',name:'Desktop',type:'FRAME',absoluteBoundingBox:{width:1440,height:420}}]},styles:{'S:1':{name:'Heading/Large',styleType:'TEXT'}}});
-  if (req.url === '/figma/v1/files/AbC123/nodes?ids=10%3A20') return send(res, 200, {nodes:{'10:20':{document:{id:'10:20',name:'Footer',type:'FRAME',absoluteBoundingBox:{width:1440,height:420},layoutMode:'HORIZONTAL',itemSpacing:24,fills:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3}}],children:[{id:'11:1',name:'Heading',type:'TEXT',characters:'Plan your next event',style:{fontFamily:'Inter',fontSize:32,fontWeight:700,lineHeightPx:40}}]},components:{}}}});
+  if (req.url === '/figma/v1/files/AbC123/nodes?ids=10%3A20') return send(res, 200, {nodes:{'10:20':{document:{id:'10:20',name:'Footer',type:'COMPONENT',absoluteBoundingBox:{width:1440,height:420},layoutMode:'HORIZONTAL',itemSpacing:24,componentPropertyDefinitions:{State:{type:'VARIANT',variantOptions:['Default','Hover'],defaultValue:'Default'}},fills:[{type:'SOLID',color:{r:0.1,g:0.2,b:0.3}}],children:[{id:'11:1',name:'Heading',type:'TEXT',characters:'Plan your next event',style:{fontFamily:'Inter',fontSize:32,fontWeight:700,lineHeightPx:40}}]},components:{}}}});
   if (req.url === '/figma/v1/images/AbC123?ids=10%3A20&format=png&scale=2') return mode === 'render-forbidden' ? send(res, 403, {error:'forbidden'}) : send(res, 200, {images:{'10:20':'https://render.example/footer.png'}});
   send(res, 404, {error:'unexpected request',path:req.url});
 });
@@ -57,6 +57,7 @@ has "$OUT" '"name":"Footer"' "selected node returned"
 has "$OUT" '"width":1440' "frame dimensions returned"
 has "$OUT" '"layoutMode":"HORIZONTAL"' "layout data returned"
 has "$OUT" '"fontFamily":"Inter"' "typography returned"
+has "$OUT" '"componentPropertyDefinitions":{"State":{"type":"VARIANT","variantOptions":["Default","Hover"],"defaultValue":"Default"}}' "component state definitions returned"
 has "$OUT" '"C:1":{"name":"Button"}' "node inspection includes file-level component metadata"
 has "$OUT" '"CS:1":{"name":"Button states"}' "node inspection includes file-level component-set metadata"
 has "$OUT" '"S:1":{"name":"Heading/Large","styleType":"TEXT"}' "node inspection includes file-level style metadata"

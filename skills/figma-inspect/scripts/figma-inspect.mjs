@@ -55,7 +55,8 @@ const implementationKeys = new Set([
   'paddingRight', 'paddingTop', 'paddingBottom', 'layoutAlign', 'layoutGrow', 'layoutPositioning',
   'minWidth', 'maxWidth', 'minHeight', 'maxHeight', 'constraints', 'clipsContent', 'opacity',
   'blendMode', 'fills', 'strokes', 'strokeWeight', 'strokeAlign', 'cornerRadius', 'rectangleCornerRadii',
-  'effects', 'style', 'styles', 'componentId', 'componentProperties', 'variantProperties', 'children'
+  'effects', 'style', 'styles', 'componentId', 'componentProperties', 'componentPropertyDefinitions',
+  'variantProperties', 'children'
 ]);
 
 function implementationView(value) {
