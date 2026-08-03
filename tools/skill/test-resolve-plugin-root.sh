@@ -37,8 +37,11 @@ for portable_file in "$RESOLVER" "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/sk
   if rg -q 'sort -V' "$portable_file"; then
     fail "$portable_file relies on GNU-only sort -V"
   fi
+  if rg -q 'find .* -maxdepth' "$portable_file"; then
+    fail "$portable_file relies on GNU-only find -maxdepth"
+  fi
 done
-pass "resolver and both skill bootstraps avoid GNU-only version sorting"
+pass "resolver and both skill bootstraps avoid GNU-only sort and find flags"
 
 if rg -q 'claude_cache|claude_marketplaces|codex_cache|codex_marketplaces|release_store|candidate=' "$RESOLVER"; then
   fail "resolver searches ambient installations instead of staying package-local"
@@ -64,8 +67,20 @@ run_doc_bootstrap() {
   ' "$doc" >"$script"
   printf '\nprintf "%%s\\n" "$PLUGIN_ROOT"\n' >>"$script"
   env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
-    HOME="${BOOTSTRAP_HOME:-$FIXTURE/home}" bash "$script"
+    HOME="${BOOTSTRAP_HOME:-$FIXTURE/home}" PATH="${BOOTSTRAP_PATH:-$PATH}" bash "$script"
 }
+
+mkdir -p "$FIXTURE/bsd-bin"
+cat >"$FIXTURE/bsd-bin/find" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  [ "$arg" = "-maxdepth" ] && { echo "GNU-only find -maxdepth rejected by BSD fixture" >&2; exit 64; }
+done
+exec /usr/bin/find "$@"
+EOF
+chmod +x "$FIXTURE/bsd-bin/find"
+BOOTSTRAP_PATH="$FIXTURE/bsd-bin:$PATH"
+export BOOTSTRAP_PATH
 
 INSTALL="$FIXTURE/home/.config/opencode"
 mkdir -p "$INSTALL/skills/create-ticket" "$INSTALL/skills/jira" "$INSTALL/tools/skill"

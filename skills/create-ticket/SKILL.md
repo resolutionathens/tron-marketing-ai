@@ -119,7 +119,7 @@ if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" 
   PLUGIN_ROOT="$HOME/.config/opencode"
 fi
 if [ -z "$PLUGIN_ROOT" ]; then
-  ROOTS="$(find "$HOME/.claude/plugins/cache" "$HOME/.claude/plugins/marketplaces" "${CODEX_HOME:-$HOME/.codex}/plugins/cache" "${CODEX_HOME:-$HOME/.codex}/plugins/marketplaces" "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 8 -type f -path "*/skills/$name/SKILL.md" 2>/dev/null | while IFS= read -r skill_doc; do printf '%s\n' "${skill_doc%/skills/$name/SKILL.md}"; done | LC_ALL=C sort -u)"
+  ROOTS="$(find "$HOME/.claude/plugins/cache" "$HOME/.claude/plugins/marketplaces" "${CODEX_HOME:-$HOME/.codex}/plugins/cache" "${CODEX_HOME:-$HOME/.codex}/plugins/marketplaces" "$HOME/Library/Application Support/tron-os/tron-releases/versions" -type f -path "*/skills/$name/SKILL.md" 2>/dev/null | while IFS= read -r skill_doc; do printf '%s\n' "${skill_doc%/skills/$name/SKILL.md}"; done | LC_ALL=C sort -u)"
   ROOT_COUNT="$(printf '%s\n' "$ROOTS" | sed '/^$/d' | wc -l | tr -d ' ')"
   [ "$ROOT_COUNT" = 1 ] || { echo "tron:$name: found ${ROOT_COUNT:-0} installed package roots; install one complete Tron package or set TRON_PLUGIN_ROOT (multiple installed Tron packages are ambiguous)" >&2; exit 1; }
   PLUGIN_ROOT="$ROOTS"
