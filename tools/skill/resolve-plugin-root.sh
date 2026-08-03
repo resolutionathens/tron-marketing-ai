@@ -68,7 +68,7 @@ candidate="$({
   root="${resolver%/tools/skill/resolve-plugin-root.sh}"
   has_all "$root" "$@" || continue
   printf '%s\n' "$root"
-done | sort -V | tail -1)"
+done | LC_ALL=C sort | tail -1)"
 
 if [[ -n "$candidate" ]]; then
   printf '%s\n' "$candidate"

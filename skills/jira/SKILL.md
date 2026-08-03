@@ -97,7 +97,7 @@ Resolve the same versioned [`resourceContract`](../../tools/skill/plugin-resourc
 name=jira
 PLUGIN_ROOT="${TRON_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}}"
 RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-plugin-root.sh}"
-[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces ~/.config/opencode "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 8 -type f -path "*/tools/skill/resolve-plugin-root.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces ~/.config/opencode "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 8 -type f -path "*/tools/skill/resolve-plugin-root.sh" 2>/dev/null | LC_ALL=C sort | tail -1 || true)"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: shared resource resolver not found; install or update the complete Tron package" >&2; exit 1; }
 PLUGIN_ROOT="$(bash "$RESOLVER" "$name" tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh tools/ticket/ticket-rubric.md)"
 ADF="$PLUGIN_ROOT/tools/md-to-adf/md-to-adf.mjs"

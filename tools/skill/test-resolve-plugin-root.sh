@@ -33,6 +33,13 @@ for (const file of process.argv.slice(2)) {
 NODE
 pass "Claude and Codex manifests publish the same exact v1 per-skill resource contract"
 
+for portable_file in "$RESOLVER" "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/skills/jira/SKILL.md"; do
+  if rg -q 'sort -V' "$portable_file"; then
+    fail "$portable_file relies on GNU-only sort -V"
+  fi
+done
+pass "resolver and both skill bootstraps avoid GNU-only version sorting"
+
 INSTALL="$FIXTURE/home/.config/opencode"
 mkdir -p "$INSTALL/skills/create-ticket" "$INSTALL/skills/jira" "$INSTALL/tools/skill"
 INSTALL="$(cd "$INSTALL" && pwd)"
@@ -92,9 +99,18 @@ VERDICT="$(env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
 pass "clean install lints a complete ticket draft"
 
 trash "$INSTALL/tools/ticket/ticket-rubric.md"
+mkdir -p "$FIXTURE/bin"
+cat >"$FIXTURE/bin/sort" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  [ "$arg" = "-V" ] && { echo "GNU-only sort -V rejected by portability fixture" >&2; exit 64; }
+done
+exec /usr/bin/sort "$@"
+EOF
+chmod +x "$FIXTURE/bin/sort"
 set +e
 ERROR="$(env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
-  HOME="$FIXTURE/home" bash "$INSTALL/tools/skill/resolve-plugin-root.sh" \
+  HOME="$FIXTURE/home" PATH="$FIXTURE/bin:$PATH" bash "$INSTALL/tools/skill/resolve-plugin-root.sh" \
   create-ticket tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh tools/ticket/ticket-rubric.md 2>&1)"
 STATUS=$?
 set -e
