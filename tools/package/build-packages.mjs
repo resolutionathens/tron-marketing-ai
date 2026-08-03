@@ -57,8 +57,28 @@ function sourceSkills() {
     .sort();
 }
 
+function validateResourceContract(actualSkills) {
+  const claude = claudeBase.resourceContract;
+  const codex = codexBase.resourceContract;
+  if (JSON.stringify(claude) !== JSON.stringify(codex)) {
+    throw new Error("Claude and Codex resource contracts differ");
+  }
+  if (claude?.schemaVersion !== 1 || claude?.root !== "." || !claude.skills) {
+    throw new Error("resourceContract must use schemaVersion 1 with root '.' and a skills map");
+  }
+  for (const [skill, resources] of Object.entries(claude.skills)) {
+    if (!actualSkills.includes(skill)) {
+      throw new Error(`resourceContract references unknown skill ${skill}`);
+    }
+    if (!Array.isArray(resources) || resources.length === 0) {
+      throw new Error(`resourceContract skill ${skill} must declare at least one resource`);
+    }
+  }
+}
+
 function validateMap() {
   const actual = sourceSkills();
+  validateResourceContract(actual);
   const owners = new Map();
   for (const [owner, skills] of Object.entries(map.ownership)) {
     if (!map.packages[owner]) throw new Error(`ownership references unknown package ${owner}`);
@@ -104,6 +124,9 @@ function packageResources(name, seen = new Set()) {
   const resources = new Set(pkg.resources || []);
   for (const parent of pkg.extends || []) {
     for (const resource of packageResources(parent, new Set(seen))) resources.add(resource);
+  }
+  for (const skill of packageSkills(name)) {
+    for (const resource of claudeBase.resourceContract.skills[skill] || []) resources.add(resource);
   }
   return [...resources].sort();
 }
@@ -164,6 +187,14 @@ function bundleDisplayName(name) {
 }
 
 function manifest(base, name, description) {
+  const skills = packageSkills(name);
+  const sourceContract = base.resourceContract;
+  const resourceContract = sourceContract ? {
+    ...sourceContract,
+    skills: Object.fromEntries(
+      Object.entries(sourceContract.skills || {}).filter(([skill]) => skills.includes(skill)),
+    ),
+  } : undefined;
   return {
     ...base,
     name: `tron-${name}`,
@@ -176,6 +207,7 @@ function manifest(base, name, description) {
       ]),
     ],
     skills: "./skills/",
+    ...(resourceContract ? { resourceContract } : {}),
   };
 }
 

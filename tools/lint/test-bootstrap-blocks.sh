@@ -40,11 +40,10 @@ docs="$(
 checked=0
 while IFS= read -r doc; do
   [ -n "$doc" ] || continue
-  # Select on RESOLVER=, the bootstrap's opening signature, NOT on the resolver
-  # call itself: a doc that drifts back to a hand-rolled find keeps the former
-  # and loses the latter, and selecting on the call would silently skip it
-  # rather than fail. Extraction below then reports it as broken.
-  grep -q 'RESOLVER=' "$doc" || continue
+  # This suite owns SKILL_DIR bootstraps. Shared plugin-root bootstraps also use
+  # RESOLVER=, but have their own exact-block integration test and a different
+  # fixture contract under tools/skill/test-resolve-plugin-root.sh.
+  grep -q 'SKILL_DIR="$(bash "$RESOLVER" "$name"' "$doc" || continue
   checked=$((checked + 1))
 
   block="$FIX/block.sh"

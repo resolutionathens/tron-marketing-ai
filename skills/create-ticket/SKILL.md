@@ -40,6 +40,10 @@ single source of truth for the spine, the per-work-type sections, the machine-re
 verdict ladder. This skill is the authoring front end; `tron:ticket-lint` is the checker; Scout triage
 is the third consumer. All three read that one file.
 
+The skill's complete shared-resource closure is declared in the plugin manifest's versioned
+[`resourceContract`](../../tools/skill/plugin-resources.md). Installers must preserve that tree or set
+`TRON_PLUGIN_ROOT`; the workflow must stop if it cannot resolve the converter or rubric tooling.
+
 This is a **Jira-write** skill. It creates a ticket only after you have gathered the required fields and
 (by default) shown the user the assembled ticket. It does not branch, commit, transition, or implement —
 use `tron:start-ticket` to begin the work once the ticket exists.
@@ -109,8 +113,25 @@ Lint the assembled description **before** creating, and show the user the verdic
 Resolve the shared tools once, then lint and create:
 
 ```bash
-TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
-ADF="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs"
+name=create-ticket
+PLUGIN_ROOT="${TRON_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}}"
+if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" ]; then
+  PLUGIN_ROOT="$HOME/.config/opencode"
+fi
+if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.pi/agent/skills/$name/SKILL.md" ]; then
+  PLUGIN_ROOT="$HOME/.pi/agent"
+fi
+if [ -z "$PLUGIN_ROOT" ]; then
+  ROOTS="$(find "$HOME/.claude/plugins/cache" "$HOME/.claude/plugins/marketplaces" "${CODEX_HOME:-$HOME/.codex}/plugins/cache" "${CODEX_HOME:-$HOME/.codex}/plugins/marketplaces" "$HOME/Library/Application Support/tron-os/tron-releases/versions" -type f -path "*/skills/$name/SKILL.md" 2>/dev/null | while IFS= read -r skill_doc; do printf '%s\n' "${skill_doc%/skills/$name/SKILL.md}"; done | LC_ALL=C sort -u)"
+  ROOT_COUNT="$(printf '%s\n' "$ROOTS" | sed '/^$/d' | wc -l | tr -d ' ')"
+  [ "$ROOT_COUNT" = 1 ] || { echo "tron:$name: found ${ROOT_COUNT:-0} installed package roots; install one complete Tron package or set TRON_PLUGIN_ROOT (multiple installed Tron packages are ambiguous)" >&2; exit 1; }
+  PLUGIN_ROOT="$ROOTS"
+fi
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-plugin-root.sh}"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: its package root is unavailable or incomplete; install/update that complete Tron package or set TRON_PLUGIN_ROOT to it" >&2; exit 1; }
+PLUGIN_ROOT="$(bash "$RESOLVER" "$name" tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh tools/ticket/ticket-rubric.md)"
+TICKET_DIR="$PLUGIN_ROOT/tools/ticket"
+ADF="$PLUGIN_ROOT/tools/md-to-adf/md-to-adf.mjs"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/tron-create-ticket.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 MD="$WORK/<slug>.md"

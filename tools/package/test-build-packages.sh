@@ -195,6 +195,24 @@ for (const entry of inventory.packages) {
   if (manifest.name !== entry.package || manifest.version !== inventory.version) {
     throw new Error(`${entry.harness}/${role} manifest identity is invalid`);
   }
+  const expectedContract = {
+    schemaVersion: 1,
+    root: ".",
+    skills: Object.fromEntries(Object.entries({
+      "create-ticket": ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"],
+      jira: ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket"],
+    }).filter(([skill]) => entry.skills.includes(skill))),
+  };
+  if (JSON.stringify(manifest.resourceContract) !== JSON.stringify(expectedContract)) {
+    throw new Error(`${entry.harness}/${role} resource contract differs from the exact skill closure`);
+  }
+  for (const resources of Object.values(manifest.resourceContract.skills)) {
+    for (const resource of resources) {
+      if (!fs.existsSync(path.join(packageRoot, resource))) {
+        throw new Error(`${entry.harness}/${role} contract names missing resource ${resource}`);
+      }
+    }
+  }
   if (entry.harness === "codex") {
     const marketplace = JSON.parse(fs.readFileSync(
       path.join(packageRoot, ".agents/plugins/marketplace.json"),
@@ -330,5 +348,27 @@ reject_map repo-parent 'map.repos["tron-os"].extends = ["repo-mabe-nuxt"]'
 reject_map name-collision 'map.packages["repo-tron-os"] = { description: "x", resources: [], skills: [] }'
 reject_map bad-repo-key 'map.repos["Marketing Pages"] = { description: "x", resources: [], skills: [] }'
 reject_map unsafe-repo-resource 'map.repos["tron-os"].resources.push("../README.md")'
+
+# The manifest's per-skill resourceContract is installer input, not descriptive
+# metadata. Even if an aggregate package declaration omits those paths, the
+# builder must materialize the exact closure for every included contracted skill.
+CONTRACT_MAP="$OUT/contract-only-resources.json"
+node - "$ROOT/packages/package-map.json" "$CONTRACT_MAP" <<'NODE'
+const fs = require("fs");
+const [source, target] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+const contracted = new Set(["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"]);
+map.packages.core.resources = map.packages.core.resources.filter((resource) => !contracted.has(resource));
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+TRON_PACKAGE_MAP="$CONTRACT_MAP" node "$ROOT/tools/package/build-packages.mjs" "$OUT/contract-only" >/dev/null
+for HARNESS in claude codex; do
+  for RESOURCE in tools/jira tools/md-to-adf tools/skill tools/ticket tools/voice; do
+    test -e "$OUT/contract-only/$HARNESS/tron-core/$RESOURCE" || {
+      printf 'FAIL: resourceContract did not materialize %s for %s/tron-core.\n' "$RESOURCE" "$HARNESS" >&2
+      exit 1
+    }
+  done
+done
 
 printf 'PASS: all role packages and repo bundles have deterministic Claude/Codex inventories and local dependency closures.\n'
