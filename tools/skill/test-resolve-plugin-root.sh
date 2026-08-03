@@ -53,6 +53,20 @@ for skill_doc in "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/skills/jira/SKILL.
 done
 pass "both skill bootstraps bind OpenCode locally and never search for a foreign resolver"
 
+run_doc_bootstrap() {
+  local doc="$1"
+  local skill="$2"
+  local script="$FIXTURE/bootstrap-$skill.sh"
+  awk -v skill="$skill" '
+    $0 == "name=" skill { copying = 1 }
+    copying { print }
+    copying && $0 ~ /^PLUGIN_ROOT="\$\(bash "\$RESOLVER"/ { exit }
+  ' "$doc" >"$script"
+  printf '\nprintf "%%s\\n" "$PLUGIN_ROOT"\n' >>"$script"
+  env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
+    HOME="${BOOTSTRAP_HOME:-$FIXTURE/home}" bash "$script"
+}
+
 INSTALL="$FIXTURE/home/.config/opencode"
 mkdir -p "$INSTALL/skills/create-ticket" "$INSTALL/skills/jira" "$INSTALL/tools/skill"
 INSTALL="$(cd "$INSTALL" && pwd)"
@@ -69,6 +83,67 @@ resolved="$(env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
   create-ticket tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh tools/ticket/ticket-rubric.md)"
 [ "$resolved" = "$INSTALL" ] || fail "clean OpenCode install resolved '$resolved', expected '$INSTALL'"
 pass "clean installed-skill environment resolves its plugin root with no ambient root variables"
+
+for skill in create-ticket jira; do
+  resolved_bootstrap="$(BOOTSTRAP_HOME="$FIXTURE/home" \
+    run_doc_bootstrap "$ROOT/skills/$skill/SKILL.md" "$skill")"
+  [ "$resolved_bootstrap" = "$INSTALL" ] \
+    || fail "$skill bootstrap resolved '$resolved_bootstrap', expected OpenCode root '$INSTALL'"
+done
+pass "both documented bootstraps bind a clean OpenCode package to its own root"
+
+CODEX_USER="$FIXTURE/codex-user"
+CODEX="$CODEX_USER/.codex/plugins/cache/tron/0.44.0"
+mkdir -p "$CODEX/skills/create-ticket" "$CODEX/skills/jira" "$CODEX/tools/skill"
+CODEX="$(cd "$CODEX" && pwd)"
+cp "$ROOT/skills/create-ticket/SKILL.md" "$CODEX/skills/create-ticket/SKILL.md"
+cp "$ROOT/skills/jira/SKILL.md" "$CODEX/skills/jira/SKILL.md"
+cp "$RESOLVER" "$CODEX/tools/skill/resolve-plugin-root.sh"
+cp -R "$ROOT/tools/md-to-adf" "$CODEX/tools"
+cp -R "$ROOT/tools/ticket" "$CODEX/tools"
+
+for skill in create-ticket jira; do
+  resolved_bootstrap="$(BOOTSTRAP_HOME="$CODEX_USER" \
+    run_doc_bootstrap "$ROOT/skills/$skill/SKILL.md" "$skill")"
+  [ "$resolved_bootstrap" = "$CODEX" ] \
+    || fail "$skill bootstrap resolved '$resolved_bootstrap', expected clean Codex root '$CODEX'"
+done
+pass "both documented bootstraps locate a clean complete Codex package with no root variables"
+
+RELEASE_USER="$FIXTURE/release-user"
+RELEASE="$RELEASE_USER/Library/Application Support/tron-os/tron-releases/versions/0.44.0"
+mkdir -p "$RELEASE/skills/create-ticket" "$RELEASE/skills/jira" "$RELEASE/tools/skill"
+RELEASE="$(cd "$RELEASE" && pwd)"
+cp "$ROOT/skills/create-ticket/SKILL.md" "$RELEASE/skills/create-ticket/SKILL.md"
+cp "$ROOT/skills/jira/SKILL.md" "$RELEASE/skills/jira/SKILL.md"
+cp "$RESOLVER" "$RELEASE/tools/skill/resolve-plugin-root.sh"
+cp -R "$ROOT/tools/md-to-adf" "$RELEASE/tools"
+cp -R "$ROOT/tools/ticket" "$RELEASE/tools"
+
+for skill in create-ticket jira; do
+  resolved_bootstrap="$(BOOTSTRAP_HOME="$RELEASE_USER" \
+    run_doc_bootstrap "$ROOT/skills/$skill/SKILL.md" "$skill")"
+  [ "$resolved_bootstrap" = "$RELEASE" ] \
+    || fail "$skill bootstrap resolved '$resolved_bootstrap', expected release-store root '$RELEASE'"
+done
+pass "both documented bootstraps locate a clean release-store package with no root variables"
+
+SECOND_CODEX="$CODEX_USER/.codex/plugins/cache/tron/0.43.0"
+mkdir -p "$SECOND_CODEX/skills/create-ticket" "$SECOND_CODEX/tools/skill"
+cp "$ROOT/skills/create-ticket/SKILL.md" "$SECOND_CODEX/skills/create-ticket/SKILL.md"
+cp "$RESOLVER" "$SECOND_CODEX/tools/skill/resolve-plugin-root.sh"
+set +e
+AMBIGUOUS="$(BOOTSTRAP_HOME="$CODEX_USER" \
+  run_doc_bootstrap "$ROOT/skills/create-ticket/SKILL.md" create-ticket 2>&1)"
+AMBIGUOUS_STATUS=$?
+set -e
+[ "$AMBIGUOUS_STATUS" -ne 0 ] || fail "ambiguous Codex installs selected one package silently"
+case "$AMBIGUOUS" in
+  *"found 2 installed package roots"*"set TRON_PLUGIN_ROOT"*"multiple installed Tron packages are ambiguous"*) ;;
+  *) fail "ambiguous-install diagnostic was not actionable: $AMBIGUOUS" ;;
+esac
+pass "multiple installed copies fail closed instead of crossing package versions"
+trash "$SECOND_CODEX"
 
 MD="$FIXTURE/ticket.md"
 cat >"$MD" <<'EOF'

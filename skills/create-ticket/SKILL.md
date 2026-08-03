@@ -118,6 +118,12 @@ PLUGIN_ROOT="${TRON_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAU
 if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" ]; then
   PLUGIN_ROOT="$HOME/.config/opencode"
 fi
+if [ -z "$PLUGIN_ROOT" ]; then
+  ROOTS="$(find "$HOME/.claude/plugins/cache" "$HOME/.claude/plugins/marketplaces" "${CODEX_HOME:-$HOME/.codex}/plugins/cache" "${CODEX_HOME:-$HOME/.codex}/plugins/marketplaces" "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 8 -type f -path "*/skills/$name/SKILL.md" 2>/dev/null | while IFS= read -r skill_doc; do printf '%s\n' "${skill_doc%/skills/$name/SKILL.md}"; done | LC_ALL=C sort -u)"
+  ROOT_COUNT="$(printf '%s\n' "$ROOTS" | sed '/^$/d' | wc -l | tr -d ' ')"
+  [ "$ROOT_COUNT" = 1 ] || { echo "tron:$name: found ${ROOT_COUNT:-0} installed package roots; install one complete Tron package or set TRON_PLUGIN_ROOT (multiple installed Tron packages are ambiguous)" >&2; exit 1; }
+  PLUGIN_ROOT="$ROOTS"
+fi
 RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-plugin-root.sh}"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: its package root is unavailable or incomplete; install/update that complete Tron package or set TRON_PLUGIN_ROOT to it" >&2; exit 1; }
 PLUGIN_ROOT="$(bash "$RESOLVER" "$name" tools/md-to-adf/md-to-adf.mjs tools/ticket/rubric-lint.sh tools/ticket/ticket-rubric.md)"
