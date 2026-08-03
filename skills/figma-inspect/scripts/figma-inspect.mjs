@@ -38,11 +38,11 @@ async function brokerJson(path, token, { optional = false } = {}) {
     fail(`broker request failed for ${path}: ${error.message}`, 4);
   }
   if (!response.ok) {
-    if (optional) return null;
-    const detail = (await response.text()).slice(0, 300).replace(/\s+/g, ' ').trim();
     if (response.status === 401 || response.status === 403) {
       fail(`Figma authorization was rejected (HTTP ${response.status}); connect your Figma account at ${brokerApp}/figma/oauth/start`, 3);
     }
+    if (optional) return null;
+    const detail = (await response.text()).slice(0, 300).replace(/\s+/g, ' ').trim();
     fail(`Figma broker returned HTTP ${response.status} for ${path}${detail ? `: ${detail}` : ''}`, 4);
   }
   try { return await response.json(); } catch { fail(`Figma broker returned invalid JSON for ${path}`, 4); }
