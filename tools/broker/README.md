@@ -53,7 +53,7 @@ prefix in and every downstream path/query/body is unchanged.
 | Prefix | Upstream | Used by |
 | --- | --- | --- |
 | `/imagekit/*` | ImageKit REST + upload API | `tools/imagekit/imagekit.mjs` (content image pipeline) |
-| `/figma/*` | Figma REST API | `tron:figma-to-imagekit` (asset export) |
+| `/figma/*` | Figma REST API | `tron:figma-inspect` (per-user, read-only inspection), `tron:figma-to-imagekit` (asset export) |
 | `/circleci/*` | CircleCI v2 API | `tron:circleci` (`skills/circleci/scripts/circleci.sh`) |
 | `/jira/*` | Jira Cloud REST + Confluence page body / listing | `tools/confluence/fetch-confluence.sh` (MD-1995) |
 | `/jira/confluence-attachments/*` | Confluence attachment downloads | `tools/confluence/fetch-confluence.sh` (MD-2085) |
@@ -91,6 +91,7 @@ held credential, and name the actual missing requirement if the fallback also ca
 - `tools/okf/okf.mjs` — `/knowledge/*` (fallback; consumed by `tron:okf-query`)
 - `skills/circleci/scripts/circleci.sh` — `/circleci/*`
 - `skills/figma-to-imagekit/SKILL.md` — `/figma/*`
+- `skills/figma-inspect/scripts/figma-inspect.mjs` — `/figma/*` with the caller's connected Figma OAuth identity
 
 ## Env overrides (for tests)
 
@@ -102,6 +103,7 @@ loopback stub — no `cloudflared`, no real broker, fully offline. Conventions p
 | `imagekit.mjs` | `IMAGEKIT_BROKER_APP` | `IMAGEKIT_BROKER_BASE` / `IMAGEKIT_BROKER_UPLOAD` | `IMAGEKIT_ACCESS_TOKEN` |
 | `fetch-confluence.sh` | `CONFLUENCE_BROKER_APP` | `CONFLUENCE_BROKER_BASE` | (Access session) |
 | `okf.mjs` | `OKF_BROKER_APP` | `OKF_BROKER_BASE` | `OKF_ACCESS_TOKEN` |
+| `figma-inspect.mjs` | `FIGMA_BROKER_APP` | `FIGMA_BROKER_APP` | `FIGMA_INSPECT_ACCESS_TOKEN` |
 
 Setting the `*_ACCESS_TOKEN` var skips `cloudflared` entirely (hand it a dummy token in tests);
 pointing the `*_BASE` var at a loopback server exercises the broker code path without the network.

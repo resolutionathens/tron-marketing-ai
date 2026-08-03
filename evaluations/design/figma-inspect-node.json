@@ -1,0 +1,10 @@
+{
+  "skills": ["figma-inspect"],
+  "query": "Inspect this Figma footer frame for implementation details: https://figma.com/design/AbC123/Footer?node-id=10-20",
+  "expected_behavior": [
+    "Uses the figma-inspect deterministic script with the supplied Figma URL",
+    "Retrieves the selected node through the broker using per-user Figma OAuth",
+    "Reports dimensions, layout, typography, colors, component states, and the rendered reference when available",
+    "Does not request a FIGMA_ACCESS_TOKEN, mutate the design, export an asset, or upload to ImageKit"
+  ]
+}

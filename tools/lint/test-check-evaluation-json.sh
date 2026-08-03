@@ -34,9 +34,9 @@ expect_fail() {
 }
 
 bash "$SCRIPT" "$REPO_ROOT" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "should pass on the real repo"; }
-rg -q 'check-evaluation-json: OK \(75 evaluation JSON files parsed\)' "$LOG" \
+rg -q 'check-evaluation-json: OK \(76 evaluation JSON files parsed\)' "$LOG" \
   || { cat "$LOG" >&2; fail "should report the exact file count for the real repo"; }
-pass "passes on the real repo and counts all 75 scenario/golden files"
+pass "passes on the real repo and counts all 76 scenario/golden files"
 
 reset_fixture
 bash "$SCRIPT" "$FIXTURE" >"$LOG" 2>&1 || { cat "$LOG" >&2; fail "should pass on a valid fixture"; }
