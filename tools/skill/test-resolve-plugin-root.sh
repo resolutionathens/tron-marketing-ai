@@ -51,10 +51,12 @@ pass "resolver contains no ambient cross-install selection path"
 for skill_doc in "$ROOT/skills/create-ticket/SKILL.md" "$ROOT/skills/jira/SKILL.md"; do
   rg -qF '[ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" ]' "$skill_doc" \
     || fail "$skill_doc does not bind an OpenCode invocation to its own package root"
+  rg -qF '[ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.pi/agent/skills/$name/SKILL.md" ]' "$skill_doc" \
+    || fail "$skill_doc does not bind a Pi invocation to its own package root"
   rg -q 'find .*resolve-plugin-root\.sh' "$skill_doc" \
     && fail "$skill_doc can select a resolver from another installed package"
 done
-pass "both skill bootstraps bind OpenCode locally and never search for a foreign resolver"
+pass "both skill bootstraps bind OpenCode and Pi locally and never search for a foreign resolver"
 
 run_doc_bootstrap() {
   local doc="$1"
@@ -106,6 +108,24 @@ for skill in create-ticket jira; do
     || fail "$skill bootstrap resolved '$resolved_bootstrap', expected OpenCode root '$INSTALL'"
 done
 pass "both documented bootstraps bind a clean OpenCode package to its own root"
+
+PI_USER="$FIXTURE/pi-user"
+PI="$PI_USER/.pi/agent"
+mkdir -p "$PI/skills/create-ticket" "$PI/skills/jira" "$PI/tools/skill"
+PI="$(cd "$PI" && pwd)"
+cp "$ROOT/skills/create-ticket/SKILL.md" "$PI/skills/create-ticket/SKILL.md"
+cp "$ROOT/skills/jira/SKILL.md" "$PI/skills/jira/SKILL.md"
+cp "$RESOLVER" "$PI/tools/skill/resolve-plugin-root.sh"
+cp -R "$ROOT/tools/md-to-adf" "$PI/tools"
+cp -R "$ROOT/tools/ticket" "$PI/tools"
+
+for skill in create-ticket jira; do
+  resolved_bootstrap="$(BOOTSTRAP_HOME="$PI_USER" \
+    run_doc_bootstrap "$ROOT/skills/$skill/SKILL.md" "$skill")"
+  [ "$resolved_bootstrap" = "$PI" ] \
+    || fail "$skill bootstrap resolved '$resolved_bootstrap', expected clean Pi root '$PI'"
+done
+pass "both documented bootstraps bind a clean Pi package with no root variables"
 
 CODEX_USER="$FIXTURE/codex-user"
 CODEX="$CODEX_USER/.codex/plugins/cache/tron/0.44.0"

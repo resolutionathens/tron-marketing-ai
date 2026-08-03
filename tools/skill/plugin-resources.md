@@ -16,8 +16,9 @@ into the copied resource closure; package-map resource lists are not required to
 
 At runtime, use `tools/skill/resolve-plugin-root.sh`. It accepts the skill name followed by every exact
 path the current operation requires. It prefers `TRON_PLUGIN_ROOT`, honors the Claude compatibility
-variables, and otherwise validates the package root that contains the resolver. OpenCode skills bind to
-their known `$HOME/.config/opencode` package root. With no exported root, Claude, Codex, and release-store
+variables, and otherwise validates the package root that contains the resolver. OpenCode and Pi skills
+bind to their known `$HOME/.config/opencode` and `$HOME/.pi/agent` package roots. With no exported root,
+Claude, Codex, and release-store
 bootstraps bind only when exactly one installed package contains the invoking skill; multiple copies are
 ambiguous and require `TRON_PLUGIN_ROOT`. The resolver never selects tools from a different installation:
 a partial package fails with the missing path and an install/update instruction.

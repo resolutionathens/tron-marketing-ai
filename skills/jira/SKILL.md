@@ -99,6 +99,9 @@ PLUGIN_ROOT="${TRON_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAU
 if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.config/opencode/skills/$name/SKILL.md" ]; then
   PLUGIN_ROOT="$HOME/.config/opencode"
 fi
+if [ -z "$PLUGIN_ROOT" ] && [ -f "$HOME/.pi/agent/skills/$name/SKILL.md" ]; then
+  PLUGIN_ROOT="$HOME/.pi/agent"
+fi
 if [ -z "$PLUGIN_ROOT" ]; then
   ROOTS="$(find "$HOME/.claude/plugins/cache" "$HOME/.claude/plugins/marketplaces" "${CODEX_HOME:-$HOME/.codex}/plugins/cache" "${CODEX_HOME:-$HOME/.codex}/plugins/marketplaces" "$HOME/Library/Application Support/tron-os/tron-releases/versions" -type f -path "*/skills/$name/SKILL.md" 2>/dev/null | while IFS= read -r skill_doc; do printf '%s\n' "${skill_doc%/skills/$name/SKILL.md}"; done | LC_ALL=C sort -u)"
   ROOT_COUNT="$(printf '%s\n' "$ROOTS" | sed '/^$/d' | wc -l | tr -d ' ')"
