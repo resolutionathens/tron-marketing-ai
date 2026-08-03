@@ -76,13 +76,16 @@ async function inspect(input) {
   }
 
   let payload;
+  let fileMetadata;
   let document;
   if (nodeId) {
     payload = await brokerJson(`/figma/v1/files/${encodeURIComponent(fileKey)}/nodes?ids=${encodeURIComponent(nodeId)}`, token);
+    fileMetadata = await brokerJson(`/figma/v1/files/${encodeURIComponent(fileKey)}?depth=1`, token);
     document = payload?.nodes?.[nodeId]?.document;
     if (!document) fail(`node ${nodeId} was not returned for Figma file ${fileKey}`, 1);
   } else {
     payload = await brokerJson(`/figma/v1/files/${encodeURIComponent(fileKey)}`, token);
+    fileMetadata = payload;
     document = payload?.document;
     if (!document) fail(`Figma file ${fileKey} did not include a document`, 1);
   }
@@ -97,9 +100,9 @@ async function inspect(input) {
     ok: true,
     source: {fileKey, nodeId},
     document: implementationView(document),
-    components: payload.components || {},
-    componentSets: payload.componentSets || {},
-    styles: payload.styles || {},
+    components: fileMetadata.components || {},
+    componentSets: fileMetadata.componentSets || {},
+    styles: fileMetadata.styles || {},
     renderedReference
   }));
 }
