@@ -9,13 +9,12 @@ the skill then does what its SKILL.md promises.
 
 There is an executable runner — [`tools/evaluate/`](../tools/evaluate/README.md). It discovers
 every scenario here (plus the co-located golden examples in `skills/<name>/example/`) and runs
-it in one of two modes: **deterministic** scenarios (those with an `exec` block) run a command
-and assert its output offline; **judge** scenarios load the `SKILL.md` under test, ask `claude -p`
-to describe the actions it would take, then grade that plan against `expected_behavior`.
+deterministic scenarios (those with an `exec` block) offline. Scenarios without `exec` are manual
+specifications unless a human explicitly names one for the bounded model path.
 
 ```bash
-node tools/evaluate/evaluate.mjs            # deterministic only (offline, default)
-node tools/evaluate/evaluate.mjs --judge    # + LLM-judge (needs `claude`, spends tokens)
+node tools/evaluate/evaluate.mjs                                # deterministic only, zero model calls
+node tools/evaluate/evaluate.mjs --model-eval <scenario.json>   # one explicit, bounded model evaluation
 ```
 
 You can still run any scenario by hand — read the `query`, issue it to Claude Code, and check
@@ -80,22 +79,21 @@ The [`tools/evaluate/`](../tools/evaluate/README.md) harness runs scenarios for 
 non-zero on any failure:
 
 ```bash
-node tools/evaluate/evaluate.mjs                       # all deterministic scenarios
-node tools/evaluate/evaluate.mjs --judge               # also the LLM-judge scenarios
-node tools/evaluate/evaluate.mjs --judge-only --filter news-item   # one skill, judge only
-node tools/evaluate/evaluate.mjs --dry-run             # show what would run, no calls
+node tools/evaluate/evaluate.mjs                       # all deterministic scenarios, offline
+node tools/evaluate/evaluate.mjs --filter news-item    # matching deterministic scenarios only
+node tools/evaluate/evaluate.mjs --dry-run             # show commands and zero model calls
+node tools/evaluate/evaluate.mjs --model-eval evaluations/drafting/onesheet-product.json --dry-run
 ```
 
-CI should run the default (deterministic) target — fast and free. Use `--judge` locally and
-before a release, since it spends tokens and is non-deterministic.
+CI and autonomous workers must run the default deterministic target. Optional model evaluation
+requires one explicitly named file and human authorization. It uses zero calls on a content-addressed
+cache hit and otherwise one tool-free, low-token Haiku call. Discovery can never expand that request.
+The retired `--judge` and `--judge-only` batch flags fail closed.
 
-**Note on git-flow:** the `git-flow/` scenarios are marked `"manual": true` and the harness
-skips them in auto runs. Judge mode grades a _plan_, but git-flow's value is in execution and
-real-state grounding — headless mode can't invoke `AskUserQuestion`, has no real commit hashes
-to grade, and inconsistently inspects state. They remain here as interactive run scripts (with a
-`sandbox` block that seeds a realistic tree); their mechanics are covered by the deterministic
-`scripts/*/test-*.sh` tests. See [tools/evaluate/README.md](../tools/evaluate/README.md) →
-"What judge mode can and can't observe".
+**Note on git-flow:** the `git-flow/` scenarios are marked `"manual": true` because their value is
+in execution and real-state grounding. They remain interactive specifications with sandbox setup;
+their mechanics are covered by deterministic `scripts/*/test-*.sh` tests. Discovery ignores every
+scenario without an `exec` block, whether or not it is marked manual.
 
 ## How to run (manual)
 

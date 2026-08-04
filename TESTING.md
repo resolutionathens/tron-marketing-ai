@@ -10,7 +10,7 @@ There are three layers to test, cheapest first:
 2. **Audit delegation smoke** — the 5 thin orchestrators reach their runner agent.
 3. **Skill evaluations** — the [`evaluations/`](evaluations/) scenarios plus the co-located
    `skills/<name>/example/` golden runs, executed by the [`tools/evaluate/`](tools/evaluate/README.md)
-   harness (deterministic offline; LLM-judge with `--judge`).
+   harness (deterministic offline by default; one explicitly named, human-authorized model scenario when needed).
 
 ---
 
@@ -168,16 +168,19 @@ with the `expected_behavior` to observe. See [evaluations/README.md](evaluations
 for the format.
 
 **There is an executable runner — [`tools/evaluate/`](tools/evaluate/README.md).** It
-discovers every scenario, runs deterministic ones offline (the `exec`-block examples that
-exercise a skill's script), and grades judge scenarios by loading the `SKILL.md` under test,
-asking `claude -p` for the plan it would follow, then scoring that plan against
-`expected_behavior` with a second `claude -p` call.
+discovers and runs deterministic scenarios offline (the `exec`-block examples that exercise a
+skill's script). Discovery never runs model scenarios. A human can explicitly name one scenario
+for a bounded, cached model evaluation when deterministic assertions cannot express the behavior.
 
 ```bash
-node tools/evaluate/evaluate.mjs            # deterministic only — offline, free, CI-safe
-node tools/evaluate/evaluate.mjs --judge    # + LLM-judge — needs `claude`, spends tokens
-node tools/evaluate/evaluate.mjs --dry-run  # list what would run, make no calls
+node tools/evaluate/evaluate.mjs            # deterministic only: offline, free, CI/worker-safe
+node tools/evaluate/evaluate.mjs --dry-run  # list commands and report zero model calls
+node tools/evaluate/evaluate.mjs --model-eval evaluations/drafting/onesheet-product.json --dry-run
 ```
+
+Workers must use the deterministic path. Do not run model evaluation autonomously. The optional
+`--model-eval` path accepts exactly one file, previews zero or one call, disables tools, enforces
+token/runtime limits, and caches unchanged inputs. `--judge` and `--judge-only` fail closed.
 
 You can still run any scenario by hand: install the plugin as a directory marketplace
 (`/plugin marketplace add /path/to/tron-marketing-ai`), issue the `query`, and check the
