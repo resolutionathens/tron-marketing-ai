@@ -80,6 +80,10 @@ bash "$C" check-link /product/<path>
 
 ## Preflight — repo guard + profile availability
 
+Before local verification in a fresh worktree, follow
+[`tools/content/local-qa.md`](../../tools/content/local-qa.md) to bootstrap its
+dependencies and interpret local-check limitations.
+
 Two separate things. The guard decides **whether** you may write here; the profile
 says **where**. Never skip the guard on the grounds that the profile resolved.
 
