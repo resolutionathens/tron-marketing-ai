@@ -144,8 +144,10 @@ function runDeterministic(scenario) {
 }
 
 function modelInput(scenario) {
-  const skill = scenario.skills?.[0];
-  if (!skill || scenario.skills.length !== 1) throw new Error("model scenario must name exactly one skill");
+  if (!Array.isArray(scenario.skills) || scenario.skills.length !== 1 || !scenario.skills[0]) {
+    throw new Error("model scenario must name exactly one skill");
+  }
+  const skill = scenario.skills[0];
   if (!scenario.query || !Array.isArray(scenario.expected_behavior)) throw new Error("model scenario requires query and expected_behavior");
   const skillPath = join(REPO_ROOT, "skills", skill, "SKILL.md");
   if (!existsSync(skillPath)) throw new Error(`skill SKILL.md not found for ${JSON.stringify(skill)}`);
@@ -323,7 +325,7 @@ async function main() {
       log(`${result.skipped ? "○ skip" : result.ok ? "✓ pass" : "✗ FAIL"}  [model]  ${scenario.rel}${result.cached ? " (cached)" : ""}`);
       for (const reason of result.reasons) log(`        ${reason}`);
     }
-    process.exitCode = result.ok ? 0 : 1;
+    if (process.exitCode == null) process.exitCode = result.ok ? 0 : 1;
     return;
   }
 

@@ -76,6 +76,14 @@ set -e
 check "unknown model option fails closed" 2 "$rc"
 contains "unknown option reports zero calls" "$unknown" "Model calls: 0"
 
+set +e
+malformed="$($RUN --model-eval "$FIX/model-missing-skills.json" 2>&1)"; rc=$?
+set -e
+check "missing skills array fails with a usage error" 2 "$rc"
+contains "missing skills error is actionable" "$malformed" "model scenario must name exactly one skill"
+contains "malformed model scenario reports zero calls" "$malformed" "Model calls: 0"
+check "malformed model scenario makes zero actual calls" 0 "$(wc -l <"$FAKE_CLAUDE_CALLS" | tr -d ' ')"
+
 preview="$($RUN --model-eval "$FIX/model-pass.json" --cache-dir "$ROOT/cache" --dry-run 2>&1)"
 contains "dry-run previews exactly one call" "$preview" "Model calls: 1 (hard cap: 1"
 check "dry-run makes zero actual calls" 0 "$(wc -l <"$FAKE_CLAUDE_CALLS" | tr -d ' ')"
@@ -112,7 +120,7 @@ while kill -0 "$ORPHAN_PID" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.05; i=$((
 set +e
 kill -0 "$ORPHAN_PID" 2>/dev/null; alive=$?
 set -e
-check "cancellation exits non-zero" 1 "$rc"
+check "cancellation preserves conventional exit code" 130 "$rc"
 check "cancellation leaves no model subprocess orphan" 1 "$alive"
 ORPHAN_PID=""
 
