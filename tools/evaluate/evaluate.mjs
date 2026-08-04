@@ -1,487 +1,352 @@
 #!/usr/bin/env node
-// Skill evaluation harness.
-//
-// Runs the eval scenarios under evaluations/ and the co-located golden examples
-// under skills/<name>/example/*.json, in one of two modes per scenario:
-//
-//   deterministic  — the scenario carries an `exec` block. The harness runs the
-//                    command and asserts its exit code / stdout. Fully offline,
-//                    CI-safe, no model calls.
-//
-//   judge          — the scenario carries `expected_behavior`. The harness loads
-//                    the SKILL.md under test, asks `claude -p` to describe the
-//                    actions it WOULD take (no side effects), then asks a second
-//                    `claude -p` call to grade that plan against the expected
-//                    behaviors. Requires the `claude` CLI and spends tokens, so
-//                    it is opt-in (--judge) and skipped by default.
-//
-// Usage:
-//   node tools/evaluate/evaluate.mjs                 # deterministic only (default)
-//   node tools/evaluate/evaluate.mjs --judge         # deterministic + LLM-judge
-//   node tools/evaluate/evaluate.mjs --judge-only    # judge scenarios only
-//   node tools/evaluate/evaluate.mjs --filter gh     # only scenarios whose path/skill matches
-//   node tools/evaluate/evaluate.mjs --dry-run       # list what would run, make no calls
-//   node tools/evaluate/evaluate.mjs --json          # machine-readable summary on stdout
-//
-// Exit code is non-zero if any executed scenario fails (judge scenarios that are
-// skipped because --judge was not passed do not count as failures).
+// Skill evaluation harness. Repository discovery is deterministic and offline.
+// Optional model evaluation is limited to one explicitly named scenario and one
+// tool-free, low-cost model call whose result is content-addressed and cached.
 
 import {
-  readdirSync,
-  readFileSync,
-  statSync,
   existsSync,
-  mkdtempSync,
   mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  statSync,
   writeFileSync,
-  rmSync,
 } from "node:fs";
-import { spawnSync } from "node:child_process";
-import { dirname, join, relative } from "node:path";
-import { tmpdir } from "node:os";
+import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, "..", "..");
-
-// ---- args ------------------------------------------------------------------
+const MODEL = "claude-haiku-4-5-20251001";
+const MODEL_CALL_CAP = 1;
+const MODEL_TIMEOUT_MS = 60_000;
+const MODEL_MAX_OUTPUT_TOKENS = 1_024;
+const MODEL_MAX_OUTPUT_BYTES = 64 * 1024;
+const EVALUATOR_VERSION = 2;
 
 const argv = process.argv.slice(2);
 const opts = {
-  judge: argv.includes("--judge") || argv.includes("--judge-only"),
-  judgeOnly: argv.includes("--judge-only"),
-  deterministicOnly: argv.includes("--deterministic-only"),
+  modelScenario: argFlag("--model-eval"),
+  cacheDir: argFlag("--cache-dir"),
+  claudeBin: process.env.TRON_EVALUATE_CLAUDE_BIN || "claude",
   dryRun: argv.includes("--dry-run"),
   json: argv.includes("--json"),
   filter: argFlag("--filter"),
   roots: [],
 };
-if (argv.includes("--help") || argv.includes("-h")) {
-  printHelpAndExit();
+
+if (argv.includes("--help") || argv.includes("-h")) printHelpAndExit();
+for (const retired of ["--judge", "--judge-only"]) {
+  if (argv.includes(retired)) failClosed(`${retired} was removed because discovery-backed model batches are unsafe; use --model-eval <scenario.json>`);
 }
 
 function argFlag(name) {
-  const i = argv.indexOf(name);
-  return i >= 0 && argv[i + 1] ? argv[i + 1] : null;
+  const indexes = argv.flatMap((arg, index) => (arg === name ? [index] : []));
+  if (indexes.length > 1) failClosed(`${name} may be supplied only once`);
+  if (!indexes.length) return null;
+  const value = argv[indexes[0] + 1];
+  if (!value || value.startsWith("-")) failClosed(`${name} requires a value`);
+  return value;
 }
 
-// Positional args (anything not a flag / flag-value) are extra eval roots.
+const valueFlags = new Set(["--filter", "--model-eval", "--cache-dir"]);
+const booleanFlags = new Set(["--deterministic-only", "--dry-run", "--json"]);
 for (let i = 0; i < argv.length; i++) {
-  const a = argv[i];
-  if (a === "--filter") {
+  const arg = argv[i];
+  if (valueFlags.has(arg)) {
     i++;
     continue;
   }
-  if (a.startsWith("--") || a === "-h") continue;
-  opts.roots.push(a);
+  if (booleanFlags.has(arg)) continue;
+  if (arg.startsWith("-")) failClosed(`unknown option: ${arg}`);
+  opts.roots.push(arg);
+}
+if (opts.modelScenario && (opts.roots.length || opts.filter)) {
+  failClosed("--model-eval accepts exactly one named scenario and cannot be combined with discovery roots or --filter");
 }
 
-// ---- discovery -------------------------------------------------------------
+function failClosed(message) {
+  process.stderr.write(`evaluate: ${message}\nModel calls: 0 (hard cap: ${MODEL_CALL_CAP})\n`);
+  process.exit(2);
+}
 
 function walkJson(path) {
   const out = [];
   if (!existsSync(path)) return out;
-  const st = statSync(path);
-  if (st.isFile()) {
-    if (path.endsWith(".json")) out.push(path);
-    return out;
-  }
-  for (const entry of readdirSync(path)) {
-    out.push(...walkJson(join(path, entry)));
-  }
+  const stat = statSync(path);
+  if (stat.isFile()) return path.endsWith(".json") ? [path] : [];
+  for (const entry of readdirSync(path)) out.push(...walkJson(join(path, entry)));
   return out;
 }
 
-function discover() {
+function discoverDeterministic() {
   const files = new Set();
   const roots = opts.roots.length
-    ? opts.roots.map((r) => join(REPO_ROOT, r))
+    ? opts.roots.map(resolveRepoPath)
     : [join(REPO_ROOT, "evaluations")];
-
-  for (const root of roots) {
-    for (const f of walkJson(root)) files.add(f);
-  }
-  // Co-located golden examples (only when scanning the default roots).
+  for (const root of roots) for (const file of walkJson(root)) files.add(file);
   if (!opts.roots.length) {
     const skillsDir = join(REPO_ROOT, "skills");
-    if (existsSync(skillsDir)) {
-      for (const skill of readdirSync(skillsDir)) {
-        const exDir = join(skillsDir, skill, "example");
-        for (const f of walkJson(exDir)) files.add(f);
-      }
+    for (const skill of existsSync(skillsDir) ? readdirSync(skillsDir) : []) {
+      for (const file of walkJson(join(skillsDir, skill, "example"))) files.add(file);
     }
   }
   return [...files].sort();
 }
 
-// ---- scenario model --------------------------------------------------------
+function resolveRepoPath(path) {
+  return isAbsolute(path) ? path : resolve(REPO_ROOT, path);
+}
 
 function loadScenario(file) {
-  let raw;
   try {
-    raw = JSON.parse(readFileSync(file, "utf8"));
-  } catch (e) {
-    return { file, error: `invalid JSON: ${e.message}` };
+    const rawText = readFileSync(file, "utf8");
+    const raw = JSON.parse(rawText);
+    return { file, rawText, rel: relative(REPO_ROOT, file), mode: raw.exec ? "deterministic" : "model", ...raw };
+  } catch (error) {
+    return { file, rel: relative(REPO_ROOT, file), error: `invalid JSON: ${error.message}` };
   }
-  // template.json and fixtures with empty skills are skipped silently.
-  const rel = relative(REPO_ROOT, file);
-  const mode = raw.exec ? "deterministic" : "judge";
-  return { file, rel, mode, ...raw };
 }
 
-function matchesFilter(s) {
+function matchesFilter(scenario) {
   if (!opts.filter) return true;
-  const hay = `${s.rel} ${(s.skills || []).join(" ")}`.toLowerCase();
-  return hay.includes(opts.filter.toLowerCase());
+  return `${scenario.rel} ${(scenario.skills || []).join(" ")}`.toLowerCase().includes(opts.filter.toLowerCase());
 }
 
-// ---- deterministic runner --------------------------------------------------
-
-function runDeterministic(s) {
-  const { cmd, expect = {} } = s.exec;
-  if (!Array.isArray(cmd) || cmd.length === 0) {
-    return { ok: false, reasons: ["exec.cmd must be a non-empty array"] };
-  }
-  if (opts.dryRun) {
-    return {
-      ok: true,
-      skipped: true,
-      reasons: [`would run: ${cmd.join(" ")}`],
-    };
-  }
-  const res = spawnSync(cmd[0], cmd.slice(1), {
-    cwd: REPO_ROOT,
-    encoding: "utf8",
-    timeout: 60_000,
-  });
-  const stdout = (res.stdout || "") + (res.stderr || "");
+function runDeterministic(scenario) {
+  const { cmd, expect = {} } = scenario.exec;
+  if (!Array.isArray(cmd) || cmd.length === 0) return { ok: false, reasons: ["exec.cmd must be a non-empty array"] };
+  if (opts.dryRun) return { ok: true, skipped: true, reasons: [`would run: ${cmd.join(" ")}`] };
+  const result = spawnSync(cmd[0], cmd.slice(1), { cwd: REPO_ROOT, encoding: "utf8", timeout: 60_000 });
+  const output = (result.stdout || "") + (result.stderr || "");
   const reasons = [];
   let ok = true;
-
-  if (typeof expect.exitCode === "number") {
-    if (res.status !== expect.exitCode) {
-      ok = false;
-      reasons.push(`exit ${res.status} != expected ${expect.exitCode}`);
-    }
-  } else if (res.status !== 0) {
+  const expectedExit = typeof expect.exitCode === "number" ? expect.exitCode : 0;
+  if (result.status !== expectedExit) {
     ok = false;
-    reasons.push(`exit ${res.status} (expected 0)`);
+    reasons.push(`exit ${result.status} != expected ${expectedExit}`);
   }
   for (const needle of expect.stdoutContains || []) {
-    if (!stdout.includes(needle)) {
+    if (!output.includes(needle)) {
       ok = false;
       reasons.push(`stdout missing: ${JSON.stringify(needle)}`);
     }
   }
-  if (typeof expect.stdoutEquals === "string") {
-    if (stdout.trim() !== expect.stdoutEquals.trim()) {
-      ok = false;
-      reasons.push("stdout did not equal expected");
-    }
+  if (typeof expect.stdoutEquals === "string" && output.trim() !== expect.stdoutEquals.trim()) {
+    ok = false;
+    reasons.push("stdout did not equal expected");
   }
   if (ok) reasons.push("all assertions passed");
   return { ok, reasons };
 }
 
-// ---- judge runner ----------------------------------------------------------
-
-function claudeAvailable() {
-  const r = spawnSync("claude", ["--version"], { encoding: "utf8" });
-  return r.status === 0;
-}
-
-function claudePrint(prompt, appendSystem, cwd = REPO_ROOT) {
-  const args = ["-p", "--output-format", "json"];
-  if (appendSystem) args.push("--append-system-prompt", appendSystem);
-  args.push(prompt);
-  const r = spawnSync("claude", args, {
-    cwd,
-    encoding: "utf8",
-    timeout: 300_000,
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  if (r.status !== 0) {
-    throw new Error(
-      `claude exited ${r.status}: ${(r.stderr || "").slice(0, 400)}`,
-    );
+function modelInput(scenario) {
+  if (!Array.isArray(scenario.skills) || scenario.skills.length !== 1 || !scenario.skills[0]) {
+    throw new Error("model scenario must name exactly one skill");
   }
-  try {
-    const obj = JSON.parse(r.stdout);
-    return obj.result ?? r.stdout;
-  } catch {
-    return r.stdout;
-  }
-}
-
-function extractJson(text) {
-  const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const body = fence ? fence[1] : text;
-  const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  if (start < 0 || end < 0) return null;
-  try {
-    return JSON.parse(body.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-}
-
-// Seed a throwaway sandbox dir from a scenario's `sandbox` block and return its
-// path. `sandbox.files` is a { relativePath: contents } map written first;
-// `sandbox.setup` is an array of shell commands run (joined with &&) in the dir.
-// Caller is responsible for removing the returned dir.
-function seedSandbox(sandbox) {
-  const dir = mkdtempSync(join(tmpdir(), "tron-eval-"));
-  for (const [rel, contents] of Object.entries(sandbox.files || {})) {
-    const full = join(dir, rel);
-    mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, contents);
-  }
-  if (sandbox.setup?.length) {
-    const r = spawnSync("sh", ["-c", sandbox.setup.join(" && ")], {
-      cwd: dir,
-      encoding: "utf8",
-      timeout: 60_000,
-    });
-    if (r.status !== 0) {
-      throw new Error(
-        `sandbox setup failed (${r.status}): ${(r.stderr || r.stdout || "").slice(0, 300)}`,
-      );
-    }
-  }
-  return dir;
-}
-
-function runJudge(s) {
-  if (opts.dryRun) {
-    const note = s.sandbox ? " (in a seeded sandbox)" : "";
-    return {
-      ok: true,
-      skipped: true,
-      reasons: [`would run skill + judge via claude -p${note}`],
-    };
-  }
-  const skill = (s.skills || [])[0];
-  const skillPath = join(REPO_ROOT, "skills", skill || "", "SKILL.md");
-  if (!skill || !existsSync(skillPath)) {
-    return { ok: false, reasons: [`skill SKILL.md not found for "${skill}"`] };
-  }
+  const skill = scenario.skills[0];
+  if (!scenario.query || !Array.isArray(scenario.expected_behavior)) throw new Error("model scenario requires query and expected_behavior");
+  const skillPath = join(REPO_ROOT, "skills", skill, "SKILL.md");
+  if (!existsSync(skillPath)) throw new Error(`skill SKILL.md not found for ${JSON.stringify(skill)}`);
   const skillBody = readFileSync(skillPath, "utf8");
-
-  // Seed a sandbox for scenarios that branch on real repo/filesystem state.
-  let runCwd = REPO_ROOT;
-  let sandboxDir = null;
-  if (s.sandbox) {
-    try {
-      sandboxDir = seedSandbox(s.sandbox);
-      runCwd = sandboxDir;
-    } catch (e) {
-      return { ok: false, reasons: [e.message] };
-    }
-  }
-
-  // 1) Run the skill in "describe your plan" mode. Without a sandbox, no side
-  // effects at all. With a sandbox, read-only inspection is allowed (the skill
-  // must read real state to plan), and the throwaway dir absorbs any stray
-  // mutation; only network / pushes are still off-limits.
-  const sideEffectRule = sandboxDir
-    ? [
-        "You are in a throwaway sandbox working tree. You MAY run read-only",
-        "inspection (git status, git diff, git diff --staged, git log, reading",
-        "files) to ground your plan in the real state. Do NOT push, open PRs, or",
-        "contact the network. Describe the mutating actions you would take rather",
-        "than relying on them having run.",
-      ]
-    : [
-        "DO NOT execute any side effects (no file writes, no git, no network, no",
-        "shell). Instead, describe the exact ordered sequence of concrete actions",
-        "and tool calls you would take, and sketch the key output you would produce.",
-      ];
-  const runSystem = [
-    skillBody,
+  const prompt = [
+    "Evaluate the supplied skill instructions against this single scenario.",
+    "Do not use tools or perform actions. Infer the response the skill directs, then grade every expected behavior.",
+    "Return only the requested JSON verdict.",
     "",
-    "[EVALUATION MODE] You are being evaluated, not asked to act for real.",
-    "Follow the skill above to satisfy the user's request.",
-    ...sideEffectRule,
+    `SKILL INSTRUCTIONS:\n${skillBody}`,
+    "",
+    `USER REQUEST:\n${scenario.query}`,
+    "",
+    `EXPECTED BEHAVIORS:\n${JSON.stringify(scenario.expected_behavior, null, 2)}`,
   ].join("\n");
-
-  let plan;
-  try {
-    plan = claudePrint(s.query, runSystem, runCwd);
-  } catch (e) {
-    return { ok: false, reasons: [`run step failed: ${e.message}`] };
-  } finally {
-    // Plan captured (or failed); tear the sandbox down before the judge call.
-    if (sandboxDir) rmSync(sandboxDir, { recursive: true, force: true });
-  }
-
-  // 2) Grade the plan against expected_behavior.
-  const judgePrompt = [
-    "You are grading whether an assistant's planned response satisfies a set of",
-    "expected behaviors for a skill. Be strict: a behavior is met only if the",
-    "plan clearly demonstrates it.",
-    "",
-    `USER REQUEST:\n${s.query}`,
-    "",
-    `EXPECTED BEHAVIORS (JSON):\n${JSON.stringify(s.expected_behavior, null, 2)}`,
-    "",
-    `ASSISTANT PLAN:\n${plan}`,
-    "",
-    'Return ONLY a JSON object: {"pass": boolean, "met": [strings], "missing": [strings], "notes": string}.',
-    "Set pass=true only if every expected behavior is met.",
-  ].join("\n");
-
-  let verdict;
-  try {
-    verdict = extractJson(claudePrint(judgePrompt));
-  } catch (e) {
-    return { ok: false, reasons: [`judge step failed: ${e.message}`] };
-  }
-  if (!verdict || typeof verdict.pass !== "boolean") {
-    return { ok: false, reasons: ["judge returned unparseable verdict"] };
-  }
-  const reasons = [];
-  if (verdict.missing?.length)
-    reasons.push(`missing: ${verdict.missing.join("; ")}`);
-  if (verdict.notes) reasons.push(verdict.notes);
-  if (!reasons.length) reasons.push("all expected behaviors met");
-  return { ok: verdict.pass, reasons, verdict };
+  return { skillBody, prompt };
 }
 
-// ---- main ------------------------------------------------------------------
+function cacheRoot() {
+  if (opts.cacheDir) return resolve(opts.cacheDir);
+  if (process.env.XDG_CACHE_HOME) return join(process.env.XDG_CACHE_HOME, "tron", "evaluate");
+  return join(homedir(), ".cache", "tron", "evaluate");
+}
+
+function modelCacheKey(scenario, skillBody, prompt) {
+  return createHash("sha256").update(JSON.stringify({ evaluator: EVALUATOR_VERSION, model: MODEL, maxOutputTokens: MODEL_MAX_OUTPUT_TOKENS, scenario: scenario.rawText, skillBody, prompt })).digest("hex");
+}
+
+function parseVerdict(text) {
+  let payload = text;
+  try {
+    const envelope = JSON.parse(text);
+    payload = envelope.structured_output ?? envelope.result ?? text;
+  } catch {}
+  if (typeof payload === "string") {
+    const fence = payload.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const body = fence ? fence[1] : payload;
+    const start = body.indexOf("{");
+    const end = body.lastIndexOf("}");
+    if (start >= 0 && end >= start) {
+      try { payload = JSON.parse(body.slice(start, end + 1)); } catch {}
+    }
+  }
+  return payload && typeof payload.pass === "boolean" ? payload : null;
+}
+
+function terminateGroup(child, signal = "SIGTERM") {
+  if (!child.pid) return;
+  try { process.kill(-child.pid, signal); } catch {
+    try { child.kill(signal); } catch {}
+  }
+}
+
+async function invokeModel(prompt) {
+  const schema = JSON.stringify({ type: "object", properties: { pass: { type: "boolean" }, met: { type: "array", items: { type: "string" } }, missing: { type: "array", items: { type: "string" } }, notes: { type: "string" } }, required: ["pass", "met", "missing", "notes"], additionalProperties: false });
+  const args = ["-p", "--model", MODEL, "--effort", "low", "--tools", "", "--disable-slash-commands", "--no-session-persistence", "--output-format", "json", "--json-schema", schema, prompt];
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(opts.claudeBin, args, {
+      cwd: REPO_ROOT,
+      detached: true,
+      env: { ...process.env, CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(MODEL_MAX_OUTPUT_TOKENS) },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+    const finish = (error, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      process.off("SIGINT", cancelInt);
+      process.off("SIGTERM", cancelTerm);
+      error ? rejectPromise(error) : resolvePromise(value);
+    };
+    const cancel = (signal) => {
+      terminateGroup(child, "SIGKILL");
+      finish(new Error(`model subprocess cancelled by ${signal}`));
+      process.exitCode = 130;
+    };
+    const cancelInt = () => cancel("SIGINT");
+    const cancelTerm = () => cancel("SIGTERM");
+    process.once("SIGINT", cancelInt);
+    process.once("SIGTERM", cancelTerm);
+    const timer = setTimeout(() => {
+      terminateGroup(child, "SIGKILL");
+      finish(new Error(`model subprocess exceeded ${MODEL_TIMEOUT_MS}ms runtime limit`));
+    }, MODEL_TIMEOUT_MS);
+    child.on("error", (error) => finish(error));
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (Buffer.byteLength(stdout) > MODEL_MAX_OUTPUT_BYTES) {
+        terminateGroup(child, "SIGKILL");
+        finish(new Error(`model output exceeded ${MODEL_MAX_OUTPUT_BYTES} byte limit`));
+      }
+    });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("close", (code, signal) => {
+      if (code !== 0) finish(new Error(`claude exited ${code ?? signal}: ${stderr.slice(0, 400)}`));
+      else finish(null, stdout);
+    });
+  });
+}
+
+async function runModelScenario(scenario) {
+  let input;
+  try { input = modelInput(scenario); } catch (error) { return { ok: false, reasons: [error.message] }; }
+  const key = modelCacheKey(scenario, input.skillBody, input.prompt);
+  const root = cacheRoot();
+  const cacheFile = join(root, `${key}.json`);
+  if (existsSync(cacheFile)) {
+    try {
+      const cached = JSON.parse(readFileSync(cacheFile, "utf8"));
+      return { ok: cached.verdict.pass, cached: true, modelCalls: 0, reasons: verdictReasons(cached.verdict), verdict: cached.verdict, cacheKey: key };
+    } catch {
+      return { ok: false, modelCalls: 0, reasons: [`invalid cached result: ${cacheFile}`] };
+    }
+  }
+  if (opts.dryRun) return { ok: true, skipped: true, cached: false, modelCalls: 1, cacheKey: key, reasons: [`would make 1 model call (${MODEL}, tools disabled, ${MODEL_MAX_OUTPUT_TOKENS} output tokens max, ${MODEL_TIMEOUT_MS}ms max)`] };
+  let output;
+  try { output = await invokeModel(input.prompt); } catch (error) { return { ok: false, modelCalls: 1, reasons: [error.message] }; }
+  const verdict = parseVerdict(output);
+  if (!verdict) return { ok: false, modelCalls: 1, reasons: ["model returned an unparseable verdict"] };
+  mkdirSync(root, { recursive: true });
+  const tempFile = join(root, `.${key}.${process.pid}.tmp`);
+  writeFileSync(tempFile, JSON.stringify({ cacheVersion: 1, key, model: MODEL, verdict }, null, 2) + "\n", { mode: 0o600 });
+  renameSync(tempFile, cacheFile);
+  return { ok: verdict.pass, cached: false, modelCalls: 1, reasons: verdictReasons(verdict), verdict, cacheKey: key };
+}
+
+function verdictReasons(verdict) {
+  const reasons = [];
+  if (verdict.missing?.length) reasons.push(`missing: ${verdict.missing.join("; ")}`);
+  if (verdict.notes) reasons.push(verdict.notes);
+  return reasons.length ? reasons : ["all expected behaviors met"];
+}
 
 function printHelpAndExit() {
-  process.stdout.write(
-    [
-      "Skill evaluation harness",
-      "",
-      "Usage: node tools/evaluate/evaluate.mjs [options] [eval-roots...]",
-      "",
-      "  --judge            also run LLM-judge scenarios (needs `claude`, spends tokens)",
-      "  --judge-only       run only LLM-judge scenarios",
-      "  --deterministic-only  run only deterministic (exec) scenarios",
-      "  --filter <str>     only scenarios whose path or skill contains <str>",
-      "  --dry-run          list what would run; make no model/script calls",
-      "  --json             emit a JSON summary on stdout",
-      "  -h, --help         this help",
-      "",
-    ].join("\n"),
-  );
+  process.stdout.write([
+    "Skill evaluation harness",
+    "",
+    "Usage: node tools/evaluate/evaluate.mjs [options] [deterministic-roots...]",
+    "",
+    "  --model-eval <scenario.json>  evaluate exactly one named scenario with one bounded model call",
+    "  --deterministic-only          accepted compatibility alias; deterministic is always the default",
+    "  --filter <str>                filter discovered deterministic scenarios",
+    "  --cache-dir <path>            override the content-addressed model-result cache",
+    "  --dry-run                     preview scripts and exact model-call count without executing",
+    "  --json                        emit a JSON summary on stdout",
+    "  -h, --help                    this help",
+    "",
+    "Discovery never runs model scenarios. --judge and --judge-only fail closed.",
+  ].join("\n") + "\n");
   process.exit(0);
 }
 
-function main() {
-  const files = discover();
-  const scenarios = files
-    .map(loadScenario)
-    .filter((s) => {
-      if (s.error) return true; // surface JSON errors
-      if (!s.skills || s.skills.length === 0) return false; // template / placeholder
-      return true;
-    })
-    .filter(matchesFilter);
+function log(message) { process.stderr.write(message + "\n"); }
 
+async function main() {
+  if (opts.modelScenario) {
+    const file = resolveRepoPath(opts.modelScenario);
+    if (!existsSync(file) || !statSync(file).isFile() || !file.endsWith(".json")) failClosed("--model-eval must name one existing JSON scenario file");
+    const scenario = loadScenario(file);
+    if (scenario.error) failClosed(scenario.error);
+    if (scenario.exec) failClosed("--model-eval requires a model scenario without an exec block");
+    let previewCalls = 1;
+    try {
+      const input = modelInput(scenario);
+      previewCalls = existsSync(join(cacheRoot(), `${modelCacheKey(scenario, input.skillBody, input.prompt)}.json`)) ? 0 : 1;
+    } catch (error) { failClosed(error.message); }
+    log(`Model calls: ${previewCalls} (hard cap: ${MODEL_CALL_CAP}; ${previewCalls === 0 ? "content-addressed cache hit" : `fixed model: ${MODEL}`})`);
+    const result = await runModelScenario(scenario);
+    const summary = { passed: result.ok && !result.skipped ? 1 : 0, failed: result.ok ? 0 : 1, skipped: result.skipped ? 1 : 0, modelCalls: result.modelCalls, hardModelCallCap: MODEL_CALL_CAP, results: [{ rel: scenario.rel, mode: "model", skill: scenario.skills?.[0], ...result }] };
+    if (opts.json) process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+    else {
+      log(`${result.skipped ? "○ skip" : result.ok ? "✓ pass" : "✗ FAIL"}  [model]  ${scenario.rel}${result.cached ? " (cached)" : ""}`);
+      for (const reason of result.reasons) log(`        ${reason}`);
+    }
+    if (process.exitCode == null) process.exitCode = result.ok ? 0 : 1;
+    return;
+  }
+
+  log(`Model calls: 0 (hard cap: ${MODEL_CALL_CAP}; deterministic discovery)`);
+  const scenarios = discoverDeterministic().map(loadScenario).filter((scenario) => scenario.error || (scenario.skills?.length && scenario.mode === "deterministic")).filter(matchesFilter);
   const results = [];
-  let failed = 0,
-    passed = 0,
-    skipped = 0;
-
-  const judgeReady = opts.judge && !opts.dryRun ? claudeAvailable() : true;
-  if (opts.judge && !opts.dryRun && !judgeReady) {
-    log(
-      "⚠ --judge requested but `claude` CLI not available; judge scenarios will be skipped.",
-    );
-  }
-
-  for (const s of scenarios) {
-    if (s.error) {
-      results.push({
-        rel: relative(REPO_ROOT, s.file),
-        mode: "?",
-        ok: false,
-        reasons: [s.error],
-      });
-      failed++;
-      continue;
-    }
-    // Manual-only scenarios are interactive/execution specs that judge mode
-    // cannot observe reliably (e.g. git-flow: AskUserQuestion + real commit
-    // hashes). Skip them in discovery-based runs; they still run if a path is
-    // passed explicitly as a positional root, for on-demand experimentation.
-    if (s.manual && !opts.roots.length) {
-      results.push({
-        rel: s.rel,
-        mode: s.mode,
-        skill: (s.skills || [])[0],
-        ok: true,
-        skipped: true,
-        reasons: [
-          "manual-only scenario (interactive/execution eval — see evaluations/README.md)",
-        ],
-      });
-      skipped++;
-      if (!opts.json)
-        log(
-          `○ skip  [manual]  ${s.rel}\n        interactive/execution eval — run by hand`,
-        );
-      continue;
-    }
-
-    const wantDet = !opts.judgeOnly;
-    const wantJudge = opts.judge && !opts.deterministicOnly;
-
-    let r;
-    if (s.mode === "deterministic") {
-      if (!wantDet) {
-        skipped++;
-        continue;
-      }
-      r = runDeterministic(s);
-    } else {
-      if (!wantJudge) {
-        skipped++;
-        continue;
-      }
-      if (!judgeReady) {
-        skipped++;
-        continue;
-      }
-      r = runJudge(s);
-    }
-
-    const row = { rel: s.rel, mode: s.mode, skill: (s.skills || [])[0], ...r };
+  let passed = 0, failed = 0, skipped = 0;
+  for (const scenario of scenarios) {
+    const result = scenario.error ? { ok: false, reasons: [scenario.error] } : runDeterministic(scenario);
+    const row = { rel: scenario.rel, mode: scenario.mode || "?", skill: scenario.skills?.[0], ...result };
     results.push(row);
-    if (r.skipped) skipped++;
-    else if (r.ok) passed++;
-    else failed++;
-
+    if (result.skipped) skipped++; else if (result.ok) passed++; else failed++;
     if (!opts.json) {
-      const tag = r.skipped ? "○ skip" : r.ok ? "✓ pass" : "✗ FAIL";
-      log(`${tag}  [${s.mode}]  ${s.rel}`);
-      if (!r.ok || r.skipped)
-        for (const reason of r.reasons) log(`        ${reason}`);
+      log(`${result.skipped ? "○ skip" : result.ok ? "✓ pass" : "✗ FAIL"}  [${row.mode}]  ${scenario.rel}`);
+      if (!result.ok || result.skipped) for (const reason of result.reasons) log(`        ${reason}`);
     }
   }
-
-  if (opts.json) {
-    process.stdout.write(
-      JSON.stringify({ passed, failed, skipped, results }, null, 2) + "\n",
-    );
-  } else {
-    log("");
-    log(
-      `Summary: ${passed} passed, ${failed} failed, ${skipped} skipped (${scenarios.length} discovered)`,
-    );
-    if (opts.dryRun) log("(dry run — no scripts or model calls were made)");
-    if (!opts.judge && !opts.judgeOnly)
-      log("(judge scenarios skipped — pass --judge to run them)");
-  }
-
-  process.exit(failed > 0 ? 1 : 0);
+  const summary = { passed, failed, skipped, modelCalls: 0, hardModelCallCap: MODEL_CALL_CAP, results };
+  if (opts.json) process.stdout.write(JSON.stringify(summary, null, 2) + "\n");
+  else log(`\nSummary: ${passed} passed, ${failed} failed, ${skipped} skipped (${scenarios.length} deterministic scenarios discovered)`);
+  process.exitCode = failed ? 1 : 0;
 }
 
-function log(msg) {
-  process.stderr.write(msg + "\n");
-}
-
-main();
+await main();

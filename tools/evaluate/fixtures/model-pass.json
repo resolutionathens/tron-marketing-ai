@@ -1,0 +1,8 @@
+{
+  "skills": ["gh"],
+  "query": "Show pull request status.",
+  "files": [],
+  "expected_behavior": [
+    "Uses the gh skill's read-only pull request flow"
+  ]
+}

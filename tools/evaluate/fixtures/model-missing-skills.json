@@ -1,0 +1,7 @@
+{
+  "query": "This malformed scenario has no skills array.",
+  "files": [],
+  "expected_behavior": [
+    "Fails before making a model call"
+  ]
+}
