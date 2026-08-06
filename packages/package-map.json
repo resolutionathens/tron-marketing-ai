@@ -79,6 +79,7 @@
       "skills": [
         "brand-check",
         "creative-request",
+        "figma-authoring",
         "figma-to-imagekit",
         "gen-image",
         "git-commit",
@@ -426,6 +427,7 @@
     "designer": [
       "brand-check",
       "creative-request",
+      "figma-authoring",
       "figma-to-imagekit",
       "gen-image",
       "md-to-pdf",
