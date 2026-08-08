@@ -174,7 +174,7 @@ CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest "$(jq -r .uploadFolder <<<"$C
 
 The front-matter `image:` value is `$(jq -r .reference <<<"$CARD_SPEC")` — again, verbatim.
 
-If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards). Resolve the news pipeline's featured-image folder from the repo's declared profile (`$C` is the `content.sh` path set in step 1 — never hardcode this folder, it has moved before):
+If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards). Resolve the news pipeline's featured-image folder from the repo's declared profile (`$C` is the `content.sh` path set in "Shared helper (plugin tools)" above — never hardcode this folder, it has moved before):
 
 ```bash
 NEWS_FOLDER="$(bash "$C" profile | jq -re '.pipelines.news.images[] | select(.role == "featured") | .cdnFolder')" || exit 1
