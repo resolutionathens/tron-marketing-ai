@@ -177,7 +177,7 @@ The front-matter `image:` value is `$(jq -r .reference <<<"$CARD_SPEC")` — aga
 If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards). Resolve the news pipeline's featured-image folder from the repo's declared profile (`$C` is the `content.sh` path set in "Shared helper (plugin tools)" above — never hardcode this folder, it has moved before):
 
 ```bash
-NEWS_FOLDER="$(bash "$C" profile | jq -re '.pipelines.news.images[] | select(.role == "featured") | .cdnFolder')" || exit 1
+NEWS_FOLDER="$(bash "$C" profile | jq -re '[.pipelines.news.images[] | select(.role == "featured")][0].cdnFolder')" || exit 1
 ```
 
 Then run `"$GENCARD"` with `--folder "$NEWS_FOLDER" --name <temp.webp> --size 1536x1024 --refs 3` (to get news imagery), then move/rename the output to toolkit's folder and naming. Toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size.
