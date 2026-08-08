@@ -174,14 +174,13 @@ CARD=$(bash "$PIPE" --src /tmp/toolkit-card --dest "$(jq -r .uploadFolder <<<"$C
 
 The front-matter `image:` value is `$(jq -r .reference <<<"$CARD_SPEC")` — again, verbatim.
 
-If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards). Resolve the news pipeline's featured-image folder (currently `blog-featured`, per `.tron/content-profile.json`'s `pipelines.news.images[].cdnFolder` — never hardcode it):
+If no image was provided, generate one using the three most recently published news feature images as style references (not existing toolkit cards). Resolve the news pipeline's featured-image folder from the repo's declared profile (`$C` is the `content.sh` path set in step 1 — never hardcode this folder, it has moved before):
 
 ```bash
-NEWS_SPEC="$(bash "$C" image news featured --slug <toolkit-slug>)" || exit 1
-NEWS_FOLDER="$(jq -r .uploadFolder <<<"$NEWS_SPEC")"
+NEWS_FOLDER="$(bash "$C" profile | jq -r '.pipelines.news.images[] | select(.role == "featured") | .cdnFolder')" || exit 1
 ```
 
-The `--slug` is a required flag on this command but is otherwise irrelevant here — the toolkit item's own `<toolkit-slug>` works fine since only `uploadFolder` is read; `fileName`/`reference` from this call are discarded. Then run `"$GENCARD"` with `--folder "$NEWS_FOLDER" --name <temp.webp> --size 1536x1024 --refs 3` (to get news imagery), then move/rename the output to toolkit's folder and naming. Toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size.
+Then run `"$GENCARD"` with `--folder "$NEWS_FOLDER" --name <temp.webp> --size 1536x1024 --refs 3` (to get news imagery), then move/rename the output to toolkit's folder and naming. Toolkit cards are landscape — 1600×901 after webp conversion from the 1536×1024 generation size.
 
 The image prompt should prioritize Facilitron's abstract geometry (deep navy, cyan/violet linework, geometric composition). Topic cues are permitted only when the composition remains strongly abstract and geometric — geometry must be primary, not secondary decoration. Invocation + result parsing live in the "Generate an index/card thumbnail from references" section of [`../../tools/image/images-to-imagekit.md`](../../tools/image/images-to-imagekit.md), which also holds the convert/upload mechanics.
 
