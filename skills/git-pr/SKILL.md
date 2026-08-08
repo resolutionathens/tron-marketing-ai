@@ -124,17 +124,25 @@ Step 3's base resolver before creating the PR.
 
 Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
 selection) — never hardcode a slug, since this plugin ships to many consuming repos under
-different orgs:
+different orgs. Use `case`/parameter expansion rather than `[[ =~ ]]`/`BASH_REMATCH`: zsh
+populates regex capture groups differently than bash, so that construct silently produced an
+empty `SLUG` when this skill ran under a zsh default shell (MD-2661):
 
 ```bash
 ORIGIN_URL="$(git remote get-url origin 2>/dev/null)"
 [ -n "$ORIGIN_URL" ] || { echo "error: no origin remote configured" >&2; exit 1; }
 ORIGIN_URL="${ORIGIN_URL%.git}"
-if [[ "$ORIGIN_URL" =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then
-  SLUG="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-else
-  echo "error: origin remote is not a github.com URL: $ORIGIN_URL" >&2; exit 1
-fi
+case "$ORIGIN_URL" in
+  *github.com[:/]*)
+    SLUG="${ORIGIN_URL#*github.com?}"
+    ;;
+  *)
+    echo "error: origin remote is not a github.com URL: $ORIGIN_URL" >&2; exit 1
+    ;;
+esac
+case "$SLUG" in
+  */*/*|"") echo "error: could not extract owner/repo from origin URL: $ORIGIN_URL" >&2; exit 1 ;;
+esac
 ```
 
 Write the body to a temp file and pass it via `--body-file`:
