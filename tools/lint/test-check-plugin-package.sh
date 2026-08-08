@@ -27,7 +27,9 @@ const catalog = (base) => fs.readdirSync(path.join(base, 'skills'), { withFileTy
 // The two manifests describe the same plugin for different harnesses; any
 // field drifting between them (added, removed, or changed in only one file)
 // must fail immediately rather than pass on a hand-picked field subset.
-if (claudeRaw !== codexRaw) {
+// Line endings are normalized first so a CRLF checkout (e.g. Windows/editor
+// defaults) can't produce a false failure on otherwise-identical content.
+if (claudeRaw.replace(/\r\n/g, '\n') !== codexRaw.replace(/\r\n/g, '\n')) {
   throw new Error('Claude and Codex manifests must be byte-for-byte identical');
 }
 if (codex.skills !== './skills/') throw new Error('Codex must reference the shared skill catalog');
