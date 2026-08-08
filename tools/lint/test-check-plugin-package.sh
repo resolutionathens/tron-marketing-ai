@@ -14,16 +14,23 @@ export PATH
 const fs = require('fs');
 const path = require('path');
 const root = process.argv[2];
-const claude = JSON.parse(fs.readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8'));
-const codex = JSON.parse(fs.readFileSync(path.join(root, '.codex-plugin/plugin.json'), 'utf8'));
+const claudeRaw = fs.readFileSync(path.join(root, '.claude-plugin/plugin.json'), 'utf8');
+const codexRaw = fs.readFileSync(path.join(root, '.codex-plugin/plugin.json'), 'utf8');
+const claude = JSON.parse(claudeRaw);
+const codex = JSON.parse(codexRaw);
 const marketplace = JSON.parse(fs.readFileSync(path.join(root, '.agents/plugins/marketplace.json'), 'utf8'));
 const catalog = (base) => fs.readdirSync(path.join(base, 'skills'), { withFileTypes: true })
   .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(base, 'skills', entry.name, 'SKILL.md')))
   .map((entry) => entry.name)
   .sort();
 
-if (claude.name !== codex.name || claude.version !== codex.version) {
-  throw new Error('Claude and Codex manifests must share name and version');
+// The two manifests describe the same plugin for different harnesses; any
+// field drifting between them (added, removed, or changed in only one file)
+// must fail immediately rather than pass on a hand-picked field subset.
+// Line endings are normalized first so a CRLF checkout (e.g. Windows/editor
+// defaults) can't produce a false failure on otherwise-identical content.
+if (claudeRaw.replace(/\r\n/g, '\n') !== codexRaw.replace(/\r\n/g, '\n')) {
+  throw new Error('Claude and Codex manifests must be byte-for-byte identical');
 }
 if (codex.skills !== './skills/') throw new Error('Codex must reference the shared skill catalog');
 const tron = marketplace.plugins?.find((entry) => entry.name === codex.name);
