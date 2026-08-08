@@ -124,17 +124,21 @@ Step 3's base resolver before creating the PR.
 
 Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
 selection) — never hardcode a slug, since this plugin ships to many consuming repos under
-different orgs:
+different orgs. Use the bundled `resolve-origin-slug.sh` rather than an inline `[[ =~ ]]`/
+`BASH_REMATCH` block: zsh populates regex capture groups differently than bash, so that
+construct silently produced an empty `SLUG` when this skill ran under a zsh default shell
+(MD-2661) — the bundled script uses `case`/parameter expansion instead, which behaves
+identically under bash and zsh (verified by its `test-resolve-origin-slug.sh` sibling, run
+under both shells):
 
 ```bash
-ORIGIN_URL="$(git remote get-url origin 2>/dev/null)"
-[ -n "$ORIGIN_URL" ] || { echo "error: no origin remote configured" >&2; exit 1; }
-ORIGIN_URL="${ORIGIN_URL%.git}"
-if [[ "$ORIGIN_URL" =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then
-  SLUG="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-else
-  echo "error: origin remote is not a github.com URL: $ORIGIN_URL" >&2; exit 1
-fi
+name=git-pr
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/resolve-origin-slug.sh)"
+SLUG="$(bash "$SKILL_DIR/scripts/resolve-origin-slug.sh")"
 ```
 
 Write the body to a temp file and pass it via `--body-file`:
