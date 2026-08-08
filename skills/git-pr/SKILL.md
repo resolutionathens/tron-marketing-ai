@@ -141,7 +141,11 @@ case "$ORIGIN_URL" in
     ;;
 esac
 case "$SLUG" in
-  */*/*|"") echo "error: could not extract owner/repo from origin URL: $ORIGIN_URL" >&2; exit 1 ;;
+  */*) : ;;
+  *) echo "error: could not extract owner/repo from origin URL: $ORIGIN_URL" >&2; exit 1 ;;
+esac
+case "$SLUG" in
+  */*/*) echo "error: could not extract owner/repo from origin URL: $ORIGIN_URL" >&2; exit 1 ;;
 esac
 ```
 
