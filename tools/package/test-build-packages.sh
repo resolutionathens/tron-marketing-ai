@@ -291,6 +291,10 @@ for HARNESS in claude codex; do
   done
   test ! -e "$OUT/$HARNESS/tron-content/tools/git"
   test ! -e "$OUT/$HARNESS/tron-content/tools/worktree"
+  # seo-report is an SEO-role responsibility only; content teammates read its
+  # findings from SEO teammates, not from a second entry point in their bundle.
+  test -f "$OUT/$HARNESS/tron-seo/skills/seo-report/SKILL.md"
+  test ! -e "$OUT/$HARNESS/tron-content/skills/seo-report"
 done
 test -f "$OUT/claude/tron-repo-marketing-pages/tools/content/content.sh"
 test -f "$OUT/codex/tron-repo-facilitron-ui/agents/a11y-scan-runner.md"
