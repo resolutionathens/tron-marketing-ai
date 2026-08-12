@@ -103,13 +103,19 @@ read-only reviewer on your own harness and hands it **the ticket alongside the d
 a per-criterion verdict rather than a general impression of the code. No diff leaves this machine.
 
 - **Never open a PR** (`tron:git-pr` or `gh pr create`) before that review has run. Scout fires it
-  automatically when you park with no PR yet; `bun run review:local` triggers it yourself. It reviews
-  **uncommitted** work too, so you need not commit first.
+  automatically when you park with no PR yet; the bundled client
+  (`tools/review/review.mjs local`, resolved for you by `tron:git-pr` Step 1c) triggers it yourself.
+  It reviews **uncommitted** work too, so you need not commit first.
+- **The trigger works from any repo** (MD-2749). It reaches the control plane over `TRON_API_URL`,
+  which is already in your env — you do **not** need a tron-os checkout, and `bun run review:local`
+  is the tron-os-only spelling of the same thing. Only the trigger is local to you; the reviewer,
+  the round policy and the record all stay server-side.
 - **Exactly ONE fix-and-re-review cycle — there is no third round.** Round one finds; you fix; you
   record a disposition for **every** round-one finding with
-  `bun run review:disposition --finding <id> --fixed|--skipped|--disagreed --note "<why>"`; round two
-  records what survived. `review:local` prints the exact disposition command under each finding —
-  copy it rather than composing it. Whatever round two returns, you then open the PR.
+  `review.mjs disposition --finding <id> --fixed|--skipped|--disagreed --note "<why>"`; round two
+  records what survived. The review prints the exact disposition command under each finding, already
+  spelled for how you invoked it — copy it rather than composing it. Whatever round two returns, you
+  then open the PR.
 - **Record a disposition even when you disagree.** A reasoned push-back is a signal about the rule;
   a silent fix destroys the round-one/round-two comparison the second round exists to make.
 - **A review that could not run is recorded FAILED, never clean.** If the trigger reports it could

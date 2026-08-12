@@ -72,19 +72,30 @@ script when it is absent.
 ## Step 1c: Run the local code review — BEFORE the PR exists
 
 Code review happens **on this machine, before the pull request opens** (MD-2745). Nothing reviews
-the PR after it opens. Run the review here, while you still own the branch:
+the PR after it opens. Run the review here, while you still own the branch.
+
+Resolve the bundled client, then run one round. It reaches the control plane over
+`TRON_API_URL`, so it works from **any** repo's worktree — you do not need a tron-os checkout
+(MD-2749):
 
 ```bash
-bun run review:local --verified "<a check you already ran green in Step 1b>"
+name=git-pr
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-plugin-root.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-plugin-root.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+REVIEW="$(bash "$RESOLVER" "$name" tools/review/review.mjs)/tools/review/review.mjs"
+
+node "$REVIEW" local --verified "<a check you already ran green in Step 1b>"
 ```
 
 `--verified` is repeatable — pass each gate Step 1b ran green (e.g.
 `--verified "bun run test: 4774 pass, 0 fail"`) so the reviewer spends its budget reading code
-instead of re-running what you already proved.
+instead of re-running what you already proved. It is passed as a **claim**, not proof.
 
-This applies **under dispatch** (`TRON_DISPATCH_ID` set) and is run from the Scout/tron-os checkout
-that defines the script. Outside a dispatch the command exits 2 — an interactive run has no local
-review, and the human reviewing the PR is the only review that happens. Say so in Step 8.
+This applies **under dispatch** (`TRON_DISPATCH_ID` set). Outside a dispatch the command exits 2 —
+an interactive run has no local review, and the human reviewing the PR is the only review that
+happens. Say so in Step 8.
 
 Branch on the exit code — it is your instruction, not a status:
 
@@ -93,11 +104,11 @@ Branch on the exit code — it is your instruction, not a status:
   **every** round-one finding, including the ones you disagree with:
 
   ```bash
-  bun run review:disposition --finding <id> --fixed|--skipped|--disagreed --note "<what you did, or why not>"
+  node "$REVIEW" disposition --finding <id> --fixed|--skipped|--disagreed --note "<what you did, or why not>"
   ```
 
-  `review:local` prints the exact invocation under each finding — copy it, don't compose it. Then
-  re-run `bun run review:local` once. **There is exactly one fix-and-re-review cycle and no third
+  The review prints the exact invocation under each finding — copy it, don't compose it. Then
+  re-run `node "$REVIEW" local` once. **There is exactly one fix-and-re-review cycle and no third
   round:** whatever round two returns, you proceed to the PR.
 - **2 — the review could not run at all** (no dispatch env, control plane unreachable). This is
   **not** a clean review. Do not represent it as one; report it in Step 8.

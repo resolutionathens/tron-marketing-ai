@@ -66,11 +66,14 @@ has "$CONTRACT"      "contract: unavailable != passed"          "report it as un
 has "$CONTRACT"  "contract: local-pre-pr-review anchor"      "<!-- contract:local-pre-pr-review -->"
 has "$CONTRACT"  "contract: review runs before the PR"       "before the pull request exists"
 has "$CONTRACT"  "contract: one fix-and-re-review cycle"     "no third round"
-has "$CONTRACT"  "contract: names review:local"              "bun run review:local"
-has "$CONTRACT"  "contract: names review:disposition"        "bun run review:disposition"
+has "$CONTRACT"  "contract: names the review client"        "tools/review/review.mjs"
+has "$CONTRACT"  "contract: names the disposition command"   "review.mjs disposition"
+has "$CONTRACT"  "contract: trigger works from any repo"     "works from any repo"
 has "$CONTRACT"  "contract: nothing reviews after PR opens"  "Nothing reviews the PR after it opens"
-has "$GIT_PR"    "git-pr: runs review:local before the PR"   "bun run review:local"
-has "$GIT_PR"    "git-pr: records a disposition per finding" "bun run review:disposition"
+has "$GIT_PR"    "git-pr: names the bundled review client"   "tools/review/review.mjs"
+has "$GIT_PR"    "git-pr: runs the review before the PR"     '"$REVIEW" local'
+has "$GIT_PR"    "git-pr: records a disposition per finding" '"$REVIEW" disposition'
+has "$GIT_PR"    "git-pr: resolves the client, not a path"   "resolve-plugin-root.sh"
 has "$GIT_PR"    "git-pr: no automated review after open"    "No automated review arrives after the PR opens"
 
 # No skill may request Copilot or reach for a review producer MD-2745 deleted.
