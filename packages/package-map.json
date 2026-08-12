@@ -41,6 +41,7 @@
         "agents/lychee-link-runner.md",
         "agents/unlighthouse-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -74,6 +75,7 @@
       "resources": [
         "agents/optimize-images-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -126,6 +128,7 @@
         "agents/unlighthouse-runner.md",
         "agents/vale-prose-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -194,6 +197,7 @@
         "agents/vale-prose-runner.md",
         "tools/content",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -234,6 +238,7 @@
         "agents/optimize-images-runner.md",
         "agents/unlighthouse-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -267,6 +272,7 @@
       "resources": [
         "agents/a11y-scan-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -292,6 +298,7 @@
       "extends": ["core"],
       "resources": [
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -318,6 +325,7 @@
         "agents/lychee-link-runner.md",
         "agents/vale-prose-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -343,6 +351,7 @@
       "extends": ["core"],
       "resources": [
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
@@ -367,6 +376,7 @@
         "agents/lychee-link-runner.md",
         "agents/vale-prose-runner.md",
         "tools/git",
+        "tools/review",
         "tools/worktree"
       ],
       "skills": [
