@@ -18,10 +18,12 @@ fail() { echo "  ✗ $*" >&2; exit 1; }
 gx() { git -C "$1" "${@:2}"; }
 
 # Bare origin + main on master + staging + production (all at the same base).
+# $1 names the bare origin (default "origin") — the ship-notify routing keys off
+# the origin remote's basename, so cases that care pass a real repo slug.
 setup() {
   local root main origin
   root="$(mktemp -d "${TMPDIR:-/tmp}/pushtoprod-smoke.XXXXXX")"
-  origin="$root/origin.git"; main="$root/main"
+  origin="$root/${1:-origin}.git"; main="$root/main"
   git init --bare -q "$origin"
   git clone -q "$origin" "$main"
   gx "$main" config user.email smoke@tron.local
@@ -144,6 +146,72 @@ grep -q "wt ship" <<<"$(gx "$MAIN" log production --oneline)" || fail "E2: produ
 [[ "$(gx "$MAIN" rev-parse --abbrev-ref HEAD)" == master ]] || fail "E2: main checkout should be parked on master after a worktree run"
 [[ "$(gx "$WT" rev-parse --abbrev-ref HEAD)" == MD-13-wt ]] || fail "E2: worktree should still be on its branch"
 pass "--worktree: START_BRANCH + Jira key from the worktree; promotion works; main parked on master"
+rm -rf "$ROOT"
+
+# ── F/G/H. the production ship notification (MD-2751) ───────────────────────
+# These are the only cases that let the script reach acli, so acli is stubbed:
+# every invocation is logged as one line, and the stub can be told to fail the
+# comment while still transitioning. DAVID must match tools/jira/ship-notify.sh.
+DAVID=5d762d568b0e290c45a9f461
+
+# Put a stub acli first on PATH. $1 = log file, $2 = 1 to fail `comment` calls.
+stub_acli() {
+  local bin log="$1" fail="${2:-0}"
+  bin="$(dirname "$log")/bin"; mkdir -p "$bin"
+  cat > "$bin/acli" <<STUB
+#!/usr/bin/env bash
+echo "\$*" >> "$log"
+case "\$*" in *" comment "*) [[ "$fail" == 1 ]] && exit 1 ;; esac
+exit 0
+STUB
+  chmod +x "$bin/acli"
+  printf '%s\n' "$bin"
+}
+
+# F. marketing-pages ships to production → exactly one mention comment.
+MAIN="$(setup marketing-pages)"; ROOT="$(dirname "$MAIN")"; LOG="$ROOT/acli.log"
+BIN="$(stub_acli "$LOG")"
+echo "notify feature" > "$MAIN/app.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: notify ship"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-15-notify master
+OUT="$(cd "$MAIN" && PATH="$BIN:$PATH" bash "$SCRIPT")" || fail "F: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"jira":"MD-15:Done"' <<<"$OUT" || fail "F: transition should still run: $OUT"
+COMMENTS="$(grep -c 'workitem comment create' "$LOG" || true)"
+[[ "$COMMENTS" == 1 ]] || fail "F: expected exactly 1 comment, got $COMMENTS"
+BODY="$(grep 'workitem comment create' "$LOG")"
+grep -q '"type":"mention"' <<<"$BODY" || fail "F: comment is not an ADF mention: $BODY"
+grep -q "$DAVID" <<<"$BODY" || fail "F: mention carries no accountId: $BODY"
+grep -q -- '--key MD-15' <<<"$BODY" || fail "F: comment landed on the wrong ticket: $BODY"
+pass "marketing-pages production ship posts exactly one ADF mention comment"
+rm -rf "$ROOT"
+
+# G. any other repo ships → no comment at all.
+MAIN="$(setup)"; ROOT="$(dirname "$MAIN")"; LOG="$ROOT/acli.log"
+BIN="$(stub_acli "$LOG")"
+echo "other repo" > "$MAIN/app.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: other ship"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-17-other master
+OUT="$(cd "$MAIN" && PATH="$BIN:$PATH" bash "$SCRIPT")" || fail "G: script exited non-zero: $OUT"
+echo "  → $OUT"
+grep -q '"jira":"MD-17:Done"' <<<"$OUT" || fail "G: transition should still run: $OUT"
+grep -q 'workitem comment create' "$LOG" && fail "G: a non-marketing-pages repo must not comment"
+pass "a repo with no configured mention ships to production and comments nothing"
+rm -rf "$ROOT"
+
+# H. the comment fails → identical exit code and stdout JSON to F.
+MAIN="$(setup marketing-pages)"; ROOT="$(dirname "$MAIN")"; LOG="$ROOT/acli.log"
+BIN="$(stub_acli "$LOG" 1)"
+echo "notify feature" > "$MAIN/app.txt"
+gx "$MAIN" add -A; gx "$MAIN" commit -q -m "feat: notify ship"; gx "$MAIN" push -q
+gx "$MAIN" checkout -q -b MD-15-notify master
+OUT="$(cd "$MAIN" && PATH="$BIN:$PATH" bash "$SCRIPT")" || fail "H: a failed comment must not fail the promotion: $OUT"
+echo "  → $OUT"
+grep -q '"ok":true' <<<"$OUT" || fail "H: not ok: $OUT"
+grep -q '"leftovers":\[\]' <<<"$OUT" || fail "H: leftovers changed: $OUT"
+grep -q '"jira":"MD-15:Done"' <<<"$OUT" || fail "H: transition verdict changed: $OUT"
+grep -q "notify ship" <<<"$(gx "$MAIN" log production --oneline)" || fail "H: production missing master's commit"
+pass "a failed comment leaves the promotion exit code and JSON unchanged"
 rm -rf "$ROOT"
 
 echo ""
