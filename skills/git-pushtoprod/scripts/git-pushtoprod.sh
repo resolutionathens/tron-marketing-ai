@@ -47,6 +47,13 @@ LIB="${ROOT:+$ROOT/tools/git/git-promote.sh}"
 # shellcheck source=/dev/null
 source "$LIB"
 
+# Ship notification (repo → person to @-mention when production ships). Optional:
+# an install missing it still promotes, it just notifies nobody.
+NOTIFY_LIB="${ROOT:+$ROOT/tools/jira/ship-notify.sh}"
+[[ -z "$NOTIFY_LIB" || ! -f "$NOTIFY_LIB" ]] && NOTIFY_LIB="$(cd "$(dirname "$0")/../../../tools/jira" 2>/dev/null && pwd || true)/ship-notify.sh"
+# shellcheck source=/dev/null
+[[ -f "$NOTIFY_LIB" ]] && source "$NOTIFY_LIB"
+
 MAIN="$(git -C "$WT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
   && MAIN="${MAIN%/.git}" || { echo '{"ok":false,"error":"not a git repo"}'; exit 1; }
 
@@ -129,6 +136,21 @@ if [[ -n "$KEY" ]]; then
     JIRA_JSON="\"$KEY:Done\""; log "Jira $KEY → Done"
   else
     JIRA_JSON="\"$KEY:transition-failed\""; log "Jira transition failed for $KEY (non-blocking)"
+  fi
+
+  # Ship notification: one Jira comment @-mentioning whoever is waiting on this
+  # repo, on the same gate as the transition (production actually shipped, Jira
+  # not skipped). Repos without a configured mention get nothing. Deliberately
+  # unreported in the JSON and incapable of failing the run — the promotion
+  # result must read the same whether the comment landed, was skipped, or blew
+  # up, so every path here is swallowed.
+  if [[ "$NO_JIRA" -ne 1 ]] && $PROD_OK && declare -F sn_notify_shipped >/dev/null; then
+    REPO_SLUG="$(sn_repo_slug "$MAIN" || true)"
+    if sn_notify_shipped "$KEY" "$REPO_SLUG"; then
+      log "Jira $KEY: posted the production-shipped mention"
+    else
+      log "Jira $KEY: no production-shipped mention posted (non-blocking)"
+    fi
   fi
 fi
 

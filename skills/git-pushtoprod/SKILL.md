@@ -40,6 +40,20 @@ One JSON line on stdout:
 
 The Jira key is parsed from the branch; `--no-jira` skips the transition. `staging` field is `true`/`false` when the repo has a staging branch, or `"skipped"` when it has none.
 
+### Ship notification
+
+After a successful production promotion the script also posts one Jira comment that @-mentions
+whoever is waiting on that repo — today `marketing-pages` mentions David, who asked for the ticket
+rather than GitHub email as his signal that work is live. Routing (repo → Jira accountId) lives in
+[tools/jira/ship-notify.sh](../../tools/jira/ship-notify.sh); repos absent from that map notify
+nobody. The comment is an ADF mention node, because plain-text `@name` posts literal characters and
+notifies no one.
+
+It is deliberately invisible in the JSON and cannot fail the run: the promotion's exit code and
+result read the same whether the comment landed, was skipped, or errored. Only the stderr narration
+says which. Note that the manual fallback below does not post it, and neither does a change that
+reaches production some other way (someone pushing the `production` branch by hand).
+
 > **Tier reminder:** production deploy is high-risk. The script is the mechanics; the decision to run it stays with the human/PR gate — don't invoke autonomously.
 
 ## If the script reports a conflict
