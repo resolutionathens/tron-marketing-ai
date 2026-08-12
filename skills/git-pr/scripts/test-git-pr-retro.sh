@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Hermetic smoke for git-pr-retro.sh. No network, no real gh: a PATH shim fakes
-# the three gh invocations the script makes (pr view --json files, pr comment,
-# pr edit). Covers the doc-only skip decision (both --pr and --range modes),
-# the retro-comment assembly with and without token data, the best-effort
-# request-review contract, and the usage/error surface.
+# the one gh invocation the script makes (pr comment). Covers the retro-comment
+# assembly with and without token data, the usage/error surface, and the MD-2746
+# regression: the Copilot subcommands must stay gone, so no worker can request
+# or wait for a reviewer that will never speak.
 #
 #   bash skills/git-pr/scripts/test-git-pr-retro.sh
 set -euo pipefail
@@ -20,39 +20,17 @@ has() { grep -q "$2" <<<"$1" || fail "$3 — got: $1"; }
 
 command -v jq >/dev/null 2>&1 || { echo "git-pr-retro smoke: SKIPPED — jq not on PATH"; exit 0; }
 
-# ---- gh shim: intercepts pr view / pr comment / pr edit ----------------------
+# ---- gh shim: intercepts pr comment ------------------------------------------
+# Any other gh subcommand falls through to `exit 1`, which is itself a guard: if
+# the script ever regrows a `pr edit --add-reviewer` or a reviews `api` poll, the
+# retro tests below start failing rather than silently passing (MD-2746).
 SHIM="$ROOT/shim"; mkdir -p "$SHIM"
 cat >"$SHIM/gh" <<'EOF'
 #!/usr/bin/env bash
 # Stub gh for the git-pr-retro smoke. Controlled via env:
-#   GH_STUB_FILES    TSV rows returned for `pr view --json files`
 #   GH_STUB_LOG      file that `pr comment` writes its --body/--body-file into
-#   GH_STUB_EDIT_RC  exit code for `pr edit` (default 0)
 #   GH_STUB_COMMENT_ERR  if set, `pr comment` prints this to stderr and exits 1
-#   GH_STUB_REVIEWS  JSON array returned for `api .../pulls/N/reviews`
-#   GH_STUB_REVIEWS_SEQUENCE_FILE  one JSON response per line, consumed per poll
-#   GH_STUB_PR_COMMENTS  JSON array returned for `api .../pulls/N/comments`
-#   GH_STUB_API_LOG  file each requested `api` path is appended to, so a test
-#                    can assert which owner/repo slug the script resolved
 case "$1 $2" in
-  "pr view")
-    [[ -n "${GH_STUB_FILES:-}" ]] && printf '%s\n' "$GH_STUB_FILES"
-    exit 0 ;;
-  "api "*)
-    [[ -n "${GH_STUB_API_LOG:-}" ]] && printf '%s\n' "$2" >> "$GH_STUB_API_LOG"
-    case "$2" in
-      *"/reviews")
-        if [[ -n "${GH_STUB_REVIEWS_SEQUENCE_FILE:-}" && -s "$GH_STUB_REVIEWS_SEQUENCE_FILE" ]]; then
-          sed -n '1p' "$GH_STUB_REVIEWS_SEQUENCE_FILE"
-          sed '1d' "$GH_STUB_REVIEWS_SEQUENCE_FILE" > "$GH_STUB_REVIEWS_SEQUENCE_FILE.next"
-          mv "$GH_STUB_REVIEWS_SEQUENCE_FILE.next" "$GH_STUB_REVIEWS_SEQUENCE_FILE"
-        else
-          printf '%s\n' "${GH_STUB_REVIEWS:-[]}"
-        fi ;;
-      *"/comments") printf '%s\n' "${GH_STUB_PR_COMMENTS:-[]}" ;;
-      *) echo "[]" ;;
-    esac
-    exit 0 ;;
   "pr comment")
     if [[ -n "${GH_STUB_COMMENT_ERR:-}" ]]; then
       echo "$GH_STUB_COMMENT_ERR" >&2
@@ -66,8 +44,6 @@ case "$1 $2" in
     done
     echo "https://github.com/o/r/pull/$n#issuecomment-1"
     exit 0 ;;
-  "pr edit")
-    exit "${GH_STUB_EDIT_RC:-0}" ;;
 esac
 exit 1
 EOF
@@ -75,52 +51,6 @@ chmod +x "$SHIM/gh"
 export PATH="$SHIM:$PATH"
 
 echo "git-pr-retro smoke: root=$ROOT"
-
-# ---- skip-check (--pr mode, files via stubbed gh) -----------------------------
-export GH_STUB_FILES=$'10\t5\tREADME.md\n3\t2\tskills/foo/reference/bar.md'
-O="$(bash "$SCRIPT" skip-check --pr 12)"; echo "  → $O"
-has "$O" '"skip":true' "small doc-only PR skips"
-has "$O" '2 files, 20 changed lines' "reason carries the counts"
-pass "skip-check --pr: 2 md files / 20 lines → skip:true"
-
-export GH_STUB_FILES=$'4\t1\tREADME.md\n2\t0\tscripts/x.sh'
-O="$(bash "$SCRIPT" skip-check --pr 12)"; echo "  → $O"
-has "$O" '"skip":false' "non-doc file blocks the skip"
-has "$O" 'scripts/x.sh' "reason names the non-doc file"
-pass "skip-check --pr: .sh touched → skip:false"
-
-export GH_STUB_FILES=$'80\t30\tguide.md'
-O="$(bash "$SCRIPT" skip-check --pr 12)"
-has "$O" '"skip":false' "big doc diff blocks the skip"
-has "$O" 'too large' "reason says too large"
-pass "skip-check --pr: doc-only but 110 lines → skip:false (over 40-line limit)"
-
-export GH_STUB_FILES=$'1\t1\ta.md\n1\t1\tb.md\n1\t1\tc.md\n1\t1\td.md'
-O="$(bash "$SCRIPT" skip-check --pr 12)"
-has "$O" '"skip":false' "4 files blocks the skip"
-pass "skip-check --pr: doc-only but 4 files → skip:false (over 3-file limit)"
-unset GH_STUB_FILES
-
-# ---- skip-check (--range mode, real throwaway git repo) -----------------------
-REPO="$ROOT/repo"; mkdir -p "$REPO"
-git -C "$REPO" init -q -b master
-git -C "$REPO" config user.email s@t.local; git -C "$REPO" config user.name smoke
-echo base > "$REPO/README.md"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m init
-git -C "$REPO" checkout -q -b MD-1-docs
-printf 'one\ntwo\n' >> "$REPO/README.md"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m docs
-O="$(bash "$SCRIPT" skip-check --range master...HEAD --repo-dir "$REPO")"; echo "  → $O"
-has "$O" '"skip":true' "doc-only range skips"
-pass "skip-check --range: doc-only branch → skip:true"
-
-echo 'echo hi' > "$REPO/run.sh"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m script
-O="$(bash "$SCRIPT" skip-check --range master...HEAD --repo-dir "$REPO")"
-has "$O" '"skip":false' "range with a .sh does not skip"
-has "$O" 'run.sh' "reason names run.sh"
-pass "skip-check --range: .sh added → skip:false"
-
-O="$(bash "$SCRIPT" skip-check --range HEAD...HEAD --repo-dir "$REPO")"
-has "$O" '"skip":false' "empty diff defaults to not skipping"
-pass "skip-check --range: empty diff → skip:false (default to review)"
 
 # ---- retro-comment: no token data (helper prints nothing) ---------------------
 export GH_STUB_LOG="$ROOT/comment-body.txt"
@@ -175,157 +105,42 @@ has "$O" '"ok":false' "gh failure → ok:false"
 has "$O" 'HTTP 404: Not Found' "real gh stderr surfaced, not masked"
 pass "retro-comment: gh failure surfaces real stderr instead of generic fallback"
 
-# ---- request-review: best-effort contract -------------------------------------
-O="$(bash "$SCRIPT" request-review --pr 7)"
-has "$O" '"requested":true' "reviewer requested when gh pr edit succeeds"
-pass "request-review: success → requested:true"
+# ---- MD-2746 regression: the Copilot subcommands must stay gone ---------------
+# MD-2745 moved code review before the PR and onto this machine. A worker that
+# could still reach `request-review`/`await-review` would request a reviewer that
+# never speaks and then block on it — the unbounded wait MD-2489 and MD-2536 each
+# had to fix once. Removal is the fix, so removal is what gets asserted.
+rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; }
+for gone in request-review await-review skip-check; do
+  [[ "$(rc_of "$gone" --pr 7)" == 2 ]] || fail "'$gone' must be gone (exit 2), not runnable"
+done
+pass "removed Copilot subcommands (request-review/await-review/skip-check) → exit 2"
 
-O="$(GH_STUB_EDIT_RC=1 bash "$SCRIPT" request-review --pr 7)"; rc=$?
-[[ "$rc" == 0 ]] || fail "request-review must never fail the lifecycle (rc=$rc)"
-has "$O" '"requested":false' "failure degrades to requested:false"
-pass "request-review: gh failure → ok:true requested:false exit 0"
-
-# ---- await-review: real repo fixtures for origin-derived slug resolution -----
-# derive_origin_slug reads `git remote get-url origin` directly (not gh), so
-# these tests need real repos with controllable remotes rather than a stub.
-SLUGREPO="$ROOT/slug-repo"; mkdir -p "$SLUGREPO"
-git -C "$SLUGREPO" init -q; git -C "$SLUGREPO" remote add origin https://github.com/o/r.git
-NOREMOTE="$ROOT/no-remote-repo"; mkdir -p "$NOREMOTE"; git -C "$NOREMOTE" init -q
-
-# ---- await-review: Copilot left inline comments -------------------------------
-export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://github.com/o/r/pull/7#pullrequestreview-1"}]'
-export GH_STUB_PR_COMMENTS='[{"user":{"login":"Copilot"},"path":"skills/x/SKILL.md","line":12,"body":"Consider X.","html_url":"https://c/1"},{"user":{"login":"somehuman"},"path":"a","line":1,"body":"ignore me","html_url":"https://c/2"}]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"status":"commented"' "review with inline comments → commented"
-has "$O" '"commentCount":1' "only Copilot's inline comment is counted"
-has "$O" 'Consider X.' "the comment body is returned for the worker to address"
-if grep -q 'ignore me' <<<"$O"; then fail "non-Copilot comments must not be included"; fi
-pass "await-review: Copilot inline comments → status commented, comments[] carried"
-
-# ---- await-review: Copilot reviewed with no inline comments -------------------
-export GH_STUB_REVIEWS='[{"user":{"login":"copilot-pull-request-reviewer[bot]"},"state":"APPROVED","html_url":"https://x"}]'
-export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"status":"no-comments"' "reviewed with 0 inline comments → no-comments"
-has "$O" '"commentCount":0' "no-comments carries commentCount 0"
-pass "await-review: Copilot review, no inline comments → status no-comments (bot login variant matched)"
-
-# ---- await-review: multi-page (--paginate) reviews are slurped, not misparsed -
-# gh api --paginate can emit one JSON array per page; Copilot's review may land on
-# a later page. Two concatenated array documents must still be found.
-export GH_STUB_REVIEWS=$'[{"user":{"login":"somehuman"},"state":"COMMENTED"}]\n[{"user":{"login":"Copilot"},"state":"COMMENTED","html_url":"https://x"}]'
-export GH_STUB_PR_COMMENTS=$'[]\n[{"user":{"login":"Copilot"},"path":"a","line":2,"body":"page-two comment","html_url":"https://c/9"}]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"status":"commented"' "Copilot review on page two is still found"
-has "$O" '"commentCount":1' "page-two inline comment is counted, not dropped"
-has "$O" 'page-two comment' "multi-page comment body is carried"
-pass "await-review: multi-page --paginate output slurped correctly (no misclassification)"
-
-# ---- await-review: Copilot never posts within the window ----------------------
-export GH_STUB_REVIEWS='[{"user":{"login":"somehuman"},"state":"COMMENTED"}]'
-export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"status":"timeout"' "no Copilot review before deadline → timeout"
-has "$O" 'no Copilot review within 0s' "timeout reason names the bound"
-pass "await-review: no Copilot review → status timeout (degrades gracefully, no hang)"
-
-# ---- await-review: PENDING Copilot review is not treated as landed ------------
-export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"PENDING"}]'
-export GH_STUB_PR_COMMENTS='[]'
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"
-has "$O" '"status":"timeout"' "a PENDING (unsubmitted) Copilot review does not count as landed"
-pass "await-review: PENDING review ignored → timeout"
-
-# ---- await-review: pending review keeps polling until it is submitted --------
-REVIEWS_SEQUENCE="$ROOT/reviews-sequence.jsonl"
-printf '%s\n%s\n' \
-  '[{"user":{"login":"Copilot"},"state":"PENDING"}]' \
-  '[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x/submitted"}]' \
-  > "$REVIEWS_SEQUENCE"
-O="$(GH_STUB_REVIEWS_SEQUENCE_FILE="$REVIEWS_SEQUENCE" bash "$SCRIPT" await-review --pr 7 --timeout 2 --interval 0 --repo-dir "$SLUGREPO")"
-has "$O" '"status":"no-comments"' "poll continues after pending response until submitted review lands"
-has "$O" 'https://x/submitted' "result comes from the later submitted review"
-[[ ! -s "$REVIEWS_SEQUENCE" ]] || fail "await-review should consume both poll responses"
-pass "await-review: PENDING response retains polling loop until review completion"
-
-# ---- await-review: owner/repo unresolvable degrades to error, never hangs -----
-O="$(bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$NOREMOTE")"; rc=$?
-[[ "$rc" == 0 ]] || fail "await-review must never fail the lifecycle on slug resolution (rc=$rc)"
-has "$O" '"status":"error"' "unresolvable slug → benign error status"
-pass "await-review: slug resolution failure (no origin remote) → ok:true status error, exit 0"
-unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
-
-# ---- await-review: owner/repo resolves from origin, not upstream (MD-2506) ----
-# derive_origin_slug must read `origin` specifically — `gh repo view` (no
-# explicit repo argument) prefers `upstream` over `origin` when both remotes
-# are configured, which resolved the wrong repo in a fork/upstream layout.
-TWOREMOTE="$ROOT/two-remote-repo"; mkdir -p "$TWOREMOTE"
-git -C "$TWOREMOTE" init -q
-git -C "$TWOREMOTE" remote add origin https://github.com/origin-owner/origin-repo.git
-git -C "$TWOREMOTE" remote add upstream https://github.com/upstream-owner/upstream-repo.git
-API_LOG="$ROOT/api-calls.log"; : > "$API_LOG"
-export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x"}]'
-export GH_STUB_PR_COMMENTS='[]'
-O="$(GH_STUB_API_LOG="$API_LOG" bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$TWOREMOTE")"; echo "  → $O"
-has "$O" '"status":"no-comments"' "two-remote repo still resolves and completes the poll"
-has "$(cat "$API_LOG")" 'repos/origin-owner/origin-repo/pulls' "gh api path uses origin's owner/repo"
-if grep -q 'upstream-owner' "$API_LOG"; then fail "must not resolve to the upstream remote's owner/repo"; fi
-pass "await-review: owner/repo resolves from origin even with an upstream remote present"
-unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
-
-# ---- await-review: MD-2194 operator override skips the poll entirely ----------
-# --repo-dir points at NOREMOTE (no origin at all) — proves the skip happens
-# before slug resolution or any gh call, since resolution there would fail.
-O="$(TRON_COPILOT_UNAVAILABLE=1 bash "$SCRIPT" await-review --pr 7 --repo-dir "$NOREMOTE")"; rc=$?
-[[ "$rc" == 0 ]] || fail "await-review with operator flag must never fail the lifecycle (rc=$rc)"
-has "$O" '"status":"skipped"' "operator flag set → status skipped"
-has "$O" '"waitedSeconds":0' "skipped status carries no wait"
-has "$O" 'TRON_COPILOT_UNAVAILABLE' "reason names the operator flag"
-pass "await-review: TRON_COPILOT_UNAVAILABLE=1 → status skipped, no slug resolution needed, exit 0"
-
-O="$(TRON_COPILOT_UNAVAILABLE=true bash "$SCRIPT" await-review --pr 7 --repo-dir "$NOREMOTE")"
-has "$O" '"status":"skipped"' "operator flag 'true' (case-insensitive) → status skipped"
-pass "await-review: TRON_COPILOT_UNAVAILABLE=true → status skipped"
-
-O="$(TRON_COPILOT_UNAVAILABLE=0 bash "$SCRIPT" await-review --pr 7 --timeout 0 --interval 0 --repo-dir "$SLUGREPO")"
-has "$O" '"status":"timeout"' "operator flag '0' is not truthy → normal poll runs"
-pass "await-review: TRON_COPILOT_UNAVAILABLE=0 → not treated as unavailable"
-
-# ---- await-review: MD-2194 dispatched-worker default timeout is tightened -----
-# Use an immediate review match so the loop returns on its first check — this
-# observes the resolved default via timeoutSeconds without ever waiting it out.
-export GH_STUB_REVIEWS='[{"user":{"login":"Copilot"},"state":"APPROVED","html_url":"https://x"}]'
-export GH_STUB_PR_COMMENTS='[]'
-O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"timeoutSeconds":120' "TRON_DISPATCH_ID set, no --timeout → tightened 120s default"
-pass "await-review: dispatched worker with no --timeout override → 120s default (was 600s)"
-
-O="$(env -u TRON_DISPATCH_ID bash "$SCRIPT" await-review --pr 7 --interval 0 --repo-dir "$SLUGREPO")"; echo "  → $O"
-has "$O" '"timeoutSeconds":600' "no TRON_DISPATCH_ID, no --timeout → unchanged 600s default"
-pass "await-review: interactive run with no --timeout override → 600s default unchanged"
-
-O="$(TRON_DISPATCH_ID=2026-test bash "$SCRIPT" await-review --pr 7 --timeout 5 --interval 0 --repo-dir "$SLUGREPO")"
-has "$O" '"timeoutSeconds":5' "explicit --timeout overrides the dispatched default"
-pass "await-review: explicit --timeout still wins over the dispatched default"
-unset GH_STUB_REVIEWS GH_STUB_PR_COMMENTS
+# Assert on the live code paths, not the word: the header explains WHY they were
+# removed, and that rationale is the thing keeping them from being re-added.
+UNCOMMENTED="$(grep -v '^[[:space:]]*#' "$SCRIPT")"
+for banned in '@copilot' '--add-reviewer' '/reviews' 'TRON_COPILOT_UNAVAILABLE'; do
+  # -e is required: BSD grep parses a leading-dash pattern like `--add-reviewer`
+  # as a flag and errors out, which would make this check pass vacuously.
+  if grep -qF -e "$banned" <<<"$UNCOMMENTED"; then
+    fail "git-pr-retro.sh must carry no live '$banned' code path"
+  fi
+done
+pass "git-pr-retro.sh requests no reviewer and polls no review endpoint"
 
 # ---- usage / error contract ----------------------------------------------------
-rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; }
 [[ "$(rc_of bogus)" == 2 ]] || fail "unknown subcommand should exit 2"
-[[ "$(rc_of skip-check)" == 2 ]] || fail "skip-check without --pr/--range should exit 2"
 [[ "$(rc_of retro-comment --pr 1 --model m)" == 2 ]] || fail "retro-comment without body should exit 2"
 [[ "$(rc_of retro-comment --pr 1 --body b)" == 2 ]] || fail "retro-comment without --model should exit 2"
-[[ "$(rc_of request-review)" == 2 ]] || fail "request-review without --pr should exit 2"
-[[ "$(rc_of await-review)" == 2 ]] || fail "await-review without --pr should exit 2"
-[[ "$(rc_of await-review --pr 1 --timeout x)" == 2 ]] || fail "await-review with non-numeric --timeout should exit 2"
+[[ "$(rc_of retro-comment --model m --body b)" == 2 ]] || fail "retro-comment without --pr should exit 2"
 pass "usage errors → exit 2"
 
 O="$(bash "$SCRIPT" help)"
-has "$O" 'skip-check' "help lists skip-check"
 has "$O" 'retro-comment' "help lists retro-comment"
-has "$O" 'request-review' "help lists request-review"
-has "$O" 'await-review' "help lists await-review"
-pass "help → prints usage (exit 0)"
+if grep -qiE 'request-review|await-review|skip-check' <<<"$O"; then
+  fail "help must not advertise the removed Copilot subcommands"
+fi
+pass "help → prints usage listing only retro-comment (exit 0)"
 
 echo ""
 echo "✅ git-pr-retro smoke PASSED ($PASS checks)"

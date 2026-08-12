@@ -15,6 +15,7 @@ SRC_DISCOVERY="$ROOT/skills/jira-source-discovery/SKILL.md"
 START="$ROOT/skills/start-ticket/SKILL.md"
 SHIP="$ROOT/skills/ship-ticket/SKILL.md"
 CLOSE="$ROOT/skills/close-worktree/SKILL.md"
+GIT_PR="$ROOT/skills/git-pr/SKILL.md"
 
 PASS=0
 pass() { echo "  ✓ $*"; PASS=$((PASS + 1)); }
@@ -56,5 +57,33 @@ has "$CLOSE"         "close-worktree: post-merge only"          "post-merge only
 has "$CONTRACT"      "contract: evidence-backed anchor"         "<!-- contract:evidence-backed-claims -->"
 has "$CONTRACT"      "contract: claims name their evidence"     "names the command you ran or the artifact"
 has "$CONTRACT"      "contract: unavailable != passed"          "report it as unavailable"
+
+# --- 5. The local pre-PR code review (MD-2746) -------------------------------
+# MD-2745 deleted both remote review producers. If the contract or tron:git-pr
+# ever describes a post-PR automated review again, a worker will request a
+# reviewer that never speaks and block on it — the unbounded wait MD-2489 and
+# MD-2536 each had to fix once. These assertions are what keeps it deleted.
+has "$CONTRACT"  "contract: local-pre-pr-review anchor"      "<!-- contract:local-pre-pr-review -->"
+has "$CONTRACT"  "contract: review runs before the PR"       "before the pull request exists"
+has "$CONTRACT"  "contract: one fix-and-re-review cycle"     "no third round"
+has "$CONTRACT"  "contract: names review:local"              "bun run review:local"
+has "$CONTRACT"  "contract: names review:disposition"        "bun run review:disposition"
+has "$CONTRACT"  "contract: nothing reviews after PR opens"  "Nothing reviews the PR after it opens"
+has "$GIT_PR"    "git-pr: runs review:local before the PR"   "bun run review:local"
+has "$GIT_PR"    "git-pr: records a disposition per finding" "bun run review:disposition"
+has "$GIT_PR"    "git-pr: no automated review after open"    "No automated review arrives after the PR opens"
+
+# No skill may request Copilot or reach for a review producer MD-2745 deleted.
+# `--add-reviewer` on its own is NOT banned — skills/gh documents it for adding a
+# human reviewer, which still works. Requesting @copilot is what's banned.
+for f in "$ROOT"/skills/*/SKILL.md "$ROOT"/skills/*/reference/*.md "$CONTRACT"; do
+  [ -f "$f" ] || continue
+  for banned in "@copilot" "poll:pr-review" "judge:diff" "pr-judge" "TRON_COPILOT_UNAVAILABLE"; do
+    if grep -qF -e "$banned" "$f"; then
+      fail "no skill or contract may instruct a worker to use \"$banned\" — found in ${f#$ROOT/}"
+    fi
+  done
+done
+pass "no skill or contract requests Copilot or reads a removed review route"
 
 echo "worker-hardening contract+skill test: $PASS assertions passed"
