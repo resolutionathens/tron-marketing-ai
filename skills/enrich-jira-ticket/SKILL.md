@@ -1,6 +1,6 @@
 ---
 name: enrich-jira-ticket
-model: haiku
+model: sonnet
 effort: low
 fallback:
   cost: low

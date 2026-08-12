@@ -72,11 +72,15 @@ Jira/Confluence access does **not** go through `TRON_API_URL`. `acli`-based skil
 A dispatched worker's git-lifecycle autonomy stops at the PR, not before it and not after it:
 
 - **Up to and including opening the PR is yours to do autonomously**, per the kickoff prompt's
-  instructions — commit, push, open the PR, post the retro comment. Don't stop to ask
-  "should I commit / open the PR?" — that's the job, not a checkpoint.
-- **The PR itself is the review gate.** Once it's open and the control plane is notified, you
+  instructions — commit, push, run the local code review (below), open the PR, post the retro
+  comment. Don't stop to ask "should I commit / open the PR?" — that's the job, not a checkpoint.
+- **Code review happens BEFORE the PR, on this machine** — see
+  [the local pre-PR code review](#the-local-pre-pr-code-review) below. It is a precondition of
+  opening the PR, not a phase that follows it.
+- **The PR itself is the human gate.** Once it's open and the control plane is notified, you
   stop and wait for a human to approve. Do not merge, do not promote past it, do not go looking
-  for more work.
+  for more work. **No automated review arrives after the PR opens** — there is nothing to request,
+  poll, or wait for, so a worker that waits there waits forever.
 - **Production promotion is explicitly human-gated, always** — `skills/git-pushtoprod/SKILL.md`
   states it directly: *"production deploy is high-risk. The script is the mechanics; the
   decision to run it stays with the human/PR gate — don't invoke autonomously."* Never run
@@ -90,6 +94,33 @@ A dispatched worker's git-lifecycle autonomy stops at the PR, not before it and 
 
 In short: **autonomous through the PR, human-gated at and beyond it.** This is the same shape
 whether you were dispatched by the Tron control plane directly or via a Scout run.
+
+<!-- contract:local-pre-pr-review -->
+### The local pre-PR code review
+
+Code review runs **before the pull request exists, on this machine** (MD-2745). Scout launches a
+read-only reviewer on your own harness and hands it **the ticket alongside the diff**, so it returns
+a per-criterion verdict rather than a general impression of the code. No diff leaves this machine.
+
+- **Never open a PR** (`tron:git-pr` or `gh pr create`) before that review has run. Scout fires it
+  automatically when you park with no PR yet; `bun run review:local` triggers it yourself. It reviews
+  **uncommitted** work too, so you need not commit first.
+- **Exactly ONE fix-and-re-review cycle — there is no third round.** Round one finds; you fix; you
+  record a disposition for **every** round-one finding with
+  `bun run review:disposition --finding <id> --fixed|--skipped|--disagreed --note "<why>"`; round two
+  records what survived. `review:local` prints the exact disposition command under each finding —
+  copy it rather than composing it. Whatever round two returns, you then open the PR.
+- **Record a disposition even when you disagree.** A reasoned push-back is a signal about the rule;
+  a silent fix destroys the round-one/round-two comparison the second round exists to make.
+- **A review that could not run is recorded FAILED, never clean.** If the trigger reports it could
+  not run, say so prominently — do not represent it as a clean review, and do not substitute a
+  remote reviewer for it.
+
+**Nothing reviews the PR after it opens.** There is no post-PR automated-review phase: no GitHub
+Copilot request, no LM judge, no third party to poll. Do not request a reviewer, wait for one, or
+treat the absence of one as a problem — once the PR is open you park for the human gate, which is
+unchanged and is still the only thing that authorises a merge. A wait for a reviewer that will never
+speak is the failure this rule exists to prevent: the worker looks busy while it is stuck.
 
 ## Source access, verification evidence, and PR-gate retention
 
