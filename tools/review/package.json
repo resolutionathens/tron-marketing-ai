@@ -1,0 +1,11 @@
+{
+  "name": "tron-review-cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local pre-PR code review CLI for the tron plugin. Lets a dispatched worker in ANY repo trigger its review and record findings dispositions over the control-plane API (TRON_API_URL). Client half of MD-2749; the reviewer and round policy stay OS runtime in tron-os. Zero deps — Node 18+ global fetch.",
+  "type": "module",
+  "bin": { "tron-review": "./review.mjs" },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

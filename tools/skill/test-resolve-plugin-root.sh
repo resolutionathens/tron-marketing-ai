@@ -21,6 +21,11 @@ const expected = {
   root: ".",
   skills: {
     "create-ticket": ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"],
+    // MD-2749: git-pr Step 1c resolves the bundled local-review client. This entry is what
+    // COPIES tools/review into every role and repo package (build-packages.mjs reads it);
+    // without it a consumer install ships the skill but not the client, and the pre-PR
+    // review silently does not run — the exact failure MD-2749 exists to remove.
+    "git-pr": ["tools/review", "tools/skill"],
     jira: ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket"],
   },
 };

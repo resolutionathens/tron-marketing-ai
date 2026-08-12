@@ -200,6 +200,9 @@ for (const entry of inventory.packages) {
     root: ".",
     skills: Object.fromEntries(Object.entries({
       "create-ticket": ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"],
+      // MD-2749: git-pr Step 1c resolves the bundled local-review client, so every package
+      // that ships git-pr must ship tools/review with it.
+      "git-pr": ["tools/review", "tools/skill"],
       jira: ["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket"],
     }).filter(([skill]) => entry.skills.includes(skill))),
   };

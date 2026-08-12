@@ -6,7 +6,7 @@
   "expected_behavior": [
     "Validates the current branch is a feature branch and stops if it is master, main, dev, or production",
     "Ensures the working tree is clean and the branch is pushed (pushing with -u if there is no upstream)",
-    "Runs the local code review with bun run review:local BEFORE opening the PR, records a disposition per finding with bun run review:disposition, and re-reviews at most once",
+    "Resolves the bundled review client and runs it BEFORE opening the PR, records a disposition per finding, and re-reviews at most once",
     "Generates a conventional-format title under 70 chars and a structured body with Summary and Test plan sections, with no Co-Authored-By or Generated-with footer",
     "Presents title and body for approval via AskUserQuestion, then creates the PR with gh pr create targeting master by default",
     "Requests no automated reviewer and waits for none after the PR opens; posts the tron-retro comment, reports the PR URL and the local review outcome, and parks at the human approval gate"
