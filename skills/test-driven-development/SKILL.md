@@ -51,6 +51,18 @@ After the last code change, run the repository's relevant focused checks and its
 Run typecheck, build, and browser verification when the repository uses them and the change warrants them.
 Report the exact commands and results. Do not rerun unchanged checks merely for reassurance.
 
+### Performance and Bun spy conventions
+
+- Keep listing-performance assertions independent of the host. Do not set a pass/fail threshold from
+  elapsed time or a fixed filesystem `stat` count: machine load, filesystem behavior, fixtures, and
+  implementation details make those benchmarks flaky. Assert a stable work invariant instead, such as
+  the number of queries or requests, page-size bounds, or a comparison within the same controlled run.
+  Treat elapsed-time measurements as diagnostic evidence unless the repository provides a calibrated,
+  repeatable benchmark harness.
+- With a Bun spy, read every needed call count or call argument from `spy.mock.calls` **before**
+  calling `spy.mockRestore()`. Store those values first, then restore the original implementation and
+  make assertions from the captured values; restoring can make the spy history unavailable.
+
 ## Rules
 
 - Do not disable, skip, or weaken a test to make the suite pass.
