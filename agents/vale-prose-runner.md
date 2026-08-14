@@ -17,12 +17,14 @@ If the caller did not give you a `<STYLES>` path, fall back to `~/.claude/skills
 ## Steps
 
 1. **Verify install:** `vale --version`. If missing, report `brew install vale` needed and stop.
-2. **Detect/scaffold config** from project root. `/prose-lint` is the supported content-worktree bootstrap and remediation path because it performs this scaffold before package synchronization. Do not tell the user to run `vale sync` alone: sync downloads packages from an existing configuration, but it does not create the Facilitron style-pack or vocabulary symlinks required by the config. If `.vale.ini` is missing, scaffold (substitute the real `<STYLES>` path — it appears only in the symlinks, so the committed `.vale.ini` stays portable):
+2. **Detect/scaffold config** from project root. `/prose-lint` is the supported content-worktree bootstrap and remediation path because it restores the shared resources before package synchronization. Do not tell the user to run `vale sync` alone: sync downloads packages from an existing configuration, but it does not create the Facilitron style-pack or vocabulary symlinks required by the config. Always restore the links first, even when `.vale.ini` already exists. If `.vale.ini` is missing, copy the portable config after restoring the links (substitute the real `<STYLES>` path — it appears only in the symlinks, so the committed `.vale.ini` stays portable):
    ```
    mkdir -p .vale/styles/config
    ln -snf <STYLES>/Facilitron .vale/styles/Facilitron
    ln -snf <STYLES>/config/vocabularies .vale/styles/config/vocabularies
-   cp "<STYLES>/../vale-ini.template" .vale.ini
+   if [ ! -f .vale.ini ]; then
+     cp "<STYLES>/../vale-ini.template" .vale.ini
+   fi
    ```
    The template ships next to the style pack (`skills/prose-lint/vale-ini.template`, i.e. `<STYLES>/../vale-ini.template`) — copy it **verbatim**, never retype the ini or invent regexes; its `StylesPath = .vale/styles` already points at the symlinks you just created, and it carries the MDC BlockIgnores / math + inline-code TokenIgnores. Then `vale sync`. Add `.vale/styles/` to .gitignore; commit `.vale.ini`.
 3. **Run vale** on the target. Default target order: a file/dir the user named → `content/` if it exists → project root. Useful flags: `--minAlertLevel=warning`, `--output=line`, `--filter='.Level=="error"'`.
