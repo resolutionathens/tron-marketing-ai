@@ -62,6 +62,7 @@ The two layers are deliberately split. Every regex-catchable rule lives in the V
 
 ## Notes
 
+- **Content-worktree setup or remediation:** run `/prose-lint` as the supported bootstrap. Its runner creates the portable `.vale.ini`, links the bundled Facilitron styles and vocabulary into `.vale/styles/`, then runs `vale sync`. Do not use `vale sync` alone: it only downloads the packages declared by an existing configuration and does not create the required style-pack or vocabulary links.
 - The Facilitron style pack is bundled with the plugin (`styles/Facilitron/` rules + `styles/config/vocabularies/Facilitron/accept.txt` vocab) — shared across repos. To accept a false-positive term, append it to `accept.txt` and the change ships with the next plugin release.
 - The runner handles project scaffolding (symlinks, `.vale.ini`, `vale sync`) — `.vale.ini` is copied verbatim from the bundled `vale-ini.template` (next to `styles/`) and committed; `.vale/styles/` is gitignored.
 - Good final pass before `tron:news-item` / `tron:guide-item` / `tron:case-study` / `tron:press-release` open their PR.

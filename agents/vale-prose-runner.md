@@ -17,7 +17,7 @@ If the caller did not give you a `<STYLES>` path, fall back to `~/.claude/skills
 ## Steps
 
 1. **Verify install:** `vale --version`. If missing, report `brew install vale` needed and stop.
-2. **Detect/scaffold config** from project root. If `.vale.ini` is missing, scaffold (substitute the real `<STYLES>` path — it appears only in the symlinks, so the committed `.vale.ini` stays portable):
+2. **Detect/scaffold config** from project root. `/prose-lint` is the supported content-worktree bootstrap and remediation path because it performs this scaffold before package synchronization. Do not tell the user to run `vale sync` alone: sync downloads packages from an existing configuration, but it does not create the Facilitron style-pack or vocabulary symlinks required by the config. If `.vale.ini` is missing, scaffold (substitute the real `<STYLES>` path — it appears only in the symlinks, so the committed `.vale.ini` stays portable):
    ```
    mkdir -p .vale/styles/config
    ln -snf <STYLES>/Facilitron .vale/styles/Facilitron
