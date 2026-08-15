@@ -122,12 +122,16 @@ pass "verdict ladder: none → low → medium → high, PREFIX satisfies Repo"
 COMMAND_GATE='Acceptance criteria:
 - bun run docs:check exits 0
 - bun run docs:check passes
+- bun run docs:check passes.
+- bun run docs:check succeeds
 - the suite passes
 - CI is green'
 [[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"bun run docs:check exits 0"* ]] \
   || fail "command exit-code criterion should be flagged"
 [[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"bun run docs:check passes"* ]] \
   || fail "command-pass criterion should be flagged"
+[[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"bun run docs:check succeeds"* ]] \
+  || fail "command-success criterion should be flagged"
 [[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"the suite passes"* ]] \
   || fail "suite-pass criterion should be flagged"
 [[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"CI is green"* ]] \

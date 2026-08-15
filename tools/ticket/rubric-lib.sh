@@ -81,8 +81,10 @@ rb_command_gate_criteria() {
     lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]')"
     command_passes=1
     case "$lower" in
-      bun\ *\ passes|npm\ *\ passes|pnpm\ *\ passes|yarn\ *\ passes|npx\ *\ passes|node\ *\ passes|make\ *\ passes|just\ *\ passes|cargo\ *\ passes|go\ *\ passes|pytest\ *\ passes|rspec\ *\ passes|bundle\ *\ passes|gradle\ *\ passes|mvn\ *\ passes)
-        command_passes=0 ;;
+      bun\ *|npm\ *|pnpm\ *|yarn\ *|npx\ *|node\ *|make\ *|just\ *|cargo\ *|go\ *|pytest\ *|rspec\ *|bundle\ *|gradle\ *|mvn\ *)
+        case "$lower" in
+          *\ passes|*\ passes.|*\ succeeds|*\ succeeds.) command_passes=0 ;;
+        esac ;;
     esac
     if [[ "$lower" =~ ^.+[[:space:]]exits?([[:space:]]+with)?([[:space:]]+(an?[[:space:]]+)?)?(code[[:space:]]*)?0[.!]?$ ]] \
       || [[ "$lower" =~ ^.+[[:space:]]returns?([[:space:]]+with)?([[:space:]]+(an?[[:space:]]+)?)?(code[[:space:]]*)?0[.!]?$ ]] \
