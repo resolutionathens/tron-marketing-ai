@@ -13,7 +13,7 @@
 #   echo "<desc>" | rubric-lint.sh [--summary S] # lint stdin
 #
 # Output (stdout): one JSON object —
-#   {key, verdict, type, prefix_ok, missing:{spine,section,recommended}, present}
+#   {key, verdict, type, prefix_ok, missing:{spine,section,recommended}, issues, present}
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -79,10 +79,12 @@ PREFIX_OK=0; [ -n "$SUMMARY" ] && rb_prefix_ok "$SUMMARY" && PREFIX_OK=1
 VERDICT="$(rb_verdict "$TEXT" "$PREFIX_OK")"
 TYPE="$(rb_type "$TEXT")"
 MISS="$(rb_missing "$TEXT" "$PREFIX_OK")"
+GATES="$(rb_command_gate_criteria "$TEXT")"
 
 spine="$(   printf '%s\n' "$MISS" | sed -n 's/^spine://p')"
 section="$( printf '%s\n' "$MISS" | sed -n 's/^section://p')"
 rec="$(     printf '%s\n' "$MISS" | sed -n 's/^rec://p')"
+issues="$(printf '%s\n' "$GATES" | sed '/^$/d; s/^/Acceptance criterion asserts a command result: /; s/$/. State the verification in the description instead, then describe a reviewable property of the change here./')"
 
 # Present spine+section markers (for the "what's already good" line).
 present=""
@@ -95,7 +97,7 @@ done
 jq -n \
   --arg key "$KEY" --arg verdict "$VERDICT" --arg type "$TYPE" \
   --argjson prefix_ok "$PREFIX_OK" \
-  --arg spine "$spine" --arg section "$section" --arg rec "$rec" --arg present "$present" \
+  --arg spine "$spine" --arg section "$section" --arg rec "$rec" --arg issues "$issues" --arg present "$present" \
   '
   def lines: split("\n") | map(select(length > 0));
   {
@@ -104,5 +106,6 @@ jq -n \
     type: $type,
     prefix_ok: ($prefix_ok == 1),
     missing: { spine: ($spine|lines), section: ($section|lines), recommended: ($rec|lines) },
+    issues: ($issues|lines),
     present: ($present|lines)
   }'

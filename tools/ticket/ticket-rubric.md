@@ -82,8 +82,15 @@ what separates "we know what this is" from "we don't."
 | Marker                 | Meaning                                                         |
 | ---------------------- | -------------------------------------------------------------- |
 | `Repo:`                | Target repo key (also stamp the summary `PREFIX:`)             |
-| `Acceptance criteria:` | Bullet list of checkable outcomes                              |
+| `Acceptance criteria:` | Bullet list of checkable, diff-reviewable outcomes             |
 | `Affected paths:`      | Files / routes / components the work touches                  |
+
+Acceptance criteria describe properties of the change, not process gates. Put commands and their
+expected success in the verification prose below the machine header: a reviewer can inspect a diff to
+settle “the command reports a stale pointer when the sync file is older than the manifest,” but cannot
+settle “`bun run docs:check` exits 0,” “the suite passes,” or “CI is green” from the diff alone.
+`rubric-lint.sh` treats those command-result-only criteria as invalid and tells the author to move the
+verification into the description.
 
 ### design
 
