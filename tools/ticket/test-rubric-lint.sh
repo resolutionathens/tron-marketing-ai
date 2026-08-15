@@ -118,6 +118,38 @@ Acceptance criteria:
   || fail "no Repo marker but prefix_ok=1 → high"
 pass "verdict ladder: none → low → medium → high, PREFIX satisfies Repo"
 
+# --- acceptance criteria must describe reviewable change properties ----------
+COMMAND_GATE='Acceptance criteria:
+- bun run docs:check exits 0
+- bun run docs:check passes
+- the suite passes
+- CI is green'
+[[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"bun run docs:check exits 0"* ]] \
+  || fail "command exit-code criterion should be flagged"
+[[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"bun run docs:check passes"* ]] \
+  || fail "command-pass criterion should be flagged"
+[[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"the suite passes"* ]] \
+  || fail "suite-pass criterion should be flagged"
+[[ "$(rb_command_gate_criteria "$COMMAND_GATE")" == *"CI is green"* ]] \
+  || fail "CI-green criterion should be flagged"
+[[ "$(rb_acceptance_criteria_valid "$COMMAND_GATE")" != 0 ]] \
+  || fail "command-only acceptance criteria should be invalid"
+
+COMMAND_NEAR_MISS='Acceptance criteria:
+- The command reports a stale pointer when the sync file is older than the manifest'
+[[ -z "$(rb_command_gate_criteria "$COMMAND_NEAR_MISS")" ]] \
+  || fail "observable command behaviour must not be flagged"
+rb_acceptance_criteria_valid "$COMMAND_NEAR_MISS" \
+  || fail "observable command behaviour should be valid"
+
+UPPERCASE_GATE='ACCEPTANCE CRITERIA:
+- bun run docs:check exits 0'
+[[ "$(rb_command_gate_criteria "$UPPERCASE_GATE")" == *"bun run docs:check exits 0"* ]] \
+  || fail "uppercase acceptance-criteria header should still flag a command gate"
+[[ "$(rb_acceptance_criteria_valid "$UPPERCASE_GATE")" != 0 ]] \
+  || fail "uppercase command-only acceptance criteria should be invalid"
+pass "command-result acceptance criteria are invalid; observable command behaviour is valid"
+
 # --- full content + design ticket → high ------------------------------------
 CONT='Done: Publish the HVAC maintenance guide
 Type: content
@@ -210,6 +242,14 @@ OUT="$(bash "$CLI" --file "$TMP")"
 [[ "$(jq -r '.type' <<<"$OUT")" == engineering ]] || fail "CLI --file type"
 [[ "$(jq -r '.missing.spine|length' <<<"$OUT")" == 0 ]] || fail "CLI --file no spine gaps"
 pass "CLI --file emits JSON with verdict/type/missing"
+
+GATE_TICKET="${HIGHT/new logo renders in the footer/bun run docs:check exits 0}"
+GATE_OUT="$(printf '%s\n' "$GATE_TICKET" | bash "$CLI" --summary 'TRON-PLUGIN: swap logo')"
+[[ "$(jq -r '.verdict' <<<"$GATE_OUT")" == "medium: routable but thin" ]] \
+  || fail "command-result criterion should prevent a high verdict"
+[[ "$(jq -r '.issues[0]' <<<"$GATE_OUT")" == *"State the verification in the description instead"* ]] \
+  || fail "command-result criterion should give the author a remediation message"
+pass "CLI reports command-result criteria and blocks a high verdict"
 
 # stdin + summary prefix satisfying Repo
 OUT2="$(printf '%s\n' "$NOREPO" | bash "$CLI" --summary 'TRON-PLUGIN: swap the logo')"

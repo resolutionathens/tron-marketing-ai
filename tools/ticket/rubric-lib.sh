@@ -52,10 +52,62 @@ rb_list_marker_present() {
   [[ "$first" =~ ^[[:space:]]*[-*][[:space:]] ]]
 }
 
+# Echo each acceptance-criteria bullet (or an inline criterion), one per line.
+rb_acceptance_criteria_lines() {
+  local text="$1"
+  printf '%s\n' "$text" | awk '
+    BEGIN { active = 0 }
+    tolower($0) ~ /^[[:space:]]*acceptance criteria:[[:space:]]*$/ { active = 1; next }
+    active && /^[[:space:]]*$/ { next }
+    active && /^[[:space:]]*[-*][[:space:]]/ {
+      sub(/^[[:space:]]*[-*][[:space:]]*/, "")
+      print
+      next
+    }
+    active { exit }
+  '
+  local inline
+  inline="$(rb_marker_value "$text" "Acceptance criteria")"
+  [ -n "$inline" ] && printf '%s\n' "$inline"
+}
+
+# Echo acceptance criteria that are only process gates, not reviewable outcomes.
+# A named command is fine when it describes observable behaviour; only a criterion
+# whose whole content says that a command/suite/CI succeeded is rejected.
+rb_command_gate_criteria() {
+  local criterion lower command_passes
+  while IFS= read -r criterion; do
+    [ -n "$criterion" ] || continue
+    lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]')"
+    command_passes=1
+    case "$lower" in
+      bun\ *\ passes|npm\ *\ passes|pnpm\ *\ passes|yarn\ *\ passes|npx\ *\ passes|node\ *\ passes|make\ *\ passes|just\ *\ passes|cargo\ *\ passes|go\ *\ passes|pytest\ *\ passes|rspec\ *\ passes|bundle\ *\ passes|gradle\ *\ passes|mvn\ *\ passes)
+        command_passes=0 ;;
+    esac
+    if [[ "$lower" =~ ^.+[[:space:]]exits?([[:space:]]+with)?([[:space:]]+(an?[[:space:]]+)?)?(code[[:space:]]*)?0[.!]?$ ]] \
+      || [[ "$lower" =~ ^.+[[:space:]]returns?([[:space:]]+with)?([[:space:]]+(an?[[:space:]]+)?)?(code[[:space:]]*)?0[.!]?$ ]] \
+      || [[ "$lower" =~ ^(the[[:space:]]+)?(test[[:space:]]+)?suite[[:space:]]+passes[.!]?$ ]] \
+      || [[ "$lower" =~ ^(the[[:space:]]+)?(test[[:space:]]+)?suite[[:space:]]+succeeds[.!]?$ ]] \
+      || [[ "$lower" =~ ^ci([[:space:]]+build)?[[:space:]]+(is[[:space:]]+)?green[.!]?$ ]] \
+      || [[ "$lower" =~ ^ci([[:space:]]+build)?[[:space:]]+(is[[:space:]]+)?passing[.!]?$ ]] \
+      || [[ "$lower" =~ ^ci([[:space:]]+build)?[[:space:]]+passes[.!]?$ ]] \
+      || [[ "$lower" =~ ^ci([[:space:]]+build)?[[:space:]]+succeeds[.!]?$ ]] \
+      || [ "$command_passes" -eq 0 ]; then
+      printf '%s\n' "$criterion"
+    fi
+  done < <(rb_acceptance_criteria_lines "$1")
+}
+
+# Acceptance criteria are valid when present and none is a command-result gate.
+rb_acceptance_criteria_valid() {
+  rb_list_marker_present "$1" "Acceptance criteria" || return 1
+  [ -z "$(rb_command_gate_criteria "$1")" ]
+}
+
 # Presence check for any rubric marker, dispatching the list-style ones.
 rb_present() {
   case "$2" in
-    "Acceptance criteria") rb_list_marker_present "$1" "$2" ;;
+    "Acceptance criteria") rb_acceptance_criteria_valid "$1" ;;
     *)                     rb_marker_present "$1" "$2" ;;
   esac
 }
