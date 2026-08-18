@@ -16,6 +16,7 @@ PASS=0
 pass() { echo "  ✓ $*"; PASS=$((PASS+1)); }
 fail() { echo "  ✗ $*" >&2; exit 1; }
 eq() { [[ "$1" == "$2" ]] || fail "$3 — expected [$2], got [$1]"; }
+json_eq() { jq -e --argjson expected "$3" "$2 == \$expected" >/dev/null <<<"$1" || fail "$4 — expected $2 to equal [$3], got [$1]"; }
 
 echo "start-ticket smoke (CLAUDE_PLUGIN_ROOT=$CLAUDE_PLUGIN_ROOT)"
 
@@ -77,6 +78,64 @@ eq "$LINKED" "control-plane/web/node_modules node_modules " "links root + nested
 [[ ! -L "$N/wt/already/node_modules" ]] || fail "nm: pre-existing node_modules must not be clobbered"
 rm -rf "$N"
 pass "tl_link_node_modules symlinks root + nested node_modules, skips too-deep + existing"
+
+# ── native dependency trees must not be shared across worktrees ─────────────
+# Exercise the script end-to-end with a minimal wt shim. A compiled .node file
+# represents a native dependency; it must prevent every node_modules tree in
+# that project from being shared. Removing the .node file proves pure-JS trees
+# retain the existing symlink behavior and result contract.
+S="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-native.XXXXXX")"
+git init -q "$S/main"
+git -C "$S/main" config user.email smoke@tron.local
+git -C "$S/main" config user.name "tron smoke"
+printf 'x\n' > "$S/main/README.md"
+git -C "$S/main" add README.md
+git -C "$S/main" commit -q -m init
+mkdir -p "$S/main/node_modules/native-addon/build" "$S/main/packages/web/node_modules/pure-dep"
+printf 'native\n' > "$S/main/native-binary"
+ln -s "$S/main/native-binary" "$S/main/node_modules/native-addon/build/addon.node"
+mkdir -p "$S/bin"
+cat > "$S/bin/wt" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == switch && "$2" == -c ]] || exit 2
+branch="$3"
+git -C "$PWD" worktree add -q -b "$branch" "$PWD/../wt-$branch"
+EOF
+chmod +x "$S/bin/wt"
+(
+  cd "$S/main"
+  OUT="$(PATH="$S/bin:$PATH" bash "$SCRIPT" 'MD-1' --branch native --no-transition)"
+  json_eq "$OUT" '.nodeModulesLinked' '[]' "native tree does not report linked node_modules"
+  json_eq "$OUT" '.nodeModulesNotLinkedNative' '["node_modules","packages/web/node_modules"]' "native tree is explicitly classified"
+  json_eq "$OUT" '.nodeModulesAbsent' '[]' "native tree is not reported as absent"
+  [[ ! -e "$S/wt-native/node_modules" ]] || fail "native tree: root node_modules must not be shared"
+  [[ ! -e "$S/wt-native/packages/web/node_modules" ]] || fail "native tree: workspace node_modules must not be shared"
+)
+git -C "$S/main" worktree remove --force "$S/wt-native"
+rm "$S/main/node_modules/native-addon/build/addon.node"
+(
+  cd "$S/main"
+  OUT="$(PATH="$S/bin:$PATH" bash "$SCRIPT" 'MD-2' --branch pure --no-transition)"
+  json_eq "$OUT" '.nodeModulesLinked' '["node_modules","packages/web/node_modules"]' "pure-JS tree retains existing symlink result"
+  json_eq "$OUT" '.nodeModulesNotLinkedNative' '[]' "pure-JS tree is not classified as native"
+  json_eq "$OUT" '.nodeModulesAbsent' '[]' "pure-JS tree is not reported as absent"
+  [[ -L "$S/wt-pure/node_modules" ]] || fail "pure-JS tree: root node_modules should be shared"
+  [[ -L "$S/wt-pure/packages/web/node_modules" ]] || fail "pure-JS tree: workspace node_modules should be shared"
+)
+git -C "$S/main" worktree remove --force "$S/wt-pure"
+rm -rf "$S/main/node_modules" "$S/main/packages"
+(
+  cd "$S/main"
+  OUT="$(PATH="$S/bin:$PATH" bash "$SCRIPT" 'MD-3' --branch absent --no-transition)"
+  json_eq "$OUT" '.nodeModulesLinked' '[]' "missing dependencies do not report symlinks"
+  json_eq "$OUT" '.nodeModulesNotLinkedNative' '[]' "missing dependencies are not classified as native"
+  json_eq "$OUT" '.nodeModulesAbsent' '["node_modules"]' "missing dependencies are explicitly classified"
+  [[ ! -e "$S/wt-absent/node_modules" ]] || fail "absent tree: node_modules should remain absent"
+)
+git -C "$S/main" worktree remove --force "$S/wt-absent"
+rm -rf "$S"
+pass "start-ticket classifies native, pure-JS, and absent dependency trees"
 
 # ── node_modules symlinks must be invisible to git (MD-2028) ────────────────
 # A directory-only ignore pattern ("node_modules/") does not match a symlink
