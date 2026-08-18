@@ -90,15 +90,40 @@ fi
 WTPATH="$(wl_worktree_path_for_branch "$BRANCH" || true)"
 MAIN_CHECKOUT="$(wl_main_checkout || true)"
 
-# ---- carry over gitignored env/secret files + symlink node_modules ----------
-ENV_COPIED=(); NM_LINKED=()
+# ---- carry over gitignored env/secret files + selectively share node_modules -
+ENV_COPIED=(); NM_LINKED=(); NM_NATIVE=(); NM_ABSENT=()
 if [[ -n "$WTPATH" && -n "$MAIN_CHECKOUT" && "$WTPATH" != "$MAIN_CHECKOUT" ]]; then
   while IFS= read -r n; do [[ -n "$n" ]] && ENV_COPIED+=("$n"); done < <(tl_copy_env_files "$MAIN_CHECKOUT" "$WTPATH")
   [[ ${#ENV_COPIED[@]} -gt 0 ]] && log "carried env files: ${ENV_COPIED[*]}"
-  # Link every node_modules (root + nested workspaces) — private @facilitron/*
-  # deps can't be reinstalled from the public registry. Best-effort, non-fatal.
-  while IFS= read -r n; do [[ -n "$n" ]] && NM_LINKED+=("$n"); done < <(tl_link_node_modules "$MAIN_CHECKOUT" "$WTPATH")
-  [[ ${#NM_LINKED[@]} -gt 0 ]] && log "linked node_modules: ${NM_LINKED[*]}"
+  # Sharing dependencies saves disk and install time for pure-JS projects, but
+  # makes compiled .node binaries mutable across worktrees. If any dependency
+  # tree is native, leave every tree unshared so this worktree can install or
+  # rebuild independently without breaking another consumer of the checkout.
+  NM_PATHS=()
+  while IFS= read -r n; do
+    [[ -n "$n" ]] || continue
+    NM_PATHS+=("${n#"$MAIN_CHECKOUT"/}")
+  done < <(find "$MAIN_CHECKOUT" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
+  if [[ ${#NM_PATHS[@]} -eq 0 ]]; then
+    NM_ABSENT=("node_modules")
+  else
+    PROJECT_HAS_NATIVE=false
+    for n in "${NM_PATHS[@]}"; do
+      if [[ -n "$(find "$MAIN_CHECKOUT/$n" \( -type f -o -type l \) -name '*.node' -print -quit 2>/dev/null)" ]]; then
+        PROJECT_HAS_NATIVE=true
+        break
+      fi
+    done
+    if [[ "$PROJECT_HAS_NATIVE" == true ]]; then
+      NM_NATIVE=("${NM_PATHS[@]}")
+      log "native node_modules detected; left unshared: ${NM_NATIVE[*]} (run the project's install in this worktree)"
+    else
+      # Link every node_modules (root + nested workspaces) when no native
+      # binaries are present. Best-effort, non-fatal for private dependencies.
+      while IFS= read -r n; do [[ -n "$n" ]] && NM_LINKED+=("$n"); done < <(tl_link_node_modules "$MAIN_CHECKOUT" "$WTPATH")
+      [[ ${#NM_LINKED[@]} -gt 0 ]] && log "linked node_modules: ${NM_LINKED[*]}"
+    fi
+  fi
 fi
 
 # ---- transition (Jira) / assign (GitHub) ------------------------------------
@@ -126,10 +151,14 @@ env_json=""
 for i in "${!ENV_COPIED[@]}"; do [[ $i -gt 0 ]] && env_json+=","; env_json+="\"${ENV_COPIED[$i]}\""; done
 nm_json=""
 for i in "${!NM_LINKED[@]}"; do [[ $i -gt 0 ]] && nm_json+=","; nm_json+="\"${NM_LINKED[$i]}\""; done
+native_nm_json=""
+for i in "${!NM_NATIVE[@]}"; do [[ $i -gt 0 ]] && native_nm_json+=","; native_nm_json+="\"${NM_NATIVE[$i]}\""; done
+absent_nm_json=""
+for i in "${!NM_ABSENT[@]}"; do [[ $i -gt 0 ]] && absent_nm_json+=","; absent_nm_json+="\"${NM_ABSENT[$i]}\""; done
 if [[ "$RTYPE" == jira ]]; then
-  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"baseFreshened":%s,"transitioned":%s}\n' \
-    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$BASE_FRESHENED" "$TRANSITIONED"
+  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"transitioned":%s}\n' \
+    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$TRANSITIONED"
 else
-  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"baseFreshened":%s,"assigned":%s}\n' \
-    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$BASE_FRESHENED" "$ASSIGNED"
+  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"assigned":%s}\n' \
+    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$ASSIGNED"
 fi

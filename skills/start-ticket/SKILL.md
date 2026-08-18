@@ -77,7 +77,7 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
 
 1. You look up the ticket (Step 1) — the script doesn't do this.
 2. Run it with `--branch <name>` or `--summary "<title>"` (slugifies to `<KEY>-slug` or `issue-<N>-slug`).
-3. It freshens the base, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`, symlinks `node_modules` (root + workspaces), transitions Jira → In Progress / assigns GitHub issue.
+3. It freshens the base, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`, then detects compiled native modules before sharing `node_modules` (root + workspaces). Pure-JS dependency trees stay symlinked; a native tree stays unshared so it can be installed independently. Finally, it transitions Jira → In Progress / assigns GitHub issue.
 
 ```json
 {
@@ -88,6 +88,8 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
   "worktreePath": "/…",
   "envCopied": [".env.local"],
   "nodeModulesLinked": ["node_modules"],
+  "nodeModulesNotLinkedNative": [],
+  "nodeModulesAbsent": [],
   "baseFreshened": true,
   "transitioned": true
 }
@@ -103,7 +105,7 @@ Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-sw
 
 **Env files:** Copy `.env*`/`.dev.vars*` from the main checkout (first entry in `git worktree list`) into the worktree root. Without these, the dev server 500s with config errors.
 
-**Node modules:** Check `ls <worktree>/node_modules/ | head -1`. Empty → run the project's install command.
+**Node modules:** A native dependency tree must not share `node_modules` with another worktree. Compiled `.node` binaries are mutable build outputs: rebuilding one through a shared symlink repairs one consumer while breaking another. Read `nodeModulesNotLinkedNative` in the script result and run the project's install command in the new worktree when it is non-empty. `nodeModulesAbsent` likewise means no source dependency tree was available to share. Pure-JS trees remain linked in `nodeModulesLinked` to preserve the disk and install-time benefit.
 
 **Jira transition:**
 
