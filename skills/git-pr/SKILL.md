@@ -37,11 +37,21 @@ concise plain-text message stating what's needed and stop to wait for the reply,
 ## Step 1: Validate branch and tree
 
 ```bash
-git branch --show-current
+BRANCH="$(git branch --show-current)"
 git status --porcelain
+
+name=git-pr
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
+[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
+[ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
+SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/resolve-jira-key.sh)"
+JIRA_KEY="$(bash "$SKILL_DIR/scripts/resolve-jira-key.sh" "$BRANCH")" || exit $?
 ```
 
 Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git-commit`.
+The Jira-key resolver stops and names any branch that does not follow the required `<KEY>-<slug>`
+convention. Do not continue to verification or open a PR after that failure.
 
 ## Step 1b: Select and run repository-supported verification
 
@@ -146,7 +156,10 @@ Read changed files if needed to understand purpose.
 
 ## Step 4: Generate title and body
 
-**Title:** under 70 chars, conventional commit format: `type(scope): description`. Types: `feat` `fix` `docs` `style` `refactor` `test` `chore`.
+**Title:** under 70 characters including the Jira key, in the exact format
+`type(scope): description (KEY-1234)`. Use `$JIRA_KEY`, derived from the branch in Step 1, for the
+parenthesized suffix. Types: `feat` `fix` `docs` `style` `refactor` `test` `chore`. If the complete
+title would exceed 70 characters, shorten the description; never shorten or drop the Jira key.
 
 **Body:**
 ```
@@ -157,7 +170,8 @@ Read changed files if needed to understand purpose.
 - [ ] test step
 ```
 
-Reference the Jira key from the branch name if present. No Co-Authored-By or "Generated with" footer.
+Reference `$JIRA_KEY` in the body too, so the ticket appears in both the title and body. No
+Co-Authored-By or "Generated with" footer.
 
 ## Step 5: Get approval
 
@@ -165,9 +179,10 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 
 ## Step 6: Create the PR
 
-`$BASE` is the default branch resolved in Step 3 and `$BRANCH` from Step 2 — both must be resolved
-in the current shell. If this runs in a fresh shell, re-run both Step 2's branch resolver and
-Step 3's base resolver before creating the PR.
+`$BASE` is the default branch resolved in Step 3; `$BRANCH` and `$JIRA_KEY` come from Steps 1 and 2.
+All three must be resolved in the current shell. If this runs in a fresh shell, re-run Step 1's
+branch and Jira-key resolution, Step 2's worktree-aware branch resolver, and Step 3's base resolver
+before creating the PR.
 
 Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
 selection) — never hardcode a slug, since this plugin ships to many consuming repos under
