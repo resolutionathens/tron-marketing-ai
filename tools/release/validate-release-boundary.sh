@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="${TRON_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 BASE_REF="${1:-origin/master}"
+REQUIRE_HEAD_BOUNDARY="${2:-}"
 
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 if ! git -C "$ROOT" rev-parse --verify -q "$BASE_REF" >/dev/null; then
@@ -44,5 +45,18 @@ EXPECTED="releases/v$VERSION.md"
 [ "$RECORDS" = "$EXPECTED" ] || fail "a release PR must add exactly $EXPECTED; ordinary version edits are not releases"
 grep -qx "# Tron v$VERSION" "$ROOT/$EXPECTED" || fail "$EXPECTED must start with '# Tron v$VERSION'"
 grep -q '^## Changes$' "$ROOT/$EXPECTED" || fail "$EXPECTED must include a '## Changes' section derived from commits since the prior release"
-grep -q '^Previous release: v' "$ROOT/$EXPECTED" || fail "$EXPECTED must name its previous release boundary"
+PREVIOUS="$(git -C "$ROOT" describe --tags --abbrev=0 "$BASE" 2>/dev/null || true)"
+[ -n "$PREVIOUS" ] || fail 'release validation requires a prior immutable release tag'
+grep -qx "Previous release: $PREVIOUS" "$ROOT/$EXPECTED" || fail "$EXPECTED must name the actual prior release boundary ($PREVIOUS)"
+while IFS= read -r commit; do
+  files="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r "$commit")"
+  if ! printf '%s\n' "$files" | grep -qvE '^(\.claude-plugin/plugin\.json|\.codex-plugin/plugin\.json|releases/v[0-9.]+\.md)$'; then continue; fi
+  subject="$(git -C "$ROOT" log -1 --format=%s "$commit")"
+  grep -Fqx -- "- $subject" "$ROOT/$EXPECTED" || fail "$EXPECTED must summarize '$subject' from $PREVIOUS..HEAD"
+done < <(git -C "$ROOT" rev-list --reverse "$PREVIOUS..HEAD")
+if [ "$REQUIRE_HEAD_BOUNDARY" = --require-head-boundary ]; then
+  HEAD_FILES="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r HEAD | sort)"
+  EXPECTED_FILES="$(printf '%s\n%s\n%s\n' "$CLAUDE" "$CODEX" "$EXPECTED" | sort)"
+  [ "$HEAD_FILES" = "$EXPECTED_FILES" ] || fail 'release publication must run at the dedicated boundary commit, not a later ordinary commit'
+fi
 printf 'PASS: explicit release boundary %s advances manifests from %s with %s.\n' "$VERSION" "$BASE_VERSION" "$EXPECTED"
