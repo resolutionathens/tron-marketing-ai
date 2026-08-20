@@ -102,12 +102,11 @@ If a commit fails (pre-commit hook), report and stop.
 
 ## Step 6: Push
 
-Resolve the branch name independent of the shell's cwd (finds the feature-branch worktree):
+Resolve the branch name from the current worktree:
 
 ```bash
-# Find the feature-branch worktree (not the main checkout)
-MAIN_WD="$(git rev-parse --git-dir | xargs dirname)"
-WORKTREE="$(git worktree list --porcelain | grep -v "^bare:" | awk '{print $1}' | grep -v "^$MAIN_WD\$" | head -1)" || WORKTREE="$MAIN_WD"
+# Resolve the linked worktree containing the current directory.
+WORKTREE="$(git rev-parse --show-toplevel)"
 BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
 
