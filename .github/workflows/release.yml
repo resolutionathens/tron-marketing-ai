@@ -6,6 +6,7 @@ on:
     paths:
       - .claude-plugin/plugin.json
       - .codex-plugin/plugin.json
+      - releases/**
   workflow_dispatch:
 
 permissions:
@@ -38,6 +39,7 @@ jobs:
       - name: Validate package source and build release artifacts
         run: |
           bash tools/lint/check-plugin-package.sh
+          bash tools/release/validate-release-boundary.sh HEAD^
           bash tools/release/test-build-release.sh
           node tools/release/build-release.mjs dist/release
 
@@ -88,7 +90,7 @@ jobs:
 
           gh release create "$tag" --draft --target "$commit" \
             --title "Tron $tag" \
-            --notes "Immutable Claude and Codex plugin packages built from $commit."
+            --notes-file "releases/$tag.md"
           created=true
           while IFS= read -r filename; do
             gh release upload "$tag" "dist/release/$filename"

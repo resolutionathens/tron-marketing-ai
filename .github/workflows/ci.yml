@@ -30,6 +30,8 @@ jobs:
         run: bash tools/lint/check-plugin-package.sh
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
+      - name: Enforce explicit plugin release boundaries
+        run: bash tools/release/validate-release-boundary.sh "origin/${{ github.base_ref }}"
       - name: Validate role package ownership and dependency closure
         run: bash tools/package/test-build-packages.sh
       - name: Run Layer-1 lints

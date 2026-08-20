@@ -142,6 +142,14 @@ fi
 printf 'PASS: fixture-level release build is deterministic against uncommitted changes and the clean-tree guard still blocks a dirty tree.\n'
 
 WORKFLOW="$ROOT/.github/workflows/release.yml"
+if ! grep -Fq 'tools/release/validate-release-boundary.sh' "$WORKFLOW"; then
+  printf 'FAIL: release workflow does not enforce an explicit release boundary.\n' >&2
+  exit 1
+fi
+if ! grep -Fq -- '--notes-file "releases/$tag.md"' "$WORKFLOW"; then
+  printf 'FAIL: release workflow does not publish the checked-in release summary.\n' >&2
+  exit 1
+fi
 if ! grep -Fq 'gh attestation verify "$verify_dir/$filename" --repo "$GITHUB_REPOSITORY"' "$WORKFLOW"; then
   printf 'FAIL: release workflow does not verify downloaded artifact attestations.\n' >&2
   exit 1

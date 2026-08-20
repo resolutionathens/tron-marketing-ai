@@ -42,6 +42,7 @@
         "agents/unlighthouse-runner.md",
         "tools/git",
         "tools/review",
+        "tools/release",
         "tools/worktree"
       ],
       "skills": [
@@ -60,6 +61,7 @@
         "link-check",
         "news-item",
         "open-worktree",
+        "plugin-release",
         "security-and-hardening",
         "ship-ticket",
         "site-audit",
@@ -377,6 +379,7 @@
         "agents/vale-prose-runner.md",
         "tools/git",
         "tools/review",
+        "tools/release",
         "tools/worktree"
       ],
       "skills": [
@@ -388,6 +391,7 @@
         "git-pr",
         "link-check",
         "open-worktree",
+        "plugin-release",
         "prose-lint",
         "security-and-hardening",
         "start-ticket",
@@ -426,6 +430,7 @@
       "link-check",
       "news-item",
       "open-worktree",
+      "plugin-release",
       "security-and-hardening",
       "ship-ticket",
       "site-audit",
