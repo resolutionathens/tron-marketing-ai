@@ -36,6 +36,21 @@ if TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" master >/dev/null 2>&1; then echo 'FAI
 printf '# Tron v1.0.1\n\nPrevious release: v1.0.0\n\n## Changes\n\n- ordinary\n' > "$WORK/releases/v1.0.1.md"
 git -C "$WORK" add . && git -C "$WORK" commit -qm complete-summary
 TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" master >/dev/null
+git -C "$WORK" checkout -q master
+git -C "$WORK" checkout -qb retry-boundary
+printf 'retry ordinary\n' >> "$WORK/README.md"
+git -C "$WORK" add README.md && git -C "$WORK" commit -qm retry-ordinary
+manifest 1.0.1 > "$WORK/.claude-plugin/plugin.json"; cp "$WORK/.claude-plugin/plugin.json" "$WORK/.codex-plugin/plugin.json"
+mkdir -p "$WORK/releases"
+printf '# Tron v1.0.1\n\nPrevious release: v1.0.0\n\n## Changes\n\n- retry-ordinary\n' > "$WORK/releases/v1.0.1.md"
+git -C "$WORK" add . && git -C "$WORK" commit -qm release-boundary
+TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" master --require-head-boundary >/dev/null
+printf 'later ordinary\n' >> "$WORK/README.md"
+git -C "$WORK" add README.md && git -C "$WORK" commit -qm later-ordinary
+if TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" master --require-head-boundary >/dev/null 2>&1; then
+  echo 'FAIL: manual retry accepted an ordinary commit after the release boundary' >&2
+  exit 1
+fi
 if ! grep -A 5 'uses: actions/checkout@v4' "$ROOT/.github/workflows/ci.yml" | grep -q 'fetch-depth: 0'; then
   echo 'FAIL: CI must fetch release-boundary history before validating a PR' >&2
   exit 1
