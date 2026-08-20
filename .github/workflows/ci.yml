@@ -13,6 +13,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The release-boundary validator compares the PR to its base commit.
+          # A depth-1 merge checkout has neither that ref nor its merge base.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -30,6 +34,8 @@ jobs:
         run: bash tools/lint/check-plugin-package.sh
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
+      - name: Enforce explicit plugin release boundaries
+        run: bash tools/release/validate-release-boundary.sh "origin/${{ github.base_ref }}"
       - name: Validate role package ownership and dependency closure
         run: bash tools/package/test-build-packages.sh
       - name: Run Layer-1 lints

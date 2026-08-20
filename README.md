@@ -181,7 +181,7 @@ authoring.
 
 ## Releases
 
-A manifest version bump merged to `master` starts
+A dedicated release PR, containing a synchronized manifest version bump and `releases/v<version>.md`, starts
 `.github/workflows/release.yml`. The workflow builds monolithic Claude and Codex archives plus
 both-harness artifacts for every scoped package from the same commit. It records their file
 inventories and SHA-256 values in `release-manifest.json`, verifies the uploaded assets and build
@@ -195,10 +195,12 @@ GET https://api.github.com/repos/resolutionathens/tron-marketing-ai/releases/lat
 The repository must have **Settings → Releases → Immutable releases** enabled. A failed build or
 upload deletes its draft and cannot change the latest-release pointer.
 
-To publish:
+To publish, explicitly ask to **cut the next Tron plugin release**. Ordinary feature and fix PRs
+must leave both manifest versions unchanged. The release workflow then:
 
-1. Bump both `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` to the same semver.
-2. Merge the reviewed PR to `master`. The manifest change starts the release workflow.
+1. Select the semver bump from commits since the previous release tag, synchronize both manifests,
+   and add `releases/v<version>.md` with the prior boundary and change summary.
+2. Merge the reviewed dedicated release PR to `master`. Its record and manifest change start the release workflow.
 3. Confirm the workflow's checksum and artifact-attestation verification passes.
 
 To retry a failed release after correcting its cause, run **Publish immutable Tron release** from

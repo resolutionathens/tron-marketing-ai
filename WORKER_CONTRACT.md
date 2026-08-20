@@ -95,6 +95,15 @@ A dispatched worker's git-lifecycle autonomy stops at the PR, not before it and 
 In short: **autonomous through the PR, human-gated at and beyond it.** This is the same shape
 whether you were dispatched by the Tron control plane directly or via a Scout run.
 
+### Tron plugin changes are not releases
+
+In the `tron-marketing-ai` plugin repository, an ordinary dispatched feature or fix is unreleased
+work. Leave both plugin manifest versions unchanged, including when a skill changes. Only an
+explicit request to **cut the next Tron plugin release** may use `tron:plugin-release`; that
+dedicated release PR selects the semver bump, synchronizes both manifests, records
+`releases/v<version>.md`, and triggers publication after merge. A worker must not smuggle a
+version bump into an ordinary PR to make consumers pick up its change.
+
 <!-- contract:local-pre-pr-review -->
 ### The local pre-PR code review
 

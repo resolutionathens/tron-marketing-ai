@@ -205,9 +205,11 @@ is not.
 
 ## Versioning + release
 
-- Bump `version` in `.claude-plugin/plugin.json` when shipping skill changes — the `SessionStart`
-  hook (`hooks/check-update.sh`) compares installed vs `master` daily and nudges stale installs.
-- Keep `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` at the same version.
+- Ordinary changes are unreleased work: **do not** change plugin versions just because a skill,
+  tool, or package changed. `plugin-release` is the only workflow allowed to select a semver bump,
+  synchronize manifests, and add `releases/v<version>.md`; its merge starts publishing.
+- Keep `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` byte-for-byte identical whenever
+  the explicit release workflow changes them.
 - Every skill must have exactly one owner in `packages/package-map.json`. A role may include a
   skill owned elsewhere when its runtime requires it; generated packages copy that skill and its
   dependency closure from the single authored `skills/` source.

@@ -33,6 +33,15 @@ Run every script test at once:
 bash tools/lint/run-layer1-tests.sh   # every test-*.sh under skills/ and tools/
 ```
 
+The release-boundary fixture is part of that suite and can also be run directly:
+
+```bash
+bash tools/release/test-validate-release-boundary.sh
+```
+
+It proves ordinary changes pass without a manifest edit and rejects a manifest edit until a
+matching, synchronized release record exists.
+
 This is the suite `tron:git-pr` runs locally before it pushes or creates a PR. The equivalent
 hand-rolled loop is:
 
