@@ -84,6 +84,19 @@ assert_contains "$pinned_output" "selected test gate: mise exec -- bun run test"
 assert_contains "$(<"$TRACE")" "mise exec -- bun run test"
 assert_contains "$(<"$TRACE")" "bun run test"
 
+TOOL_VERSIONS_REPO="$ROOT/tool-versions"
+mkdir -p "$TOOL_VERSIONS_REPO"
+: > "$TOOL_VERSIONS_REPO/bun.lock"
+: > "$TOOL_VERSIONS_REPO/.tool-versions"
+cat > "$TOOL_VERSIONS_REPO/package.json" <<'JSON'
+{"scripts":{"test":"bun test"}}
+JSON
+: > "$TRACE"
+tool_versions_output="$(PATH="$FIXTURE_BIN:$PATH" TRACE="$TRACE" bash "$SCRIPT" --repo-dir "$TOOL_VERSIONS_REPO")"
+assert_contains "$tool_versions_output" "selected test gate: mise exec -- bun run test"
+assert_contains "$(<"$TRACE")" "mise exec -- bun run test"
+assert_contains "$(<"$TRACE")" "bun run test"
+
 UNPINNED_REPO="$ROOT/unpinned"
 mkdir -p "$UNPINNED_REPO"
 : > "$UNPINNED_REPO/bun.lock"
