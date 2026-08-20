@@ -13,6 +13,10 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The release-boundary validator compares the PR to its base commit.
+          # A depth-1 merge checkout has neither that ref nor its merge base.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
