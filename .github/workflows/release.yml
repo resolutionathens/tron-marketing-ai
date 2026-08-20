@@ -6,7 +6,13 @@ on:
     paths:
       - .claude-plugin/plugin.json
       - .codex-plugin/plugin.json
+      - releases/**
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: 'Immutable release-boundary commit or tag to retry'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -25,6 +31,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.release_ref || github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -38,6 +45,7 @@ jobs:
       - name: Validate package source and build release artifacts
         run: |
           bash tools/lint/check-plugin-package.sh
+          bash tools/release/validate-release-boundary.sh "$(git describe --tags --abbrev=0 HEAD^)" --require-head-boundary
           bash tools/release/test-build-release.sh
           node tools/release/build-release.mjs dist/release
 
@@ -88,7 +96,7 @@ jobs:
 
           gh release create "$tag" --draft --target "$commit" \
             --title "Tron $tag" \
-            --notes "Immutable Claude and Codex plugin packages built from $commit."
+            --notes-file "releases/$tag.md"
           created=true
           while IFS= read -r filename; do
             gh release upload "$tag" "dist/release/$filename"
