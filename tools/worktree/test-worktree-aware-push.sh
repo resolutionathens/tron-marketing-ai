@@ -37,9 +37,10 @@ for shell in bash zsh; do
   "$shell" -c '
     set -eu
     cd "$1"
+    EXPECTED_WORKTREE="$(pwd -P)"
     WORKTREE="$(git rev-parse --show-toplevel)"
     BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
-    [ "$WORKTREE" = "$1" ]
+    [ "$WORKTREE" = "$EXPECTED_WORKTREE" ]
     [ "$BRANCH" = feature-two ]
   ' "$shell" "$ROOT/feature-two" || fail "$shell must resolve feature-two from its linked worktree"
   pass "$shell resolves feature-two from a linked worktree with another worktree present"
