@@ -65,6 +65,14 @@ else
   RUNNER="npm run"
 fi
 
+# A repository that pins its toolchain needs its package scripts to run through
+# mise so native dependencies use the pinned runtime rather than the ambient one.
+# Keep Layer 1 and runner selection unchanged; this only wraps the fallback gates.
+if { [ -f "$REPO_DIR/.mise.toml" ] || [ -f "$REPO_DIR/.tool-versions" ]; } \
+  && command -v mise >/dev/null 2>&1; then
+  RUNNER="mise exec -- $RUNNER"
+fi
+
 GATES="$(node - "$PACKAGE_JSON" <<'NODE'
 const fs = require("fs");
 const packageJson = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
