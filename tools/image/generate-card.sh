@@ -72,7 +72,12 @@ if [[ -n "$NAME" ]]; then
   [[ "$NAME" == *.webp ]] || { printf '{"ok":false,"error":"--name must end in .webp"}\n' >&2; exit 1; }
 fi
 
-set -a; source ~/.env 2>/dev/null || true; set +a
+# Pull the one key this helper needs without evaluating unrelated ~/.env content.
+if [ -z "${OPENROUTER_API_KEY:-}" ] && [ -f "$HOME/.env" ]; then
+  _k="$(grep -E '^[[:space:]]*OPENROUTER_API_KEY=' "$HOME/.env" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*OPENROUTER_API_KEY=//; s/^["'\'']//; s/["'\'']$//' || true)"
+  [ -n "${_k:-}" ] && export OPENROUTER_API_KEY="$_k"
+fi
+: "${OPENROUTER_API_KEY:?OPENROUTER_API_KEY not set (checked environment and ~/.env)}"
 
 # ── 1. download reference images ────────────────────────────────────────────
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/generate-card.XXXXXX")"

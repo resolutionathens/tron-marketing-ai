@@ -37,6 +37,16 @@ printf '# Tron v1.0.1\n\nPrevious release: v1.0.0\n\n## Changes\n\n- ordinary\n'
 git -C "$WORK" add . && git -C "$WORK" commit -qm complete-summary
 TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" master >/dev/null
 git -C "$WORK" checkout -q master
+git -C "$WORK" checkout -qb merge-release
+printf 'merge ordinary\n' >> "$WORK/README.md"
+manifest 1.0.1 > "$WORK/.claude-plugin/plugin.json"; cp "$WORK/.claude-plugin/plugin.json" "$WORK/.codex-plugin/plugin.json"
+mkdir -p "$WORK/releases"
+printf '# Tron v1.0.1\n\nPrevious release: v1.0.0\n\n## Changes\n\n- merge ordinary\n' > "$WORK/releases/v1.0.1.md"
+git -C "$WORK" add . && git -C "$WORK" commit -qm merge-release
+git -C "$WORK" checkout -qb merge-base master
+git -C "$WORK" merge --no-ff merge-release -m 'Merge synthetic pull request'
+TRON_PLUGIN_ROOT="$WORK" bash "$CHECK" merge-base >/dev/null
+git -C "$WORK" checkout -q master
 git -C "$WORK" checkout -qb retry-boundary
 printf 'retry ordinary\n' >> "$WORK/README.md"
 git -C "$WORK" add README.md && git -C "$WORK" commit -qm retry-ordinary
