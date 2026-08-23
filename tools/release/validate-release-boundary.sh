@@ -49,6 +49,11 @@ PREVIOUS="$(git -C "$ROOT" describe --tags --abbrev=0 "$BASE" 2>/dev/null || tru
 [ -n "$PREVIOUS" ] || fail 'release validation requires a prior immutable release tag'
 grep -qx "Previous release: $PREVIOUS" "$ROOT/$EXPECTED" || fail "$EXPECTED must name the actual prior release boundary ($PREVIOUS)"
 while IFS= read -r commit; do
+  # GitHub Actions checks out a synthetic merge commit for pull requests. Its
+  # generated subject changes whenever the PR head changes, so it is not a
+  # release-note-worthy change.
+  parent_count="$(git -C "$ROOT" rev-list --parents -n 1 "$commit" | awk '{print NF - 1}')"
+  [ "$parent_count" -le 1 ] || continue
   files="$(git -C "$ROOT" diff-tree --no-commit-id --name-only -r "$commit")"
   if ! printf '%s\n' "$files" | grep -qvE '^(\.claude-plugin/plugin\.json|\.codex-plugin/plugin\.json|releases/v[0-9.]+\.md)$'; then continue; fi
   subject="$(git -C "$ROOT" log -1 --format=%s "$commit")"
