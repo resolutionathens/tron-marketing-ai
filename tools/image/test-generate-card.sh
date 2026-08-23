@@ -38,6 +38,7 @@ cat > "$FAKE/home/.env" <<'ENV'
 UNQUOTED_MULTI_LINE_VALUE=-----BEGIN PRIVATE KEY-----
 this content is not valid shell syntax
 -----END PRIVATE KEY-----
+: > "$WHOLESALE_SOURCE_SENTINEL"
 OPENROUTER_API_KEY='or-test-key'
 ENV
 
@@ -77,7 +78,7 @@ run_gencard() {
   shift 2
   out="$FAKE/${phase}.stdout"
   err="$FAKE/${phase}.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" FAKE_GENIMG_KEY_FILE="$FAKE/${phase}.api-key" OPENROUTER_API_KEY= \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" FAKE_GENIMG_KEY_FILE="$FAKE/${phase}.api-key" WHOLESALE_SOURCE_SENTINEL="$FAKE/${phase}.wholesale-source" OPENROUTER_API_KEY= \
     perl -MPOSIX=setsid -e 'defined setsid() or die "setsid failed: $!\n"; exec @ARGV' \
     bash "$GENCARD" "$@" --no-upload --output "$FAKE/outputs/${phase}.webp" >"$out" 2>"$err" &
   pid=$!
@@ -196,10 +197,10 @@ else
 fi
 
 # ---- 6. targeted env extraction ignores malformed preceding content -------
-if [[ "$(cat "$FAKE/exact-name.api-key")" == "or-test-key" ]]; then
+if [[ "$(cat "$FAKE/exact-name.api-key")" == "or-test-key" && ! -e "$FAKE/exact-name.wholesale-source" ]]; then
   pass "env: extracts OPENROUTER_API_KEY after malformed preceding content"
 else
-  fail "env extraction: expected OpenRouter key, got: $(cat "$FAKE/exact-name.api-key" 2>/dev/null || true)"
+  fail "env extraction: key missing or ~/.env was evaluated"
 fi
 
 # ---- 7. Missing API key identifies the required variable -----------------
