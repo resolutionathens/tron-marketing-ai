@@ -34,11 +34,17 @@ SH
 
 # imagekit.mjs only needs to exist as a path; the `node` stub handles calls.
 : > "$FAKE/tools/imagekit/imagekit.mjs"
-: > "$FAKE/home/.env"
+cat > "$FAKE/home/.env" <<'ENV'
+UNQUOTED_MULTI_LINE_VALUE=-----BEGIN PRIVATE KEY-----
+this content is not valid shell syntax
+-----END PRIVATE KEY-----
+OPENROUTER_API_KEY='or-test-key'
+ENV
 
 # Stub gen-image.sh: write a dummy PNG to the output path ($3).
 cat > "$FAKE/skills/gen-image/scripts/gen-image.sh" <<'SH'
 #!/usr/bin/env bash
+printf '%s' "${OPENROUTER_API_KEY:-}" > "${FAKE_GENIMG_KEY_FILE:?FAKE_GENIMG_KEY_FILE not set}"
 printf 'fake-png' > "$3"
 SH
 
@@ -71,7 +77,7 @@ run_gencard() {
   shift 2
   out="$FAKE/${phase}.stdout"
   err="$FAKE/${phase}.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$list_json" FAKE_GENIMG_KEY_FILE="$FAKE/${phase}.api-key" OPENROUTER_API_KEY= \
     perl -MPOSIX=setsid -e 'defined setsid() or die "setsid failed: $!\n"; exec @ARGV' \
     bash "$GENCARD" "$@" --no-upload --output "$FAKE/outputs/${phase}.webp" >"$out" 2>"$err" &
   pid=$!
@@ -107,7 +113,7 @@ run_gencard_from_codex_cache() {
   local list_json="$1" out err
   out="$FAKE/codex-cache.stdout"
   err="$FAKE/codex-cache.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" FAKE_LIST="$list_json" \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home" TMPDIR="$FAKE/tmp" FAKE_LIST="$list_json" FAKE_GENIMG_KEY_FILE="$FAKE/codex-cache.api-key" OPENROUTER_API_KEY= \
     bash "$FAKE/tools/image/generate-card.sh" \
     --folder toolkit --name codex-cache.webp --prompt "test subject" --no-upload --output "$FAKE/outputs/codex-cache.webp" >"$out" 2>"$err" || {
         cat "$err" >&2
@@ -120,7 +126,7 @@ run_gencard_without_gen_image() {
   local out err
   out="$FAKE/missing-gen-image.stdout"
   err="$FAKE/missing-gen-image.stderr"
-  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home-empty" CLAUDE_PLUGIN_ROOT="$FAKE" \
+  PATH="$FAKE/bin:$PATH" HOME="$FAKE/home-empty" CLAUDE_PLUGIN_ROOT="$FAKE" OPENROUTER_API_KEY= \
     bash "$GENCARD" --folder toolkit --name missing.webp --prompt "test subject" --no-upload \
       >"$out" 2>"$err" && return 1
   [[ ! -s "$out" ]] || return 1
@@ -189,7 +195,26 @@ else
   fail "--name path: got: $out"
 fi
 
-# ---- 6. Codex cache fallback works without CLAUDE_PLUGIN_ROOT ------------
+# ---- 6. targeted env extraction ignores malformed preceding content -------
+if [[ "$(cat "$FAKE/exact-name.api-key")" == "or-test-key" ]]; then
+  pass "env: extracts OPENROUTER_API_KEY after malformed preceding content"
+else
+  fail "env extraction: expected OpenRouter key, got: $(cat "$FAKE/exact-name.api-key" 2>/dev/null || true)"
+fi
+
+# ---- 7. Missing API key identifies the required variable -----------------
+mkdir -p "$FAKE/home-no-api-key"
+printf 'UNQUOTED_MULTI_LINE_VALUE=-----BEGIN PRIVATE KEY-----\nnot valid shell syntax\n' > "$FAKE/home-no-api-key/.env"
+if PATH="$FAKE/bin:$PATH" HOME="$FAKE/home-no-api-key" TMPDIR="$FAKE/tmp" CLAUDE_PLUGIN_ROOT="$FAKE" FAKE_LIST="$FAKE/list-empty.json" OPENROUTER_API_KEY= \
+  bash "$GENCARD" --folder toolkit --name missing-key.webp --prompt "test subject" --no-upload --output "$FAKE/outputs/missing-key.webp" >"$FAKE/missing-key.stdout" 2>"$FAKE/missing-key.stderr"; then
+  fail "missing API key: unexpectedly succeeded"
+elif has "$(cat "$FAKE/missing-key.stderr")" "OPENROUTER_API_KEY not set (checked environment and ~/.env)"; then
+  pass "missing API key: names OPENROUTER_API_KEY explicitly"
+else
+  fail "missing API key: expected named error, got: $(cat "$FAKE/missing-key.stderr")"
+fi
+
+# ---- 8. Codex cache fallback works without CLAUDE_PLUGIN_ROOT ------------
 cp "$GENCARD" "$FAKE/tools/image/generate-card.sh"
 chmod +x "$FAKE/tools/image/generate-card.sh"
 mv "$FAKE/skills/gen-image" "$FAKE/home/.codex-gen-image-staging"
@@ -209,7 +234,7 @@ else
   fail "cleanup: TMPDIR or requested output unexpected (tmp: $(command ls -A "$FAKE/tmp"))"
 fi
 
-# ---- 7. Missing gen-image preserves the JSON error contract -------------
+# ---- 9. Missing gen-image preserves the JSON error contract -------------
 mv "$FAKE/home/.codex" "$FAKE/home/.codex-staging"
 if run_gencard_without_gen_image; then
   pass "missing gen-image: exits nonzero with one valid JSON error object"
