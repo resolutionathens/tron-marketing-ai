@@ -1,11 +1,22 @@
 name: CI
 
 on:
-  pull_request:
+  schedule:
+    - cron: '17 10 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   plugin-package:
-    name: Claude and Codex package validation
+    name: Claude and Codex package validation backstop
+    # Local git-pr verification is the primary pre-PR gate. It runs Layer 1, native
+    # package installation, and the release-boundary check before a PR can open.
+    # This scheduled/manual job is the remote backstop: it detects upstream @latest
+    # CLI drift and opens a durable GitHub issue so a failure cannot disappear with
+    # an Actions notification. A successful recovery run closes that alert.
     # Hosted macOS runners are deliberate and free here: this repo is public, so standard
     # GitHub-hosted minutes are not billed (unlike tron-os, which is private). Confirmed via
     # billable.MACOS.total_ms = 0 on a 161s run of this workflow. Do not move this job to a
@@ -40,3 +51,35 @@ jobs:
         run: bash tools/package/test-build-packages.sh
       - name: Run Layer-1 lints
         run: bash tools/lint/run-layer1-tests.sh
+
+      - name: Alert maintainers when the backstop fails
+        if: ${{ failure() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='[CI] Package-validation backstop is failing'
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | sed -n '1p')"
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" \
+              --body "The scheduled package-validation backstop failed again: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+              --body "The scheduled package-validation backstop failed. Investigate the native Claude/Codex install, release-boundary, package, and Layer-1 results: $RUN_URL"
+          fi
+
+      - name: Close the backstop alert after recovery
+        if: ${{ success() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='[CI] Package-validation backstop is failing'
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" |
+            while IFS= read -r issue; do
+              [ -n "$issue" ] || continue
+              gh issue close "$issue" --repo "$GITHUB_REPOSITORY" \
+                --comment "Package validation recovered: $RUN_URL"
+            done
