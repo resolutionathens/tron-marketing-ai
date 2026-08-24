@@ -56,9 +56,10 @@ convention. Do not continue to verification or open a PR after that failure.
 ## Step 1b: Select and run repository-supported verification
 
 Use the bundled selector to choose the current repository's supported local gates. It preserves
-the plugin's complete Layer-1 suite when available; otherwise it selects declared package scripts
-named `test`, `typecheck`, and `smoke`. The selector reports every selected command before running
-it:
+the plugin's complete Layer-1 suite when available, then validates real native Claude/Codex package
+installations and the current branch's release boundary against `origin/master`. For consuming
+repositories it selects declared package scripts named `test`, `typecheck`, and `smoke`. The
+selector reports every selected command before running it:
 
 ```bash
 name=git-pr

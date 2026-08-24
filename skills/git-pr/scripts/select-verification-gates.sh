@@ -44,8 +44,17 @@ run_gate() {
 
 LAYER1="tools/lint/run-layer1-tests.sh"
 if [ -f "$REPO_DIR/$LAYER1" ]; then
+  # These are gates in the selected repository, not resources of this bundled
+  # skill. Derive their sibling paths from Layer 1 so package construction does
+  # not mistake target-repository files for skill-package dependencies.
+  LINT_DIR="${LAYER1%/*}"
+  TOOLS_DIR="${LINT_DIR%/*}"
+  NATIVE_PACKAGE="$LINT_DIR/check-plugin-package.sh"
+  RELEASE_BOUNDARY="$TOOLS_DIR/release/validate-release-boundary.sh"
   echo "git-pr verification: source=plugin-layer1"
   run_gate "Layer-1" "bash $LAYER1"
+  run_gate "native plugin package" "bash $NATIVE_PACKAGE"
+  run_gate "live release boundary" "bash $RELEASE_BOUNDARY origin/master"
   exit 0
 fi
 
