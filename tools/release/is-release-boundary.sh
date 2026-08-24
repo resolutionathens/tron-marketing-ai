@@ -38,10 +38,24 @@ if [ -z "$VERSION" ]; then
   exit 2
 fi
 EXPECTED_FILES="$(printf '%s\n%s\nreleases/v%s.md\n' "$CLAUDE" "$CODEX" "$VERSION" | sort)"
-if [ "$HEAD_FILES" != "$EXPECTED_FILES" ]; then
-  echo "MALFORMED RELEASE: HEAD touches release files but is not a dedicated boundary commit." >&2
-  echo "expected exactly:" >&2; printf '  %s\n' $EXPECTED_FILES >&2
-  echo "got:" >&2; printf '  %s\n' $HEAD_FILES >&2
-  exit 2
+if [ "$HEAD_FILES" = "$EXPECTED_FILES" ]; then
+  echo "release boundary: v$VERSION"
+  exit 0
 fi
-echo "release boundary: v$VERSION"
+
+LATEST_TAG="$(git -C "$ROOT" describe --tags --abbrev=0 HEAD 2>/dev/null || true)"
+if [ -n "$LATEST_TAG" ] && [ "v$VERSION" = "$LATEST_TAG" ]; then
+  echo "not a release boundary: manifests already point at published $LATEST_TAG, nothing to publish"
+  exit 1
+fi
+
+echo "MALFORMED RELEASE: HEAD moves the manifests to $VERSION but is not a dedicated boundary commit." >&2
+echo "expected exactly:" >&2
+while IFS= read -r f; do [ -n "$f" ] || continue; printf '  %s\n' "$f" >&2; done <<EOF
+$EXPECTED_FILES
+EOF
+echo "got:" >&2
+while IFS= read -r f; do [ -n "$f" ] || continue; printf '  %s\n' "$f" >&2; done <<EOF
+$HEAD_FILES
+EOF
+exit 2
