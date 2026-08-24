@@ -42,7 +42,22 @@ jobs:
           npm install --global @openai/codex@0.144.4 @anthropic-ai/claude-code@2.1.215
           npm install --global trash-cli
 
+      - name: Detect release boundary
+        id: boundary
+        run: |
+          set +e
+          bash tools/release/is-release-boundary.sh
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "is_boundary=true" >> "$GITHUB_OUTPUT" ;;
+            1) echo "is_boundary=false" >> "$GITHUB_OUTPUT" ;;
+            # 2 = it tried to be a release and is malformed. Never silent.
+            *) echo "::error::malformed release boundary; refusing to treat it as nothing to publish"; exit 1 ;;
+          esac
+
       - name: Validate package source and build release artifacts
+        if: ${{ steps.boundary.outputs.is_boundary == 'true' }}
         run: |
           bash tools/lint/check-plugin-package.sh
           bash tools/release/validate-release-boundary.sh "$(git describe --tags --abbrev=0 HEAD^)" --require-head-boundary
@@ -50,11 +65,13 @@ jobs:
           node tools/release/build-release.mjs dist/release
 
       - name: Attest build provenance
+        if: ${{ steps.boundary.outputs.is_boundary == 'true' }}
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: dist/release/*
 
       - name: Publish complete release and advance the current pointer
+        if: ${{ steps.boundary.outputs.is_boundary == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

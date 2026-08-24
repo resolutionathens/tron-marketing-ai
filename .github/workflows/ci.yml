@@ -20,8 +20,22 @@ jobs:
       # that this branch has no required remote checks. Validation itself stays
       # in the mandatory local git-pr selector; this job only exposes that gate
       # to the current dashboard without rerunning package validation remotely.
+      - uses: actions/checkout@v4
+        with:
+          # The boundary validator compares the PR to its base commit; a depth-1
+          # merge checkout has neither that ref nor its merge base.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Local verification completed before PR creation
         run: echo 'Local git-pr verification is the primary pre-PR gate.'
+      # The one check that must run REMOTELY on every PR. The local git-pr selector
+      # also enforces this, but a PR that skipped the selector would otherwise reach
+      # master with a bundled version bump — which is unrecoverable once squashed
+      # (MD-2913). Cheap: git plus node, no CLI installs, no macOS runner.
+      - name: Enforce explicit plugin release boundaries
+        run: bash tools/release/validate-release-boundary.sh "origin/${{ github.base_ref }}" --require-isolated-release
 
   plugin-package:
     name: Claude and Codex package validation backstop
@@ -60,7 +74,7 @@ jobs:
       - name: Validate deterministic release packages
         run: bash tools/release/test-build-release.sh
       - name: Enforce explicit plugin release boundaries
-        run: bash tools/release/validate-release-boundary.sh "origin/${{ github.base_ref }}"
+        run: bash tools/release/validate-release-boundary.sh "origin/${{ github.base_ref || github.event.repository.default_branch }}"
       - name: Validate role package ownership and dependency closure
         run: bash tools/package/test-build-packages.sh
       - name: Run Layer-1 lints

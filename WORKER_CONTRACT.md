@@ -210,6 +210,22 @@ state a reviewer needs to reproduce and the branch the merge lands on.
   (`start-ticket` → `git-commit` → `git-pr`) per your kickoff prompt, not by `ship-ticket`,
   precisely because its stage-advance prompts have nowhere to go under dispatch.
 
+## Never bump the plugin version
+
+Working in `tron-marketing-ai`? Your PR must not touch `.claude-plugin/plugin.json`,
+`.codex-plugin/plugin.json`, or anything under `releases/`. Shipping a version is a human's
+deliberate act, not part of delivering a skill — however naturally "publish the capability" reads
+as the last step of your ticket.
+
+This is a hard gate, not a preference. Publication can only run at a commit whose files are
+*exactly* the two manifests plus its own `releases/v<version>.md`. Bundling a bump into your PR
+squashes into a mixed commit and makes that version permanently unpublishable — and it reds the
+release job on later, unrelated merges until a human cleans it up. MD-2912 did this and cost
+v0.49.0. CI now rejects it before merge.
+
+Several ticket PRs land between releases and none of them carry a version. Do your work, open your
+PR, and leave the version alone.
+
 ## The broker: on-demand credential minting
 
 The **org-secret broker** (`secrets.facilitron.work`, documented in full at

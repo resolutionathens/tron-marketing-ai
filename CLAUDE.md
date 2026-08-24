@@ -208,6 +208,35 @@ is not.
 - Ordinary changes are unreleased work: **do not** change plugin versions just because a skill,
   tool, or package changed. `plugin-release` is the only workflow allowed to select a semver bump,
   synchronize manifests, and add `releases/v<version>.md`; its merge starts publishing.
+- **A bundled bump is not a style violation — it destroys the release.** Publication can only run
+  at a commit whose files are *exactly* the two manifests plus its own `releases/v<version>.md`.
+  A PR that bumps the version alongside its actual change squashes into a mixed commit, and that
+  version becomes permanently unpublishable: no re-run, no `workflow_dispatch`, and no rewording of
+  the notes recovers it. Worse, publication validates the range since the last **tag** rather than
+  the last merge, so one bundled bump also reds the release job on later, unrelated merges until
+  someone cuts a clean release. This happened in MD-2912 and cost v0.49.0.
+- **Do not learn the release convention from git history.** Of the 40 commits before MD-2913 that
+  touched `.claude-plugin/plugin.json`, 38 bundled the bump into ordinary work. That was the old
+  normal and it is exactly what the boundary rule (MD-2868) exists to end. The history is a
+  counterexample, not a pattern to copy.
+- Enforced mechanically in two places, because either alone has a hole: the local `git-pr`
+  verification selector (this repo's stated primary pre-PR gate) and a `pull_request`-triggered CI
+  job, both running `validate-release-boundary.sh --require-isolated-release`. The remote one is
+  what stops a PR that skipped the local selector. It sorts every PR by the shape of its diff: **ordinary** touches neither manifest and adds no record;
+  **release** touches exactly both manifests plus one new `releases/vX.Y.Z.md`; anything else is
+  **mixed** and is rejected before merge. Several ordinary PRs land per release, none of them
+  carrying a version — then one deliberate release PR ships them together.
+- Never hand-write the `## Changes` list. Generate it with
+  `bash tools/release/release-notes.sh <version>`: the validator matches each commit subject
+  literally, and a subject is only final once the PR is squashed. Notes written inside a PR describe
+  branch commits that stop existing on merge.
+- Recovering from a bundled bump takes two moves in one ordinary PR: delete the
+  `releases/v<version>.md` whose version was never tagged (it documents a release that does not
+  exist), and restore both manifests to the last published version. Leaving the manifests advertising
+  the stranded version is worse than the bump itself — that version can never be cut again, and
+  `plugin-release` derives its next bump from the latest *tag*, so it points the operator straight at
+  the one version that will fail. Deleting a *published* record, or lowering the manifests to
+  anything other than the last published release, is refused.
 - Keep `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` byte-for-byte identical whenever
   the explicit release workflow changes them.
 - Every skill must have exactly one owner in `packages/package-map.json`. A role may include a

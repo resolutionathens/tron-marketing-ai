@@ -54,7 +54,7 @@ if [ -f "$REPO_DIR/$LAYER1" ]; then
   echo "git-pr verification: source=plugin-layer1"
   run_gate "Layer-1" "bash $LAYER1"
   run_gate "native plugin package" "bash $NATIVE_PACKAGE"
-  run_gate "live release boundary" "bash $RELEASE_BOUNDARY origin/master"
+  run_gate "live release boundary" "bash $RELEASE_BOUNDARY origin/master --require-isolated-release"
   exit 0
 fi
 
