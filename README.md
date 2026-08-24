@@ -16,6 +16,7 @@ Facilitron repos independently of any single project checkout.
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Ticket intake**                    | `tron:jira`, `tron:jira-comment`, `tron:create-ticket` (new tickets, rubric-enforced), `tron:ticket-lint` (self-assess vs the rubric), `tron:jira-source-discovery` (source context), `tron:jira-ticket-enricher` (write enriched description), `tron:enrich-jira-ticket` (orchestrator for both), `tron:confluence`                                                                                                       |
 | **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
+| **Work orchestration**               | `tron:orchestrate-queue` (drive one ticket or a dependency-aware batch through the control plane to the human PR gate; requires `TRON_API_URL`)                                                                                                                                   |
 | **Engineering quality** (report-only) | `tron:test-driven-development` (behavior-first tests), `tron:debugging-and-error-recovery` (reproduce through verification), `tron:code-review-and-quality` (six-axis review), `tron:security-and-hardening` (trust-boundary assessment and hardening guidance), `tron:figma-inspect` (read-only implementation specifications) |
 | **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
 | **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
@@ -34,6 +35,10 @@ Facilitron repos independently of any single project checkout.
 Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content skills
 (`news-item`, `toolkit-item`, `guide-item`) run a **preflight repo guard** and
 refuse to write unless the current checkout is `marketing-pages`.
+
+`tron:orchestrate-queue` is the single worker-orchestration entry point. Remove or disable legacy
+user-level `orchestrate-workers` and `orchestrate-epic` commands; they must not expose a second
+worker transport beside the control plane.
 
 ---
 
