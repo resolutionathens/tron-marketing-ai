@@ -22,6 +22,8 @@ Type: engineering | design | content | campaign-asset | cms
 Deliverable type: <value from the rubric's table for this Type>
 Context: <link to the brief / Figma / folder / draft that grounds it>
 Decision: <due date, sign-off owner, hard constraints — if known>
+# Add only when a source establishes the desired user or system outcome:
+# Intent: <one sentence describing the outcome, not the implementation>
 <the section markers for this Type only — see the rubric's work-type tables>
 ```
 
@@ -86,6 +88,7 @@ Type: engineering
 Deliverable type: pr
 Context: <figma url with node-id>
 Decision: Ian signs off; no due date
+Intent: Visitors can find the Tickets page from either primary navigation surface
 Repo: <app repo>
 Affected paths: components/ProductDropdown.vue, components/Footer.vue
 Acceptance criteria:
