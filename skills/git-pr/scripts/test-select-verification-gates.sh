@@ -54,18 +54,18 @@ printf 'native-package\n' >> "$TRACE"
 EOF
 cat > "$PLUGIN_RELEASE/validate-release-boundary.sh" <<'EOF'
 #!/bin/bash
-printf 'release-boundary %s\n' "$1" >> "$TRACE"
+printf 'release-boundary %s\n' "$*" >> "$TRACE"
 EOF
 plugin_output="$(bash "$SCRIPT" --repo-dir "$PLUGIN_REPO" --dry-run)"
 assert_contains "$plugin_output" "source=plugin-layer1"
 assert_contains "$plugin_output" "selected Layer-1 gate: bash tools/lint/run-layer1-tests.sh"
 assert_contains "$plugin_output" "selected native plugin package gate: bash $TARGET_TOOLS/lint/check-plugin-package.sh"
-assert_contains "$plugin_output" "selected live release boundary gate: bash $TARGET_TOOLS/release/validate-release-boundary.sh origin/master"
+assert_contains "$plugin_output" "selected live release boundary gate: bash $TARGET_TOOLS/release/validate-release-boundary.sh origin/master --require-isolated-release"
 : > "$TRACE"
 TRACE="$TRACE" bash "$SCRIPT" --repo-dir "$PLUGIN_REPO" >/dev/null
 assert_contains "$(<"$TRACE")" "layer1"
 assert_contains "$(<"$TRACE")" "native-package"
-assert_contains "$(<"$TRACE")" "release-boundary origin/master"
+assert_contains "$(<"$TRACE")" "release-boundary origin/master --require-isolated-release"
 
 CONSUMER_REPO="$ROOT/consumer"
 mkdir -p "$CONSUMER_REPO"

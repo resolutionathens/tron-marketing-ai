@@ -25,7 +25,18 @@ Find the prior boundary with `git tag --sort=-creatordate | head -1`; compare it
 additive capability, and MAJOR for breaking changes. If the changes span levels, select the highest
 required level and say why in the PR.
 
-Update both manifests to the same selected version. Add `releases/v<version>.md` exactly as:
+Update both manifests to the same selected version, then **generate** the release record — never
+write the `## Changes` list by hand:
+
+```bash
+git fetch origin master
+bash tools/release/release-notes.sh <version> > releases/v<version>.md
+```
+
+The validator matches every commit subject literally, and a subject is only final once its PR is
+squashed. It defaults to `HEAD`, and warns when `origin/master` carries commits your record would
+not name — if that fires, rebase and regenerate, or publication will reject the release. Notes authored inside a PR name branch commits that stop existing on merge; that is what
+made v0.49.0 unpublishable (MD-2912). The generated file has exactly this shape:
 
 ```md
 # Tron v<version>
@@ -41,6 +52,10 @@ The immutable GitHub tag created by the release workflow is the recorded boundar
 record preserves its source range and release notes. Do not change a version without this record,
 and do not add a record without the matching synchronized version update.
 
-Run `bash tools/release/validate-release-boundary.sh origin/master`, followed by the repository's
-normal package and release checks. Then use `tron:git-commit` and `tron:git-pr`; the PR is the human
+The release PR must contain **only** those three files — both manifests and the one new record.
+CI enforces that shape (`--require-isolated-release`) and rejects a PR that mixes a version bump
+with any other change; a mixed commit can never be published.
+
+Run `bash tools/release/validate-release-boundary.sh origin/master --require-isolated-release`,
+followed by the repository's normal package and release checks. Then use `tron:git-commit` and `tron:git-pr`; the PR is the human
 gate. After merge, `.github/workflows/release.yml` publishes the immutable release from that boundary.

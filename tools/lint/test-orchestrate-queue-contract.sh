@@ -64,10 +64,6 @@ const [claudePath, codexPath] = process.argv.slice(2);
 const claude = JSON.parse(fs.readFileSync(claudePath, "utf8"));
 const codex = JSON.parse(fs.readFileSync(codexPath, "utf8"));
 if (claude.version !== codex.version) throw new Error("Claude/Codex plugin versions differ");
-const parts = claude.version.split(".").map(Number);
-if (parts.length !== 3 || parts.some(Number.isNaN) || parts[0] < 0 || (parts[0] === 0 && parts[1] < 49)) {
-  throw new Error(`new orchestrate-queue capability requires version 0.49.0 or newer, got ${claude.version}`);
-}
 NODE
 
 if [ -e "$ROOT/skills/orchestrate-workers" ] || [ -e "$ROOT/skills/orchestrate-epic" ]; then
@@ -91,9 +87,10 @@ SH
 chmod +x "$FIX/bin/curl"
 JQ_DIR="$(dirname "$(command -v jq)")"
 
+PLUGIN_VERSION="$(node -p "require('$ROOT/.claude-plugin/plugin.json').version")"
 for harness_root in .claude/plugins/cache .codex/plugins/cache; do
   rm -rf "$FIX/.claude" "$FIX/.codex"
-  INSTALL="$FIX/$harness_root/tron/tron-engineer/0.49.0"
+  INSTALL="$FIX/$harness_root/tron/tron-engineer/$PLUGIN_VERSION"
   mkdir -p "$INSTALL/tools/skill" "$INSTALL/skills/orchestrate-queue/scripts"
   cp "$ROOT/tools/skill/resolve-skill-dir.sh" "$INSTALL/tools/skill/resolve-skill-dir.sh"
   cp "$SKILL" "$INSTALL/skills/orchestrate-queue/SKILL.md"
