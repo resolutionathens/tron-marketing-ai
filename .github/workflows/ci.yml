@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  pull_request:
   schedule:
     - cron: '17 10 * * *'
   workflow_dispatch:
@@ -10,8 +11,21 @@ permissions:
   issues: write
 
 jobs:
+  pr-gate:
+    name: Local verification gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # Scout needs one PR check run before GitHub can authoritatively report
+      # that this branch has no required remote checks. Validation itself stays
+      # in the mandatory local git-pr selector; this job only exposes that gate
+      # to the current dashboard without rerunning package validation remotely.
+      - name: Local verification completed before PR creation
+        run: echo 'Local git-pr verification is the primary pre-PR gate.'
+
   plugin-package:
     name: Claude and Codex package validation backstop
+    if: github.event_name != 'pull_request'
     # Local git-pr verification is the primary pre-PR gate. It runs Layer 1, native
     # package installation, and the release-boundary check before a PR can open.
     # This scheduled/manual job is the remote backstop: it detects upstream @latest
