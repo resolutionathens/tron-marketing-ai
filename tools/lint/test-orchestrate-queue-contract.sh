@@ -19,6 +19,10 @@ require_text() {
 test -f "$SKILL" || fail "orchestrate-queue skill is missing"
 test -x "$MONITOR" || fail "orchestrate-queue monitor is missing or not executable"
 
+FIX="$(mktemp -d "${TMPDIR:-/tmp}/orchestrate-queue-contract.XXXXXX")"
+cleanup() { rm -rf "$FIX"; }
+trap cleanup EXIT
+
 require_text 'name: orchestrate-queue' "$SKILL"
 require_text 'surface: true' "$SKILL"
 require_text 'TRON_API_URL' "$SKILL"
@@ -69,5 +73,38 @@ NODE
 if [ -e "$ROOT/skills/orchestrate-workers" ] || [ -e "$ROOT/skills/orchestrate-epic" ]; then
   fail "legacy competing orchestration skill is still present"
 fi
+
+# Execute the exact documented bootstrap from clean Claude and Codex cache installs with root
+# variables unset. Keep /usr/bin ahead of Homebrew so the fallback is exercised with macOS tools.
+BOOTSTRAP="$FIX/bootstrap.sh"
+awk '
+  /^[[:space:]]*name=orchestrate-queue[[:space:]]*$/ { grab=1; match($0, /^[[:space:]]*/); ind=RLENGTH }
+  grab { print substr($0, ind + 1) }
+  grab && /SKILL_DIR="\$\(bash "\$RESOLVER" "\$name"/ { exit }
+' "$SKILL" > "$BOOTSTRAP"
+
+mkdir -p "$FIX/bin"
+cat > "$FIX/bin/curl" <<'SH'
+#!/usr/bin/env bash
+printf '[{"id":"d1","status":"working","needsHuman":false,"requiredChecksState":"pending","prNumber":null,"workerWorking":true,"reviewParkedAt":null}]\n'
+SH
+chmod +x "$FIX/bin/curl"
+JQ_DIR="$(dirname "$(command -v jq)")"
+
+for harness_root in .claude/plugins/cache .codex/plugins/cache; do
+  rm -rf "$FIX/.claude" "$FIX/.codex"
+  INSTALL="$FIX/$harness_root/tron/tron-engineer/0.49.0"
+  mkdir -p "$INSTALL/tools/skill" "$INSTALL/skills/orchestrate-queue/scripts"
+  cp "$ROOT/tools/skill/resolve-skill-dir.sh" "$INSTALL/tools/skill/resolve-skill-dir.sh"
+  cp "$SKILL" "$INSTALL/skills/orchestrate-queue/SKILL.md"
+  cp "$MONITOR" "$INSTALL/skills/orchestrate-queue/scripts/monitor-dispatches.sh"
+  for shell in /bin/bash /bin/zsh; do
+    [ -x "$shell" ] || continue
+    resolved="$(env -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR HOME="$FIX" PATH="$FIX/bin:$JQ_DIR:/usr/bin:/bin" "$shell" -c ". '$BOOTSTRAP'; printf '%s' \"\$SKILL_DIR\"")"
+    [ "$resolved" = "$INSTALL/skills/orchestrate-queue" ] || fail "$shell could not resolve orchestrate-queue from $harness_root"
+    out="$(env TRON_API_URL=http://control.test PATH="$FIX/bin:$JQ_DIR:/usr/bin:/bin" bash "$resolved/scripts/monitor-dispatches.sh" --once d1)"
+    printf '%s\n' "$out" | grep -Fq 'd1 status=working' || fail "$shell-resolved monitor did not run from $harness_root"
+  done
+done
 
 printf 'PASS: orchestrate-queue has one cross-harness control-plane contract.\n'
