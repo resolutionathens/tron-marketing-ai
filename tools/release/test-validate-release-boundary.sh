@@ -192,6 +192,21 @@ set +e
 TRON_PLUGIN_ROOT="$WORK" bash "$BOUNDARY" >/dev/null 2>&1; malformed_code=$?
 set -e
 [ "$malformed_code" = 2 ] || { echo "FAIL: a malformed release must fail loudly (got $malformed_code)" >&2; exit 1; }
+# REGRESSION (MD-2913): a restoration merge failed the release job on master. It moves
+# the manifests — so it looks like a release attempt — but it moves them BACK onto an
+# already-published version, which is recovery, not a broken release. It must no-op.
+git -C "$WORK" checkout -q master
+git -C "$WORK" checkout -qb restoration-boundary
+manifest 1.9.0 > "$WORK/.claude-plugin/plugin.json"; cp "$WORK/.claude-plugin/plugin.json" "$WORK/.codex-plugin/plugin.json"
+git -C "$WORK" add . && git -C "$WORK" commit -qm 'stranded bump on master'
+manifest 1.0.0 > "$WORK/.claude-plugin/plugin.json"; cp "$WORK/.claude-plugin/plugin.json" "$WORK/.codex-plugin/plugin.json"
+printf 'restoration rides with fixes\n' >> "$WORK/README.md"
+git -C "$WORK" add . && git -C "$WORK" commit -qm 'restore manifests to v1.0.0 alongside fixes'
+set +e
+TRON_PLUGIN_ROOT="$WORK" bash "$BOUNDARY" >/dev/null 2>&1; restore_code=$?
+set -e
+[ "$restore_code" = 1 ] || { echo "FAIL: a restoration must no-op, not read as a malformed release (got $restore_code)" >&2; exit 1; }
+
 # A release landing as a MERGE commit must still be seen; a bare diff-tree shows nothing.
 git -C "$WORK" checkout -q master
 git -C "$WORK" checkout -qb merge-boundary-src
