@@ -1,4 +1,4 @@
-# Ticket rubric — the shared spec (rubric-version: 2)
+# Ticket rubric — the shared spec (rubric-version: 3)
 
 The one rubric behind three consumers:
 
@@ -60,6 +60,7 @@ markers below are the contract, the prose around them is for the human.
 | `Deliverable type:`| Fine-grained deliverable class (see table below)              | yes      |
 | `Context:`         | Link to the brief / Figma / folder / draft that grounds it    | yes      |
 | `Decision:`        | Due date, sign-off owner, and any hard constraints            | recommended |
+| `Intent:`          | One sentence naming the desired user or system outcome, not the selected implementation | recommended |
 
 `Deliverable type:` is the finer-grained signal triage routes on. Allowed values by `Type`:
 
@@ -162,8 +163,10 @@ reports. This is the exact ladder `tron:ticket-lint` surfaces as "as written, Sc
 These four strings are the contract: `rubric-lib.sh` emits them verbatim and `tron:ticket-lint` surfaces
 them as "as written, Scout sees: `<verdict>`". Do not reword them without bumping `rubric-version`.
 
-`Decision:` is recommended, not required: its absence never lowers the verdict below `high`, but the lint
-still flags it so due dates and sign-off owners do not silently go missing.
+`Decision:` and `Intent:` are recommended, not required: their absence never lowers the verdict below
+`high`, but the lint still flags them. Write `Intent:` only when source evidence establishes the outcome;
+do not infer or invent it from a proposed implementation. It describes the outcome a user or system should
+achieve, rather than the implementation selected to achieve it.
 
 ## The template body
 
@@ -179,6 +182,7 @@ Type: engineering
 Deliverable type: pr
 Context: https://figma.com/file/abc?node-id=1:2
 Decision: 2026-07-20; Ian signs off; keep the current footer layout
+Intent: Visitors can recognize the current BAS brand consistently across the site
 Repo: marketing-pages
 Affected paths: components/Footer.vue
 Acceptance criteria:

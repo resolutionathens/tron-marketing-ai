@@ -36,6 +36,14 @@ rb_marker_present "$TXT" Decision && fail "Decision=TBD should read as absent"
 rb_marker_present "$TXT" Type    || fail "Type should be present"
 pass "rb_marker_present treats TBD/placeholder as absent"
 
+# Intent is an optional, one-sentence outcome marker. It parses through the
+# canonical marker primitive but never participates in the verdict ladder.
+INTENT='Intent: District staff can identify the correct enrollment workflow without support'
+[[ "$(rb_marker_value "$INTENT" Intent)" == "District staff can identify the correct enrollment workflow without support" ]] \
+  || fail "rb_marker_value Intent"
+rb_marker_present "$INTENT" Intent || fail "Intent should be present"
+pass "Intent parses as a machine-readable outcome marker"
+
 # case-insensitive key + <bracketed> placeholder
 CI='done: lower key still counts
 type: <engineering | design | content | campaign-asset | cms>'
@@ -103,6 +111,22 @@ Acceptance criteria:
 - new logo renders in the footer'
 [[ "$(rb_verdict "$HIGHT")" == "high: actionable" ]] \
   || fail "full engineering ticket → high (got: $(rb_verdict "$HIGHT"))"
+[[ "$(rb_missing "$HIGHT")" == *"rec:Intent"* ]] \
+  || fail "missing optional Intent should be advisory"
+
+INTENT_PLACEHOLDER="$HIGHT
+Intent: TBD"
+[[ "$(rb_verdict "$INTENT_PLACEHOLDER")" == "high: actionable" ]] \
+  || fail "placeholder Intent must not lower an actionable verdict"
+[[ "$(rb_missing "$INTENT_PLACEHOLDER")" == *"rec:Intent"* ]] \
+  || fail "placeholder Intent should be reported as advisory"
+
+WITH_INTENT="$HIGHT
+Intent: Visitors can recognize the current BAS brand consistently across the site"
+[[ "$(rb_verdict "$WITH_INTENT")" == "high: actionable" ]] \
+  || fail "present Intent must preserve high verdict"
+[[ "$(rb_missing "$WITH_INTENT")" != *"rec:Intent"* ]] \
+  || fail "present Intent should not be missing"
 
 # Same ticket WITHOUT Repo marker but WITH a valid summary PREFIX → still high
 NOREPO='Done: Swap the BAS logo
@@ -117,6 +141,7 @@ Acceptance criteria:
 [[ "$(rb_verdict "$NOREPO" 1)" == "high: actionable" ]] \
   || fail "no Repo marker but prefix_ok=1 → high"
 pass "verdict ladder: none → low → medium → high, PREFIX satisfies Repo"
+pass "optional Intent is advisory when missing or placeholder and parses when grounded"
 
 # --- acceptance criteria must describe reviewable change properties ----------
 COMMAND_GATE='Acceptance criteria:
@@ -245,6 +270,8 @@ OUT="$(bash "$CLI" --file "$TMP")"
 [[ "$(jq -r '.verdict' <<<"$OUT")" == "high: actionable" ]] || fail "CLI --file verdict"
 [[ "$(jq -r '.type' <<<"$OUT")" == engineering ]] || fail "CLI --file type"
 [[ "$(jq -r '.missing.spine|length' <<<"$OUT")" == 0 ]] || fail "CLI --file no spine gaps"
+[[ "$(jq -r '.missing.recommended | index("Intent")' <<<"$OUT")" != "null" ]] \
+  || fail "CLI reports missing Intent as recommended"
 pass "CLI --file emits JSON with verdict/type/missing"
 
 GATE_TICKET="${HIGHT/new logo renders in the footer/bun run docs:check exits 0}"
@@ -295,6 +322,7 @@ Type: engineering
 Deliverable type: pr
 Context: https://figma.com/file/abc?node-id=1:2
 Decision: 2026-07-20; Ian signs off
+Intent: Visitors can recognize the current BAS brand consistently across the site
 Repo: marketing-pages
 Affected paths: components/Footer.vue
 Acceptance criteria:
@@ -313,6 +341,8 @@ MD
     || fail "ADF round-trip: fenced marker block should lint high (got: $V)"
   printf '%s\n' "$EXTRACT" | grep -qE '^Context: https://figma\.com/file/abc' \
     || fail "ADF round-trip: Context URL should stay on its marker line"
+  printf '%s\n' "$EXTRACT" | grep -qE '^Intent: Visitors can recognize the current BAS brand' \
+    || fail "ADF round-trip: Intent should stay on its marker line"
   pass "ADF round-trip: fenced marker block survives md-to-adf → lints high"
 else
   echo "  (skipping ADF round-trip check — node or md-to-adf.mjs unavailable)"

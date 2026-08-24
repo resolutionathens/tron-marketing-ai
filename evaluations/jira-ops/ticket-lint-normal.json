@@ -4,6 +4,7 @@
   "expected_behavior": [
     "Runs the deterministic rubric-lint command against the named ticket",
     "Reports the canonical Scout verdict verbatim and separates blocking, section, and recommended gaps",
+    "Treats a missing or placeholder Intent marker as advisory without lowering an otherwise actionable verdict",
     "Names what is already present and suggests source discovery plus enrichment only when the ticket is thin",
     "Does not edit the Jira ticket"
   ]

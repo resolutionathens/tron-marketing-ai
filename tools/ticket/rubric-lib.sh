@@ -9,7 +9,7 @@
 # same verdict Scout triage reports, so tron:create-ticket and tron:ticket-lint
 # (and, on the SCOUT side, triage) all score a ticket identically. If you change
 # a marker key or the verdict ladder here, change ticket-rubric.md and the SCOUT
-# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 2.
+# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 3.
 
 # --- marker presence ---------------------------------------------------------
 
@@ -189,7 +189,7 @@ rb_placement_context_markers() {
 # Echo the missing markers, one per line, tagged by class:
 #   spine:<Key>     a required spine marker is absent
 #   section:<Key>   a required work-type section marker is absent
-#   rec:<Key>       a recommended marker (Decision) is absent
+#   rec:<Key>       a recommended marker (Decision or Intent) is absent
 # Args: <text> [<prefix_ok>]  — prefix_ok=1 means the summary carries a valid
 # PREFIX:, which satisfies engineering's Repo requirement on its own.
 rb_missing() {
@@ -204,6 +204,7 @@ rb_missing() {
     rb_present "$text" "Deliverable type" || printf 'spine:Deliverable type\n'
   fi
   rb_present "$text" Decision || printf 'rec:%s\n' Decision
+  rb_present "$text" Intent || printf 'rec:%s\n' Intent
   if [ -n "$type" ]; then
     local IFS='|' ms m
     read -ra ms <<< "$(rb_section_markers "$type")"

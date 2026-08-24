@@ -88,7 +88,7 @@ issues="$(printf '%s\n' "$GATES" | sed '/^$/d; s/^/Acceptance criterion asserts 
 
 # Present spine+section markers (for the "what's already good" line).
 present=""
-for k in Done "Deliverable type" Type Context Decision \
+for k in Done "Deliverable type" Type Context Decision Intent \
          Repo "Acceptance criteria" "Affected paths" \
          Figma Format "Brand refs" Lands Destination "SEO target" Draft; do
   rb_present "$TEXT" "$k" && present="$present$k"$'\n'

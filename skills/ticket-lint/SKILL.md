@@ -77,7 +77,9 @@ Translate the JSON into what the owner should do. For a single ticket:
 - Then the concrete gaps, most-blocking first:
   - `missing.spine` — the fields that make triage give up. "Add a `Done:` line naming the deliverable."
   - `missing.section` — the work-type specifics. "Add `Acceptance criteria:` and `Affected paths:`."
-  - `missing.recommended` — `Decision:` (due date, sign-off owner). Flag it, do not block on it.
+  - `missing.recommended` — `Decision:` (due date, sign-off owner) and optional `Intent:` (the desired user
+    or system outcome). Flag either only as advisory: an absent or placeholder `Intent:` never lowers an
+    otherwise actionable verdict.
 - Name what is already good (`present`) so the fix feels small.
 - End with the remedy: offer `tron:jira-source-discovery` + `tron:jira-ticket-enricher` to fill it in, or note the rubric template.
 

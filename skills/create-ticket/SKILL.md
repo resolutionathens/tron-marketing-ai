@@ -77,7 +77,9 @@ the rubric.
 Walk the fields for the chosen `Type`, one at a time, in plain conversation. Collect:
 
 - **Spine (all types):** `Done`, `Type`, `Deliverable type`, `Context`, `Decision` (due date, sign-off
-  owner, constraints).
+  owner, constraints), plus optional `Intent` (one sentence describing the desired user or system outcome,
+  not the selected implementation). Add `Intent` only when the source evidence establishes it; never invent
+  one to complete a ticket.
 - **The type's section markers:**
   - engineering: `Repo`, `Affected paths`, `Acceptance criteria` (2+ checkable bullets).
   - design: `Figma`, `Format`, `Brand refs`, `Lands`.
