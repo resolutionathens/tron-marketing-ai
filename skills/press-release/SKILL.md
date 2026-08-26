@@ -2,7 +2,7 @@
 name: press-release
 model: opus
 effort: high
-description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use for 'draft a press release', 'write the PR for the Tickets launch', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft in AP-style PR structure. Git-free — it drafts; publishing and distribution are a separate step."
+description: "Draft a Facilitron press release in standard PR format — headline, subhead, dateline, body with quotes, boilerplate, and media contact — from a brief or announcement. Use for 'draft a press release', 'write the PR for the Tickets launch', 'press release for the new district partnership', or media-outreach tickets. Produces a ready-to-review markdown draft. Draft-first — after any required worktree context setup, publishing and distribution remain a separate step."
 allowed-tools:
   - Bash
   - Read
@@ -30,9 +30,9 @@ scout:
 ## Durable delivery gate
 
 Resolve the durable destination before drafting the press release. Follow
-[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. For a website handoff only, this skill may use `tron:start-ticket` or `tron:open-worktree` to add the marketing-pages worktree to the session. It never writes repository content or owns other Git work: it does not commit, push, or open a pull request; the repo-local publishing skill owns all repository work.
 
-Draft a clean, standard-format **press release** from an announcement brief. Git-free: produces a
+Draft a clean, standard-format **press release** from an announcement brief. Draft-first: produces a
 review-ready markdown draft. Serves the MCR "Press Releases" and "Media Outreach" initiatives.
 
 ## Inputs

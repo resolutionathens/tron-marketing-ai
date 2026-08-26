@@ -2,7 +2,7 @@
 name: keyword-research
 model: sonnet
 effort: medium
-description: "Research and cluster keywords for a topic, product, or page — grouping by search intent (informational / commercial / transactional), mapping clusters to target pages, and flagging gaps and quick wins. Use when SEO wants keyword work or content gap analysis: 'keyword research for facility rentals', 'build search keyword clusters for B2B', 'run a content gap analysis', 'what should this landing page target'. Pulls real query data from Search Console where possible. Git-free — produces a keyword map / brief."
+description: "Research and cluster keywords for a topic, product, or page — grouping by search intent (informational / commercial / transactional), mapping clusters to target pages, and flagging gaps and quick wins. Use when SEO wants keyword work or content gap analysis: 'keyword research for facility rentals', 'build search keyword clusters for B2B', 'run a content gap analysis', 'what should this landing page target'. Pulls real query data from Search Console where possible. Draft-first — produces a keyword map / brief and leaves repository work to the target skill."
 allowed-tools:
   - Bash
   - Read
@@ -29,10 +29,10 @@ scout:
 ## Durable delivery gate
 
 Resolve the durable destination before drafting the keyword map. Follow
-[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. Website work uses the durable source URL as the engineering handoff; this skill never writes repository content or performs Git operations.
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. For a website handoff only, this skill may use `tron:start-ticket` or `tron:open-worktree` to add the marketing-pages worktree to the session. It never writes repository content or owns other Git work: it does not commit, push, or open a pull request; the repo-local publishing skill owns all repository work.
 
 Build a **keyword map** for a topic or page: clusters by intent, mapped to target URLs, with gaps and
-quick wins. Git-free: outputs a brief that feeds `tron:landing-page-seo` and content drafting.
+quick wins. Draft-first: outputs a brief that feeds `tron:landing-page-seo` and content drafting.
 
 ## Method
 

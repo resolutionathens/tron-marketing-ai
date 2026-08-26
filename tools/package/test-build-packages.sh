@@ -193,7 +193,6 @@ for (const [file, skills] of Object.entries(repoLocalReferences)) {
 for (const file of [
   "skills/case-study/SKILL.md",
   "skills/brainstorm/SKILL.md",
-  "skills/brainstorm/reference/ideation-note-template.md",
   "skills/keyword-research/SKILL.md",
   "skills/press-release/SKILL.md",
 ]) {
@@ -201,6 +200,16 @@ for (const file of [
   for (const required of ["tron:start-ticket", "tron:open-worktree", "marketing-pages", "worktree", "listing"] ) {
     if (!text.includes(required)) throw new Error(`${file} omits worktree-first handoff detail: ${required}`);
   }
+  for (const required of ["For a website handoff only", "never writes repository content or owns other Git work", "repo-local publishing skill owns"] ) {
+    if (!text.includes(required)) throw new Error(`${file} omits the narrow worktree-setup boundary: ${required}`);
+  }
+  if (/never[^\n]*(perform|performs)[^\n]*Git operations/.test(text)) {
+    throw new Error(`${file} still contradicts its required worktree-first handoff`);
+  }
+}
+const ideationTemplate = fs.readFileSync(path.join(root, "skills/brainstorm/reference/ideation-note-template.md"), "utf8");
+for (const required of ["tron:start-ticket", "tron:open-worktree", "marketing-pages", "worktree", "listing"] ) {
+  if (!ideationTemplate.includes(required)) throw new Error(`ideation note template omits worktree-first handoff detail: ${required}`);
 }
 for (const harness of ["claude", "codex"]) {
   const content = inventory.packages.find((entry) =>
