@@ -77,7 +77,7 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
 
 1. You look up the ticket (Step 1) — the script doesn't do this.
 2. Run it with `--branch <name>` or `--summary "<title>"` (slugifies to `<KEY>-slug` or `issue-<N>-slug`).
-3. It freshens the base, runs `wt switch -c … --yes`, copies `.env*`/`.dev.vars*`, then detects compiled native modules before sharing `node_modules` (root + workspaces). Pure-JS dependency trees stay symlinked; a native tree stays unshared so it can be installed independently. Finally, it transitions Jira → In Progress / assigns GitHub issue.
+3. It freshens the base, runs `wt switch -c … --yes`, provisions `origin/<branch>` as the branch's upstream before its first push, copies `.env*`/`.dev.vars*`, then detects compiled native modules before sharing `node_modules` (root + workspaces). Pure-JS dependency trees stay symlinked; a native tree stays unshared so it can be installed independently. Finally, it transitions Jira → In Progress / assigns GitHub issue.
 
 ```json
 {
@@ -91,6 +91,7 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
   "nodeModulesNotLinkedNative": [],
   "nodeModulesAbsent": [],
   "baseFreshened": true,
+  "upstreamProvisioned": true,
   "transitioned": true
 }
 ```
@@ -102,6 +103,8 @@ Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-sw
 **Branch naming:** `<KEY>-<slugified-summary>` (Jira) or `issue-<N>-<slugified-title>` (GitHub). Lowercase, hyphenated, ~60 chars max.
 
 **Create worktree:** Freshen base first — `git fetch origin <default> && git merge --ff-only origin/<default>` in the main checkout. Then `wt switch -c <branch> --yes`. If the post-create hook fails with `mise trust`, recover with `mise trust <worktree>/.mise.toml && (cd <worktree> && mise install && mise exec -- bun i)`.
+
+**Provision upstream:** Before the branch's first push, set its same-name upstream even though the remote ref does not exist yet: `git config branch.<branch>.remote origin && git config branch.<branch>.merge refs/heads/<branch>`. This replaces any inherited `origin/main` or `origin/master` tracking from worktree creation.
 
 **Env files:** Copy `.env*`/`.dev.vars*` from the main checkout (first entry in `git worktree list`) into the worktree root. Without these, the dev server 500s with config errors.
 

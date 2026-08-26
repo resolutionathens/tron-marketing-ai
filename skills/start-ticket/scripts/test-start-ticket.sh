@@ -186,6 +186,50 @@ for DEF in master main; do
 done
 pass "tl_default_branch + tl_freshen_default freshen the base for main AND master repos"
 
+# ── ticket branches get a same-name upstream before their first push ─────────
+# Worktrunk creates a branch from the default and can leave it tracking that
+# default remote branch. Reproduce that inherited origin/master configuration,
+# then prove start-ticket replaces it before any push. The wt shim also treats a
+# second invocation as an existing checkout so that behavior remains supported.
+U="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-upstream.XXXXXX")"
+gitq "$U" init --bare -q "origin.git"
+git clone -q "$U/origin.git" "$U/main" 2>/dev/null
+gitq "$U/main" config user.email smoke@tron.local
+gitq "$U/main" config user.name "tron smoke"
+gitq "$U/main" checkout -q -B master
+printf 'base\n' > "$U/main/f"; gitq "$U/main" add f; gitq "$U/main" commit -q -m init
+gitq "$U/main" push -q -u origin master
+MASTER_BEFORE="$(gitq "$U/main" rev-parse origin/master)"
+mkdir -p "$U/bin"
+cat > "$U/bin/wt" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == switch && "$2" == -c ]] || exit 2
+branch="$3"
+path="$PWD/../wt-$branch"
+if [[ ! -d "$path" ]]; then
+  git -C "$PWD" worktree add -q -b "$branch" "$path"
+  git -C "$PWD" config "branch.$branch.remote" origin
+  git -C "$PWD" config "branch.$branch.merge" refs/heads/master
+fi
+EOF
+chmod +x "$U/bin/wt"
+(
+  cd "$U/main"
+  OUT="$(PATH="$U/bin:$PATH" bash "$SCRIPT" 'MD-2933' --branch 'MD-2933-upstream' --no-transition)"
+  json_eq "$OUT" '.upstreamProvisioned' 'true' "new branch reports its upstream provisioned"
+  eq "$(gitq "$U/wt-MD-2933-upstream" config --get branch.MD-2933-upstream.remote)" "origin" "ticket branch tracks origin"
+  eq "$(gitq "$U/wt-MD-2933-upstream" config --get branch.MD-2933-upstream.merge)" "refs/heads/MD-2933-upstream" "ticket branch tracks its same-name remote ref"
+  gitq "$U/wt-MD-2933-upstream" push -q
+  eq "$(gitq "$U/main" rev-parse origin/MD-2933-upstream)" "$(gitq "$U/wt-MD-2933-upstream" rev-parse HEAD)" "plain first push creates the same-name remote branch"
+  eq "$(gitq "$U/main" rev-parse origin/master)" "$MASTER_BEFORE" "plain first push does not advance the default branch"
+
+  OUT="$(PATH="$U/bin:$PATH" bash "$SCRIPT" 'MD-2933' --branch 'MD-2933-upstream' --no-transition)"
+  json_eq "$OUT" '.upstreamProvisioned' 'true' "existing ticket checkout remains supported"
+)
+rm -rf "$U"
+pass "start-ticket provisions same-name upstreams for new and existing ticket checkouts"
+
 # offline / no-origin: must NOT fail, must still report the default name
 O="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-noorigin.XXXXXX")"
 git init -q "$O"; gitq "$O" config user.email s@t.local; gitq "$O" config user.name t
