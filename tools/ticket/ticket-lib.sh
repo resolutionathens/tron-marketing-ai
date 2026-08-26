@@ -109,6 +109,22 @@ tl_link_node_modules() {
   done < <(find "$src" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
 }
 
+# Provision a ticket branch to track the same-named branch on origin before its
+# first push. Worktree creation tools can copy the base branch's upstream into
+# the new branch (for example origin/master), causing a later plain `git push`
+# to target or reject against the default branch. Writing the two local config
+# entries directly is valid even before refs/remotes/origin/<branch> exists.
+# Idempotent for an existing ticket checkout. Returns non-zero when the checkout,
+# local branch, or origin remote is unavailable and never contacts the network.
+tl_provision_same_name_upstream() {
+  local repo="$1" branch="$2"
+  [[ -d "$repo" && -n "$branch" ]] || return 1
+  git -C "$repo" show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null || return 1
+  git -C "$repo" remote get-url origin >/dev/null 2>&1 || return 1
+  git -C "$repo" config --local "branch.$branch.remote" origin || return 1
+  git -C "$repo" config --local "branch.$branch.merge" "refs/heads/$branch"
+}
+
 # Resolve a repo's DEFAULT branch name — `main` for some repos, `master` for
 # others. Offline-safe (never contacts the remote): prefers the locally-recorded
 # origin/HEAD symbolic ref (set by `git clone`), then falls back to whichever of

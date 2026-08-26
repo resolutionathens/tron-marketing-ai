@@ -90,6 +90,19 @@ fi
 WTPATH="$(wl_worktree_path_for_branch "$BRANCH" || true)"
 MAIN_CHECKOUT="$(wl_main_checkout || true)"
 
+# `wt switch -c` can leave a new branch inheriting the default branch's
+# upstream (for example origin/master). Set the intended same-name upstream now,
+# before git-commit or another lifecycle step performs the branch's first push.
+UPSTREAM_PROVISIONED=false
+if [[ -n "$WTPATH" ]]; then
+  if tl_provision_same_name_upstream "$WTPATH" "$BRANCH"; then
+    UPSTREAM_PROVISIONED=true
+    log "upstream provisioned: $BRANCH → origin/$BRANCH"
+  else
+    log "could not provision origin/$BRANCH upstream (origin or checkout unavailable)"
+  fi
+fi
+
 # ---- carry over gitignored env/secret files + selectively share node_modules -
 ENV_COPIED=(); NM_LINKED=(); NM_NATIVE=(); NM_ABSENT=()
 if [[ -n "$WTPATH" && -n "$MAIN_CHECKOUT" && "$WTPATH" != "$MAIN_CHECKOUT" ]]; then
@@ -156,9 +169,9 @@ for i in "${!NM_NATIVE[@]}"; do [[ $i -gt 0 ]] && native_nm_json+=","; native_nm
 absent_nm_json=""
 for i in "${!NM_ABSENT[@]}"; do [[ $i -gt 0 ]] && absent_nm_json+=","; absent_nm_json+="\"${NM_ABSENT[$i]}\""; done
 if [[ "$RTYPE" == jira ]]; then
-  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"transitioned":%s}\n' \
-    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$TRANSITIONED"
+  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"upstreamProvisioned":%s,"transitioned":%s}\n' \
+    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$UPSTREAM_PROVISIONED" "$TRANSITIONED"
 else
-  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"assigned":%s}\n' \
-    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$ASSIGNED"
+  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"upstreamProvisioned":%s,"assigned":%s}\n' \
+    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$UPSTREAM_PROVISIONED" "$ASSIGNED"
 fi
