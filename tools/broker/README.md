@@ -86,8 +86,8 @@ held credential, and name the actual missing requirement if the fallback also ca
 ## Consumers in this repo
 
 - `tools/imagekit/imagekit.mjs` — `/imagekit/*`
-- `tools/confluence/fetch-confluence.sh` — `/jira/*` (consumed by `tron:confluence`,
-  `tron:news-item`, `tron:guide-item`)
+- `tools/confluence/fetch-confluence.sh` — `/jira/*` (consumed by `tron:confluence` and
+  repo-local content pipelines)
 - `tools/okf/okf.mjs` — `/knowledge/*` (fallback; consumed by `tron:okf-query`)
 - `skills/circleci/scripts/circleci.sh` — `/circleci/*`
 - `skills/figma-to-imagekit/SKILL.md` — `/figma/*`

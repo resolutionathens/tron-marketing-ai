@@ -2,7 +2,7 @@
 name: case-study
 model: opus
 effort: high
-description: "Draft a Facilitron customer / district case study from raw inputs (interview notes, metrics, a Confluence brief, a Jira ticket) into the standard Challenge, Solution, Results structure. Use when content wants a case study or success story: 'draft a case study for Redondo Beach USD', 'turn these interview notes into a case study', or pasting district/customer notes plus outcomes. Produces a structured markdown draft with pull-quote and metrics, and hands publishing to tron:guide-item / tron:news-item (web) or tron:md-to-pdf (downloadable). Git-free — it drafts; it does not branch, commit, or publish to the content tree."
+description: "Draft a Facilitron customer / district case study from raw inputs (interview notes, metrics, a Confluence brief, a Jira ticket) into the standard Challenge, Solution, Results structure. Use when content wants a case study or success story: 'draft a case study for Redondo Beach USD', 'turn these interview notes into a case study', or pasting district/customer notes plus outcomes. Produces a structured markdown draft with pull-quote and metrics, and hands web publishing to the repo-local guide-item / news-item skills after opening a marketing-pages worktree, or to tron:md-to-pdf for a download. Git-free — it drafts; it does not branch, commit, or publish to the content tree."
 allowed-tools:
   - Bash
   - Read
@@ -34,7 +34,7 @@ scout:
 ## Durable delivery gate
 
 Resolve the durable destination before drafting the case study. Follow
-[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. For a website handoff, the published URL is the approved source consumed by `tron:guide-item` or `tron:news-item`; this skill never writes the repository or performs Git work.
+[the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. For a website handoff, the published URL is the approved source consumed by the repo-local `guide-item` or `news-item` skill after the marketing-pages worktree is added; this skill never writes the repository or performs Git work.
 
 Turn raw inputs into a publish-ready **case study** in Facilitron's house structure, without losing
 the source facts. Git-free: it writes a markdown draft and routes publishing to the right skill.
@@ -92,8 +92,10 @@ metrics: ["60% less admin time", "$X recovered", "N facilities"]
 
 Then offer the handoff:
 
-- Publish to the web → `tron:guide-item` (long-form) or `tron:news-item` (article). These need a
-  git user; the draft is the input.
+- Publish to the web → first use `tron:start-ticket` to create, or `tron:open-worktree` to reopen, a
+  marketing-pages worktree and add that directory to the session. The repo-local skills only appear
+  in the listing after that directory is added; then invoke bare `guide-item` (long-form) or
+  `news-item` (article). These need a git user; the draft is the input.
 - Downloadable PDF → `tron:md-to-pdf`.
 - Quality pass → `tron:grill` (stress-test claims) before publish.
 

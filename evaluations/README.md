@@ -29,7 +29,6 @@ evaluations/
 ├── README.md              this file
 ├── template.json          the canonical empty template — copy it to add a new eval
 ├── audit-skills/          the 5 thin orchestrators that delegate to a runner agent
-├── content-pipeline/      the marketing-pages content writers (news, guide, toolkit)
 ├── drafting/              git-free copy drafters (social, spotlight, email)
 ├── seo/                   the SEO family (audit, keyword research, on-page spec)
 ├── jira-ops/              Jira read/report skills (comment, triage, roll-up, weekly update)
@@ -37,7 +36,7 @@ evaluations/
 ```
 
 One JSON file per scenario. Group by skill family; name the file
-`<skill-name>-<scenario>.json` (e.g. `a11y-scan-url.json`, `news-item-with-images.json`).
+`<skill-name>-<scenario>.json` (e.g. `a11y-scan-url.json`, `case-study-district.json`).
 
 ## Format
 
@@ -80,7 +79,7 @@ non-zero on any failure:
 
 ```bash
 node tools/evaluate/evaluate.mjs                       # all deterministic scenarios, offline
-node tools/evaluate/evaluate.mjs --filter news-item    # matching deterministic scenarios only
+node tools/evaluate/evaluate.mjs --filter case-study   # matching deterministic scenarios only
 node tools/evaluate/evaluate.mjs --dry-run             # show commands and zero model calls
 node tools/evaluate/evaluate.mjs --model-eval evaluations/drafting/onesheet-product.json --dry-run
 ```
@@ -100,8 +99,7 @@ scenario without an `exec` block, whether or not it is marked manual.
 1. Install the plugin locally as a directory marketplace so edits apply without a push:
    `/plugin marketplace add /path/to/tron-marketing-ai`.
 2. Pick an eval file and read its `query` and `files`.
-3. Stage any `files` the scenario assumes (or run it in a checkout that already has them —
-   the content-pipeline evals expect the `marketing-pages` repo).
+3. Stage any `files` the scenario assumes (or run it in a checkout that already has them).
 4. Issue the `query` to Claude Code.
 5. Check the result against `expected_behavior`. Note any item that did not happen and
    whether it was a routing miss (wrong skill) or a behavior miss (right skill, wrong steps).

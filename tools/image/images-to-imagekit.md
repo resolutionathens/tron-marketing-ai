@@ -1,11 +1,9 @@
 # Images → webp → ImageKit (shared mechanics)
 
-The canonical convert-and-upload pipeline shared by the content skills
-(`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`). Each skill keeps its own
-**destination** rules (folder names, naming scheme, where the path resolves in the page);
-this file holds the **mechanics** that are identical across all of them, so they don't
-drift. Paths resolve through the shared plugin tools (`CLAUDE_PLUGIN_ROOT`, falling back
-two levels up from `CLAUDE_SKILL_DIR`).
+The canonical convert-and-upload mechanics retained for plugin media consumers. Destination rules
+(folder names, naming scheme, and where the path resolves) belong to the consuming repo. Paths
+resolve through the shared plugin tools (`CLAUDE_PLUGIN_ROOT`, falling back two levels up from
+`CLAUDE_SKILL_DIR`).
 
 ## Contents
 
@@ -17,7 +15,7 @@ two levels up from `CLAUDE_SKILL_DIR`).
 
 ## Batch fast path — `image-pipeline.sh`
 
-All three consumer skills run this for their body/card images — it converts every image
+Consumers can run this for body/card images — it converts every image
 in a source directory to webp and uploads the batch in parallel, one command:
 
 ```bash

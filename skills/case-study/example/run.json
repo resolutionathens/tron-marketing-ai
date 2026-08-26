@@ -9,6 +9,6 @@
     "Structures the draft in the Facilitron house format: Header, Challenge, Solution, Results (with metrics + pull-quote), Looking ahead",
     "Publishes a markdown draft to the preselected Drive or Confluence destination with title, summary, customer, and metrics, returning review, owner, and website handoff metadata",
     "Produces copy with no em dashes (Facilitron voice), leads with the outcome, backs every claim with a metric or quote, and flags genuinely missing facts with > TODO: rather than inventing them",
-    "Stays git-free (does not branch, commit, or write to the content tree) and offers handoff to tron:guide-item / tron:news-item or tron:md-to-pdf, confirming before any publish step"
+    "Stays git-free (does not branch, commit, or write to the content tree) and offers a worktree-first handoff to the bare repo-local guide-item / news-item skills or tron:md-to-pdf, confirming before any publish step"
   ]
 }

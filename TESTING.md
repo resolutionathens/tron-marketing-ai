@@ -212,8 +212,7 @@ tier, but a skill can be exercised under a different model in two ways worth tes
 - The **main session model** the user is running affects orchestration-layer judgment
   (grouping, target resolution, when to ask vs proceed).
 - A **runner agent or subagent** carries its own model for the heavy work (e.g.
-  `vale-prose-runner` is `sonnet` for prose judgment; the news-item pipeline pushes the
-  Confluence transform to a `sonnet` subagent and image fan-out to `haiku`).
+  `vale-prose-runner` is `sonnet` for prose judgment).
 
 So test a skill under the tiers it actually runs at, and watch for the tier-sensitive
 behaviors below.
@@ -222,7 +221,7 @@ behaviors below.
 | ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `haiku` / low      | the 5 audit skills, `jira`, `confluence`                         | Pure orchestration only — resolve the target, delegate, relay. It must **not** start doing the heavy work itself or add judgment the runner owns.           |
 | `sonnet` / low–med | git flows, board ops, SEO, video, social, `figma-to-imagekit`, engineering-quality workflows | Light judgment is correct: commit grouping is atomic, PR title/body are conventional, debugging preserves evidence, reviews identify material risks, and security gates defer risky changes. |
-| `opus` / high      | `news-item`, `guide-item`, `toolkit-item`, `case-study`, `grill` | Long-form quality dominates: component selection, column balancing, link verification, and the served-HTML correctness gate are all exercised, not skipped. |
+| `opus` / high      | `case-study`, `press-release`, `brainstorm`, `grill`             | Long-form quality dominates: source fidelity, claim support, voice, and the full drafting or critique checklist are exercised, not skipped.               |
 
 **Behaviors that differ by tier — check these explicitly:**
 
@@ -232,9 +231,9 @@ behaviors below.
   judgments at `haiku` is a routing bug.
 - **Delegation discipline.** Cheap skills must still delegate. Confirm a `haiku` audit skill
   spawns its runner rather than economizing by inlining the tool run.
-- **Following long checklists.** The Opus content skills carry multi-stage workflows (intake →
-  images → write → verify → clean up). On a weaker model, confirm no stage silently drops —
-  especially the repo guard, link verification, and the served-HTML check.
+- **Following long checklists.** The Opus content skills carry multi-stage drafting and critique
+  workflows. On a weaker model, confirm no stage silently drops, especially source verification,
+  durable delivery, and cleanup.
 - **Voice rules.** Copy-producing skills must keep the Facilitron no-em-dash rule regardless
   of tier (see [CLAUDE.md](CLAUDE.md) → Conventions when authoring copy-producing skills).
 

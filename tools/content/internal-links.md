@@ -1,9 +1,7 @@
 # Internal links (shared reference)
 
-Shared by `tron:news-item`, `tron:guide-item`, and `tron:toolkit-item`. Bad internal
-links are the #1 build-breaking pitfall — a path with no serving `*.vue` page 404s the
-prerender. Each skill links this file directly from its SKILL.md; the workflow (when to
-run the checks) stays in each skill.
+Reference for plugin consumers that validate marketing-pages links. Bad internal links are the #1
+build-breaking pitfall — a path with no serving `*.vue` page 404s the prerender.
 
 Which paths are right is a fact about the consuming repo, so this file holds the
 *flow*, and the repo's own content profile holds the *paths*.

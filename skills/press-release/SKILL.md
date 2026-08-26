@@ -101,5 +101,8 @@ success metadata. Offer:
 
 - `tron:grill` for a credibility pass before it goes out.
 - `tron:md-to-pdf` for a distributable PDF.
-- Posting to the web newsroom → `tron:news-item` (needs a git user).
-  Confirm before any outward step. Summarize the angle + any `TODO:` gaps.
+- Posting to the web newsroom → first use `tron:start-ticket` to create, or
+  `tron:open-worktree` to reopen, a marketing-pages worktree and add it to the session. The
+  repo-local skill only appears in the listing after that directory is added; then invoke bare
+  `news-item` (needs a git user). Confirm before any outward step. Summarize the angle + any
+  `TODO:` gaps.

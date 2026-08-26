@@ -31,7 +31,7 @@ scout:
 Resolve the durable destination before drafting the Ideation Note. Follow
 [the durable deliverable contract](../../tools/content/durable-deliverables.md): select Drive or Confluence, capture review/owner/handoff metadata, work in a uniquely created scratch directory, publish through the matching publisher skill, return the complete success block, and clean scratch on success and failure. This skill never writes repository content or performs Git operations.
 
-For the fuzzy front end — when you have a hunch but haven't pinned down audience, angle, or viability. Output is an Ideation Note a content skill (`tron:news-item`, `tron:guide-item`, `tron:toolkit-item`) turns into a real page.
+For the fuzzy front end — when you have a hunch but haven't pinned down audience, angle, or viability. Output is an Ideation Note the repo-local `news-item`, `guide-item`, or `toolkit-item` skill turns into a real page. First use `tron:start-ticket` to create, or `tron:open-worktree` to reopen, a marketing-pages worktree and add it to the session. Invoke the bare skill only after that; repo-local skills only appear in the listing after the worktree directory is added.
 
 **When NOT to use:** already-scoped idea → go straight to the content skill. Have a draft to stress-test → use `/grill`. Want search data → `/tron-report`.
 

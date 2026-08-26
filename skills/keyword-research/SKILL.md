@@ -79,6 +79,8 @@ Intents/terms with no page yet → content ideas.
 ```
 
 Draft `$WORK/keyword-map-<slug>.md`, publish it to the resolved durable destination, and return its
-approved source URL for any website handoff. Hand quick wins to `tron:landing-page-seo`; hand content
-gaps to the content role (`tron:case-study` / `tron:guide-item`). Summarize the primary targets +
-top 3 quick wins.
+approved source URL for any website handoff. Hand quick wins to `tron:landing-page-seo`. For a guide
+gap, first use `tron:start-ticket` to create, or `tron:open-worktree` to reopen, a marketing-pages
+worktree and add it to the session. The repo-local skill only appears in the listing after that
+directory is added; then invoke bare `guide-item`. Use `tron:case-study` for a case-study draft.
+Summarize the primary targets + top 3 quick wins.

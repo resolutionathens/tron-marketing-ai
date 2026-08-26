@@ -29,7 +29,7 @@ example-heavy.
 | ------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
 | `haiku` / `low`           | Pure orchestration — resolve a target, shell out, hand off. No judgment. | `jira`, `confluence`, all 5 audit skills (the _agent_ does any heavier work)                    |
 | `sonnet` / `low`–`medium` | Most skills: light judgment, drafting, git flows, board ops.             | `git-commit`, `seo-audit`, `board-triage`, `figma-to-imagekit`                                  |
-| `opus` / `high`           | Long-form generation and critique where quality dominates cost.          | every content skill — `news-item`, `guide-item`, `toolkit-item`, `case-study`, `press-release`, `social-post`, `spotlight`, `email-campaign`, `onesheet`, `video-brief`, `video-publish` (`medium`), plus `brainstorm`, `grill` |
+| `opus` / `high`           | Long-form generation and critique where quality dominates cost.          | copy-producing skills such as `case-study`, `press-release`, `social-post`, `spotlight`, `email-campaign`, `onesheet`, `video-brief`, plus `brainstorm` and `grill` |
 
 When you add or edit a skill, pick the cheapest tier that does the job. An orchestration-only
 skill set to `sonnet` is a routing bug (this is what was wrong with `a11y-scan`). If a skill says
@@ -111,9 +111,8 @@ the workflow + judgment in SKILL.md.
   forbade what the shared-prose rule requires, and drifted to ten violations unnoticed (MD-2541).
 - **Shared prose used by more than one skill lives once under `tools/<area>/<name>.md`** and is
   linked directly from each consuming SKILL.md (still one level deep) — don't copy it into each
-  skill's `reference/`. The content image pipeline is the model: the convert → upload → verify
-  mechanics live in `tools/image/images-to-imagekit.md`, while `news-item` / `guide-item` /
-  `toolkit-item` keep only their own destination folders and naming in their `reference/`.
+  skill's `reference/`. The voice guidance under `tools/voice/` is the model: one shared source,
+  linked directly from every drafting skill that consumes it.
 
 ## Path resolution (two patterns — don't mix them)
 
@@ -147,43 +146,34 @@ thin orchestrators: the SKILL.md resolves the target and hands off to a matching
 that does the mechanical run. The **skill** stays cheap (`haiku`); the **agent** carries whatever
 model the work needs (e.g. `vale-prose-runner` is `sonnet` for prose judgment).
 
-## Website-publishing pipeline repo guard
+## Website-publishing pipelines are repo-local
 
-`news-item`, `toolkit-item`, `guide-item` are engineering-owned website-publishing skills that write
-into the `marketing-pages` repo. They belong in the engineering and `marketing-pages` repo bundles,
-not the git-free content role bundle.
-They run a preflight check (`tools/content/content.sh check-repo`) and refuse to write unless the
-current checkout is `marketing-pages`. Preserve that guard on any website-publishing skill.
-
-The guard deliberately does **not** consult the content profile below: a file inside the repo
-cannot vouch for the repo. `check-repo` answers *whether* you may write; the profile answers
-*where*. Keep them separate.
+`news-item`, `toolkit-item`, and `guide-item` are authored only in marketing-pages. Do not add them
+to this plugin's `skills/`, ownership map, role packages, or repo bundles. A plugin skill that hands
+off to one of them must first create or reopen a marketing-pages worktree with `tron:start-ticket`
+or `tron:open-worktree`, add that directory to the session, and then invoke the bare repo-local
+name. The skill only appears in the listing after the worktree directory is added.
 
 ## Consuming-repo knowledge lives in the repo, not the skill (MD-2451)
 
-Anything true of only one consuming repo is at the wrong layer if it sits in a SKILL.md. The
-repo declares its own facts in `.tron/content-profile.json` (`version: 1`) — destinations,
-collection schema, permitted components, CDN folders, registration mode, link exceptions — and
-the plugin reads them:
+Anything true of only one consuming repo is at the wrong layer if it sits in a plugin SKILL.md. The
+repo declares its own facts in `.tron/content-profile.json` (`version: 1`). Repo-local publishing
+skills read that profile directly; plugin skills that need framework roots or read-only repo facts
+use the shared helper:
 
 ```bash
 C="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/content/content.sh"
-bash "$C" pipeline   <name> --slug <slug>   # destination, route, components, registration
-bash "$C" collection <name>                 # required/optional/enums/defaults
-bash "$C" image      <pipeline> <role> …    # uploadFolder, uploadName, reference
 bash "$C" paths                             # framework roots: srcDir, pagesRoot, contentRoot (+ <key>Abs)
 bash "$C" profile                           # the whole thing (framework, cdn, surfaces, internalLinks)
 ```
 
-Two rules when you touch a website-publishing skill:
+Two rules when a plugin skill consumes repo-specific facts:
 
-- **Never hardcode a consuming repo's paths, schema, or destination folders.** Resolve them.
-  Every command above fails loudly, naming the file it looked for and what it needed; a skill
-  run against a repo that declares nothing must stop, never guess a path.
-- **Write `reference` verbatim.** Each image/download role declares a `valueFormat`
-  (`filename`, `cdn-relative-path`, or `absolute-url`) because renderers consume the same asset
-  three different ways. `content.sh image` applies the rule; hand-assembling the string is the
-  bug this exists to prevent.
+- **Never hardcode a consuming repo's paths or schema.** Resolve them. Every command above fails
+  loudly, naming the file it looked for and what it needed; a skill run against a repo that declares
+  nothing must stop, never guess a path.
+- **Do not recreate repo-local pipeline procedure in this plugin.** Hand off after adding the
+  consuming repo's worktree so its own skill remains authoritative.
 
 Read-only skills resolve the same way. `brand-check`, `landing-page-seo`, `md-to-pdf`,
 `jira-source-discovery`, and `circleci` read the repo's declared roots through `content.sh paths`

@@ -57,9 +57,7 @@
         "git-dev",
         "git-pr",
         "git-pushtoprod",
-        "guide-item",
         "link-check",
-        "news-item",
         "open-worktree",
         "orchestrate-queue",
         "plugin-release",
@@ -68,7 +66,6 @@
         "site-audit",
         "start-ticket",
         "test-driven-development",
-        "toolkit-item",
         "weekly-update"
       ]
     },
@@ -215,10 +212,8 @@
         "git-dev",
         "git-pr",
         "git-pushtoprod",
-        "guide-item",
         "landing-page-seo",
         "link-check",
-        "news-item",
         "open-worktree",
         "optimize-images",
         "prose-lint",
@@ -228,7 +223,6 @@
         "site-audit",
         "start-ticket",
         "test-driven-development",
-        "toolkit-item",
         "weekly-update"
       ]
     },
@@ -427,9 +421,7 @@
       "git-dev",
       "git-pr",
       "git-pushtoprod",
-      "guide-item",
       "link-check",
-      "news-item",
       "open-worktree",
       "orchestrate-queue",
       "plugin-release",
@@ -438,7 +430,6 @@
       "site-audit",
       "start-ticket",
       "test-driven-development",
-      "toolkit-item",
       "weekly-update"
     ],
     "designer": [

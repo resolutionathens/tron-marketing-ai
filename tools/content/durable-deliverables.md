@@ -65,8 +65,10 @@ Website handoff: <engineering publishing skill | not applicable>
 
 For website-bound content, `Durable source` is the approved-source URL that the engineering
 publishing skill consumes. Set `Website handoff` to the named engineering skill, such as
-`tron:news-item`, `tron:guide-item`, or `tron:toolkit-item`. Do not include repository paths, front
-matter, component syntax, branches, or deployment instructions: those belong to engineering.
+bare `news-item`, `guide-item`, or `toolkit-item`. The handoff must first create or reopen a
+marketing-pages worktree and add that directory to the session because repo-local skills only appear
+in the listing after their directory is added. Do not include repository paths, front matter,
+component syntax, branches, or deployment instructions: those belong to engineering.
 
 Content skills never create or switch branches, open worktrees, write repository content, commit,
 push, or open pull requests.

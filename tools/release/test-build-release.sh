@@ -27,6 +27,10 @@ archive_has() {
   return 1
 }
 
+archive_lacks() {
+  ! archive_has "$1" "$2"
+}
+
 VERSION="$(node -p "require('$ROOT/.claude-plugin/plugin.json').version")"
 COMMIT="$(git -C "$ROOT" rev-parse HEAD)"
 for HARNESS in claude codex; do
@@ -88,7 +92,14 @@ while IFS= read -r REPO; do
   archive_has "$OUT/tron-repo-$REPO-claude-v$VERSION.tar.gz" ".claude-plugin/marketplace.json"
   archive_has "$OUT/tron-repo-$REPO-codex-v$VERSION.tar.gz" ".agents/plugins/marketplace.json"
 done < <(node -p "Object.keys(require('$ROOT/packages/package-map.json').repos || {}).join('\n')")
-archive_has "$OUT/tron-repo-marketing-pages-claude-v$VERSION.tar.gz" "skills/news-item/SKILL.md"
+for SKILL in guide-item news-item toolkit-item; do
+  archive_lacks "$OUT/tron-claude-v$VERSION.tar.gz" "tron-v$VERSION/skills/$SKILL/SKILL.md"
+  archive_lacks "$OUT/tron-codex-v$VERSION.tar.gz" "tron-v$VERSION/skills/$SKILL/SKILL.md"
+  for HARNESS in claude codex; do
+    archive_lacks "$OUT/tron-engineer-$HARNESS-v$VERSION.tar.gz" "skills/$SKILL/SKILL.md"
+    archive_lacks "$OUT/tron-repo-marketing-pages-$HARNESS-v$VERSION.tar.gz" "skills/$SKILL/SKILL.md"
+  done
+done
 
 (cd "$OUT" && shasum -a 256 -c SHA256SUMS)
 for ARTIFACT in "$OUT"/*; do
