@@ -65,9 +65,12 @@ has "$CONTRACT"      "contract: unavailable != passed"          "report it as un
 # MD-2536 each had to fix once. These assertions are what keeps it deleted.
 has "$CONTRACT"  "contract: local-pre-pr-review anchor"      "<!-- contract:local-pre-pr-review -->"
 has "$CONTRACT"  "contract: review runs before the PR"       "before the pull request exists"
-has "$CONTRACT"  "contract: one fix-and-re-review cycle"     "no third round"
+has "$CONTRACT"  "contract: three-round review policy"       "At most three review rounds"
 has "$CONTRACT"  "contract: names the review client"        "tools/review/review.mjs"
 has "$CONTRACT"  "contract: names the disposition command"   "review.mjs disposition"
+has "$CONTRACT"  "contract: names final remediation"        "review.mjs remediation"
+has "$CONTRACT"  "contract: requires final evidence before PR" "final-remediation evidence before PR registration"
+has "$CONTRACT"  "contract: names failed-review recovery"   "review.mjs recovery"
 has "$CONTRACT"  "contract: trigger works from any repo"     "works from any repo"
 has "$CONTRACT"  "contract: nothing reviews after PR opens"  "Nothing reviews the PR after it opens"
 has "$GIT_PR"    "git-pr: names the bundled review client"   "tools/review/review.mjs"

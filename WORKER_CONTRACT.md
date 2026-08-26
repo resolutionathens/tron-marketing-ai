@@ -119,14 +119,26 @@ a per-criterion verdict rather than a general impression of the code. No diff le
   which is already in your env — you do **not** need a tron-os checkout, and `bun run review:local`
   is the tron-os-only spelling of the same thing. Only the trigger is local to you; the reviewer,
   the round policy and the record all stay server-side.
-- **Exactly ONE fix-and-re-review cycle — there is no third round.** Round one finds; you fix; you
-  record a disposition for **every** round-one finding with
-  `review.mjs disposition --finding <id> --fixed|--skipped|--disagreed --note "<why>"`; round two
-  records what survived. The review prints the exact disposition command under each finding, already
-  spelled for how you invoked it — copy it rather than composing it. Whatever round two returns, you
-  then open the PR.
+- **At most three review rounds, with remediation after every non-pass.** After rounds one and two,
+  fix every actionable finding and unmet criterion, verify the changed behavior, and record a
+  disposition for **every** finding with `review.mjs disposition --finding <id>
+  --fixed|--skipped|--disagreed --note "<why>"`; then trigger the next review. The review prints
+  the exact disposition command under each finding, already spelled for how you invoked it. Copy it
+  rather than composing it. A passing round settles review immediately.
+- **A non-passing third round requires final-remediation evidence before PR registration.** Fix every
+  actionable finding and unmet criterion, run the affected tests and verification ladder, and record
+  repair plus verification for every final-round target with `review.mjs remediation --target
+  <finding:id|criterion:text> --repair "<what changed>" --verification "<command and passing
+  result>"`. A third-round non-pass is a remediation list, not permission to park. There is no fourth
+  review round.
+- **A terminal failed review with no repair targets requires recovery evidence before PR
+  registration.** Only when the control plane records a terminal failure with no finding or unmet
+  criterion, use `review.mjs recovery --failed-review-reason "<why it failed without a target>"
+  --verification "<command and passing result>"`. Do not use recovery to bypass a final-round
+  finding or unmet criterion.
 - **Record a disposition even when you disagree.** A reasoned push-back is a signal about the rule;
-  a silent fix destroys the round-one/round-two comparison the second round exists to make.
+  a silent fix destroys the round-one/round-two or round-two/round-three comparison the next review
+  exists to make.
 - **A review that could not run is recorded FAILED, never clean.** If the trigger reports it could
   not run, say so prominently — do not represent it as a clean review, and do not substitute a
   remote reviewer for it.
