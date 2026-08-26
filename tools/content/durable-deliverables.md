@@ -70,5 +70,7 @@ marketing-pages worktree and add that directory to the session because repo-loca
 in the listing after their directory is added. Do not include repository paths, front matter,
 component syntax, branches, or deployment instructions: those belong to engineering.
 
-Content skills never create or switch branches, open worktrees, write repository content, commit,
-push, or open pull requests.
+For a website handoff only, a content skill may use `tron:start-ticket` or
+`tron:open-worktree` to create or reopen the marketing-pages worktree and add it to the session.
+That context setup is the boundary: the content skill never writes repository content, commits,
+pushes, or opens a pull request. The repo-local publishing skill owns all repository work.
