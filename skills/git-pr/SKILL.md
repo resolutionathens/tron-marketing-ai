@@ -111,16 +111,35 @@ happens. Say so in Step 8.
 Branch on the exit code — it is your instruction, not a status:
 
 - **0 — settled.** Continue to Step 2.
-- **1 — findings to address.** Fix the valid ones in the worktree, then record a disposition for
-  **every** round-one finding, including the ones you disagree with:
+- **1 — findings to address in round 1 or 2.** Fix the valid ones in the worktree, then record a
+  disposition for **every** finding from that round, including the ones you disagree with:
 
   ```bash
   node "$REVIEW" disposition --finding <id> --fixed|--skipped|--disagreed --note "<what you did, or why not>"
   ```
 
-  The review prints the exact invocation under each finding — copy it, don't compose it. Then
-  re-run `node "$REVIEW" local` once. **There is exactly one fix-and-re-review cycle and no third
-  round:** whatever round two returns, you proceed to the PR.
+  The review prints the exact invocation under each finding — copy it, don't compose it. Verify the
+  affected behavior, then re-run `node "$REVIEW" local` for the next round. The live gate permits
+  **three** rounds: rounds one and two require this remediation and disposition loop.
+- **1 — findings to address in round 3.** Fix every actionable finding and unmet criterion, run the
+  affected tests and verification ladder, then record repair plus verification evidence for every
+  final-round target before PR registration:
+
+  ```bash
+  node "$REVIEW" remediation --target <finding:id|criterion:text> --repair "<what changed>" --verification "<command and passing result>"
+  ```
+
+  A non-passing third round is a remediation list, not permission to park. **There is no fourth
+  round.** Do not create the PR until the final-remediation evidence is recorded.
+- **1 — terminal review failed with no repair targets.** Only when the control plane records a
+  failed terminal review with no finding or unmet criterion, record its reason and verification:
+
+  ```bash
+  node "$REVIEW" recovery --failed-review-reason "<why the terminal review failed without a target>" --verification "<command and passing result>"
+  ```
+
+  Do not use recovery to bypass a final-round finding or unmet criterion. Do not create the PR
+  until this recovery evidence is recorded.
 - **2 — the review could not run at all** (no dispatch env, control plane unreachable). This is
   **not** a clean review. Do not represent it as one; report it in Step 8.
 

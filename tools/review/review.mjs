@@ -9,13 +9,15 @@
  * is the same problem `tools/okf/okf.mjs` solved for OKF queries, and it has the same
  * answer: the worker's channel back to the OS is HTTP over `TRON_API_URL`.
  *
- * What moved here is ONLY the trigger. The reviewer launch, the one fix-and-re-review
- * cycle, the round timeout and the record all stay OS runtime behind these two routes:
+ * What moved here is ONLY the trigger. The reviewer launch, the three-round remediation
+ * cycle, the round timeout and the record all stay OS runtime behind these routes:
  *
  *   POST {TRON_API_URL}/api/dispatches/:id/local-review
  *        { verified: string[] }  → { text?, round?, localReview? }
  *   POST {TRON_API_URL}/api/dispatches/:id/local-review/findings/:findingId/disposition
  *        { disposition, note }   → { localReview? }
+ *   POST {TRON_API_URL}/api/dispatches/:id/local-review/final-remediation
+ *        { target, repair, verification } → { localReview? }
  *
  * This file reimplements NO policy. A client that decided "how many rounds do I get"
  * could disagree with the control plane about it, which is exactly the bug that makes a
@@ -70,6 +72,8 @@ function usage(code = 0) {
       "Usage:",
       `  ${self} local [--verified <text>]...`,
       `  ${self} disposition --finding <id> --fixed|--skipped|--disagreed --note <text>`,
+      `  ${self} remediation --target <finding:id|criterion:text> --repair <text> --verification <command and result>`,
+      `  ${self} recovery --failed-review-reason <text> --verification <command and result>`,
       "",
       "local        Run ONE local pre-PR review round for this dispatch and print the result.",
       "  --verified <text>   (repeatable) a check you ALREADY ran green on this branch, e.g.",
@@ -82,12 +86,21 @@ function usage(code = 0) {
       `  --<disposition>     one of: ${DISPOSITIONS.map((d) => `--${d}`).join(", ")}`,
       "  --note <text>       REQUIRED — what you changed, or why you did not.",
       "",
-      "Record one for EVERY round-one finding, including the ones you disagree with: a reasoned",
+      "Record one for EVERY round-one or round-two finding, including the ones you disagree with: a reasoned",
       "push-back is a signal about the rule, and a silent fix destroys the round-one/round-two",
-      "comparison the second review exists to make.",
+      "or round-two/round-three comparison the next review exists to make.",
       "",
-      "The policy is exactly one fix-and-re-review cycle:",
-      "  round 1 → fix → record a disposition for EACH → round 2 → open the PR. No third round.",
+      "remediation Record repair and verification evidence for ONE non-passing final-review target.",
+      "  --target <finding:id|criterion:text>  target printed by the final review.",
+      "  --repair <text>                       what you changed to address it.",
+      "  --verification <text>                 affected command and its passing result.",
+      "",
+      "The policy permits at most three review rounds:",
+      "  round 1 → fix → disposition for EACH → round 2 → fix → disposition for EACH → round 3.",
+      "  A non-passing round 3 requires repair and verification evidence for EVERY target before",
+      "  PR registration. There is no fourth round.",
+      "  A terminal failed review with zero repair targets needs a recovery reason and verification",
+      "  through `recovery`; never use recovery to bypass a finding or unmet criterion.",
       "",
       "Env: TRON_DISPATCH_ID (required), TRON_API_URL (default " + DEFAULT_API_URL + ").",
       "Exit: 0 settled · 1 findings to address · 2 could not run at all.",
@@ -155,8 +168,8 @@ if (cmd === "local") {
   const body = await readJson(res);
 
   if (res.status === 409) {
-    // Both rounds spent. A normal terminal outcome, not an error.
-    console.log(localizeCommands(body.error) ?? "Both local review rounds are spent.");
+    // All review rounds are spent. A normal terminal outcome, not an error.
+    console.log(localizeCommands(body.error) ?? "All local review rounds are spent.");
     process.exit(0);
   }
 
@@ -218,10 +231,58 @@ if (cmd === "disposition") {
 
   console.log(`Recorded ${disposition} for finding ${findingId}.`);
   if (body.localReview?.roundsRemaining) {
-    console.log(`When every round-one finding has one, run \`${selfInvocation()} local\` for your final review.`);
+    const nextReview = body.localReview.roundsRemaining === 1 ? "final review" : "next review";
+    console.log(`When every finding from this round has one, run \`${selfInvocation()} local\` for your ${nextReview}.`);
   }
   process.exit(0);
 }
 
-console.error(`review: unknown subcommand '${cmd}' (try: local, disposition)`);
+if (cmd === "remediation") {
+  const target = flag("target");
+  const repair = flag("repair");
+  const verification = flag("verification");
+  if (!target?.trim() || !repair?.trim() || !verification?.trim()) {
+    console.error("--target, --repair, and --verification are required for final remediation evidence.");
+    process.exit(2);
+  }
+
+  const res = await post(
+    `${base}/final-remediation`,
+    { target: target.trim(), repair: repair.trim(), verification: verification.trim() },
+    2,
+  );
+  const body = await readJson(res);
+  if (!res.ok) {
+    console.error(`review remediation failed (${res.status}): ${body.error ?? "unknown error"}`);
+    process.exit(1);
+  }
+
+  console.log(`Recorded final remediation for ${target.trim()}.`);
+  process.exit(0);
+}
+
+if (cmd === "recovery") {
+  const reason = flag("failed-review-reason");
+  const verification = flag("verification");
+  if (!reason?.trim() || !verification?.trim()) {
+    console.error("--failed-review-reason and --verification are required for failed final-review recovery.");
+    process.exit(2);
+  }
+
+  const res = await post(
+    `${base}/failed-final-recovery`,
+    { reason: reason.trim(), verification: verification.trim() },
+    2,
+  );
+  const body = await readJson(res);
+  if (!res.ok) {
+    console.error(`review recovery failed (${res.status}): ${body.error ?? "unknown error"}`);
+    process.exit(1);
+  }
+
+  console.log("Recorded failed final-review recovery.");
+  process.exit(0);
+}
+
+console.error(`review: unknown subcommand '${cmd}' (try: local, disposition, remediation, recovery)`);
 usage(2);

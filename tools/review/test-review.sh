@@ -39,16 +39,16 @@ import { appendFileSync } from "node:fs";
 
 const RESPONSES = {
   // settled, no findings → exit 0
-  "d-settled": [200, { text: "Round 2: nothing further.", round: { status: "completed", findings: [] },
-                       localReview: { settled: true, roundsRemaining: 0, roundsSpent: 2 } }],
+  "d-settled": [200, { text: "Round 3: nothing further.", round: { status: "completed", findings: [] },
+                       localReview: { settled: true, roundsRemaining: 0, roundsSpent: 3 } }],
   // findings present → exit 1, and the text carries the OS-side bun command
   "d-findings": [200, { text: "Round 1: 1 finding.\n  bun run review:disposition --finding f1 --fixed|--skipped|--disagreed --note \"<why>\"\nNext: run the `review:disposition` line, then `review:local`.",
                         round: { status: "completed", findings: [{ id: "f1", category: "correctness", severity: "high", file: "a.ts", line: 2, issue: "boom" }] },
-                        localReview: { settled: false, roundsRemaining: 1, roundsSpent: 1 } }],
+                        localReview: { settled: false, roundsRemaining: 2, roundsSpent: 1 } }],
   // the review did not run → recorded FAILED, exit 1, never "clean"
   "d-failed":  [200, { text: "Round 1 FAILED.", round: { status: "failed", failureReason: "reviewer session died", findings: [] } }],
-  // both rounds spent → terminal but NOT an error, exit 0
-  "d-409":     [409, { error: "Both local review rounds are spent. Run `bun run review:local` no more." }],
+  // all three rounds spent → terminal but NOT an error, exit 0
+  "d-409":     [409, { error: "All local review rounds are spent. Run `bun run review:local` no more." }],
   // server-side error → exit 2, not a clean review
   "d-500":     [500, { error: "internal" }],
   // an older control plane that returns no rendered `text`
@@ -57,17 +57,29 @@ const RESPONSES = {
 
 const srv = createServer((req, res) => {
   const u = new URL(req.url, "http://x");
-  const m = u.pathname.match(/^\/api\/dispatches\/([^/]+)\/local-review(\/findings\/([^/]+)\/disposition)?$/);
+  const m = u.pathname.match(/^\/api\/dispatches\/([^/]+)\/local-review(\/findings\/([^/]+)\/disposition|\/final-remediation|\/failed-final-recovery)?$/);
   if (req.method !== "POST" || !m) { res.writeHead(404); res.end("{}"); return; }
-  const [, id, , findingId] = m;
+  const [, id, suffix, findingId] = m;
   let raw = "";
   req.on("data", (c) => (raw += c));
   req.on("end", () => {
     appendFileSync(process.env.BODY_LOG, `${u.pathname} ${raw}\n`);
+    if (suffix === "/final-remediation") {
+      if (id === "d-500") { res.writeHead(400, {"content-type":"application/json"}); res.end('{"error":"unresolved target"}'); return; }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ localReview: { allowsPr: true } }));
+      return;
+    }
+    if (suffix === "/failed-final-recovery") {
+      if (id === "d-500") { res.writeHead(400, {"content-type":"application/json"}); res.end('{"error":"recovery not allowed"}'); return; }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ localReview: { allowsPr: true } }));
+      return;
+    }
     if (findingId) {
       if (id === "d-500") { res.writeHead(400, {"content-type":"application/json"}); res.end('{"error":"unknown finding"}'); return; }
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ localReview: { roundsRemaining: 1 } }));
+      res.end(JSON.stringify({ localReview: { roundsRemaining: id === "d-final" ? 1 : 2 } }));
       return;
     }
     const [code, body] = RESPONSES[id] || [200, { round: { status: "completed", findings: [] } }];
@@ -103,9 +115,9 @@ rc_of 2 "local: server error → exit 2 (not a clean review)" -- run d-500 local
 
 # 409 is a normal terminal outcome, not an error — the round budget is simply spent.
 out="$(run d-409 local)"; rc=$?
-[ "$rc" = 0 ] || fail "409 both-rounds-spent must exit 0, got $rc"
+[ "$rc" = 0 ] || fail "409 all-rounds-spent must exit 0, got $rc"
 check "409 prints the reason" "rounds are spent" "$out"
-pass "local: 409 both rounds spent → exit 0, reported not thrown"
+pass "local: 409 all rounds spent → exit 0, reported not thrown"
 
 # ---- MD-2749: printed commands must resolve HERE, not in tron-os --------------
 # The OS renders `bun run review:disposition …` because it is written for a worker
@@ -148,7 +160,13 @@ out="$(run d-findings disposition --finding f1 --fixed --note "narrowed the guar
 check "disposition confirms what was recorded" "Recorded fixed for finding f1" "$out"
 check "disposition posts to the per-finding route" "/findings/f1/disposition" "$(cat "$BODY_LOG")"
 check "disposition forwards the note" "narrowed the guard" "$(cat "$BODY_LOG")"
+check "round one disposition names the next review" "for your next review" "$out"
 pass "disposition: valid call posts to the per-finding route and exits 0"
+
+out="$(run d-final disposition --finding f2 --fixed --note "narrowed the guard")"; rc=$?
+[ "$rc" = 0 ] || fail "a round-two disposition must exit 0, got $rc"
+check "round two disposition names the final review" "for your final review" "$out"
+pass "disposition: transition wording reflects the remaining review round"
 
 rc_of 2 "disposition: missing --finding → exit 2"      -- run d-findings disposition --fixed --note n
 rc_of 2 "disposition: missing --note → exit 2"         -- run d-findings disposition --finding f1 --fixed
@@ -162,6 +180,35 @@ rc_of 1 "disposition: server rejection → exit 1"       -- run d-500 dispositio
 out="$(run d-findings disposition --finding f2 --disagreed --note "rule does not apply to generated code")"
 check "disagreed is recordable" "Recorded disagreed for finding f2" "$out"
 pass "disposition: --disagreed records like any other verdict"
+
+# ---- final remediation --------------------------------------------------------
+: > "$BODY_LOG"
+out="$(run d-findings remediation --target finding:f3 --repair "narrowed the guard" --verification "bash tools/review/test-review.sh: passed")"; rc=$?
+[ "$rc" = 0 ] || fail "valid final remediation must exit 0, got $rc"
+check "final remediation confirms the recorded target" "Recorded final remediation for finding:f3" "$out"
+check "final remediation posts to its route" "/local-review/final-remediation" "$(cat "$BODY_LOG")"
+check "final remediation forwards repair evidence" "narrowed the guard" "$(cat "$BODY_LOG")"
+check "final remediation forwards verification evidence" "test-review.sh: passed" "$(cat "$BODY_LOG")"
+pass "remediation: records repair and verification evidence"
+
+rc_of 2 "remediation: missing target → exit 2" -- run d-findings remediation --repair x --verification y
+rc_of 2 "remediation: missing repair → exit 2" -- run d-findings remediation --target finding:f3 --verification y
+rc_of 2 "remediation: missing verification → exit 2" -- run d-findings remediation --target finding:f3 --repair x
+rc_of 1 "remediation: server rejection → exit 1" -- run d-500 remediation --target finding:f3 --repair x --verification y
+
+# ---- terminal failed-review recovery -----------------------------------------
+: > "$BODY_LOG"
+out="$(run d-findings recovery --failed-review-reason "review artifact was invalid with no repair target" --verification "bash tools/review/test-review.sh: passed")"; rc=$?
+[ "$rc" = 0 ] || fail "valid failed-review recovery must exit 0, got $rc"
+check "recovery confirms the recorded evidence" "Recorded failed final-review recovery" "$out"
+check "recovery posts to its route" "/local-review/failed-final-recovery" "$(cat "$BODY_LOG")"
+check "recovery forwards the failure reason" "invalid with no repair target" "$(cat "$BODY_LOG")"
+check "recovery forwards verification evidence" "test-review.sh: passed" "$(cat "$BODY_LOG")"
+pass "recovery: records terminal failed-review evidence"
+
+rc_of 2 "recovery: missing failure reason → exit 2" -- run d-findings recovery --verification y
+rc_of 2 "recovery: missing verification → exit 2" -- run d-findings recovery --failed-review-reason x
+rc_of 1 "recovery: server rejection → exit 1" -- run d-500 recovery --failed-review-reason x --verification y
 
 # ---- no dispatch env: cannot run, and says so --------------------------------
 rc_of 2 "local without TRON_DISPATCH_ID → exit 2"       -- env -u TRON_DISPATCH_ID TRON_API_URL="$API" node "$CLI" local
@@ -178,7 +225,9 @@ rc_of 2 "unknown subcommand → exit 2" -- run d1 bogus
 out="$(run d1 --help)"
 check "help documents local" " local" "$out"
 check "help documents disposition" " disposition" "$out"
-check "help states the one-cycle policy" "No third round" "$out"
+check "help documents remediation" " remediation" "$out"
+check "help documents recovery" " recovery" "$out"
+check "help states the three-round policy" "There is no fourth round" "$out"
 pass "help → prints usage (exit 0)"
 
 echo ""
