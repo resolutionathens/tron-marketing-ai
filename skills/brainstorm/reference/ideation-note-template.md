@@ -52,7 +52,7 @@ ready_to_produce: false # flip to true once discovery work below is done
 ## Next Step
 
 - Once discovery is done, hand to the right production skill for the idea:
-  - **Web content** → `tron:news-item` (article), `tron:guide-item` (guide), `tron:toolkit-item` (SOP/checklist/template).
+  - **Web content** → first use `tron:start-ticket` to create, or `tron:open-worktree` to reopen, a marketing-pages worktree and add it to the session. The repo-local skills only appear in the listing after that directory is added; then invoke bare `news-item` (article), `guide-item` (guide), or `toolkit-item` (SOP/checklist/template).
   - **Campaign / lifecycle** → `tron:email-campaign`, `tron:social-post`.
   - **Narrative / proof** → `tron:case-study`, `tron:press-release`.
   - **A new landing page** → `tron:landing-page-seo` (target keywords + on-page spec).

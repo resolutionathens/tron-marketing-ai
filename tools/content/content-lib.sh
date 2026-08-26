@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # content-lib.sh — pure, offline-testable primitives shared by the marketing-pages
-# content pipelines (tron:toolkit-item, news-item, guide-item). Sourced, not run:
+# content helpers retained for plugin consumers and repo-local publishing pipelines. Sourced, not run:
 #
 #   source "$CLAUDE_PLUGIN_ROOT/tools/content/content-lib.sh"
 #

@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# content: the shared deterministic helper for the marketing-pages content
-# pipelines (tron:toolkit-item, news-item, guide-item). One wrapper over
-# content-lib.sh so all three call the same implementation of the steps they
-# used to hand-roll. The judgment — writing copy, choosing components, building
-# the PDF — stays in each skill.
+# content: shared deterministic helpers for plugin consumers that read a
+# consuming repo's content profile. One wrapper over content-lib.sh keeps the
+# repo guard, path resolution, slugging, and link checks consistent.
 #
 # Usage:
 #   content.sh check-repo   [--repo PATH]          → {"ok":true,"isMarketingPages":true,"checkout":"…"}

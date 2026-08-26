@@ -165,6 +165,52 @@ const expectedContentResources = [
   "tools/voice",
 ];
 const websitePublishingSkills = ["guide-item", "news-item", "toolkit-item"];
+for (const skill of websitePublishingSkills) {
+  if (fs.existsSync(path.join(root, "skills", skill, "SKILL.md"))) {
+    throw new Error(`plugin still authors repo-local skill ${skill}`);
+  }
+}
+const repoLocalReferences = {
+  "skills/case-study/SKILL.md": ["guide-item", "news-item"],
+  "skills/confluence/SKILL.md": ["news-item", "guide-item"],
+  "skills/brainstorm/SKILL.md": ["news-item", "guide-item", "toolkit-item"],
+  "skills/brainstorm/reference/ideation-note-template.md": ["news-item", "guide-item", "toolkit-item"],
+  "skills/keyword-research/SKILL.md": ["guide-item"],
+  "skills/link-check/SKILL.md": ["news-item", "guide-item", "toolkit-item"],
+  "skills/prose-lint/SKILL.md": ["news-item", "guide-item"],
+  "skills/press-release/SKILL.md": ["news-item"],
+  "skills/md-to-pdf/SKILL.md": ["toolkit-item"],
+  "skills/jira/SKILL.md": ["news-item"],
+};
+for (const [file, skills] of Object.entries(repoLocalReferences)) {
+  const text = fs.readFileSync(path.join(root, file), "utf8");
+  for (const skill of skills) {
+    if (!text.includes(`\`${skill}\``) || new RegExp(`tron(?:-[a-z-]+)?:${skill}`).test(text)) {
+      throw new Error(`${file} does not use the bare repo-local ${skill} name`);
+    }
+  }
+}
+for (const file of [
+  "skills/case-study/SKILL.md",
+  "skills/brainstorm/SKILL.md",
+  "skills/keyword-research/SKILL.md",
+  "skills/press-release/SKILL.md",
+]) {
+  const text = fs.readFileSync(path.join(root, file), "utf8");
+  for (const required of ["tron:start-ticket", "tron:open-worktree", "marketing-pages", "worktree", "listing"] ) {
+    if (!text.includes(required)) throw new Error(`${file} omits worktree-first handoff detail: ${required}`);
+  }
+  for (const required of ["For a website handoff only", "never writes repository content or owns other Git work", "repo-local publishing skill owns"] ) {
+    if (!text.includes(required)) throw new Error(`${file} omits the narrow worktree-setup boundary: ${required}`);
+  }
+  if (/never[^\n]*(perform|performs)[^\n]*Git operations/.test(text)) {
+    throw new Error(`${file} still contradicts its required worktree-first handoff`);
+  }
+}
+const ideationTemplate = fs.readFileSync(path.join(root, "skills/brainstorm/reference/ideation-note-template.md"), "utf8");
+for (const required of ["tron:start-ticket", "tron:open-worktree", "marketing-pages", "worktree", "listing"] ) {
+  if (!ideationTemplate.includes(required)) throw new Error(`ideation note template omits worktree-first handoff detail: ${required}`);
+}
 for (const harness of ["claude", "codex"]) {
   const content = inventory.packages.find((entry) =>
     entry.harness === harness && entry.package === "tron-content");
@@ -177,8 +223,14 @@ for (const harness of ["claude", "codex"]) {
   const marketingPages = inventory.packages.find((entry) =>
     entry.harness === harness && entry.package === "tron-repo-marketing-pages");
   const retained = marketingPages.skills.filter((skill) => websitePublishingSkills.includes(skill));
-  if (JSON.stringify(retained) !== JSON.stringify(websitePublishingSkills)) {
-    throw new Error(`${harness}/marketing-pages lost website-publishing skills: ${retained}`);
+  if (retained.length !== 0) {
+    throw new Error(`${harness}/marketing-pages still ships repo-local skills: ${retained}`);
+  }
+  for (const entry of inventory.packages.filter((entry) => entry.harness === harness)) {
+    const leaked = entry.skills.filter((skill) => websitePublishingSkills.includes(skill));
+    if (leaked.length !== 0) {
+      throw new Error(`${harness}/${entry.package} still ships repo-local skills: ${leaked}`);
+    }
   }
 }
 for (const name of Object.keys(bundles).filter((entry) => entry !== "core")) {
@@ -275,12 +327,12 @@ test -f "$OUT/codex/tron-designer/tools/imagekit/imagekit.mjs"
 node -e "
 const fs = require('fs');
 const text = fs.readFileSync(process.argv[1], 'utf8');
-if (!text.includes('tron-engineer:news-item') || text.includes('tron-content:news-item')) process.exit(1);
+if (!text.includes('repo-local **\`news-item\`**') || !text.includes('marketing-pages worktree') || text.includes(':news-item')) process.exit(1);
 " "$OUT/claude/tron-content/skills/link-check/SKILL.md"
 node -e "
 const fs = require('fs');
 const text = fs.readFileSync(process.argv[1], 'utf8');
-if (!text.includes('tron-engineer:news-item') || text.includes('tron-content:news-item')) process.exit(1);
+if (!text.includes('repo-local **\`news-item\`**') || !text.includes('marketing-pages worktree') || text.includes(':news-item')) process.exit(1);
 " "$OUT/claude/tron-engineer/skills/link-check/SKILL.md"
 
 for HARNESS in claude codex; do
@@ -289,7 +341,8 @@ for HARNESS in claude codex; do
     test -f "$OUT/$HARNESS/tron-repo-$REPO/skills/figma-inspect/SKILL.md"
   done
   for SKILL in guide-item news-item toolkit-item; do
-    test -f "$OUT/$HARNESS/tron-repo-marketing-pages/skills/$SKILL/SKILL.md"
+    test ! -e "$OUT/$HARNESS/tron-engineer/skills/$SKILL"
+    test ! -e "$OUT/$HARNESS/tron-repo-marketing-pages/skills/$SKILL"
     test ! -e "$OUT/$HARNESS/tron-content/skills/$SKILL"
   done
   test ! -e "$OUT/$HARNESS/tron-content/tools/git"

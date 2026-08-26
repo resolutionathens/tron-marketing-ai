@@ -57,4 +57,4 @@ Delegate the XML-to-markdown transform to the **`confluence-transformer` agent**
 bash "$SKILL_DIR/scripts/confluence.sh" fetch <url-or-id> > /tmp/body.html
 ```
 
-For content pipelines (news-item, guide-item) and any image/attachment downloads, use the shared `tools/confluence/fetch-confluence.sh` instead — it handles the API gateway auth for attachment bytes and writes `body.html` directly. The transformer returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of your context.
+For the repo-local content pipelines (`news-item`, `guide-item`) and any image/attachment downloads, use the shared `tools/confluence/fetch-confluence.sh` instead — it handles the API gateway auth for attachment bytes and writes `body.html` directly. The transformer returns `<markdown>…</markdown>` (extract the body) and `<images>…</images>` (one filename per line, document order). Keep the raw XML out of your context.

@@ -154,5 +154,7 @@ Running `acli` is cheap; the question is what comes back and what you do with it
 **Never delegate when:**
 
 - It's a **single-field lookup** (status, assignee) — the payload is tiny and subagent overhead dominates.
-- The main thread is **reading the ticket to act on it** (e.g. `tron:start-ticket`, `tron:news-item` consuming the ticket) — you need those fields _in_ the main context, and a summarizing subagent strips exactly what you came for.
+- The main thread is **reading the ticket to act on it** (e.g. `tron:start-ticket`, or bare
+  `news-item` after its marketing-pages worktree directory is added to the session) — you need those
+  fields _in_ the main context, and a summarizing subagent strips exactly what you came for.
 - It's a **write** (comment, transition, assign) — fast, stateful, and the user should see it happen in the main thread.

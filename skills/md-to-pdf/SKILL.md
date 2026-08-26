@@ -136,6 +136,6 @@ front matter, component syntax, branch, and deployment work. The cleanup trap th
 
 ## What goes into the PDF
 
-It's the caller's job to decide what the PDF should _contain_. For toolkit items in particular, the PDF is the printable take-away (the procedure or checklist body), not a clone of the SEO-rich web page. Strip the lead-in copy, "What is …?" framing, Compliance/Version-Control sections, and `::faq` blocks before building. The `tron:toolkit-item` skill walks through this in detail.
+It's the caller's job to decide what the PDF should _contain_. For toolkit items in particular, the PDF is the printable take-away (the procedure or checklist body), not a clone of the SEO-rich web page. Strip the lead-in copy, "What is …?" framing, Compliance/Version-Control sections, and `::faq` blocks before building. The repo-local `toolkit-item` skill walks through this in detail after its marketing-pages worktree directory is added to the session.
 
 For logo regeneration details, see [pandoc exceptions](reference/pandoc-exceptions.md).

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Smoke for content.sh + content-lib.sh — the deterministic backbone shared by
-# tron:toolkit-item, news-item, and guide-item. Everything here is offline:
+# Smoke for content.sh + content-lib.sh. Everything here is offline:
 # slug derivation, the facilitron.com→relative rewrite, internal-path resolution
 # against a temp pages/ tree, next-index, the repo guard, and the usage contract.
 #

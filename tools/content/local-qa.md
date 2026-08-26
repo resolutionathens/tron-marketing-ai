@@ -1,8 +1,7 @@
 # Content worktree bootstrap and local QA
 
 Use this reference before running local content checks in a fresh
-`marketing-pages` worktree. It is shared by `tron:news-item`,
-`tron:guide-item`, and `tron:toolkit-item`.
+`marketing-pages` worktree.
 
 ## Bootstrap the worktree
 

@@ -53,7 +53,13 @@ rg -q 'explicit Google Drive folder/file ID' "$contract" || fail "durable contra
 rg -q 'explicit non-temporary local folder selected by the user' "$contract" || fail "durable contract does not require an explicit durable file destination"
 rg -q 'mktemp -d .*tron-content\.XXXXXX' "$contract" || fail "durable contract does not create a unique scratch workspace"
 rg -q 'success and failure both remove the workspace' "$contract" || fail "durable contract does not require cleanup on success and failure"
-rg -q 'never create or switch branches, open worktrees, write repository content, commit' "$contract" || fail "durable contract does not prohibit repository work"
+rg -q 'website handoff only.*content skill may use' "$contract" || fail "durable contract does not permit the worktree-first website handoff"
+rg -q 'tron:start-ticket' "$contract" || fail "durable contract does not name the create-worktree path"
+rg -q 'tron:open-worktree' "$contract" || fail "durable contract does not name the reopen-worktree path"
+rg -q 'content skill never writes repository content, commits' "$contract" || fail "durable contract does not preserve the repository-write boundary"
+if rg -q 'never create or switch branches, open worktrees' "$contract"; then
+  fail "durable contract still contradicts the required worktree-first website handoff"
+fi
 
 [[ "$(wc -w <<<"$EVALUATIONS" | tr -d ' ')" -eq 17 ]] || fail "durable evaluation inventory must contain exactly 17 scenarios"
 for relative in $EVALUATIONS; do

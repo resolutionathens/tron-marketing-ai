@@ -2,7 +2,7 @@
 
 A shared-source Claude Code and Codex **plugin** bundling the skills that drive day-to-day work on the
 [Facilitron marketing site](https://www.facilitron.com): Jira/Confluence intake, the
-git task lifecycle, content pipelines (news, toolkit, guides), branded PDF export,
+git task lifecycle, content drafting and handoffs, branded PDF export,
 ImageKit/Figma asset operations, and audit/QA tooling.
 
 It is its own repository so the skills can be versioned, reviewed, and installed across
@@ -18,7 +18,6 @@ Facilitron repos independently of any single project checkout.
 | **Git lifecycle**                    | `tron:start-ticket`, `tron:git-commit`, `tron:git-dev`, `tron:git-pr`, `tron:git-pushtoprod`, `tron:close-worktree`, `tron:open-worktree`, `tron:ship-ticket` (whole-flow orchestrator)                                                                                                 |
 | **Work orchestration**               | `tron:orchestrate-queue` (drive one ticket or a dependency-aware batch through the control plane to the human PR gate; requires `TRON_API_URL`)                                                                                                                                   |
 | **Engineering quality** (report-only) | `tron:test-driven-development` (behavior-first tests), `tron:debugging-and-error-recovery` (reproduce through verification), `tron:code-review-and-quality` (six-axis review), `tron:security-and-hardening` (trust-boundary assessment and hardening guidance), `tron:figma-inspect` (read-only implementation specifications) |
-| **Content pipelines**                | `tron:news-item`, `tron:toolkit-item`, `tron:guide-item`                                                                                                                                                                                                                                |
 | **Assets & media**                   | `tron:figma-to-imagekit`, `tron:gen-image`, `tron:md-to-pdf`                                                                                                                                                                                                                            |
 | **Preview & deploy**                 | `tron:gh`                                                                                                                                                                                                                                                                               |
 | **CI / pipelines**                   | `tron:circleci` (list/watch pipelines, fetch logs, validate `.circleci/config.yml`)                                                                                                                                                                                                     |
@@ -32,9 +31,11 @@ Facilitron repos independently of any single project checkout.
 | **Social** (git-free)                | `tron:social-post` (IG/FB/LI variants), `tron:spotlight` (new-hire / people / district / facility spotlights)                                                                                                                                                                           |
 | **Audits & QA** (read-only)          | `tron:a11y-scan` (WCAG via axe/pa11y), `tron:link-check` (broken links), `tron:prose-lint` (prose/style), `tron:site-audit` (site-wide Lighthouse), `tron:optimize-images` (pngquant) — each delegates the mechanical run to a cost-scoped runner subagent (Haiku, or Sonnet for prose) |
 
-Skills invoke as `tron:<name>` (e.g. `/tron:news-item`). The content skills
-(`news-item`, `toolkit-item`, `guide-item`) run a **preflight repo guard** and
-refuse to write unless the current checkout is `marketing-pages`.
+Plugin skills invoke as `tron:<name>` (for example, `/tron:jira`). The website-publishing
+`news-item`, `toolkit-item`, and `guide-item` skills are repo-local to marketing-pages and invoke by
+bare name. A cross-repo handoff must create or reopen a marketing-pages worktree and add that
+directory to the session before invoking them; they only appear in the listing after the directory
+is added.
 
 `tron:orchestrate-queue` is the single worker-orchestration entry point. Remove or disable legacy
 user-level `orchestrate-workers` and `orchestrate-epic` commands; they must not expose a second
@@ -82,9 +83,9 @@ repository gets is decided outside this repo; what a bundle contains is decided 
 The build emits matching Claude and Codex inventories from the same source and version. Generated
 skill prose rewrites an in-package `tron:<skill>` reference to the current package namespace. A
 reference outside the current inventory is rewritten to its declared owner, such as
-`tron-engineer:news-item`, making the cross-role handoff explicit instead of pretending the skill is
-local. Repository-writing content pipelines belong to engineering and the `marketing-pages` repo
-bundle; `tron-content` stays limited to drafting, critique, and content QA. The generated inventory
+`tron-engineer:git-pr`, making the cross-role handoff explicit instead of pretending the skill is
+local. Repository-writing content pipelines live only in marketing-pages and are intentionally
+absent from every plugin bundle; `tron-content` stays limited to drafting, critique, and content QA. The generated inventory
 records the monolith and scoped package IDs plus their
 mutual-exclusion rule so migration tooling can validate that a consumer enables exactly one
 distribution shape.
@@ -245,21 +246,21 @@ to load the plugin; a skill only fails if you invoke it without its tool present
 
 | Tool                                     | Install (macOS)                                                                           | Needed by                                                                                                                |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `enrich-jira-ticket`, `jira-source-discovery`, `jira-ticket-enricher`, `confluence`, `start-ticket`, `ship-ticket`, `news-item`, `guide-item`, `toolkit-item` |
+| **acli** (Atlassian CLI)                 | [Atlassian CLI docs](https://developer.atlassian.com/cloud/acli/) — then `acli jira auth` | `jira`, `jira-comment`, `enrich-jira-ticket`, `jira-source-discovery`, `jira-ticket-enricher`, `confluence`, `start-ticket`, `ship-ticket` |
 | **tmux** (terminal multiplexer)          | `brew install tmux`                                                                       | `start-ticket`, `open-worktree`, `close-worktree`, `ship-ticket`                                                         |
 | **gh** (GitHub CLI)                      | `brew install gh` → `gh auth login`                                                       | `gh`, `git-pr`, `git-pushtoprod`, `start-ticket`, `ship-ticket`                                                          |
-| **bun**                                  | `brew install oven-sh/bun/bun`                                                            | `md-to-pdf`, `news-item`, `guide-item`, `toolkit-item`                                                                   |
+| **bun**                                  | `brew install oven-sh/bun/bun`                                                            | `md-to-pdf`                                                                                                              |
 | **node** (Node.js)                       | `brew install node`                                                                       | ImageKit CLI consumers + `md-to-pdf`                                                                                     |
-| **lychee** (link checker)                | `brew install lychee`                                                                     | `news-item`, `toolkit-item`, `guide-item`, `link-check`                                                                  |
+| **lychee** (link checker)                | `brew install lychee`                                                                     | `link-check`                                                                                                             |
 | **pa11y / axe** (a11y scanners)          | `npm i -g pa11y pa11y-ci @axe-core/cli`                                                   | `a11y-scan`                                                                                                              |
 | **vale** (prose linter)                  | `brew install vale`                                                                       | `prose-lint`                                                                                                             |
 | **unlighthouse** (site Lighthouse)       | `npx unlighthouse` (no install; downloads Chromium on first run)                          | `site-audit`                                                                                                             |
 | **pngquant** (PNG compressor)            | `brew install pngquant`                                                                   | `optimize-images`                                                                                                        |
 | **pandoc**                               | `brew install pandoc`                                                                     | `md-to-pdf` (pandoc fallback path)                                                                                       |
 | **xelatex** (BasicTeX/MacTeX)            | `brew install --cask basictex` (+ `tlmgr install` extras)                                 | `md-to-pdf` (preferred LaTeX path)                                                                                       |
-| **codex** (OpenAI Codex CLI)             | `npm i -g @openai/codex` → `codex login`                                                  | `gen-image`, `guide-item`, `toolkit-item` (card images)                                                                  |
+| **codex** (OpenAI Codex CLI)             | `npm i -g @openai/codex` → `codex login`                                                  | `gen-image`                                                                                                              |
 | **jq**                                   | `brew install jq`                                                                         | `gh`, `start-ticket`                                                                                                     |
-| **webp / cwebp**                         | `brew install webp`                                                                       | image fallback for `news-item`, `guide-item`, `toolkit-item` (primary path uses Bun's built-in `Bun.Image` — no install) |
+| **webp / cwebp**                         | `brew install webp`                                                                       | shared image conversion fallback                                                                                         |
 | **librsvg / rsvg-convert**               | `brew install librsvg`                                                                    | `md-to-pdf` (only to regenerate the logo PNG — rare)                                                                     |
 | **ripgrep (rg)**                         | `brew install ripgrep`                                                                    | recommended for the internal-link `find`/grep checks                                                                     |
 
@@ -284,9 +285,8 @@ additionally for the `--key` (live-ticket) path.
 
 **ImageKit CLI**
 
-The **ImageKit CLI** is vendored in the plugin at `tools/imagekit/imagekit.mjs` and used by
-every skill that uploads media (`news-item`, `guide-item`, `toolkit-item`,
-`figma-to-imagekit`, `md-to-pdf`). Skills invoke it via
+The **ImageKit CLI** is vendored in the plugin at `tools/imagekit/imagekit.mjs` for plugin media
+workflows such as `figma-to-imagekit`. Skills invoke it via
 `${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/imagekit/imagekit.mjs`, so it
 resolves from any skill regardless of cwd.
 
@@ -310,7 +310,7 @@ your shell or add them to your `marketing-pages/.env.local`.
 | Var                   | Used for                                                                                                 |
 | --------------------- | -------------------------------------------------------------------------------------------------------- |
 | `ATLASSIAN_EMAIL`     | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable; falls back to `git config user.email` |
-| `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable (`confluence`, `news-item`, `guide-item`) |
+| `JIRA_API_TOKEN`      | Confluence attachment **download** basic auth, and the direct-auth fallback if the broker is unavailable (`confluence`) |
 | `CONFLUENCE_CLOUD_ID` | _(optional)_ override the Confluence cloud ID — defaults to Facilitron's instance                        |
 | `CONFLUENCE_BASE`     | _(optional)_ override the Confluence wiki base URL — defaults to `https://facilitron.atlassian.net/wiki` |
 | `WEEKLY_UPDATE_RECIPIENT` | _(optional)_ `weekly-update`'s report recipient / template owner — defaults to `Kristina`      |
@@ -358,12 +358,12 @@ tron-marketing-ai/
 │   ├── broker/              # org-secret broker access and credential-minting docs
 │   ├── imagekit/            # vendored ImageKit CLI (node_modules lazy-installed, not committed)
 │   ├── md-to-adf/           # vendored markdown→ADF helper for Jira (lazy-installed)
-│   ├── confluence/          # fetch-confluence.sh + confluence-lib.sh — used by confluence, news-item, guide-item
+│   ├── confluence/          # fetch-confluence.sh + confluence-lib.sh — Confluence body and attachment helpers
 │   ├── content/             # content.sh + content-lib.sh + dev-server.sh — slug/check-repo/dev-server helpers
 │   ├── git/                 # git-promote.sh + token-usage.sh — deterministic git flows + PR retro stats
 │   ├── ticket/              # ticket-lib.sh — shared Jira/GitHub lookup helpers (start-ticket, ship-ticket)
 │   ├── worktree/            # worktree-lib.sh — shared worktree path/resolution helpers
-│   ├── image/               # to-webp.sh + image-pipeline.sh + generate-card.sh + images-to-imagekit.md — news-item, guide-item, toolkit-item
+│   ├── image/               # to-webp.sh + image-pipeline.sh + generate-card.sh + images-to-imagekit.md
 │   └── evaluate/            # evaluate.mjs — the skill-evaluation harness (see TESTING.md)
 ├── TESTING.md
 └── README.md

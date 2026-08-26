@@ -7,7 +7,7 @@
     "Uses AskUserQuestion to secure the 3-4 headline metrics and an attributable pull-quote (speaker plus title) before drafting rather than opening with an empty Results block",
     "Structures the draft in the Facilitron Challenge -> Solution -> Results house format with a pull-quote and metrics, and flags genuinely missing facts with > TODO: instead of inventing numbers",
     "Before drafting, requires an explicit Drive or Confluence destination and publishes the markdown with no em dashes, returning the exact durable URL, review state, owner, and approver",
-    "For a website-bound case study, records the durable approved-source URL, target surface, Jira key, asset references, and tron:guide-item or tron:news-item website handoff",
+    "For a website-bound case study, records the durable approved-source URL, target surface, Jira key, asset references, and a worktree-first website handoff to the bare repo-local guide-item or news-item skill",
     "Uses one unique scratch workspace, cleans it on success and failure, and never branches, opens a worktree, writes repository content, commits, or opens a PR"
   ]
 }
