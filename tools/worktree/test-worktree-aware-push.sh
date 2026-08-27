@@ -18,8 +18,14 @@ for skill in skills/git-commit/SKILL.md skills/git-pr/SKILL.md; do
     || fail "$skill must resolve the current worktree root"
   grep -F 'BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"' "$REPO_ROOT/$skill" >/dev/null \
     || fail "$skill must resolve its branch from that worktree"
+  grep -F 'UPSTREAM="$(git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" 2>/dev/null || true)"' "$REPO_ROOT/$skill" >/dev/null \
+    || fail "$skill must resolve its upstream short name without failing when none exists"
+  grep -F 'if [ "${UPSTREAM#*/}" = "$BRANCH" ]; then' "$REPO_ROOT/$skill" >/dev/null \
+    || fail "$skill must only use a plain push when its upstream branch name matches"
+  grep -F 'git -C "$WORKTREE" push -u origin "$BRANCH"' "$REPO_ROOT/$skill" >/dev/null \
+    || fail "$skill must set a same-name upstream when no matching upstream exists"
 done
-pass "both push snippets use the current worktree root"
+pass "both push snippets use the current worktree root and a matching upstream name"
 
 git init -q "$ROOT/main"
 git -C "$ROOT/main" config user.email unit@tron.local
@@ -45,5 +51,29 @@ for shell in bash zsh; do
   ' "$shell" "$ROOT/feature-two" || fail "$shell must resolve feature-two from its linked worktree"
   pass "$shell resolves feature-two from a linked worktree with another worktree present"
 done
+
+# A branch cut from origin/master inherits that upstream. The documented
+# comparison must choose -u on its first push so push.default=simple succeeds.
+git init --bare -q "$ROOT/origin"
+git -C "$ROOT/main" remote add origin "$ROOT/origin"
+git -C "$ROOT/main" push -q -u origin master
+git clone -q "$ROOT/origin" "$ROOT/inherited"
+git -C "$ROOT/inherited" config user.email unit@tron.local
+git -C "$ROOT/inherited" config user.name "tron unit"
+git -C "$ROOT/inherited" checkout -qb inherited-push origin/master
+touch "$ROOT/inherited/change"
+git -C "$ROOT/inherited" add change
+git -C "$ROOT/inherited" commit -qm change
+WORKTREE="$ROOT/inherited"
+BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
+UPSTREAM="$(git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" 2>/dev/null || true)"
+if [ "${UPSTREAM#*/}" = "$BRANCH" ]; then
+  git -C "$WORKTREE" push -q
+else
+  git -C "$WORKTREE" push -q -u origin "$BRANCH"
+fi
+[ "$(git -C "$WORKTREE" rev-parse --abbrev-ref '@{u}')" = "origin/$BRANCH" ] \
+  || fail "an inherited differently named upstream must be replaced on first push"
+pass "a branch inheriting origin/master pushes and tracks its own remote branch"
 
 echo "worktree-aware push regression: $PASS assertions passed"

@@ -110,8 +110,11 @@ WORKTREE="$(git rev-parse --show-toplevel)"
 BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
 
-# Check if already tracking upstream; if so, plain push. Else use -u.
-if git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" >/dev/null 2>&1; then
+# Use a plain push only when the upstream has this branch's name. A branch
+# created from a remote-tracking branch can inherit a differently named
+# upstream (for example, origin/master), which `push.default=simple` rejects.
+UPSTREAM="$(git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" 2>/dev/null || true)"
+if [ "${UPSTREAM#*/}" = "$BRANCH" ]; then
   git -C "$WORKTREE" push
 else
   git -C "$WORKTREE" push -u origin "$BRANCH"
