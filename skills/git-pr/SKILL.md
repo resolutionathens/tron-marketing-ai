@@ -157,7 +157,18 @@ BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
 ```
 
-If no upstream, `git push -u origin "$BRANCH"`. If ahead, `git push`. If up to date, continue.
+Use a plain push only when the upstream's branch name matches `$BRANCH`; an
+inherited differently named upstream must be replaced with the branch's own
+remote tracking branch:
+
+```bash
+UPSTREAM="$(git -C "$WORKTREE" rev-parse --abbrev-ref "@{u}" 2>/dev/null || true)"
+if [ "${UPSTREAM#*/}" = "$BRANCH" ]; then
+  git -C "$WORKTREE" push
+else
+  git -C "$WORKTREE" push -u origin "$BRANCH"
+fi
+```
 
 ## Step 3: Gather context
 
