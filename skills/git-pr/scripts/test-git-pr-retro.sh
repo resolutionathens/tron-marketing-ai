@@ -10,6 +10,7 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/git-pr-retro.sh"
+MANUAL_FALLBACK="$HERE/../reference/manual-review-fallback.md"
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/git-pr-retro-smoke.XXXXXX")"
 export TMPDIR="$ROOT"
 PASS=0
@@ -90,6 +91,7 @@ cat > "$PAYLOAD" <<'EOF'
 {"worked":["The focused regression test caught the old path."],"friction":["The producer and consumer contracts had drifted."],"improvements":["Pin the command shape in both repositories."],"followUps":["MD-2996"]}
 EOF
 export CURL_STUB_LOG="$ROOT/curl.log" CURL_STUB_PAYLOAD="$ROOT/curl-payload.json"
+export GH_STUB_LOG="$ROOT/comment-body.txt"
 O="$(TRON_API_URL='http://127.0.0.1:8787/' TRON_DISPATCH_ID='dispatch-123' \
   CURL_STUB_BODY='{"ok":true,"report":{"id":"r-1"},"retrospective":{"status":"recorded"}}' \
   bash "$SCRIPT" submit-dispatched --payload-file "$PAYLOAD")"
@@ -177,8 +179,31 @@ if find "$ROOT" -maxdepth 1 -type f \( -name 'tron-retro-response.*' -o -name 't
 fi
 pass "submit-dispatched: typed refusal, transport failure, and invalid response stay machine-readable and clean"
 
+# ---- retro-comment: dispatch identity denies the direct-GitHub fallback ------
+for dispatch_env in complete partial; do
+  : > "$GH_STUB_LOG"
+  rc=0
+  if [[ "$dispatch_env" == complete ]]; then
+    O="$(TRON_API_URL='http://127.0.0.1:8787' TRON_DISPATCH_ID='dispatch-123' \
+      bash "$SCRIPT" retro-comment --pr 7 --model m1 --body x)" || rc=$?
+  else
+    O="$(TRON_API_URL='http://127.0.0.1:8787' TRON_DISPATCH_ID= \
+      bash "$SCRIPT" retro-comment --pr 7 --model m1 --body x)" || rc=$?
+  fi
+  [[ "$rc" == 2 ]] || fail "$dispatch_env dispatch environment must reject retro-comment"
+  has "$O" '"code":"interactive-fallback-denied"' "$dispatch_env dispatch rejection is machine-readable"
+  [[ ! -s "$GH_STUB_LOG" ]] || fail "$dispatch_env dispatch environment must not invoke gh"
+done
+pass "retro-comment: complete or partial dispatch environment is denied before GitHub"
+has "$(cat "$MANUAL_FALLBACK")" 'both `TRON_DISPATCH_ID` and' \
+  "manual fallback names the two-variable requirement"
+has "$(cat "$MANUAL_FALLBACK")" '`TRON_API_URL` are unset' \
+  "manual fallback requires both Scout variables to be unset"
+has "$(cat "$MANUAL_FALLBACK")" 'either variable is set' \
+  "manual fallback stops on partial dispatch environment"
+pass "manual fallback: documentation denies complete and partial dispatch environment"
+
 # ---- retro-comment: no token data (helper prints nothing) ---------------------
-export GH_STUB_LOG="$ROOT/comment-body.txt"
 O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
      TRON_API_URL= TRON_DISPATCH_ID= bash "$SCRIPT" retro-comment --pr 7 --model claude-test-1 \
        --body $'**What went well:** it worked\nFOLLOW-UP: none')"
@@ -197,7 +222,8 @@ pass "retro-comment: no token data → posts marker+model, no token line, exit 0
 FAKEROOT="$ROOT/fakeplugin"; mkdir -p "$FAKEROOT/tools/git"
 printf '#!/usr/bin/env bash\necho "*in 1k · out 2k · cache 3k read / 4k write*"\n' \
   > "$FAKEROOT/tools/git/token-usage.sh"
-O="$(CLAUDE_PLUGIN_ROOT="$FAKEROOT" bash "$SCRIPT" retro-comment --pr 7 \
+O="$(CLAUDE_PLUGIN_ROOT="$FAKEROOT" TRON_API_URL= TRON_DISPATCH_ID= \
+     bash "$SCRIPT" retro-comment --pr 7 \
      --model claude-test-1 --body 'retro body')"
 echo "  → $O"
 has "$O" '"tokens_included":true' "token line included when the helper yields one"
@@ -208,6 +234,7 @@ pass "retro-comment: token helper output lands in the posted body"
 # ---- retro-comment: --body-file --------------------------------------------
 BF="$ROOT/body.md"; printf '%s\n' 'from a file' > "$BF"
 O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
+     TRON_API_URL= TRON_DISPATCH_ID= \
      bash "$SCRIPT" retro-comment --pr 9 --model m1 --body-file "$BF")"
 has "$O" '"ok":true' "body-file variant posts"
 has "$(cat "$GH_STUB_LOG")" 'from a file' "body-file content posted"
@@ -215,6 +242,7 @@ pass "retro-comment: --body-file works"
 
 # ---- retro-comment: shell-special characters (backticks) survive inline --body -
 O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
+     TRON_API_URL= TRON_DISPATCH_ID= \
      bash "$SCRIPT" retro-comment --pr 11 --model m1 \
        --body 'has `backticks` and $(command) and "quotes"')"
 has "$O" '"ok":true' "backtick/shell-special body posts without breaking"
@@ -225,6 +253,7 @@ pass "retro-comment: shell-special characters in body survive the post"
 # ---- retro-comment: gh failure surfaces the real stderr, not a generic fallback
 O="$(CLAUDE_CODE_SESSION_ID= HOME="$ROOT/empty-home" \
      GH_STUB_COMMENT_ERR='HTTP 404: Not Found' \
+     TRON_API_URL= TRON_DISPATCH_ID= \
      bash "$SCRIPT" retro-comment --pr 999 --model m1 --body 'x')" || true
 has "$O" '"ok":false' "gh failure → ok:false"
 has "$O" 'HTTP 404: Not Found' "real gh stderr surfaced, not masked"

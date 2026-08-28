@@ -1,8 +1,8 @@
 # Manual Retro Fallback
 
-Use this only when `git-pr-retro.sh` cannot be resolved **and there is no Scout dispatch identity**.
-There is no direct-GitHub fallback for a dispatched retrospective: report the missing helper and
-stop without claiming Scout recorded durable state.
+Use this only when `git-pr-retro.sh` cannot be resolved **and both `TRON_DISPATCH_ID` and
+`TRON_API_URL` are unset**. If either variable is set, there is no direct-GitHub fallback: report
+the missing helper and stop without claiming Scout recorded durable retrospective state.
 
 There is nothing to fall back to for the code review itself: it runs before the PR (SKILL.md Step
 1c) via `bun run review:local`, which does not use this script. If that review could not run, say so

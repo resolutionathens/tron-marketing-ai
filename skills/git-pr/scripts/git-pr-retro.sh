@@ -130,6 +130,11 @@ cmd_submit_dispatched() {
 
 # ---- retro-comment --------------------------------------------------------------
 cmd_retro_comment() {
+  if [[ -n "${TRON_API_URL:-}" || -n "${TRON_DISPATCH_ID:-}" ]]; then
+    json_failure "interactive-fallback-denied" \
+      "retro-comment is interactive-only; Scout dispatches must use submit-dispatched --payload-file <path>"
+    exit 2
+  fi
   [[ -z "$PR" ]] && usage_err "retro-comment requires --pr <N>"
   [[ -z "$MODEL" ]] && usage_err "retro-comment requires --model <model-id>"
   local body
