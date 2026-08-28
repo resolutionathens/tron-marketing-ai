@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 # git-pr-retro: the mechanical post-open step of tron:git-pr (Step 7).
-# The judgment (PR title/body, what goes in the retro sections) stays with the
-# model; this script owns the assembly that kept being re-derived in prose: the
-# retro-comment footer (token-usage resolution + marker + model line).
+# The worker authors retrospective content. This script only validates and
+# transports its structured payload through Scout, or assembles the explicitly
+# interactive GitHub-comment fallback.
 #
 # Usage:
+#   git-pr-retro.sh submit-dispatched --payload-file <json-file>
+#       Validate the closed retrospective schema and POST the authored file to
+#       $TRON_API_URL/api/dispatches/$TRON_DISPATCH_ID/retrospective. Scout owns
+#       idempotency, durable storage, and canonical GitHub publication.
 #   git-pr-retro.sh retro-comment --pr <N> --model <model-id> (--body-file <f> | --body "...")
-#       Post the <!-- tron-retro --> comment. The body is the filled-in retro
-#       sections (What went well / Friction / Follow-up / FOLLOW-UP: lines);
+#       Interactive-only fallback: post the <!-- tron-retro --> comment. The
+#       body is the filled-in retro sections;
 #       the script adds the marker, "### Retro" header, and the footer
 #       (*<model-id>* + the token line from tools/git/token-usage.sh, resolved
 #       via CLAUDE_PLUGIN_ROOT with a relative fallback — an unreadable
@@ -34,21 +38,103 @@ command -v jq >/dev/null 2>&1 || usage_err "jq is required but not on PATH"
 CMD="${1:-}"; [[ $# -gt 0 ]] && shift
 case "$CMD" in ""|help|-h|--help) sed -n '2,18p' "$0"; exit 0 ;; esac
 
-PR=""; MODEL=""; BODY=""; BODY_FILE=""
+PR=""; MODEL=""; BODY=""; BODY_FILE=""; PAYLOAD_FILE=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --pr|--number|-n) PR="${2:-}"; shift ;;
     --model) MODEL="${2:-}"; shift ;;
     --body) BODY="${2:-}"; shift ;;
     --body-file) BODY_FILE="${2:-}"; shift ;;
+    --payload-file) PAYLOAD_FILE="${2:-}"; shift ;;
     -*) usage_err "unknown flag '$1'" ;;
     *) usage_err "unexpected argument '$1'" ;;
   esac
   shift
 done
 
+# ---- submit-dispatched ---------------------------------------------------------
+json_failure() {
+  local code="$1" error="$2"
+  jq -nc --arg code "$code" --arg error "$error" '{ok:false,code:$code,error:$error}'
+}
+
+cmd_submit_dispatched() {
+  if [[ -z "${TRON_API_URL:-}" || -z "${TRON_DISPATCH_ID:-}" ]]; then
+    json_failure "dispatch-environment-missing" \
+      "submit-dispatched requires TRON_API_URL and TRON_DISPATCH_ID from Scout"
+    exit 2
+  fi
+  if [[ -z "$PAYLOAD_FILE" ]]; then
+    json_failure "retrospective-payload-invalid" "submit-dispatched requires --payload-file <path>"
+    exit 2
+  fi
+  if [[ ! -f "$PAYLOAD_FILE" ]]; then
+    json_failure "retrospective-payload-invalid" "--payload-file not found: $PAYLOAD_FILE"
+    exit 2
+  fi
+
+  # Keep this validation aligned with Scout's bounded arrays, with two producer
+  # constraints Scout relies on the plugin to enforce: the schema is closed and
+  # followUps contains already-filed Jira keys only. Validation never rewrites
+  # the worker-authored file; curl sends its bytes unchanged.
+  local validation_filter='
+    def bounded(required):
+      type == "array" and length <= 20 and
+      (if required then length >= 1 else true end) and
+      all(.[]; type == "string" and ((gsub("^[[:space:]]+|[[:space:]]+$"; "") | length) > 0) and length <= 1000);
+    type == "object" and
+    ((keys_unsorted - ["worked", "friction", "improvements", "followUps"]) | length == 0) and
+    has("worked") and has("friction") and has("improvements") and
+    (.worked | bounded(true)) and
+    (.friction | bounded(true)) and
+    (.improvements | bounded(true)) and
+    ((has("followUps") | not) or (.followUps | bounded(false))) and
+    all((.followUps // [])[]; test("^[A-Z][A-Z0-9]+-[0-9]+$"))
+  '
+  if ! jq -e "$validation_filter" "$PAYLOAD_FILE" >/dev/null 2>&1; then
+    json_failure "retrospective-payload-invalid" \
+      "payload must contain only worked, friction, improvements, and optional followUps; each required field must have 1 to 20 non-empty strings of at most 1000 characters, and followUps may contain only Jira ticket keys"
+    exit 2
+  fi
+
+  command -v curl >/dev/null 2>&1 || {
+    json_failure "control-plane-request-failed" "curl is required but not on PATH"
+    exit 1
+  }
+
+  local endpoint response_file error_file status error response
+  endpoint="${TRON_API_URL%/}/api/dispatches/${TRON_DISPATCH_ID}/retrospective"
+  response_file="$(mktemp "${TMPDIR:-/tmp}/tron-retro-response.XXXXXX")"
+  error_file="$(mktemp "${TMPDIR:-/tmp}/tron-retro-error.XXXXXX")"
+  trap 'rm -f "$response_file" "$error_file"' RETURN
+  if ! status="$(curl -sS -X POST "$endpoint" \
+      -H 'content-type: application/json' \
+      --data-binary "@$PAYLOAD_FILE" \
+      -o "$response_file" -w '%{http_code}' 2>"$error_file")"; then
+    error="$(cat "$error_file")"
+    json_failure "control-plane-request-failed" "${error:-Scout retrospective request failed}"
+    return 1
+  fi
+
+  if ! response="$(jq -c . "$response_file" 2>/dev/null)"; then
+    json_failure "control-plane-response-invalid" \
+      "Scout retrospective endpoint returned HTTP $status with a non-JSON response"
+    return 1
+  fi
+  printf '%s\n' "$response"
+  case "$status" in
+    2??) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # ---- retro-comment --------------------------------------------------------------
 cmd_retro_comment() {
+  if [[ -n "${TRON_API_URL:-}" || -n "${TRON_DISPATCH_ID:-}" ]]; then
+    json_failure "interactive-fallback-denied" \
+      "retro-comment is interactive-only; Scout dispatches must use submit-dispatched --payload-file <path>"
+    exit 2
+  fi
   [[ -z "$PR" ]] && usage_err "retro-comment requires --pr <N>"
   [[ -z "$MODEL" ]] && usage_err "retro-comment requires --model <model-id>"
   local body
@@ -93,6 +179,7 @@ $body
 }
 
 case "$CMD" in
+  submit-dispatched) cmd_submit_dispatched ;;
   retro-comment)  cmd_retro_comment ;;
-  *) usage_err "unknown subcommand '$CMD' (try: retro-comment)" ;;
+  *) usage_err "unknown subcommand '$CMD' (try: submit-dispatched or retro-comment)" ;;
 esac

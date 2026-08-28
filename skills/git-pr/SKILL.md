@@ -6,7 +6,7 @@ fallback:
   cost: low
   skip_when: "Use tron:git-pr only when a PR needs creating. For doc-only or trivial changes, verify and skip directly."
   stage_skips:
-    - stage: "Step 7 — retro comment"
+    - stage: "Step 7 — retrospective"
       skip_when: "PR is doc-only or trivial"
 description: "Create a pull request from the current feature branch with an auto-generated title and description. Use this skill when the user says 'create a PR', 'open a pull request', 'make a PR', 'submit for review', or anything that implies they want to create a pull request on GitHub."
 allowed-tools:
@@ -243,22 +243,31 @@ EOF
 gh pr create --title "<title>" --body-file "$PR_BODY" --base "$BASE" --head "$BRANCH" --repo "$SLUG"
 ```
 
-## Step 7: Retro comment
+## Step 7: Retrospective
 
 **No automated review arrives after the PR opens.** Do not request a reviewer, do not poll for one,
 and do not wait — the review already happened in Step 1c, and both of its rounds are posted to the
 PR by the control plane as a single structured comment. A wait here would never terminate, which is
 worse than no instruction at all: the worker looks busy while it is stuck.
 
-Post the retro, then **park for the human approval gate**. That gate is the only thing that
-authorises a merge, and it is unchanged.
+Submit the worker-authored retrospective, then **park for the human approval gate**. That gate is
+the only thing that authorises a merge, and it is unchanged.
 
-The mechanics — script resolution and the retro comment shape — are in
+The mechanics, payload shape, and exact dispatched command are in
 [reference/retro-comment.md](reference/retro-comment.md). What follows is the part that is your
 judgment:
 
-- **The retro sections are yours to write.** Use `FOLLOW-UP:` for work this PR deliberately did not
-  do, one per line.
+- **The retrospective arrays are yours to write.** The helper validates and transports them; it
+  never generates, rewrites, summarizes, or classifies their content.
+- Under a Scout dispatch, `followUps` contains only Jira keys for tickets you already filed. Do not
+  put unfiled prose in that array and do not publish bare `FOLLOW-UP:` lines for Scout to classify.
+- A response with `remedy: "worker"` names a repairable precondition: satisfy it and retry the same
+  payload. Only `remedy: "human"` is a human gate. Do not translate a worker remedy or a transport
+  failure into an approval request.
+- When neither `TRON_DISPATCH_ID` nor `TRON_API_URL` is set, use the explicitly interactive
+  GitHub-comment fallback. If only one is set, stop on the missing dispatch environment instead of
+  guessing. The fallback does not create Scout's durable retrospective state and must not be
+  described as if it did.
 - **If Step 1c's review did not run** (exit 2), say so prominently rather than proceeding quietly.
   The human gate is then the only review that happened.
 
