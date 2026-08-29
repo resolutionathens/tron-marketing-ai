@@ -46,4 +46,53 @@ fi
   exit 1
 }
 
-echo "✅ git-pr Jira-key resolver PASSED (4 checks)"
+# MD-3017: a plugin release branch has no ticket, so it resolves to an EMPTY key
+# and exit 0 — Step 1's `JIRA_KEY="$(...)" || exit $?` must continue, not stop.
+for release_branch in release-v0.51.0 release-v1.2.3 release-v10.0.0-rc.1; do
+  if ! actual="$(bash "$SCRIPT" "$release_branch")"; then
+    echo "FAIL: expected release branch '$release_branch' to resolve with exit 0" >&2
+    exit 1
+  fi
+  [ -z "$actual" ] || {
+    echo "FAIL: expected release branch '$release_branch' to resolve to an EMPTY key, got: $actual" >&2
+    exit 1
+  }
+done
+
+# The Step 1 assignment must CONTINUE on a release branch (the mirror of the
+# keyless-branch case above, which must not continue).
+RELEASE_CONTINUED="$ERROR_FILE.release-continued"
+bash -c 'JIRA_KEY="$(bash "$1" "$2")" || exit $?; : > "$3"' bash \
+  "$SCRIPT" release-v0.51.0 "$RELEASE_CONTINUED" 2>/dev/null || {
+  echo "FAIL: Step 1 assignment must exit zero on a release branch" >&2
+  exit 1
+}
+[ -e "$RELEASE_CONTINUED" ] || {
+  echo "FAIL: Step 1 stopped on a release branch instead of continuing" >&2
+  exit 1
+}
+rm -f "$RELEASE_CONTINUED"
+
+# The exception is exactly the release convention — near misses still stop, so it
+# cannot be used to smuggle an ordinary keyless branch past the gate.
+for near_miss in releasey-thing release-vX release- releases-v1.0.0 not-release-v1.0.0; do
+  if bash "$SCRIPT" "$near_miss" 2>/dev/null; then
+    echo "FAIL: expected near-miss branch '$near_miss' to stop" >&2
+    exit 1
+  fi
+done
+
+# The release exception must not have disturbed an ordinary keyed branch.
+actual="$(bash "$SCRIPT" MD-3017-let-git-pr-open-a-ticketless-release-pr)"
+[ "$actual" = "MD-3017" ] || {
+  echo "FAIL: expected MD-3017 from a keyed branch, got: $actual" >&2
+  exit 1
+}
+
+# SKILL.md must tell the reader what to do with the empty key, or a worker emits "()".
+rg -Fq 'On a plugin release branch `$JIRA_KEY` is empty' "$SKILL" || {
+  echo "FAIL: Step 4 must say to omit the suffix when the Jira key is empty" >&2
+  exit 1
+}
+
+echo "✅ git-pr Jira-key resolver PASSED (14 checks)"

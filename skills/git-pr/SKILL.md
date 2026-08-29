@@ -190,6 +190,10 @@ Read changed files if needed to understand purpose.
 parenthesized suffix. Types: `feat` `fix` `docs` `style` `refactor` `test` `chore`. If the complete
 title would exceed 70 characters, shorten the description; never shorten or drop the Jira key.
 
+On a plugin release branch `$JIRA_KEY` is empty (MD-3017) — a release has no ticket. Omit the
+suffix entirely rather than emitting an empty `()`: the title is just `type(scope): description`,
+e.g. `chore(release): cut v0.51.0`.
+
 **Body:**
 ```
 ## Summary
@@ -199,7 +203,8 @@ title would exceed 70 characters, shorten the description; never shorten or drop
 - [ ] test step
 ```
 
-Reference `$JIRA_KEY` in the body too, so the ticket appears in both the title and body. No
+Reference `$JIRA_KEY` in the body too, so the ticket appears in both the title and body — unless
+it is empty, in which case omit the reference rather than writing a bare or empty key. No
 Co-Authored-By or "Generated with" footer.
 
 ## Step 5: Get approval
