@@ -32,6 +32,14 @@ trap cleanup EXIT
 
 echo "close-worktree smoke: root=$ROOT"
 
+# ── malformed invocation: every reported leftover carries a reason ───────────
+if OUT0="$(cd "$ROOT" && bash "$SCRIPT" MD-0000-not-a-repo)"; then
+  fail "non-repository invocation should fail: $OUT0"
+fi
+grep -Fq '"leftover":"repo","reason":"not inside a git repository"' <<<"$OUT0" \
+  || fail "non-repository leftover reason missing: $OUT0"
+pass "non-repository failure reports its leftover reason"
+
 # ── setup ────────────────────────────────────────────────────────────────────
 git init --bare -q "$ORIGIN"
 git clone -q "$ORIGIN" "$MAIN"
@@ -76,6 +84,7 @@ assert_json '"remoteBranchDeleted":true'
 assert_json '"sessionClosed":true'
 assert_json '"workspaceClosed":true'
 assert_json '"leftovers":\[\]'
+assert_json '"reasons":\[\]'
 pass "result line reports a clean close"
 
 # ── verify reality, not just the JSON ────────────────────────────────────────
@@ -88,6 +97,7 @@ pass "worktree + local branch + origin branch all verified gone"
 OUT2="$(cd "$MAIN" && bash "$SCRIPT" "$BRANCH")" || fail "second run exited non-zero: $OUT2"
 grep -q '"ok":true' <<<"$OUT2" || fail "second run not ok: $OUT2"
 grep -q '"leftovers":\[\]' <<<"$OUT2" || fail "second run reported leftovers: $OUT2"
+grep -q '"reasons":\[\]' <<<"$OUT2" || fail "second run reported reasons: $OUT2"
 pass "idempotent — re-closing an already-gone branch is ok, no leftovers"
 
 # ── --keep-remote leaves origin's copy but removes the local worktree+branch ──
@@ -191,6 +201,53 @@ gx "$MAIN" push -q origin --delete "$BRANCH9"
 gx "$MAIN" branch -q -D "$BRANCH9"
 pass "merged PR proof cannot delete newer commits on a reused branch"
 
+# ── dirty worktree: stdout identifies both blocked pieces precisely ───────────
+WT10="$ROOT/wt-md-3020"; BRANCH10="MD-3020-dirty-reason"
+gx "$MAIN" worktree add -q -b "$BRANCH10" "$WT10" master
+echo "untracked" > "$WT10/DIRTY.txt"
+if OUT10="$(cd "$MAIN" && bash "$SCRIPT" "$BRANCH10")"; then
+  fail "dirty worktree cleanup should report failure: $OUT10"
+fi
+grep -Fq '"leftover":"worktree","reason":"dirty worktree"' <<<"$OUT10" \
+  || fail "dirty worktree reason missing: $OUT10"
+grep -Fq '"leftover":"local branch","reason":"branch still checked out"' <<<"$OUT10" \
+  || fail "checked-out branch reason missing: $OUT10"
+gx "$MAIN" worktree remove --force "$WT10"
+gx "$MAIN" branch -q -D "$BRANCH10"
+pass "dirty worktree reports dirty-worktree and checked-out-branch reasons"
+
+# ── directory sweep: retries are bounded and report exhaustion precisely ─────
+WT11="$ROOT/wt-md-3021"; BRANCH11="MD-3021-sweep-retry"
+gx "$MAIN" worktree add -q -b "$BRANCH11" "$WT11" master
+REAL_GIT="$(command -v git)"
+SWEEP_LOG="$ROOT/sweep-rm.log"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ "$1" == -C ]]; then' \
+  '  repo="$2"; shift 2' \
+  '  if [[ "$1" == worktree && "$2" == remove ]]; then' \
+  '    "$REAL_GIT" -C "$repo" "$@"; status=$?' \
+  '    [[ $status -eq 0 ]] && mkdir -p "$SWEEP_WT"' \
+  '    exit $status' \
+  '  fi' \
+  'fi' \
+  'exec "$REAL_GIT" "$@"' > "$BIN/git"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'printf "attempt\\n" >> "$SWEEP_LOG"' \
+  'exit 1' > "$BIN/rm"
+chmod +x "$BIN/git" "$BIN/rm"
+if OUT11="$(cd "$MAIN" && PATH="$BIN:$PATH" REAL_GIT="$REAL_GIT" SWEEP_WT="$WT11" SWEEP_LOG="$SWEEP_LOG" bash "$SCRIPT" "$BRANCH11")"; then
+  fail "sweep exhaustion should report failure: $OUT11"
+fi
+grep -Fq '"leftover":"worktree","reason":"directory sweep failed"' <<<"$OUT11" \
+  || fail "directory sweep reason missing: $OUT11"
+[[ "$(wc -l < "$SWEEP_LOG" | tr -d ' ')" == 3 ]] \
+  || fail "directory sweep should attempt exactly three removals"
+rmdir "$WT11"
+/bin/rm -f "$BIN/git" "$BIN/rm"
+pass "directory sweep retries three times then reports exhaustion"
+
 # ── incomplete cleanup retains the worker session and actionable refs ────────
 WT7="$ROOT/wt-md-5555"; BRANCH7="MD-5555-unverified"
 gx "$MAIN" worktree add -q -b "$BRANCH7" "$WT7" master
@@ -205,6 +262,10 @@ fi
 grep -q '"local branch"' <<<"$OUT7" || fail "missing local branch leftover: $OUT7"
 grep -q '"origin branch"' <<<"$OUT7" || fail "missing origin branch leftover: $OUT7"
 grep -q '"session"' <<<"$OUT7" || fail "missing retained session leftover: $OUT7"
+grep -Fq '"leftover":"local branch","reason":"merge not verified"' <<<"$OUT7" \
+  || fail "missing merge-not-verified local reason: $OUT7"
+grep -Fq '"leftover":"origin branch","reason":"merge not verified"' <<<"$OUT7" \
+  || fail "missing merge-not-verified origin reason: $OUT7"
 [[ ! -s "$TMUX_LOG" ]] || fail "tmux session was killed before cleanup completed"
 gx "$MAIN" show-ref --verify --quiet "refs/heads/$BRANCH7" \
   || fail "unverified local branch should be preserved"

@@ -79,12 +79,15 @@ Idempotent — any piece already gone counts as done.
 One JSON line:
 
 ```json
-{"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"leftovers":[]}
+{"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,"leftovers":[],"reasons":[]}
 ```
 
-`ok:false` with non-empty `leftovers` means something is still present. The tmux session remains
-alive so the worker can inspect the result, retry with `--force` for a dirty worktree, or escalate.
-An unverified branch is never force-deleted.
+`ok:false` with non-empty `leftovers` means something is still present. `reasons` is an additive
+array of `{leftover, reason}` objects aligned by leftover name, so stdout-only callers can tell
+whether cleanup stopped because of a dirty worktree, merge proof, a branch still checked out, or a
+directory sweep that exhausted its bounded retries. The tmux session remains alive so the worker
+can inspect the result, retry with `--force` for a dirty worktree, or escalate. An unverified
+branch is never force-deleted.
 
 **Before removal — stop the worktree's dev server.** If `start-ticket` spun up a `bun dev` background task for this worktree, `TaskStop` it first. The script kills the tmux session but can't stop that task (it's a background task of the orchestrator session, not in tmux); a live dev server keeps file handles open in the worktree dir and races `wt remove`, leaving orphaned fragments behind.
 

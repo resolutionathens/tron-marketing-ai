@@ -24,7 +24,7 @@
 # Output: exactly ONE line of JSON on stdout, e.g.
 #   {"ok":true,"branch":"MD-1801-x","worktreeRemoved":true,"worktreePath":"/…",
 #    "localBranchDeleted":true,"remoteBranchDeleted":true,"sessionClosed":true,
-#    "workspaceClosed":true,"leftovers":[]}
+#    "workspaceClosed":true,"leftovers":[],"reasons":[]}
 # (`workspaceClosed` is a backwards-compatible alias of `sessionClosed`.)
 # All human-readable narration goes to stderr. ok=false iff `leftovers` is
 # non-empty (something the script was asked to remove is still present).
@@ -75,7 +75,7 @@ unset _TLIB _WLIB
 # --git-common-dir points at the shared .git for every worktree; strip the
 # trailing /.git to get the primary checkout (same idiom as tron:git-dev).
 if ! GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
-  echo '{"ok":false,"error":"not inside a git repository","leftovers":["repo"]}'
+  echo '{"ok":false,"error":"not inside a git repository","leftovers":["repo"],"reasons":[{"leftover":"repo","reason":"not inside a git repository"}]}'
   exit 1
 fi
 MAIN_REPO="${GIT_COMMON_DIR%/.git}"
@@ -85,10 +85,38 @@ WTPATH="$(wl_worktree_path_for_branch "$BRANCH" "$MAIN_REPO" || true)"
 
 # Track anything we were asked to remove but couldn't.
 LEFTOVERS=()
+REASON_LEFTOVERS=()
+REASONS=()
 WORKTREE_REMOVED=true
 SESSION_CLOSED=true
 LOCAL_DELETED=true
 REMOTE_DELETED=true
+
+# Keep the existing `leftovers` string array stable for consumers, and publish
+# the machine-readable cause in the parallel additive `reasons` array.
+add_leftover() {
+  local leftover="$1" reason="$2" i
+  for i in "${!LEFTOVERS[@]}"; do
+    [[ "${LEFTOVERS[$i]}" == "$leftover" ]] && return 0
+  done
+  LEFTOVERS+=("$leftover")
+  REASON_LEFTOVERS+=("$leftover")
+  REASONS+=("$reason")
+}
+
+worktree_remove_reason() {
+  case "$1" in
+    *"contains modified or untracked files"*) printf '%s' "dirty worktree" ;;
+    *) printf '%s' "worktree remove failed" ;;
+  esac
+}
+
+branch_delete_reason() {
+  case "$1" in
+    *"used by worktree at"*|*"checked out at"*) printf '%s' "branch still checked out" ;;
+    *) printf '%s' "local branch delete failed" ;;
+  esac
+}
 
 # ---- 1. locate the tmux session, but keep it alive until cleanup succeeds ---
 # The worker session is the final resource removed. If any git cleanup fails,
@@ -141,22 +169,39 @@ if [[ -n "$WTPATH" ]]; then
   RM_ARGS=(worktree remove)
   [[ "$FORCE" -eq 1 ]] && RM_ARGS+=(--force)
   RM_ARGS+=("$WTPATH")
-  if g "${RM_ARGS[@]}" 2>/dev/null; then
+  WORKTREE_REMOVE_ERR=""
+  if WORKTREE_REMOVE_ERR="$(g "${RM_ARGS[@]}" 2>&1)"; then
     log "removed worktree $WTPATH"
   else
-    log "git worktree remove failed for $WTPATH (dirty? rerun with --force)"
+    log "git worktree remove failed for $WTPATH (dirty? rerun with --force): $WORKTREE_REMOVE_ERR"
   fi
   # git deregisters synchronously but the dir rm can lag/leak (open handles).
   # The unregister is what matters; mop up a leftover dir only if git no longer
-  # tracks it — at that point there is no race left to lose.
+  # tracks it — at that point there is no race left to lose. A process can be
+  # exiting from the old directory, so give that sweep a small bounded retry.
   if [[ -d "$WTPATH" ]]; then
     if ! g worktree list --porcelain | grep -qxF "worktree $WTPATH"; then
-      rm -rf "$WTPATH" 2>/dev/null || true
-      log "swept leftover directory $WTPATH"
+      SWEEP_MAX_ATTEMPTS=3
+      SWEEP_ATTEMPT=1
+      while [[ "$SWEEP_ATTEMPT" -le "$SWEEP_MAX_ATTEMPTS" && -d "$WTPATH" ]]; do
+        rm -rf "$WTPATH" 2>/dev/null || true
+        [[ -d "$WTPATH" ]] || break
+        SWEEP_ATTEMPT=$((SWEEP_ATTEMPT + 1))
+      done
+      if [[ -d "$WTPATH" ]]; then
+        log "directory sweep failed for $WTPATH after $SWEEP_MAX_ATTEMPTS attempts"
+      else
+        log "swept leftover directory $WTPATH"
+      fi
     fi
   fi
   if [[ -d "$WTPATH" ]]; then
-    WORKTREE_REMOVED=false; LEFTOVERS+=("worktree")
+    WORKTREE_REMOVED=false
+    if [[ -n "$WORKTREE_REMOVE_ERR" ]]; then
+      add_leftover "worktree" "$(worktree_remove_reason "$WORKTREE_REMOVE_ERR")"
+    else
+      add_leftover "worktree" "directory sweep failed"
+    fi
   fi
 else
   log "no worktree registered for $BRANCH — already gone"
@@ -168,17 +213,22 @@ if [[ "$KEEP_BRANCH" -eq 0 ]]; then
   if branch_exists; then
     if [[ -z "$LOCAL_PROOF" ]]; then
       log "keeping local branch $BRANCH because merge is not verified"
-    elif g branch -d "$BRANCH" >/dev/null 2>&1; then
+      LOCAL_DELETE_REASON="merge not verified"
+    elif LOCAL_DELETE_ERR="$(g branch -d "$BRANCH" 2>&1)"; then
       log "deleted local branch $BRANCH"
-    elif g branch -D "$BRANCH" >/dev/null 2>&1; then
+    elif LOCAL_DELETE_ERR="$(g branch -D "$BRANCH" 2>&1)"; then
       log "force-deleted squash-merged local branch $BRANCH ($LOCAL_PROOF)"
     else
-      log "merge was verified but git could not delete local branch $BRANCH"
+      LOCAL_DELETE_REASON="$(branch_delete_reason "$LOCAL_DELETE_ERR")"
+      log "merge was verified but git could not delete local branch $BRANCH: $LOCAL_DELETE_ERR"
     fi
   else
     log "local branch $BRANCH already absent"
   fi
-  if branch_exists; then LOCAL_DELETED=false; LEFTOVERS+=("local branch"); fi
+  if branch_exists; then
+    LOCAL_DELETED=false
+    add_leftover "local branch" "${LOCAL_DELETE_REASON:-local branch delete failed}"
+  fi
 else
   log "--keep-branch: leaving local branch $BRANCH"
 fi
@@ -191,15 +241,20 @@ if [[ "$KEEP_BRANCH" -eq 0 && "$KEEP_REMOTE" -eq 0 ]]; then
     if remote_branch_present; then
       if [[ -z "$REMOTE_PROOF" ]]; then
         log "keeping origin branch $BRANCH because merge is not verified"
+        REMOTE_DELETE_REASON="merge not verified"
       elif g push origin --delete "$BRANCH" >/dev/null 2>&1; then
         log "deleted origin branch $BRANCH"
       else
         log "git push origin --delete failed for $BRANCH"
+        REMOTE_DELETE_REASON="remote branch delete failed"
       fi
     else
       log "origin branch $BRANCH already absent"
     fi
-    if remote_branch_present; then REMOTE_DELETED=false; LEFTOVERS+=("origin branch"); fi
+    if remote_branch_present; then
+      REMOTE_DELETED=false
+      add_leftover "origin branch" "${REMOTE_DELETE_REASON:-remote branch delete failed}"
+    fi
   else
     log "no origin remote — skipping remote delete"
   fi
@@ -212,27 +267,30 @@ if [[ ${#LEFTOVERS[@]} -eq 0 && -n "$SESSION" ]]; then
   if tmux kill-session -t "$SESSION" >/dev/null 2>&1; then
     log "killed tmux session $SESSION"
   else
-    SESSION_CLOSED=false; LEFTOVERS+=("session")
+    SESSION_CLOSED=false; add_leftover "session" "session close failed"
     log "failed to kill tmux session $SESSION"
   fi
 elif [[ ${#LEFTOVERS[@]} -gt 0 && -n "$SESSION" ]]; then
   SESSION_CLOSED=false
-  LEFTOVERS+=("session")
+  add_leftover "session" "cleanup incomplete"
   log "kept tmux session $SESSION alive because cleanup is incomplete"
 fi
 
 # ---- 7. emit the machine-readable result line ------------------------------
 OK=true; [[ ${#LEFTOVERS[@]} -gt 0 ]] && OK=false
 LEFT_JSON=""
+REASONS_JSON=""
 for i in "${!LEFTOVERS[@]}"; do
   [[ $i -gt 0 ]] && LEFT_JSON+=","
   LEFT_JSON+="\"${LEFTOVERS[$i]}\""
+  [[ $i -gt 0 ]] && REASONS_JSON+=","
+  REASONS_JSON+="{\"leftover\":\"${REASON_LEFTOVERS[$i]}\",\"reason\":\"${REASONS[$i]}\"}"
 done
 # `sessionClosed` is the current field; `workspaceClosed` is kept as a
 # backwards-compatible alias (same value) for any downstream tooling that still
 # reads the cmux-era name.
-printf '{"ok":%s,"branch":"%s","worktreeRemoved":%s,"worktreePath":"%s","localBranchDeleted":%s,"remoteBranchDeleted":%s,"sessionClosed":%s,"workspaceClosed":%s,"leftovers":[%s]}\n' \
-  "$OK" "$BRANCH" "$WORKTREE_REMOVED" "${WTPATH:-}" "$LOCAL_DELETED" "$REMOTE_DELETED" "$SESSION_CLOSED" "$SESSION_CLOSED" "$LEFT_JSON"
+printf '{"ok":%s,"branch":"%s","worktreeRemoved":%s,"worktreePath":"%s","localBranchDeleted":%s,"remoteBranchDeleted":%s,"sessionClosed":%s,"workspaceClosed":%s,"leftovers":[%s],"reasons":[%s]}\n' \
+  "$OK" "$BRANCH" "$WORKTREE_REMOVED" "${WTPATH:-}" "$LOCAL_DELETED" "$REMOTE_DELETED" "$SESSION_CLOSED" "$SESSION_CLOSED" "$LEFT_JSON" "$REASONS_JSON"
 
 [[ "$OK" == true ]] || exit 1
 exit 0
