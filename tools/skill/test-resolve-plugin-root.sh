@@ -185,6 +185,84 @@ esac
 pass "multiple installed copies fail closed instead of crossing package versions"
 trash "$SECOND_CODEX"
 
+# MD-3002: git-pr's Step 1c review-client bootstrap must resolve review.mjs from a single
+# deterministic complete package when TRON_PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT/CLAUDE_SKILL_DIR are all
+# unset, picking the newest complete package by version rather than whichever full resolver path a
+# naive `find | sort -V | tail -1` happens to sort last.
+extract_git_pr_step1c() {
+  awk '
+    /^## Step 1c/ { flag = 1 }
+    flag && /^```bash/ { incode = 1; next }
+    flag && incode && /^node "\$REVIEW"/ { exit }
+    flag && incode && /^```/ { exit }
+    flag && incode { print }
+  ' "$ROOT/skills/git-pr/SKILL.md"
+}
+
+GITPR_STEP1C="$(extract_git_pr_step1c)"
+case "$GITPR_STEP1C" in
+  *'sort -V'*) fail "git-pr Step 1c bootstrap relies on GNU-only sort -V" ;;
+esac
+case "$GITPR_STEP1C" in
+  *'find '*'-maxdepth'*) fail "git-pr Step 1c bootstrap relies on GNU-only find -maxdepth" ;;
+esac
+case "$GITPR_STEP1C" in
+  *'<('*) fail "git-pr Step 1c bootstrap relies on process substitution" ;;
+esac
+pass "git-pr Step 1c bootstrap avoids GNU-only sort -V, find -maxdepth, and process substitution"
+
+run_git_pr_bootstrap() {
+  local script="$FIXTURE/bootstrap-git-pr.sh"
+  extract_git_pr_step1c >"$script"
+  printf '\nprintf "%%s\\n" "$REVIEW"\n' >>"$script"
+  env -u TRON_PLUGIN_ROOT -u CLAUDE_PLUGIN_ROOT -u CLAUDE_SKILL_DIR \
+    HOME="${BOOTSTRAP_HOME:-$FIXTURE/home}" PATH="${BOOTSTRAP_PATH:-$PATH}" bash "$script"
+}
+
+GITPR_HOME="$FIXTURE/git-pr-home"
+GITPR_V49="$GITPR_HOME/.codex/plugins/cache/tron/tron/0.49.0"
+GITPR_V50="$GITPR_HOME/.codex/plugins/cache/tron/tron/0.50.0"
+for v in "$GITPR_V49" "$GITPR_V50"; do
+  mkdir -p "$v/skills/git-pr" "$v/tools/skill" "$v/tools/review"
+  cp "$ROOT/skills/git-pr/SKILL.md" "$v/skills/git-pr/SKILL.md"
+  cp "$RESOLVER" "$v/tools/skill/resolve-plugin-root.sh"
+  printf '// stub review client fixture\n' >"$v/tools/review/review.mjs"
+done
+
+resolved_review="$(BOOTSTRAP_HOME="$GITPR_HOME" run_git_pr_bootstrap)"
+[ "$resolved_review" = "$GITPR_V50/tools/review/review.mjs" ] \
+  || fail "git-pr bootstrap resolved '$resolved_review', expected the newer 0.50.0 package's review.mjs"
+pass "git-pr bootstrap resolves review.mjs from the newest complete package (0.50.0) over 0.49.0 when no root variables are set (MD-3002)"
+
+GITPR_RELEASE_HOME="$FIXTURE/git-pr-release-home"
+GITPR_RELEASE="$GITPR_RELEASE_HOME/Library/Application Support/tron-os/tron-releases/versions/0.48.0"
+mkdir -p "$GITPR_RELEASE/skills/git-pr" "$GITPR_RELEASE/tools/skill" "$GITPR_RELEASE/tools/review"
+cp "$ROOT/skills/git-pr/SKILL.md" "$GITPR_RELEASE/skills/git-pr/SKILL.md"
+cp "$RESOLVER" "$GITPR_RELEASE/tools/skill/resolve-plugin-root.sh"
+printf '// stub review client fixture\n' >"$GITPR_RELEASE/tools/review/review.mjs"
+
+resolved_release_review="$(BOOTSTRAP_HOME="$GITPR_RELEASE_HOME" run_git_pr_bootstrap)"
+[ "$resolved_release_review" = "$GITPR_RELEASE/tools/review/review.mjs" ] \
+  || fail "git-pr bootstrap resolved '$resolved_release_review', expected the release-store package's review.mjs '$GITPR_RELEASE'"
+pass "git-pr bootstrap resolves review.mjs from a complete release-store package with no cache or marketplace package installed (MD-3002)"
+
+GITPR_INCOMPLETE_HOME="$FIXTURE/git-pr-incomplete-home"
+GITPR_INCOMPLETE="$GITPR_INCOMPLETE_HOME/.claude/plugins/cache/tron/0.51.0"
+mkdir -p "$GITPR_INCOMPLETE/skills/git-pr" "$GITPR_INCOMPLETE/tools/skill"
+cp "$ROOT/skills/git-pr/SKILL.md" "$GITPR_INCOMPLETE/skills/git-pr/SKILL.md"
+cp "$RESOLVER" "$GITPR_INCOMPLETE/tools/skill/resolve-plugin-root.sh"
+set +e
+GITPR_ERROR="$(BOOTSTRAP_HOME="$GITPR_INCOMPLETE_HOME" run_git_pr_bootstrap 2>&1)"
+GITPR_STATUS=$?
+set -e
+[ "$GITPR_STATUS" -ne 0 ] || fail "an incomplete git-pr installation unexpectedly resolved: $GITPR_ERROR"
+[ -n "$GITPR_ERROR" ] || fail "an incomplete git-pr installation failed with no diagnostic"
+case "$GITPR_ERROR" in
+  *"incomplete Tron installation"*|*"resolver not found"*) ;;
+  *) fail "incomplete git-pr installation diagnostic was not actionable: $GITPR_ERROR" ;;
+esac
+pass "git-pr bootstrap fails with a nonempty actionable diagnostic on an incomplete installation and never leaves PLUGIN_ROOT empty (MD-3002)"
+
 MD="$FIXTURE/ticket.md"
 cat >"$MD" <<'EOF'
 ```
