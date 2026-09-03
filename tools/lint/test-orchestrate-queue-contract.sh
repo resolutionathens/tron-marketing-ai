@@ -93,6 +93,7 @@ for harness_root in .claude/plugins/cache .codex/plugins/cache; do
   INSTALL="$FIX/$harness_root/tron/tron-engineer/$PLUGIN_VERSION"
   mkdir -p "$INSTALL/tools/skill" "$INSTALL/skills/orchestrate-queue/scripts"
   cp "$ROOT/tools/skill/resolve-skill-dir.sh" "$INSTALL/tools/skill/resolve-skill-dir.sh"
+  cp "$ROOT/tools/skill/rank-candidate.sh" "$INSTALL/tools/skill/rank-candidate.sh"
   cp "$SKILL" "$INSTALL/skills/orchestrate-queue/SKILL.md"
   cp "$MONITOR" "$INSTALL/skills/orchestrate-queue/scripts/monitor-dispatches.sh"
   for shell in /bin/bash /bin/zsh; do
