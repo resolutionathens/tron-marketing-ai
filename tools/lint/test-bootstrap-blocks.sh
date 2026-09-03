@@ -28,9 +28,12 @@ FIX="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-blocks.XXXXXX")"
 trap 'rm -rf "$FIX"' EXIT
 
 # The fixture's own copy of the shared resolver, found by each block's fallback.
+# resolve-skill-dir.sh scores candidates via its sibling rank-candidate.sh
+# (MD-3047), so both must be present for it to resolve anything.
 INSTALL="$FIX/.claude/plugins/cache/tron/tron-test/0.1.0"
 mkdir -p "$INSTALL/tools/skill"
 cp "$ROOT/tools/skill/resolve-skill-dir.sh" "$INSTALL/tools/skill/resolve-skill-dir.sh"
+cp "$ROOT/tools/skill/rank-candidate.sh" "$INSTALL/tools/skill/rank-candidate.sh"
 
 docs="$(
   { ls -1 skills/*/SKILL.md agents/*.md 2>/dev/null

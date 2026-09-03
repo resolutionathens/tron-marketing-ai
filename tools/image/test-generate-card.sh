@@ -25,6 +25,7 @@ mkdir -p "$FAKE/tools/content" "$FAKE/tools/image" "$FAKE/tools/imagekit" \
 # Real unit under test for numbering: the shared content-lib primitives.
 cp "$REPO_ROOT/tools/content/content-lib.sh" "$FAKE/tools/content/content-lib.sh"
 cp "$REPO_ROOT/tools/skill/resolve-skill-dir.sh" "$FAKE/tools/skill/resolve-skill-dir.sh"
+cp "$REPO_ROOT/tools/skill/rank-candidate.sh" "$FAKE/tools/skill/rank-candidate.sh"
 
 # Stub to-webp.sh: just copy source → dest.
 cat > "$FAKE/tools/image/to-webp.sh" <<'SH'

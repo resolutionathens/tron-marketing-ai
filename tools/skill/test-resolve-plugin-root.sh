@@ -226,6 +226,7 @@ for v in "$GITPR_V49" "$GITPR_V50"; do
   mkdir -p "$v/skills/git-pr" "$v/tools/skill" "$v/tools/review"
   cp "$ROOT/skills/git-pr/SKILL.md" "$v/skills/git-pr/SKILL.md"
   cp "$RESOLVER" "$v/tools/skill/resolve-plugin-root.sh"
+  cp "$ROOT/tools/skill/rank-candidate.sh" "$v/tools/skill/rank-candidate.sh"
   printf '// stub review client fixture\n' >"$v/tools/review/review.mjs"
 done
 
@@ -239,6 +240,7 @@ GITPR_RELEASE="$GITPR_RELEASE_HOME/Library/Application Support/tron-os/tron-rele
 mkdir -p "$GITPR_RELEASE/skills/git-pr" "$GITPR_RELEASE/tools/skill" "$GITPR_RELEASE/tools/review"
 cp "$ROOT/skills/git-pr/SKILL.md" "$GITPR_RELEASE/skills/git-pr/SKILL.md"
 cp "$RESOLVER" "$GITPR_RELEASE/tools/skill/resolve-plugin-root.sh"
+cp "$ROOT/tools/skill/rank-candidate.sh" "$GITPR_RELEASE/tools/skill/rank-candidate.sh"
 printf '// stub review client fixture\n' >"$GITPR_RELEASE/tools/review/review.mjs"
 
 resolved_release_review="$(BOOTSTRAP_HOME="$GITPR_RELEASE_HOME" run_git_pr_bootstrap)"

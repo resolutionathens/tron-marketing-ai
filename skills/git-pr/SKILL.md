@@ -90,11 +90,12 @@ Resolve the bundled client, then run one round. It reaches the control plane ove
 (MD-2749). When no root variable is set, the fallback picks the newest complete installed package
 by version (marketplace over cache over release store on a tie) instead of whichever full resolver
 path happens to sort last, so the resolver and `review.mjs` always come from the same package
-(MD-3002). This version-then-rank scoring is the same algorithm `resolve-skill-dir.sh` uses to pick
-among installed copies — kept as identical inline text here (not a call to that script) because this
-fallback is the one place that must resolve a package root with no plugin-root variable set and no
-resolver script yet in hand; `tools/skill/test-resolve-plugin-root.sh` asserts the two stay in sync
-(MD-3047):
+(MD-3002). Each candidate root is scored by its own copy of `tools/skill/rank-candidate.sh` —
+required to exist alongside `review.mjs`/`resolve-plugin-root.sh` before a root is even considered,
+so the score always comes from the same package as the root it scores. `resolve-skill-dir.sh` scores
+candidates the same way, by calling that same script (MD-3047) — this fallback still can't call
+`resolve-skill-dir.sh` itself, since it must resolve a package root with no resolver script yet in
+hand, but the actual selection logic now lives in one file both call:
 
 ```bash
 name=git-pr
@@ -112,13 +113,10 @@ if [ ! -f "${RESOLVER:-}" ]; then
       -type f -path "*/skills/$name/SKILL.md" 2>/dev/null \
       | while IFS= read -r doc; do
           root="${doc%/skills/$name/SKILL.md}"
-          [ -e "$root/tools/review/review.mjs" ] && [ -f "$root/tools/skill/resolve-plugin-root.sh" ] || continue
-          version="$(printf '%s\n' "$root" | tr '/' '\n' | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | tail -1)"
-          key="$(printf '%s' "${version:-0.0.0}" | awk -F. '{printf "%05d.%05d.%05d", $1, $2, $3}')"
-          rank=1
-          if [[ "$root" == "$claude_cache/"* || "$root" == "$codex_cache/"* ]]; then rank=2; fi
-          if [[ "$root" == "$claude_marketplaces/"* || "$root" == "$codex_marketplaces/"* ]]; then rank=3; fi
-          printf '%s\t%s\t%s\n' "$key" "$rank" "$root"
+          [ -e "$root/tools/review/review.mjs" ] \
+            && [ -f "$root/tools/skill/resolve-plugin-root.sh" ] \
+            && [ -f "$root/tools/skill/rank-candidate.sh" ] || continue
+          bash "$root/tools/skill/rank-candidate.sh" "$root" "$claude_cache" "$claude_marketplaces" "$codex_cache" "$codex_marketplaces"
         done | LC_ALL=C sort -t $'\t' -k1,1 -k2,2n | tail -1 | cut -f3-
   )"
   [ -n "$AMBIENT_ROOT" ] && RESOLVER="$AMBIENT_ROOT/tools/skill/resolve-plugin-root.sh"

@@ -18,6 +18,9 @@ if [[ -z "$name" || -z "$probe" ]]; then
 fi
 shift 2   # "$@" is now the extra required paths (safe when empty, unlike an array under bash 3.2)
 
+self_dir="$(cd "$(dirname "$0")" && pwd)"
+RANK="$self_dir/rank-candidate.sh"
+
 claude_cache="$HOME/.claude/plugins/cache"
 claude_marketplaces="$HOME/.claude/plugins/marketplaces"
 codex_cache="$HOME/.codex/plugins/cache"
@@ -51,21 +54,10 @@ candidate="$(
     | while IFS= read -r file; do
         skill_dir="${file%"/$probe"}"
         has_all "$skill_dir" "$@" || continue
-        # Same version-then-rank scoring git-pr's Step 1c ambient fallback uses to pick
-        # among installed copies (kept as separate inline text there, not a call to this
-        # script — see that block's comment); test-resolve-plugin-root.sh checks the two
-        # stay in sync (MD-3047).
-        version="$(printf '%s\n' "$skill_dir" | tr '/' '\n' \
-          | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | tail -1)"
-        key="$(printf '%s' "${version:-0.0.0}" | awk -F. '{printf "%05d.%05d.%05d", $1, $2, $3}')"
-        rank=1
-        if [[ "$skill_dir" == "$claude_cache/"* || "$skill_dir" == "$codex_cache/"* ]]; then
-          rank=2
-        fi
-        if [[ "$skill_dir" == "$claude_marketplaces/"* || "$skill_dir" == "$codex_marketplaces/"* ]]; then
-          rank=3
-        fi
-        printf '%s\t%s\t%s\n' "$key" "$rank" "$skill_dir"
+        # Shared with the ambient fallback in git-pr Step 1c (MD-3047): both score
+        # candidates with rank-candidate.sh — that script is the one place a
+        # future change to how the newest complete package is picked has to land.
+        bash "$RANK" "$skill_dir" "$claude_cache" "$claude_marketplaces" "$codex_cache" "$codex_marketplaces"
       done \
     | LC_ALL=C sort -t $'\t' -k1,1 -k2,2n -k3,3 | tail -1 | cut -f3- || true
 )"
