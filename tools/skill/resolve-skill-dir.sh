@@ -51,9 +51,13 @@ candidate="$(
     | while IFS= read -r file; do
         skill_dir="${file%"/$probe"}"
         has_all "$skill_dir" "$@" || continue
+        # Same version-then-rank scoring git-pr's Step 1c ambient fallback uses to pick
+        # among installed copies (kept as separate inline text there, not a call to this
+        # script — see that block's comment); test-resolve-plugin-root.sh checks the two
+        # stay in sync (MD-3047).
         version="$(printf '%s\n' "$skill_dir" | tr '/' '\n' \
           | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | tail -1)"
-        version="${version:-0.0.0}"
+        key="$(printf '%s' "${version:-0.0.0}" | awk -F. '{printf "%05d.%05d.%05d", $1, $2, $3}')"
         rank=1
         if [[ "$skill_dir" == "$claude_cache/"* || "$skill_dir" == "$codex_cache/"* ]]; then
           rank=2
@@ -61,9 +65,9 @@ candidate="$(
         if [[ "$skill_dir" == "$claude_marketplaces/"* || "$skill_dir" == "$codex_marketplaces/"* ]]; then
           rank=3
         fi
-        printf '%s\t%s\t%s\n' "$version" "$rank" "$skill_dir"
+        printf '%s\t%s\t%s\n' "$key" "$rank" "$skill_dir"
       done \
-    | sort -t $'\t' -k1,1V -k2,2n -k3,3 | tail -1 | cut -f3- || true
+    | LC_ALL=C sort -t $'\t' -k1,1 -k2,2n -k3,3 | tail -1 | cut -f3- || true
 )"
 if [[ -n "$candidate" ]]; then
   printf '%s\n' "$candidate"
