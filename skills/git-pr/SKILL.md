@@ -87,15 +87,45 @@ the PR after it opens. Run the review here, while you still own the branch.
 
 Resolve the bundled client, then run one round. It reaches the control plane over
 `TRON_API_URL`, so it works from **any** repo's worktree — you do not need a tron-os checkout
-(MD-2749):
+(MD-2749). When no root variable is set, the fallback picks the newest complete installed package
+by version (marketplace over cache over release store on a tie) instead of whichever full resolver
+path happens to sort last, so the resolver and `review.mjs` always come from the same package
+(MD-3002):
 
 ```bash
 name=git-pr
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}"
+PLUGIN_ROOT="${TRON_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}}"
 RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-plugin-root.sh}"
-[ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-plugin-root.sh" 2>/dev/null | sort -V | tail -1 || true)"
+AMBIENT_ROOT=""
+if [ ! -f "${RESOLVER:-}" ]; then
+  claude_cache="$HOME/.claude/plugins/cache"
+  claude_marketplaces="$HOME/.claude/plugins/marketplaces"
+  codex_cache="$HOME/.codex/plugins/cache"
+  codex_marketplaces="$HOME/.codex/plugins/marketplaces"
+  release_store="$HOME/Library/Application Support/tron-os/tron-releases/versions"
+  AMBIENT_ROOT="$(
+    find "$claude_cache" "$claude_marketplaces" "$codex_cache" "$codex_marketplaces" "$release_store" \
+      -type f -path "*/skills/$name/SKILL.md" 2>/dev/null \
+      | while IFS= read -r doc; do
+          root="${doc%/skills/$name/SKILL.md}"
+          [ -e "$root/tools/review/review.mjs" ] && [ -f "$root/tools/skill/resolve-plugin-root.sh" ] || continue
+          version="$(printf '%s\n' "$root" | tr '/' '\n' | sed -nE 's/^v?([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' | tail -1)"
+          key="$(printf '%s' "${version:-0.0.0}" | awk -F. '{printf "%05d.%05d.%05d", $1, $2, $3}')"
+          rank=1
+          if [[ "$root" == "$claude_cache"/* || "$root" == "$codex_cache"/* ]]; then rank=2; fi
+          if [[ "$root" == "$claude_marketplaces"/* || "$root" == "$codex_marketplaces"/* ]]; then rank=3; fi
+          printf '%s\t%s\t%s\n' "$key" "$rank" "$root"
+        done | LC_ALL=C sort -t $'\t' -k1,1 -k2,2n | tail -1 | cut -f3-
+  )"
+  [ -n "$AMBIENT_ROOT" ] && RESOLVER="$AMBIENT_ROOT/tools/skill/resolve-plugin-root.sh"
+fi
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
-REVIEW="$(bash "$RESOLVER" "$name" tools/review/review.mjs)/tools/review/review.mjs"
+if [ -n "$AMBIENT_ROOT" ]; then
+  PLUGIN_ROOT="$(TRON_PLUGIN_ROOT="$AMBIENT_ROOT" bash "$RESOLVER" "$name" tools/review/review.mjs)"
+else
+  PLUGIN_ROOT="$(bash "$RESOLVER" "$name" tools/review/review.mjs)"
+fi
+REVIEW="$PLUGIN_ROOT/tools/review/review.mjs"
 
 node "$REVIEW" local --verified "<a check you already ran green in Step 1b>"
 ```
