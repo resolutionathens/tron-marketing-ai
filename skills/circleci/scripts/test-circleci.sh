@@ -33,26 +33,54 @@ mkrepo() { # name remote-url
 echo "circleci smoke: root=$ROOT"
 
 # --- slug derivation ---------------------------------------------------------
-D="$(mkrepo gh-ssh 'git@github.com:Facilitron/marketing-pages.git')"
-O="$(bash "$SCRIPT" slug --repo "$D")"; echo "  → $O"
-has "$O" '"ok":true' "ssh github remote derives a slug"
-has "$O" '"slug":"gh/Facilitron/marketing-pages"' "ssh remote → gh/Facilitron/marketing-pages"
-pass "slug: git@github.com:Org/repo.git → gh/Org/repo"
+# Run under both bash and zsh — MD-2811: the old `[[ =~ ]]`/BASH_REMATCH
+# construct silently produced an empty slug under zsh (zsh populates regex
+# capture groups differently than bash), the same failure mode MD-2661 fixed
+# in skills/git-pr/scripts/resolve-origin-slug.sh. derive_slug now uses the
+# same POSIX case/parameter-expansion approach, so it must behave identically
+# under both shells.
+for SHELL_BIN in bash zsh; do
+  command -v "$SHELL_BIN" >/dev/null 2>&1 || { echo "skip: $SHELL_BIN not installed" >&2; continue; }
 
-D="$(mkrepo gh-https 'https://github.com/Facilitron/marketing-pages.git')"
-O="$(bash "$SCRIPT" slug --repo "$D" || true)"
-has "$O" '"slug":"gh/Facilitron/marketing-pages"' "https remote → gh/Facilitron/marketing-pages"
-pass "slug: https://github.com/Org/repo.git → gh/Org/repo"
+  D="$(mkrepo "gh-ssh-$SHELL_BIN" 'git@github.com:Facilitron/marketing-pages.git')"
+  O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D")"; echo "  → ($SHELL_BIN) $O"
+  has "$O" '"ok":true' "($SHELL_BIN) ssh github remote derives a slug"
+  has "$O" '"slug":"gh/Facilitron/marketing-pages"' "($SHELL_BIN) ssh remote → gh/Facilitron/marketing-pages"
+  pass "($SHELL_BIN) slug: git@github.com:Org/repo.git → gh/Org/repo"
 
-D="$(mkrepo bb 'git@bitbucket.org:team/thing.git')"
-O="$(bash "$SCRIPT" slug --repo "$D" || true)"
-has "$O" '"slug":"bb/team/thing"' "bitbucket remote → bb/team/thing"
-pass "slug: bitbucket → bb/team/repo"
+  D="$(mkrepo "gh-https-$SHELL_BIN" 'https://github.com/Facilitron/marketing-pages.git')"
+  O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D" || true)"
+  has "$O" '"slug":"gh/Facilitron/marketing-pages"' "($SHELL_BIN) https remote → gh/Facilitron/marketing-pages"
+  pass "($SHELL_BIN) slug: https://github.com/Org/repo.git → gh/Org/repo"
 
-D="$(mkrepo norem '')"
-O="$(bash "$SCRIPT" slug --repo "$D" 2>/dev/null || true)"; echo "  → $O"
-has "$O" '"ok":false' "no remote → ok:false"
-pass "slug: no origin remote → ok:false"
+  D="$(mkrepo "bb-$SHELL_BIN" 'git@bitbucket.org:team/thing.git')"
+  O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D" || true)"
+  has "$O" '"slug":"bb/team/thing"' "($SHELL_BIN) bitbucket remote → bb/team/thing"
+  pass "($SHELL_BIN) slug: bitbucket → bb/team/repo"
+
+  D="$(mkrepo "nested-$SHELL_BIN" 'https://github.com/Facilitron/nested/marketing-pages.git')"
+  O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D" 2>/dev/null || true)"; echo "  → ($SHELL_BIN) $O"
+  has "$O" '"ok":false' "($SHELL_BIN) nested path → ok:false"
+  pass "($SHELL_BIN) slug: extra path segment → ok:false"
+
+  D="$(mkrepo "norem-$SHELL_BIN" '')"
+  O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D" 2>/dev/null || true)"; echo "  → ($SHELL_BIN) $O"
+  has "$O" '"ok":false' "($SHELL_BIN) no remote → ok:false"
+  pass "($SHELL_BIN) slug: no origin remote → ok:false"
+
+  # need_slug (not just cmd_slug) must resolve a slug correctly under zsh too —
+  # `pipelines` calls need_slug before any network access, so its offline
+  # failure path on a repo with no origin remote exercises need_slug itself.
+  # need_slug's error JSON is produced inside a `slug="$(need_slug)"` command
+  # substitution, so it is captured into that variable rather than printed —
+  # only the exit code (2, via `set -e` on the failing assignment) is
+  # observable from outside, which is what this asserts.
+  D="$(mkrepo "need-slug-norem-$SHELL_BIN" '')"
+  rc=0; "$SHELL_BIN" "$SCRIPT" pipelines --repo "$D" >/dev/null 2>&1 || rc=$?
+  echo "  → ($SHELL_BIN) rc=$rc"
+  [[ "$rc" == 2 ]] || fail "($SHELL_BIN) pipelines with no origin remote should exit 2 via need_slug (got $rc)"
+  pass "($SHELL_BIN) pipelines (need_slug consumer) with no origin remote → exit 2"
+done
 
 # --- deploy-url table (marketing-pages) --------------------------------------
 MP="$(mkrepo mp 'git@github.com:Facilitron/marketing-pages.git')"
