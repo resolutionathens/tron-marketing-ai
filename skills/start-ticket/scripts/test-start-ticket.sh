@@ -212,6 +212,15 @@ branch="$3"
 git -C "$PWD" worktree add -q -b "$branch" "$PWD/../wt-$branch"
 EOF
 chmod +x "$V/bin/wt"
+# A real `acli` on the host PATH must NEVER be reachable from this fixture —
+# shadow it with a stub that always fails (transition attempt fails
+# harmlessly) so no test here can ever touch live Jira, no matter what real
+# credentials happen to be configured on the machine running these tests.
+cat > "$V/bin/acli" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+chmod +x "$V/bin/acli"
 (
   cd "$V/main"
   OUT="$(PATH="$V/bin:$PATH" bash "$SCRIPT" 'MD-4' --branch symlink-unsafe --no-transition)"
@@ -238,8 +247,24 @@ jq -nc '{version:1,dev:{install:"exit 1"}}' > "$V/main/.tron/content-profile.jso
   [[ -d "$V/wt-install-fails" ]] || fail "install-fails: the worktree must survive an install failure"
   git -C "$V/main" show-ref --verify --quiet "refs/heads/install-fails" || fail "install-fails: the branch must survive an install failure"
 )
-rm -rf "$V"
+git -C "$V/main" worktree remove --force "$V/wt-install-fails"
 pass "a failed registered dev.install does not remove the worktree or branch"
+
+# A failed install must not short-circuit the script before the transition
+# step — run WITHOUT --no-transition. The stub `acli` above always fails, so
+# the transition attempt itself fails harmlessly and is reported as
+# untransitioned rather than blocking the result (and, critically, never
+# touches a real Jira ticket).
+(
+  cd "$V/main"
+  OUT="$(PATH="$V/bin:$PATH" bash "$SCRIPT" 'MD-6' --branch install-fails-transition)"
+  json_eq "$OUT" '.ok' 'true' "a failed dev.install still reaches and reports the transition step"
+  json_eq "$OUT" '.nodeModulesInstall.succeeded' 'false' "install failure is reported alongside a reached transition step"
+  json_eq "$OUT" '.transitioned' 'false' "the stubbed acli fails the transition — install failure did not block reaching it"
+)
+git -C "$V/main" worktree remove --force "$V/wt-install-fails-transition"
+rm -rf "$V"
+pass "a failed dev.install does not undo or block the ticket transition step"
 
 # ── node_modules symlinks must be invisible to git (MD-2028) ────────────────
 # A directory-only ignore pattern ("node_modules/") does not match a symlink
