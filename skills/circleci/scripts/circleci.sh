@@ -129,15 +129,31 @@ http() { # METHOD PATH [DATA]
 
 # ---- pure helpers (offline-testable) ----------------------------------------
 # Map an origin remote URL to a CircleCI project slug (vcs/Org/repo).
+#
+# Deliberately POSIX case/parameter-expansion, not `[[ =~ ]]`/BASH_REMATCH — zsh
+# populates regex capture groups differently than bash, so the old bash-only
+# construct silently produced an empty slug when this script ran directly under
+# a zsh default shell (MD-2811, mirroring MD-2661's fix in
+# skills/git-pr/scripts/resolve-origin-slug.sh). See test-circleci.sh, which
+# runs slug derivation under both bash and zsh.
 derive_slug() {
-  local repo="$1" url vcs
+  local repo="$1" url vcs owner_repo
   url="$(git -C "$repo" remote get-url origin 2>/dev/null || true)"
   [[ -z "$url" ]] && return 1
   url="${url%.git}"
-  if [[ "$url" =~ github\.com[:/]([^/]+)/([^/]+)$ ]]; then vcs=gh
-  elif [[ "$url" =~ bitbucket\.org[:/]([^/]+)/([^/]+)$ ]]; then vcs=bb
-  else return 1; fi
-  printf '%s/%s/%s' "$vcs" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  case "$url" in
+    *github.com[:/]*) vcs=gh; owner_repo="${url#*github.com?}" ;;
+    *bitbucket.org[:/]*) vcs=bb; owner_repo="${url#*bitbucket.org?}" ;;
+    *) return 1 ;;
+  esac
+  case "$owner_repo" in
+    */*) : ;;
+    *) return 1 ;;
+  esac
+  case "$owner_repo" in
+    */*/*) return 1 ;;
+  esac
+  printf '%s/%s' "$vcs" "$owner_repo"
 }
 
 need_slug() {
