@@ -109,6 +109,47 @@ tl_link_node_modules() {
   done < <(find "$src" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
 }
 
+# Detect a project whose registered verification runtime cannot use a
+# symlinked node_modules tree. Vite (and everything built on it — Vitest,
+# Nuxt) resolves a symlinked node_modules to its REAL path and builds test
+# import URLs from that real path (`/@fs/<realpath>/…`); when the real path is
+# another checkout entirely, every import 404s before test collection even
+# though the files are readable. This is a distinct failure from a native
+# binary — no .node file involved, and it reproduces from a plain checkout on
+# any machine (PR 832 / MD-2955). Detected from the root package.json's own
+# declared dependencies rather than a repo-name allowlist, so it generalizes to
+# any Vite-family project, not just the one that surfaced it. Pure filesystem
+# read — no install, no network.
+tl_symlink_unsafe_deps() {
+  local repo="$1" pkg
+  pkg="$repo/package.json"
+  [[ -f "$pkg" ]] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  jq -e '
+    (((.dependencies // {}) + (.devDependencies // {})) | keys) as $deps
+    | any($deps[]; test("^(vite|vitest|nuxt|@nuxt/)"))
+  ' "$pkg" >/dev/null 2>&1
+}
+
+# Echo the repo's registered dependency-install command, or return 1 if it
+# declares none. Read from the same repo-declared content profile
+# (`.tron/content-profile.json`, version 1) other plugin tooling already
+# trusts for repo-specific facts (see content-lib.sh) — under `dev.install`.
+# Never guesses a package manager: a wrong guess (npm vs pnpm, or a missing
+# `mise exec --` wrapper) either fails opaquely or installs the wrong tree,
+# and the caller needs to know explicitly when nothing is registered rather
+# than have one invented.
+tl_dev_install_command() {
+  local repo="$1" profile cmd
+  profile="$repo/.tron/content-profile.json"
+  [[ -f "$profile" ]] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  [[ "$(jq -r '.version // empty' "$profile" 2>/dev/null)" == "1" ]] || return 1
+  cmd="$(jq -r '.dev.install // empty' "$profile" 2>/dev/null)"
+  [[ -n "$cmd" ]] || return 1
+  printf '%s\n' "$cmd"
+}
+
 # Provision a ticket branch to track the same-named branch on origin before its
 # first push. Worktree creation tools can copy the base branch's upstream into
 # the new branch (for example origin/master), causing a later plain `git push`

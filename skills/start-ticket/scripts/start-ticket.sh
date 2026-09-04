@@ -19,6 +19,7 @@
 set -euo pipefail
 
 log() { echo "start-ticket: $*" >&2; }
+command -v jq >/dev/null 2>&1 || { echo '{"ok":false,"error":"jq-not-found"}'; exit 1; }
 
 REF=""; BRANCH=""; SUMMARY=""; NO_TRANSITION=0; BASE=""
 while [[ $# -gt 0 ]]; do
@@ -104,14 +105,19 @@ if [[ -n "$WTPATH" ]]; then
 fi
 
 # ---- carry over gitignored env/secret files + selectively share node_modules -
-ENV_COPIED=(); NM_LINKED=(); NM_NATIVE=(); NM_ABSENT=()
+ENV_COPIED=(); NM_LINKED=(); NM_NATIVE=(); NM_UNSAFE=(); NM_ABSENT=()
+INSTALL_SELECTED=false; INSTALL_CMD=""; INSTALL_RAN=false; INSTALL_SUCCEEDED="null"; INSTALL_REASON=""
 if [[ -n "$WTPATH" && -n "$MAIN_CHECKOUT" && "$WTPATH" != "$MAIN_CHECKOUT" ]]; then
   while IFS= read -r n; do [[ -n "$n" ]] && ENV_COPIED+=("$n"); done < <(tl_copy_env_files "$MAIN_CHECKOUT" "$WTPATH")
   [[ ${#ENV_COPIED[@]} -gt 0 ]] && log "carried env files: ${ENV_COPIED[*]}"
   # Sharing dependencies saves disk and install time for pure-JS projects, but
-  # makes compiled .node binaries mutable across worktrees. If any dependency
-  # tree is native, leave every tree unshared so this worktree can install or
-  # rebuild independently without breaking another consumer of the checkout.
+  # a dependency tree is unshareable for two different reasons: compiled
+  # .node binaries are mutable build outputs (rebuilding one through a shared
+  # symlink repairs one consumer while breaking another), and a Vite-family
+  # verification runtime (Vitest, Nuxt) resolves a symlink to its real path
+  # and 404s every import outside the worktree (see tl_symlink_unsafe_deps).
+  # Either reason leaves every tree unshared and, when the repo has registered
+  # an install command, installs into the worktree instead of only reporting.
   NM_PATHS=()
   while IFS= read -r n; do
     [[ -n "$n" ]] || continue
@@ -127,12 +133,37 @@ if [[ -n "$WTPATH" && -n "$MAIN_CHECKOUT" && "$WTPATH" != "$MAIN_CHECKOUT" ]]; t
         break
       fi
     done
-    if [[ "$PROJECT_HAS_NATIVE" == true ]]; then
-      NM_NATIVE=("${NM_PATHS[@]}")
-      log "native node_modules detected; left unshared: ${NM_NATIVE[*]} (run the project's install in this worktree)"
+    PROJECT_SYMLINK_UNSAFE=false
+    if [[ "$PROJECT_HAS_NATIVE" == false ]] && tl_symlink_unsafe_deps "$MAIN_CHECKOUT"; then
+      PROJECT_SYMLINK_UNSAFE=true
+    fi
+    if [[ "$PROJECT_HAS_NATIVE" == true || "$PROJECT_SYMLINK_UNSAFE" == true ]]; then
+      INSTALL_SELECTED=true
+      if [[ "$PROJECT_HAS_NATIVE" == true ]]; then
+        NM_NATIVE=("${NM_PATHS[@]}")
+        log "native node_modules detected; left unshared: ${NM_NATIVE[*]}"
+      else
+        NM_UNSAFE=("${NM_PATHS[@]}")
+        log "symlink-unsafe verification runtime detected (vite/vitest/nuxt); left unshared: ${NM_UNSAFE[*]}"
+      fi
+      if INSTALL_CMD="$(tl_dev_install_command "$MAIN_CHECKOUT")"; then
+        log "running registered dev.install in $WTPATH: $INSTALL_CMD"
+        INSTALL_RAN=true
+        if (cd "$WTPATH" && bash -c "$INSTALL_CMD") >&2; then
+          INSTALL_SUCCEEDED=true
+          log "dev.install succeeded"
+        else
+          INSTALL_SUCCEEDED=false
+          log "dev.install failed (non-blocking — worktree, branch, and ticket transition are kept; run it manually)"
+        fi
+      else
+        INSTALL_CMD=""
+        INSTALL_REASON="no dev.install registered in .tron/content-profile.json — run the project's install command manually"
+        log "$INSTALL_REASON"
+      fi
     else
-      # Link every node_modules (root + nested workspaces) when no native
-      # binaries are present. Best-effort, non-fatal for private dependencies.
+      # Link every node_modules (root + nested workspaces) when the tree is
+      # safe to share. Best-effort, non-fatal for private dependencies.
       while IFS= read -r n; do [[ -n "$n" ]] && NM_LINKED+=("$n"); done < <(tl_link_node_modules "$MAIN_CHECKOUT" "$WTPATH")
       [[ ${#NM_LINKED[@]} -gt 0 ]] && log "linked node_modules: ${NM_LINKED[*]}"
     fi
@@ -160,18 +191,66 @@ if [[ "$NO_TRANSITION" -eq 0 ]]; then
 fi
 
 # ---- emit the result line ---------------------------------------------------
-env_json=""
-for i in "${!ENV_COPIED[@]}"; do [[ $i -gt 0 ]] && env_json+=","; env_json+="\"${ENV_COPIED[$i]}\""; done
-nm_json=""
-for i in "${!NM_LINKED[@]}"; do [[ $i -gt 0 ]] && nm_json+=","; nm_json+="\"${NM_LINKED[$i]}\""; done
-native_nm_json=""
-for i in "${!NM_NATIVE[@]}"; do [[ $i -gt 0 ]] && native_nm_json+=","; native_nm_json+="\"${NM_NATIVE[$i]}\""; done
-absent_nm_json=""
-for i in "${!NM_ABSENT[@]}"; do [[ $i -gt 0 ]] && absent_nm_json+=","; absent_nm_json+="\"${NM_ABSENT[$i]}\""; done
+# Built with jq (not hand-escaped printf) because nodeModulesInstall.command
+# carries an arbitrary repo-declared shell command (spaces, flags, `--`).
+json_array() {
+  if [[ $# -eq 0 ]]; then printf '[]'; return; fi
+  printf '%s\n' "$@" | jq -R . | jq -s -c .
+}
+
+nodeModulesInstall="$(jq -n \
+  --argjson selected "$INSTALL_SELECTED" \
+  --arg command "$INSTALL_CMD" \
+  --argjson ran "$INSTALL_RAN" \
+  --argjson succeeded "$INSTALL_SUCCEEDED" \
+  --arg reason "$INSTALL_REASON" \
+  '{selected:$selected,
+    command:(if $command == "" then null else $command end),
+    ran:$ran,
+    succeeded:$succeeded,
+    reason:(if $reason == "" then null else $reason end)}')"
+
 if [[ "$RTYPE" == jira ]]; then
-  printf '{"ok":true,"refType":"jira","key":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"upstreamProvisioned":%s,"transitioned":%s}\n' \
-    "$RID" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$UPSTREAM_PROVISIONED" "$TRANSITIONED"
+  jq -nc \
+    --arg key "$RID" \
+    --arg branch "$BRANCH" \
+    --arg worktreePath "${WTPATH:-}" \
+    --argjson envCopied "$(json_array "${ENV_COPIED[@]+"${ENV_COPIED[@]}"}")" \
+    --argjson nodeModulesLinked "$(json_array "${NM_LINKED[@]+"${NM_LINKED[@]}"}")" \
+    --argjson nodeModulesNotLinkedNative "$(json_array "${NM_NATIVE[@]+"${NM_NATIVE[@]}"}")" \
+    --argjson nodeModulesNotLinkedUnsafe "$(json_array "${NM_UNSAFE[@]+"${NM_UNSAFE[@]}"}")" \
+    --argjson nodeModulesAbsent "$(json_array "${NM_ABSENT[@]+"${NM_ABSENT[@]}"}")" \
+    --argjson nodeModulesInstall "$nodeModulesInstall" \
+    --argjson baseFreshened "$BASE_FRESHENED" \
+    --argjson upstreamProvisioned "$UPSTREAM_PROVISIONED" \
+    --argjson transitioned "$TRANSITIONED" \
+    '{ok:true,refType:"jira",key:$key,branch:$branch,worktreePath:$worktreePath,
+      envCopied:$envCopied,nodeModulesLinked:$nodeModulesLinked,
+      nodeModulesNotLinkedNative:$nodeModulesNotLinkedNative,
+      nodeModulesNotLinkedUnsafe:$nodeModulesNotLinkedUnsafe,
+      nodeModulesAbsent:$nodeModulesAbsent,nodeModulesInstall:$nodeModulesInstall,
+      baseFreshened:$baseFreshened,upstreamProvisioned:$upstreamProvisioned,
+      transitioned:$transitioned}'
 else
-  printf '{"ok":true,"refType":"gh","issue":"%s","repo":"%s","branch":"%s","worktreePath":"%s","envCopied":[%s],"nodeModulesLinked":[%s],"nodeModulesNotLinkedNative":[%s],"nodeModulesAbsent":[%s],"baseFreshened":%s,"upstreamProvisioned":%s,"assigned":%s}\n' \
-    "$RID" "${RREPO:-}" "$BRANCH" "${WTPATH:-}" "$env_json" "$nm_json" "$native_nm_json" "$absent_nm_json" "$BASE_FRESHENED" "$UPSTREAM_PROVISIONED" "$ASSIGNED"
+  jq -nc \
+    --arg issue "$RID" \
+    --arg repo "${RREPO:-}" \
+    --arg branch "$BRANCH" \
+    --arg worktreePath "${WTPATH:-}" \
+    --argjson envCopied "$(json_array "${ENV_COPIED[@]+"${ENV_COPIED[@]}"}")" \
+    --argjson nodeModulesLinked "$(json_array "${NM_LINKED[@]+"${NM_LINKED[@]}"}")" \
+    --argjson nodeModulesNotLinkedNative "$(json_array "${NM_NATIVE[@]+"${NM_NATIVE[@]}"}")" \
+    --argjson nodeModulesNotLinkedUnsafe "$(json_array "${NM_UNSAFE[@]+"${NM_UNSAFE[@]}"}")" \
+    --argjson nodeModulesAbsent "$(json_array "${NM_ABSENT[@]+"${NM_ABSENT[@]}"}")" \
+    --argjson nodeModulesInstall "$nodeModulesInstall" \
+    --argjson baseFreshened "$BASE_FRESHENED" \
+    --argjson upstreamProvisioned "$UPSTREAM_PROVISIONED" \
+    --argjson assigned "$ASSIGNED" \
+    '{ok:true,refType:"gh",issue:$issue,repo:$repo,branch:$branch,worktreePath:$worktreePath,
+      envCopied:$envCopied,nodeModulesLinked:$nodeModulesLinked,
+      nodeModulesNotLinkedNative:$nodeModulesNotLinkedNative,
+      nodeModulesNotLinkedUnsafe:$nodeModulesNotLinkedUnsafe,
+      nodeModulesAbsent:$nodeModulesAbsent,nodeModulesInstall:$nodeModulesInstall,
+      baseFreshened:$baseFreshened,upstreamProvisioned:$upstreamProvisioned,
+      assigned:$assigned}'
 fi
