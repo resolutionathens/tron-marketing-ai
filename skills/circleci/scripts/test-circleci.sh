@@ -67,6 +67,19 @@ for SHELL_BIN in bash zsh; do
   O="$("$SHELL_BIN" "$SCRIPT" slug --repo "$D" 2>/dev/null || true)"; echo "  → ($SHELL_BIN) $O"
   has "$O" '"ok":false' "($SHELL_BIN) no remote → ok:false"
   pass "($SHELL_BIN) slug: no origin remote → ok:false"
+
+  # need_slug (not just cmd_slug) must resolve a slug correctly under zsh too —
+  # `pipelines` calls need_slug before any network access, so its offline
+  # failure path on a repo with no origin remote exercises need_slug itself.
+  # need_slug's error JSON is produced inside a `slug="$(need_slug)"` command
+  # substitution, so it is captured into that variable rather than printed —
+  # only the exit code (2, via `set -e` on the failing assignment) is
+  # observable from outside, which is what this asserts.
+  D="$(mkrepo "need-slug-norem-$SHELL_BIN" '')"
+  rc=0; "$SHELL_BIN" "$SCRIPT" pipelines --repo "$D" >/dev/null 2>&1 || rc=$?
+  echo "  → ($SHELL_BIN) rc=$rc"
+  [[ "$rc" == 2 ]] || fail "($SHELL_BIN) pipelines with no origin remote should exit 2 via need_slug (got $rc)"
+  pass "($SHELL_BIN) pipelines (need_slug consumer) with no origin remote → exit 2"
 done
 
 # --- deploy-url table (marketing-pages) --------------------------------------
