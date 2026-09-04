@@ -79,6 +79,44 @@ eq "$LINKED" "control-plane/web/node_modules node_modules " "links root + nested
 rm -rf "$N"
 pass "tl_link_node_modules symlinks root + nested node_modules, skips too-deep + existing"
 
+# ── symlink-unsafe verification runtime detection (pure, MD-2955) ───────────
+D="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-symlink-unsafe.XXXXXX")"
+mkdir -p "$D/nuxt" "$D/vitest-dev" "$D/scoped-nuxt" "$D/plain" "$D/no-pkg"
+cat > "$D/nuxt/package.json" <<'EOF'
+{"dependencies":{"nuxt":"^3.0.0"}}
+EOF
+cat > "$D/vitest-dev/package.json" <<'EOF'
+{"devDependencies":{"vitest":"^2.0.0"}}
+EOF
+cat > "$D/scoped-nuxt/package.json" <<'EOF'
+{"devDependencies":{"@nuxt/test-utils":"^3.0.0"}}
+EOF
+cat > "$D/plain/package.json" <<'EOF'
+{"dependencies":{"react":"^18.0.0"},"devDependencies":{"jest":"^29.0.0"}}
+EOF
+tl_symlink_unsafe_deps "$D/nuxt"        || fail "symlink-unsafe: nuxt dependency should be detected"
+tl_symlink_unsafe_deps "$D/vitest-dev"  || fail "symlink-unsafe: vitest devDependency should be detected"
+tl_symlink_unsafe_deps "$D/scoped-nuxt" || fail "symlink-unsafe: @nuxt/* devDependency should be detected"
+if tl_symlink_unsafe_deps "$D/plain";  then fail "symlink-unsafe: react+jest tree should NOT be flagged"; fi
+if tl_symlink_unsafe_deps "$D/no-pkg"; then fail "symlink-unsafe: repo with no package.json should NOT be flagged"; fi
+rm -rf "$D"
+pass "tl_symlink_unsafe_deps flags vite/vitest/nuxt dependency trees only"
+
+# ── registered dev.install command (pure, MD-2955) ───────────────────────────
+I="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-dev-install.XXXXXX")"
+mkdir -p "$I/declared/.tron" "$I/bad-version/.tron" "$I/none"
+cat > "$I/declared/.tron/content-profile.json" <<'EOF'
+{"version":1,"dev":{"install":"mise exec -- npm ci"}}
+EOF
+cat > "$I/bad-version/.tron/content-profile.json" <<'EOF'
+{"version":2,"dev":{"install":"npm ci"}}
+EOF
+eq "$(tl_dev_install_command "$I/declared")" "mise exec -- npm ci" "dev.install reads the declared command"
+if tl_dev_install_command "$I/bad-version"; then fail "dev.install: version 2 profile should not be read"; fi
+if tl_dev_install_command "$I/none";        then fail "dev.install: repo with no content profile should report none"; fi
+rm -rf "$I"
+pass "tl_dev_install_command reads .tron/content-profile.json's dev.install (version 1 only)"
+
 # ── native dependency trees must not be shared across worktrees ─────────────
 # Exercise the script end-to-end with a minimal wt shim. A compiled .node file
 # represents a native dependency; it must prevent every node_modules tree in
@@ -109,6 +147,10 @@ chmod +x "$S/bin/wt"
   json_eq "$OUT" '.nodeModulesLinked' '[]' "native tree does not report linked node_modules"
   json_eq "$OUT" '.nodeModulesNotLinkedNative' '["node_modules","packages/web/node_modules"]' "native tree is explicitly classified"
   json_eq "$OUT" '.nodeModulesAbsent' '[]' "native tree is not reported as absent"
+  json_eq "$OUT" '.nodeModulesInstall.selected' 'true' "native tree: install is selected over sharing"
+  json_eq "$OUT" '.nodeModulesInstall.command' 'null' "native tree with no registered dev.install reports no command (never guessed)"
+  json_eq "$OUT" '.nodeModulesInstall.ran' 'false' "native tree with no registered dev.install does not run one"
+  json_eq "$OUT" '.nodeModulesInstall.succeeded' 'null' "native tree with no registered dev.install has no success verdict"
   [[ ! -e "$S/wt-native/node_modules" ]] || fail "native tree: root node_modules must not be shared"
   [[ ! -e "$S/wt-native/packages/web/node_modules" ]] || fail "native tree: workspace node_modules must not be shared"
 )
@@ -119,7 +161,9 @@ rm "$S/main/node_modules/native-addon/build/addon.node"
   OUT="$(PATH="$S/bin:$PATH" bash "$SCRIPT" 'MD-2' --branch pure --no-transition)"
   json_eq "$OUT" '.nodeModulesLinked' '["node_modules","packages/web/node_modules"]' "pure-JS tree retains existing symlink result"
   json_eq "$OUT" '.nodeModulesNotLinkedNative' '[]' "pure-JS tree is not classified as native"
+  json_eq "$OUT" '.nodeModulesNotLinkedUnsafe' '[]' "pure-JS tree is not classified as symlink-unsafe"
   json_eq "$OUT" '.nodeModulesAbsent' '[]' "pure-JS tree is not reported as absent"
+  json_eq "$OUT" '.nodeModulesInstall.selected' 'false' "pure-JS tree keeps sharing — install is not selected"
   [[ -L "$S/wt-pure/node_modules" ]] || fail "pure-JS tree: root node_modules should be shared"
   [[ -L "$S/wt-pure/packages/web/node_modules" ]] || fail "pure-JS tree: workspace node_modules should be shared"
 )
@@ -131,11 +175,96 @@ rm -rf "$S/main/node_modules" "$S/main/packages"
   json_eq "$OUT" '.nodeModulesLinked' '[]' "missing dependencies do not report symlinks"
   json_eq "$OUT" '.nodeModulesNotLinkedNative' '[]' "missing dependencies are not classified as native"
   json_eq "$OUT" '.nodeModulesAbsent' '["node_modules"]' "missing dependencies are explicitly classified"
+  json_eq "$OUT" '.nodeModulesInstall.selected' 'false' "absent dependencies: install is not selected (nothing to install from)"
   [[ ! -e "$S/wt-absent/node_modules" ]] || fail "absent tree: node_modules should remain absent"
 )
 git -C "$S/main" worktree remove --force "$S/wt-absent"
 rm -rf "$S"
 pass "start-ticket classifies native, pure-JS, and absent dependency trees"
+
+# ── symlink-unsafe verification runtime installs instead of sharing (MD-2955) ─
+# Reproduces the marketing-pages PR 832 shape end-to-end: a pure-JS Nuxt/Vitest
+# tree with no *.node file, a registered dev.install command in the repo's
+# content profile. start-ticket must leave node_modules unshared and run the
+# registered command in the new worktree rather than only reporting it.
+V="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-symlink.XXXXXX")"
+git init -q "$V/main"
+git -C "$V/main" config user.email smoke@tron.local
+git -C "$V/main" config user.name "tron smoke"
+mkdir -p "$V/main/.tron"
+cat > "$V/main/package.json" <<'EOF'
+{"devDependencies":{"nuxt":"^3.0.0","vitest":"^2.0.0","@nuxt/test-utils":"^3.0.0"}}
+EOF
+mkdir -p "$V/install-src/@nuxt/test-utils"
+printf 'x\n' > "$V/install-src/@nuxt/test-utils/entry.mjs"
+INSTALL_CMD="mkdir -p node_modules && cp -R \"$V/install-src/.\" node_modules/ && touch node_modules/.installed-by-dev-install"
+jq -nc --arg install "$INSTALL_CMD" '{version:1,dev:{install:$install}}' > "$V/main/.tron/content-profile.json"
+git -C "$V/main" add package.json .tron
+git -C "$V/main" commit -q -m init
+mkdir -p "$V/main/node_modules/@nuxt/test-utils"
+printf 'unreachable-from-a-symlinked-worktree\n' > "$V/main/node_modules/@nuxt/test-utils/entry.mjs"
+mkdir -p "$V/bin"
+cat > "$V/bin/wt" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$1" == switch && "$2" == -c ]] || exit 2
+branch="$3"
+git -C "$PWD" worktree add -q -b "$branch" "$PWD/../wt-$branch"
+EOF
+chmod +x "$V/bin/wt"
+# A real `acli` on the host PATH must NEVER be reachable from this fixture —
+# shadow it with a stub that always fails (transition attempt fails
+# harmlessly) so no test here can ever touch live Jira, no matter what real
+# credentials happen to be configured on the machine running these tests.
+cat > "$V/bin/acli" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+chmod +x "$V/bin/acli"
+(
+  cd "$V/main"
+  OUT="$(PATH="$V/bin:$PATH" bash "$SCRIPT" 'MD-4' --branch symlink-unsafe --no-transition)"
+  json_eq "$OUT" '.nodeModulesLinked' '[]' "symlink-unsafe tree does not report linked node_modules"
+  json_eq "$OUT" '.nodeModulesNotLinkedNative' '[]' "symlink-unsafe tree is not classified as native"
+  json_eq "$OUT" '.nodeModulesNotLinkedUnsafe' '["node_modules"]' "symlink-unsafe tree is explicitly classified"
+  json_eq "$OUT" '.nodeModulesInstall.selected' 'true' "symlink-unsafe tree: install is selected over sharing"
+  json_eq "$OUT" '.nodeModulesInstall.ran' 'true' "symlink-unsafe tree: the registered dev.install ran"
+  json_eq "$OUT" '.nodeModulesInstall.succeeded' 'true' "symlink-unsafe tree: the registered dev.install succeeded"
+  [[ ! -L "$V/wt-symlink-unsafe/node_modules" ]] || fail "symlink-unsafe: node_modules must not be a symlink into another checkout"
+  [[ -f "$V/wt-symlink-unsafe/node_modules/.installed-by-dev-install" ]] || fail "symlink-unsafe: the registered dev.install command should have run locally"
+)
+git -C "$V/main" worktree remove --force "$V/wt-symlink-unsafe"
+pass "start-ticket detects a symlink-unsafe verification runtime and installs instead of sharing"
+
+# ── a failed dev.install is non-fatal: worktree, branch, transition survive ──
+jq -nc '{version:1,dev:{install:"exit 1"}}' > "$V/main/.tron/content-profile.json"
+(
+  cd "$V/main"
+  OUT="$(PATH="$V/bin:$PATH" bash "$SCRIPT" 'MD-5' --branch install-fails --no-transition)"
+  json_eq "$OUT" '.ok' 'true' "a failed dev.install still reports the worktree as created"
+  json_eq "$OUT" '.nodeModulesInstall.ran' 'true' "a failed dev.install is still reported as attempted"
+  json_eq "$OUT" '.nodeModulesInstall.succeeded' 'false' "a failed dev.install is reported as failed, not silently swallowed"
+  [[ -d "$V/wt-install-fails" ]] || fail "install-fails: the worktree must survive an install failure"
+  git -C "$V/main" show-ref --verify --quiet "refs/heads/install-fails" || fail "install-fails: the branch must survive an install failure"
+)
+git -C "$V/main" worktree remove --force "$V/wt-install-fails"
+pass "a failed registered dev.install does not remove the worktree or branch"
+
+# A failed install must not short-circuit the script before the transition
+# step — run WITHOUT --no-transition. The stub `acli` above always fails, so
+# the transition attempt itself fails harmlessly and is reported as
+# untransitioned rather than blocking the result (and, critically, never
+# touches a real Jira ticket).
+(
+  cd "$V/main"
+  OUT="$(PATH="$V/bin:$PATH" bash "$SCRIPT" 'MD-6' --branch install-fails-transition)"
+  json_eq "$OUT" '.ok' 'true' "a failed dev.install still reaches and reports the transition step"
+  json_eq "$OUT" '.nodeModulesInstall.succeeded' 'false' "install failure is reported alongside a reached transition step"
+  json_eq "$OUT" '.transitioned' 'false' "the stubbed acli fails the transition — install failure did not block reaching it"
+)
+git -C "$V/main" worktree remove --force "$V/wt-install-fails-transition"
+rm -rf "$V"
+pass "a failed dev.install does not undo or block the ticket transition step"
 
 # ── node_modules symlinks must be invisible to git (MD-2028) ────────────────
 # A directory-only ignore pattern ("node_modules/") does not match a symlink

@@ -77,7 +77,7 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
 
 1. You look up the ticket (Step 1) — the script doesn't do this.
 2. Run it with `--branch <name>` or `--summary "<title>"` (slugifies to `<KEY>-slug` or `issue-<N>-slug`).
-3. It freshens the base, runs `wt switch -c … --yes`, provisions `origin/<branch>` as the branch's upstream before its first push, copies `.env*`/`.dev.vars*`, then detects compiled native modules before sharing `node_modules` (root + workspaces). Pure-JS dependency trees stay symlinked; a native tree stays unshared so it can be installed independently. Finally, it transitions Jira → In Progress / assigns GitHub issue.
+3. It freshens the base, runs `wt switch -c … --yes`, provisions `origin/<branch>` as the branch's upstream before its first push, copies `.env*`/`.dev.vars*`, then decides whether `node_modules` (root + workspaces) is safe to share. A tree is unshareable when it has compiled native binaries (a `*.node` file) OR the repo's package.json depends on a Vite-family verification runtime (`vite`, `vitest`, `nuxt`/`@nuxt/*`) that resolves a symlink to its real path and 404s every import outside the worktree (MD-2955). A safe tree stays symlinked as before. An unshareable tree is left unlinked and, if the repo has registered a `dev.install` command in `.tron/content-profile.json` (version 1), that command runs in the new worktree instead of only reporting the gap — never a guessed package-manager command. Finally, it transitions Jira → In Progress / assigns GitHub issue.
 
 ```json
 {
@@ -89,7 +89,15 @@ bash "$SKILL_DIR/scripts/start-ticket.sh" <ref> (--branch <name> | --summary <te
   "envCopied": [".env.local"],
   "nodeModulesLinked": ["node_modules"],
   "nodeModulesNotLinkedNative": [],
+  "nodeModulesNotLinkedUnsafe": [],
   "nodeModulesAbsent": [],
+  "nodeModulesInstall": {
+    "selected": false,
+    "command": null,
+    "ran": false,
+    "succeeded": null,
+    "reason": null
+  },
   "baseFreshened": true,
   "upstreamProvisioned": true,
   "transitioned": true
@@ -108,7 +116,7 @@ Read `worktreePath` from the result. The script exits on `ambiguous-ref`, `wt-sw
 
 **Env files:** Copy `.env*`/`.dev.vars*` from the main checkout (first entry in `git worktree list`) into the worktree root. Without these, the dev server 500s with config errors.
 
-**Node modules:** A native dependency tree must not share `node_modules` with another worktree. Compiled `.node` binaries are mutable build outputs: rebuilding one through a shared symlink repairs one consumer while breaking another. Read `nodeModulesNotLinkedNative` in the script result and run the project's install command in the new worktree when it is non-empty. `nodeModulesAbsent` likewise means no source dependency tree was available to share. Pure-JS trees remain linked in `nodeModulesLinked` to preserve the disk and install-time benefit.
+**Node modules:** A dependency tree is unshareable for one of two reasons. Compiled `.node` binaries are mutable build outputs: rebuilding one through a shared symlink repairs one consumer while breaking another (`nodeModulesNotLinkedNative`). A Vite-family verification runtime (`vite`, `vitest`, `nuxt`/`@nuxt/*` in package.json) resolves a symlinked `node_modules` to its real path and 404s every import outside the worktree, so tests fail before collection even though the files are readable (`nodeModulesNotLinkedUnsafe` — MD-2955 / marketing-pages PR 832). Either way the script checks `nodeModulesInstall`: if `selected` is true and `command` is non-null, it already ran the repo's registered `dev.install` (from `.tron/content-profile.json`'s `dev.install`, version 1) in the new worktree — check `succeeded` before assuming it worked, and re-run the command by hand on failure (never blocking; the worktree, branch, and transition all survive an install failure). If `command` is null, no install command is registered for this repo — run the project's install command manually, and consider adding `dev.install` to that repo's content profile so future worktrees don't need this step. `nodeModulesAbsent` means no source dependency tree was available to share or install from. Pure-JS, non-native trees remain linked in `nodeModulesLinked` to preserve the disk and install-time benefit.
 
 **Jira transition:**
 

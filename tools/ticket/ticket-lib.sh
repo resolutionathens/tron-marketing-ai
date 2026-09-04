@@ -109,6 +109,68 @@ tl_link_node_modules() {
   done < <(find "$src" -maxdepth 3 -type d -name node_modules -prune -print 2>/dev/null)
 }
 
+# Detect a project whose registered verification runtime cannot use a
+# symlinked node_modules tree. Vite (and everything built on it — Vitest,
+# Nuxt) resolves a symlinked node_modules to its REAL path and builds test
+# import URLs from that real path (`/@fs/<realpath>/…`); when the real path is
+# another checkout entirely, every import 404s before test collection even
+# though the files are readable. This is a distinct failure from a native
+# binary — no .node file involved, and it reproduces from a plain checkout on
+# any machine (PR 832 / MD-2955). Detected from the root package.json's own
+# declared dependencies rather than a repo-name allowlist, so it generalizes to
+# any Vite-family project, not just the one that surfaced it. Pure filesystem
+# read — no install, no network.
+tl_symlink_unsafe_deps() {
+  local repo="$1" pkg
+  pkg="$repo/package.json"
+  [[ -f "$pkg" ]] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  # Exact package names only (plus the @nuxt/ scope) — NOT a "starts with"
+  # test, which would also sweep in an unrelated plugin like
+  # vite-tsconfig-paths or nuxt-icon that doesn't itself touch symlink
+  # resolution and would wrongly lose the sharing optimization.
+  jq -e '
+    (((.dependencies // {}) + (.devDependencies // {})) | keys) as $deps
+    | any($deps[]; . == "vite" or . == "vitest" or . == "nuxt" or startswith("@nuxt/"))
+  ' "$pkg" >/dev/null 2>&1
+}
+
+# Locate content-lib.sh (tools/content/), which already owns reading and
+# version-validating the repo's declared `.tron/content-profile.json`
+# (ct_profile_path/ct_profile_read). Sourced on demand rather than
+# unconditionally, since not every ticket-lib.sh caller needs it.
+tl__content_lib_path() {
+  local c="${CLAUDE_PLUGIN_ROOT:-}"
+  if [[ -n "$c" && -f "$c/tools/content/content-lib.sh" ]]; then
+    printf '%s\n' "$c/tools/content/content-lib.sh"; return 0
+  fi
+  c="$(cd "$(dirname "${BASH_SOURCE[0]}")/../content" 2>/dev/null && pwd)"
+  [[ -n "$c" && -f "$c/content-lib.sh" ]] || return 1
+  printf '%s\n' "$c/content-lib.sh"
+}
+
+# Echo the repo's registered dependency-install command, or return 1 if it
+# declares none. Read through content-lib.sh's ct_profile_read — the same
+# repo-declared content profile (`.tron/content-profile.json`, version 1)
+# every other plugin tool already trusts for repo-specific facts — under
+# `dev.install`, rather than re-parsing the file a second, independent way
+# that could drift from the shared reader's path resolution or version
+# check. Never guesses a package manager: a wrong guess (npm vs pnpm, or a
+# missing `mise exec --` wrapper) either fails opaquely or installs the
+# wrong tree, and the caller needs to know explicitly when nothing is
+# registered rather than have one invented.
+tl_dev_install_command() {
+  local repo="$1" content_lib profile cmd
+  content_lib="$(tl__content_lib_path)" || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  # shellcheck source=/dev/null
+  source "$content_lib"
+  profile="$(ct_profile_read "$repo")" || return 1
+  cmd="$(jq -r '.dev.install // empty' <<<"$profile" 2>/dev/null)"
+  [[ -n "$cmd" ]] || return 1
+  printf '%s\n' "$cmd"
+}
+
 # Provision a ticket branch to track the same-named branch on origin before its
 # first push. Worktree creation tools can copy the base branch's upstream into
 # the new branch (for example origin/master), causing a later plain `git push`
