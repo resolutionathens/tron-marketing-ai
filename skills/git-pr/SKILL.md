@@ -271,6 +271,11 @@ SLUG="$(bash "$SKILL_DIR/scripts/resolve-origin-slug.sh")"
 
 Write the body to a temp file and pass it via `--body-file`:
 
+Run this as one tool operation. If the harness yields while `gh pr create` is still running,
+preserve its returned handle and resume or inspect that exact operation before deciding whether a
+retry is needed; never launch a second PR create while the first is live. See
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Continuing a yielded operation*.
+
 ```bash
 PR_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-pr-body.XXXXXX")"
 trap 'rm -f "$PR_BODY"' EXIT

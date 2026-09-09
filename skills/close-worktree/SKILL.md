@@ -46,16 +46,9 @@ section is the single source of truth.
 Skip this step if the repo promotes to production (the transition already happened) or the
 ticket is already Done.
 
-**Step 1: Move to the main checkout** — this changes the invoking session's cwd so it survives worktree removal.
-
-```bash
-if ! GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
-  echo "close-worktree: not inside a git repository" >&2; exit 1
-fi
-cd "${GIT_COMMON_DIR%/.git}" || exit 1
-```
-
-**Step 2: Run the removal script** — after moving out, invoke the script with your branch name.
+**Step 1: Resolve the removal script.** Run this read-only resolver call and retain the absolute
+directory it prints. Do not issue a standalone `cd`: a shell tool's `cd` cannot change the harness
+process's persistent working directory. The removal script resolves the main checkout itself.
 
 ```bash
 name=close-worktree
@@ -63,8 +56,15 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${CLAUDE_SKILL_DIR:+$CLAUDE_SKILL_DIR/../..}}
 RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
 [ -f "${RESOLVER:-}" ] || RESOLVER="$(find ~/.claude/plugins/cache ~/.claude/plugins/marketplaces ~/.codex/plugins/cache ~/.codex/plugins/marketplaces "$HOME/Library/Application Support/tron-os/tron-releases/versions" -maxdepth 7 -type f -path "*/tools/skill/resolve-skill-dir.sh" 2>/dev/null | sort -V | tail -1 || true)"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
-SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/close-worktree.sh)"
-bash "$SKILL_DIR/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
+bash "$RESOLVER" "$name" scripts/close-worktree.sh
+```
+
+**Step 2: Run one exact cleanup command.** Replace `<resolved-skill-dir>` with Step 1's output; do
+not prepend `cd`, variable assignments, or unrelated shell commands. This keeps the lifecycle
+proposal fully inspectable while the script handles repository resolution internally.
+
+```bash
+bash "<resolved-skill-dir>/scripts/close-worktree.sh" <branch> [--force] [--keep-branch] [--keep-remote]
 ```
 
 Refreshes the main checkout's default branch, verifies the feature branch is merged, removes and
@@ -91,9 +91,12 @@ branch is never force-deleted.
 
 **Before removal — stop the worktree's dev server.** If `start-ticket` spun up a `bun dev` background task for this worktree, `TaskStop` it first. The script kills the tmux session but can't stop that task (it's a background task of the orchestrator session, not in tmux); a live dev server keeps file handles open in the worktree dir and races `wt remove`, leaving orphaned fragments behind.
 
-The tmux session intentionally stays live while the worktree is removed. Run Step 1 first so the
-invoking shell is in the main checkout, and stop other worktree processes before cleanup. If removal
-still fails, the live session and `worktree` leftover are the recovery path.
+The tmux session intentionally stays live while the worktree is removed. Stop other worktree
+processes before cleanup. The OS independently verifies the result and does not require a later
+hook from the deleted cwd. If removal still fails, the live session and `worktree` leftover are the
+recovery path. If the tool yields,
+follow [WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Continuing a yielded operation* and resume
+the same operation handle rather than launching cleanup twice.
 
 ## When you DON'T know which branch to close
 

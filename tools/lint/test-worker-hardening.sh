@@ -92,4 +92,14 @@ for f in "$ROOT"/skills/*/SKILL.md "$ROOT"/skills/*/reference/*.md "$CONTRACT"; 
 done
 pass "no skill or contract requests Copilot or reads a removed review route"
 
+# --- 6. Yielded operations retain one identity (MD-3071) ---------------------
+has "$CONTRACT" "contract: operation-continuation anchor" "<!-- contract:operation-continuation -->"
+has "$CONTRACT" "contract: preserves returned operation handle" "preserve the returned operation handle"
+has "$CONTRACT" "contract: resumes the same operation" "resume or inspect that same operation"
+has "$CONTRACT" "contract: yielded then completed" "later reports completion"
+has "$CONTRACT" "contract: yielded then failed" "later reports failure"
+has "$CONTRACT" "contract: no duplicate retry" "do not start a duplicate command"
+has "$GIT_PR" "git-pr: yielded create resumes exact operation" "resume or inspect that exact operation"
+has "$CLOSE" "close-worktree: cwd change is subprocess-scoped" "process's persistent working directory"
+
 echo "worker-hardening contract+skill test: $PASS assertions passed"
