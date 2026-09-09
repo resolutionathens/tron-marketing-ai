@@ -14,6 +14,7 @@ interactive user would do.
 ## Contents
 
 - [What a dispatched worker is](#what-a-dispatched-worker-is)
+- [Continuing a yielded operation](#continuing-a-yielded-operation)
 - [Environment variables you get](#environment-variables-you-get)
 - [The PR-gate autonomy model](#the-pr-gate-autonomy-model)
 - [Source access, verification evidence, and PR-gate retention](#source-access-verification-evidence-and-pr-gate-retention)
@@ -34,6 +35,20 @@ via `acli`, the broker, or a directly-held token, per skill.
 You are expected to run **non-interactively end to end**: no terminal prompts, no menu
 selections, no waiting on a human mid-task. Input you need is either front-loaded into your
 kickoff prompt/env, or fetched on demand over `TRON_API_URL` (see `tron:okf-query` below).
+
+<!-- contract:operation-continuation -->
+## Continuing a yielded operation
+
+A tool response that says an operation is still running is not completion or failure. Always
+preserve the returned operation handle. For example, keep a Codex cell/session id or a Claude
+background task id, then resume or inspect that same operation with the harness's continuation
+tool. While the first operation is live, do not start a duplicate command, even if the initial call
+yielded, timed out, or the turn was interrupted.
+
+Keep polling the same handle until it later reports completion or later reports failure. Only a
+terminal result permits the lifecycle to advance or a fresh retry to begin. If the worker resumes
+after compaction or a status relay, inspect the active handle or process state before deciding that
+the operation disappeared; reused output text is not a new operation identity.
 
 ## Environment variables you get
 
