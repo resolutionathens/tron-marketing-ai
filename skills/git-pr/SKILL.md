@@ -269,7 +269,10 @@ SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/resolve-origin-slug.sh)"
 SLUG="$(bash "$SKILL_DIR/scripts/resolve-origin-slug.sh")"
 ```
 
-Write the body to a temp file and pass it via `--body-file`:
+Write the body to a temp file and pass it via `--body-file`. Substitute the concrete values already
+resolved above into the final command; do not leave `$BASE`, `$BRANCH`, or `$SLUG` tokens for the
+shell, because lifecycle policy inspects the command before expansion and tool shells do not share
+local variables:
 
 Run this as one tool operation. If the harness yields while `gh pr create` is still running,
 preserve its returned handle and resume or inspect that exact operation before deciding whether a
@@ -282,7 +285,7 @@ trap 'rm -f "$PR_BODY"' EXIT
 cat > "$PR_BODY" <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file "$PR_BODY" --base "$BASE" --head "$BRANCH" --repo "$SLUG"
+gh pr create --title "<title>" --body-file "$PR_BODY" --base "<base-branch>" --head "<feature-branch>" --repo "<owner/repo>"
 ```
 
 ## Step 7: Retrospective
