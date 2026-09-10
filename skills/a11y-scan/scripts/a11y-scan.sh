@@ -75,12 +75,45 @@ fi
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/a11y-scan.XXXXXX")"
 RESULTS="$OUT/a11y-results.json"
 CONFIG="$OUT/pa11yci.json"
+# The scanners launch Chromium as a child. Killing only the npx parent leaves those
+# browsers reparented to launchd, where they hold WIRED kernel memory (data.kalloc.1024)
+# that is neither compressible nor swappable — they accumulate across runs until the
+# machine exhausts swap entirely (MD-3075). `set -m` puts the scanner in its own process
+# group so the traps below can signal the whole tree, not just the parent. A trap cannot
+# run on SIGKILL; that residual case is the operator-side watchdog's job.
+SCANNER_PGID=""
+reap_scanner() {
+  [ -n "$SCANNER_PGID" ] || return 0
+  local pgid="$SCANNER_PGID"
+  SCANNER_PGID=""                   # idempotent: EXIT still fires after an INT/TERM trap
+  kill -TERM "-$pgid" 2>/dev/null || true
+  local waited=0
+  while [ "$waited" -lt 20 ] && kill -0 "-$pgid" 2>/dev/null; do
+    sleep 0.1; waited=$((waited + 1))
+  done
+  kill -KILL "-$pgid" 2>/dev/null || true
+}
+run_scanner() {                     # <stdout-target|""> — runs "${cmd[@]}" in its own group
+  local rc=0
+  set -m
+  if [ -n "$1" ]; then "${cmd[@]}" > "$1" & else "${cmd[@]}" >&2 & fi
+  SCANNER_PGID=$!
+  set +m
+  wait "$SCANNER_PGID" || rc=$?
+  SCANNER_PGID=""                   # reaped by wait; nothing left to signal
+  return "$rc"
+}
+
 cleanup_failed_scan() {
   local rc=$?
+  reap_scanner
   if [ "$rc" -ne 0 ]; then rm -rf "$OUT"; fi
   return "$rc"
 }
 trap cleanup_failed_scan EXIT
+trap 'reap_scanner; rm -rf "$OUT"; exit 130' INT
+trap 'reap_scanner; rm -rf "$OUT"; exit 143' TERM
+trap 'reap_scanner; rm -rf "$OUT"; exit 129' HUP
 
 write_config() { # <with-urls|defaults-only> — the pa11y-ci config the runner used to hand-write
   {
@@ -133,15 +166,15 @@ if [ -n "${A11Y_DRY_RUN:-}" ]; then
   printf '%s\n' "${cmd[*]}"
   [ -f "$CONFIG" ] && cat "$CONFIG"
   rm -rf "$OUT"
-  trap - EXIT
+  trap - EXIT INT TERM HUP
   exit 0
 fi
 
 rc=0
 if [ "$MODE" = "axe" ]; then
-  "${cmd[@]}" >&2 || rc=$?            # axe writes $RESULTS itself via --dir/--save
+  run_scanner "" || rc=$?             # axe writes $RESULTS itself via --dir/--save
 else
-  "${cmd[@]}" > "$RESULTS" || rc=$?   # pa11y-ci --json prints results on stdout
+  run_scanner "$RESULTS" || rc=$?     # pa11y-ci --json prints results on stdout
 fi
 
 # The scanners exit non-zero when violations are found — that is a SUCCESSFUL scan

@@ -57,12 +57,45 @@ PATH_ONLY="$(printf '%s' "$TARGET" | sed -E 's#^https?://[^/]+##; s#[?#].*$##; s
 [ -n "$ORIGIN" ] || { log "could not parse an origin from '$TARGET'"; exit 2; }
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/unlighthouse.XXXXXX")"
+# The scanners launch Chromium as a child. Killing only the npx parent leaves those
+# browsers reparented to launchd, where they hold WIRED kernel memory (data.kalloc.1024)
+# that is neither compressible nor swappable — they accumulate across runs until the
+# machine exhausts swap entirely (MD-3075). `set -m` puts the scanner in its own process
+# group so the traps below can signal the whole tree, not just the parent. A trap cannot
+# run on SIGKILL; that residual case is the operator-side watchdog's job.
+SCANNER_PGID=""
+reap_scanner() {
+  [ -n "$SCANNER_PGID" ] || return 0
+  local pgid="$SCANNER_PGID"
+  SCANNER_PGID=""                   # idempotent: EXIT still fires after an INT/TERM trap
+  kill -TERM "-$pgid" 2>/dev/null || true
+  local waited=0
+  while [ "$waited" -lt 20 ] && kill -0 "-$pgid" 2>/dev/null; do
+    sleep 0.1; waited=$((waited + 1))
+  done
+  kill -KILL "-$pgid" 2>/dev/null || true
+}
+run_scanner() {                     # <stdout-target|""> — runs "${cmd[@]}" in its own group
+  local rc=0
+  set -m
+  if [ -n "$1" ]; then "${cmd[@]}" > "$1" & else "${cmd[@]}" >&2 & fi
+  SCANNER_PGID=$!
+  set +m
+  wait "$SCANNER_PGID" || rc=$?
+  SCANNER_PGID=""                   # reaped by wait; nothing left to signal
+  return "$rc"
+}
+
 cleanup_failed_audit() {
   local rc=$?
+  reap_scanner
   if [ "$rc" -ne 0 ]; then rm -rf "$OUT"; fi
   return "$rc"
 }
 trap cleanup_failed_audit EXIT
+trap 'reap_scanner; rm -rf "$OUT"; exit 130' INT
+trap 'reap_scanner; rm -rf "$OUT"; exit 143' TERM
+trap 'reap_scanner; rm -rf "$OUT"; exit 129' HUP
 
 args=(--site "$ORIGIN" --build-static --reporter csvExpanded --output-path "$OUT" --no-cache)
 [ -n "$SAMPLES" ]  && args+=(--samples "$SAMPLES")
@@ -105,12 +138,13 @@ log "running: npx -y unlighthouse-ci ${args[*]}"
 if [ -n "${UNLH_DRY_RUN:-}" ]; then
   printf 'npx -y unlighthouse-ci %s\n' "${args[*]}"
   rm -rf "$OUT"
-  trap - EXIT
+  trap - EXIT INT TERM HUP
   exit 0
 fi
 # unlighthouse-ci is the HEADLESS binary. NEVER the bare `unlighthouse` binary, which
 # opens the interactive UI at :5678 and ignores these flags.
-npx -y unlighthouse-ci "${args[@]}" >&2
+cmd=(npx -y unlighthouse-ci "${args[@]}")
+run_scanner ""
 
 csv="$OUT/ci-result.csv"
 if [ ! -f "$csv" ]; then
