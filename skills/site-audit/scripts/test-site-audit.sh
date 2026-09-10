@@ -74,6 +74,9 @@ mkdir -p "$ROOT/bin"
 cat > "$ROOT/bin/npx" <<'EOF'
 #!/usr/bin/env bash
 [[ "${UNLH_FAKE:-}" == fail ]] && exit 1
+if [[ "${UNLH_FAKE:-}" == hang ]]; then   # stand in for a scanner holding a browser open
+  sleep 300 & printf '%s' "$!" > "$UNLH_MARKER"; wait; exit 0
+fi
 while [[ $# -gt 0 ]]; do
   if [[ "$1" == --output-path ]]; then mkdir -p "$2"; printf 'url,performance\n' > "$2/ci-result.csv"; shift 2; continue; fi
   shift
@@ -88,6 +91,26 @@ rc=0; UNLH_FAKE=fail PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitro
 rg -q 'trap .*dirname.*CSV' "$HERE/../../../agents/unlighthouse-runner.md" \
   && echo "ok  : cleanup: runner owns successful result-directory removal" \
   || { echo "FAIL: runner cleanup contract missing"; fail=1; }
+
+# MD-3075: the scanners launch Chromium as a child. An interrupted run must take that
+# child with it — orphaned browsers reparent to launchd and hold wired kernel memory
+# until the machine reboots. The fake npx stands in for the scanner and records the pid
+# of a long-lived grandchild; after SIGTERM to the script, that pid must be gone.
+MARK="$ROOT/scanner-child.pid"; : > "$MARK"
+UNLH_FAKE=hang UNLH_MARKER="$MARK" PATH="$ROOT/bin:$PATH" bash "$SCRIPT" https://www.facilitron.com/hang >/dev/null 2>&1 &
+victim=$!
+for _ in $(seq 1 60); do [[ -s "$MARK" ]] && break; sleep 0.1; done
+child="$(cat "$MARK" 2>/dev/null || true)"
+kill -TERM "$victim" 2>/dev/null || true
+wait "$victim" 2>/dev/null || true
+for _ in $(seq 1 30); do kill -0 "$child" 2>/dev/null || break; sleep 0.1; done
+if [[ -z "$child" ]]; then
+  echo "FAIL: orphan-reap: fake scanner never recorded a child pid"; fail=1
+elif kill -0 "$child" 2>/dev/null; then
+  echo "FAIL: orphan-reap: scanner child $child survived an interrupted audit"; kill -KILL "$child" 2>/dev/null || true; fail=1
+else
+  echo "ok  : orphan-reap: interrupted audit leaves no scanner child"
+fi
 
 echo
 [ "$fail" -eq 0 ] && echo "ALL PASS" || { echo "FAILURES above"; exit 1; }
