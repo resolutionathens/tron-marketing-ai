@@ -47,6 +47,7 @@ RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
 SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/resolve-jira-key.sh)"
 JIRA_KEY="$(bash "$SKILL_DIR/scripts/resolve-jira-key.sh" "$BRANCH")" || exit $?
+echo "BRANCH=$BRANCH JIRA_KEY=$JIRA_KEY"
 ```
 
 Stop if on master/main/dev/production. If uncommitted changes, suggest `tron:git-commit`.
@@ -187,6 +188,7 @@ Check tracking: `git status -sb`. Resolve the branch name from the current workt
 WORKTREE="$(git rev-parse --show-toplevel)"
 BRANCH="$(git -C "$WORKTREE" rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" != "HEAD" ] || { echo "error: detached HEAD in $WORKTREE — cannot determine branch" >&2; exit 1; }
+echo "BRANCH=$BRANCH"
 ```
 
 Use a plain push only when the upstream's branch name matches `$BRANCH`; an
@@ -209,6 +211,7 @@ Resolve the default branch **once** here and reuse it for the diff and for
 
 ```bash
 BASE="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)"; BASE="${BASE:-master}"
+echo "BASE=$BASE"
 git log --oneline "$BASE..HEAD"
 git diff "$BASE...HEAD" --stat
 ```
@@ -245,10 +248,10 @@ Show the title + body via `AskUserQuestion`. User can approve or edit. If they e
 
 ## Step 6: Create the PR
 
-`$BASE` is the default branch resolved in Step 3; `$BRANCH` and `$JIRA_KEY` come from Steps 1 and 2.
-All three must be resolved in the current shell. If this runs in a fresh shell, re-run Step 1's
-branch and Jira-key resolution, Step 2's worktree-aware branch resolver, and Step 3's base resolver
-before creating the PR.
+The final command takes literal values, not shell variables: the default branch printed as `BASE=`
+in Step 3, the feature branch printed as `BRANCH=` in Steps 1 and 2, and the `SLUG=` printed below.
+If those lines are no longer in view, re-run Step 2's branch resolver and Step 3's base resolver to
+print them again.
 
 Resolve `owner/repo` from the `origin` remote itself (not gh's implicit cwd-based remote
 selection) — never hardcode a slug, since this plugin ships to many consuming repos under
@@ -267,9 +270,20 @@ RESOLVER="${PLUGIN_ROOT:+$PLUGIN_ROOT/tools/skill/resolve-skill-dir.sh}"
 [ -f "${RESOLVER:-}" ] || { echo "tron:$name: resolver not found; searched Claude/Codex cache and marketplace roots plus the tron release store" >&2; exit 1; }
 SKILL_DIR="$(bash "$RESOLVER" "$name" scripts/resolve-origin-slug.sh)"
 SLUG="$(bash "$SKILL_DIR/scripts/resolve-origin-slug.sh")"
+echo "SLUG=$SLUG"
 ```
 
-Write the body to a temp file and pass it via `--body-file`:
+Run the block below as one tool operation. If the harness yields while `gh pr create` is still
+running, preserve its returned handle and resume or inspect that exact operation before deciding
+whether a retry is needed; never launch a second PR create while the first is live. See
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Continuing a yielded operation*. If the handle is
+lost, check whether the PR already exists with
+`gh pr list --head "<feature-branch>" --repo "<owner/repo>" --state all` before any retry.
+
+Write the body to a temp file and pass it via `--body-file`. Replace `<base-branch>`,
+`<feature-branch>`, and `<owner/repo>` with the printed `BASE=`, `BRANCH=`, and `SLUG=` values; do
+not leave `$BASE`, `$BRANCH`, or `$SLUG` tokens for the shell, because lifecycle policy inspects the
+command before expansion and tool shells do not share local variables:
 
 ```bash
 PR_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-pr-body.XXXXXX")"
@@ -277,7 +291,7 @@ trap 'rm -f "$PR_BODY"' EXIT
 cat > "$PR_BODY" <<'EOF'
 <body>
 EOF
-gh pr create --title "<title>" --body-file "$PR_BODY" --base "$BASE" --head "$BRANCH" --repo "$SLUG"
+gh pr create --title "<title>" --body-file "$PR_BODY" --base "<base-branch>" --head "<feature-branch>" --repo "<owner/repo>"
 ```
 
 ## Step 7: Retrospective

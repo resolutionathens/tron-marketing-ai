@@ -92,4 +92,32 @@ for f in "$ROOT"/skills/*/SKILL.md "$ROOT"/skills/*/reference/*.md "$CONTRACT"; 
 done
 pass "no skill or contract requests Copilot or reads a removed review route"
 
+# --- 6. Yielded operations retain one identity (MD-3071) ---------------------
+has "$CONTRACT" "contract: operation-continuation anchor" "<!-- contract:operation-continuation -->"
+has "$CONTRACT" "contract: preserves returned operation handle" "preserve the returned operation handle"
+has "$CONTRACT" "contract: resumes the same operation" "resume or inspect that same operation"
+has "$CONTRACT" "contract: yielded then completed" "later reports completion"
+has "$CONTRACT" "contract: yielded then failed" "later reports failure"
+has "$CONTRACT" "contract: no duplicate retry" "do not start a duplicate command"
+has "$GIT_PR" "git-pr: yielded create resumes exact operation" "resume or inspect that exact operation"
+has "$GIT_PR" "git-pr: guarded create uses concrete identities" "--base \"<base-branch>\" --head \"<feature-branch>\" --repo \"<owner/repo>\""
+has "$CONTRACT" "contract: lost handle is terminal" "treat that as a terminal failure"
+has "$CONTRACT" "contract: no indefinite polling" "Never poll a single handle indefinitely"
+has "$GIT_PR" "git-pr: lost handle checks for an existing PR" 'gh pr list --head "<feature-branch>" --repo "<owner/repo>"'
+# Any line, including continuation lines, that passes a shell token as a PR identity flag.
+if grep -qE -- '--(base|head|repo)[[:space:]=]+"?\$\{?(BASE|BRANCH|SLUG)([^A-Za-z0-9_]|$)' "$GIT_PR"; then
+  fail "git-pr: guarded create has no shell identity tokens"
+fi
+pass "git-pr: guarded create has no shell identity tokens"
+# tron-os#929's hook normalizes exactly this PR body envelope.
+has "$GIT_PR" "git-pr: PR body envelope mktemp" 'PR_BODY="$(mktemp "${TMPDIR:-/tmp}/tron-pr-body.XXXXXX")"'
+has "$GIT_PR" "git-pr: PR body envelope trap" "trap 'rm -f \"\$PR_BODY\"' EXIT"
+has "$GIT_PR" "git-pr: PR body envelope quoted heredoc" "cat > \"\$PR_BODY\" <<'EOF'"
+for v in BASE SLUG; do
+  has "$GIT_PR" "git-pr: prints resolved $v" "echo \"$v=\$$v"
+done
+has "$GIT_PR" "git-pr: Step 1 prints resolved BRANCH" 'echo "BRANCH=$BRANCH JIRA_KEY=$JIRA_KEY"'
+grep -qxF 'echo "BRANCH=$BRANCH"' "$GIT_PR" || fail "git-pr: Step 2 prints resolved BRANCH"
+pass "git-pr: Step 2 prints resolved BRANCH"
+
 echo "worker-hardening contract+skill test: $PASS assertions passed"
