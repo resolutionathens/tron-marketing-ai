@@ -276,7 +276,9 @@ echo "SLUG=$SLUG"
 Run the block below as one tool operation. If the harness yields while `gh pr create` is still
 running, preserve its returned handle and resume or inspect that exact operation before deciding
 whether a retry is needed; never launch a second PR create while the first is live. See
-[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Continuing a yielded operation*.
+[WORKER_CONTRACT.md](../../WORKER_CONTRACT.md) → *Continuing a yielded operation*. If the handle is
+lost, check whether the PR already exists with
+`gh pr list --head "<feature-branch>" --repo "<owner/repo>" --state all` before any retry.
 
 Write the body to a temp file and pass it via `--body-file`. Replace `<base-branch>`,
 `<feature-branch>`, and `<owner/repo>` with the printed `BASE=`, `BRANCH=`, and `SLUG=` values; do

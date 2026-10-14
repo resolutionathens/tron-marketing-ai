@@ -52,7 +52,9 @@ the operation disappeared; reused output text is not a new operation identity.
 
 If the handle can no longer be inspected because the harness reports it unknown or the process is
 gone, treat that as a terminal failure: check the operation's real outcome, such as whether the PR,
-push, or cleanup already happened, before any retry.
+push, or cleanup already happened, before any retry. The same applies when an operation stays
+running past the harness's own time limit for that command: stop it through its handle, then check
+the real outcome. Never poll a single handle indefinitely.
 
 ## Environment variables you get
 
