@@ -50,6 +50,10 @@ terminal result permits the lifecycle to advance or a fresh retry to begin. If t
 after compaction or a status relay, inspect the active handle or process state before deciding that
 the operation disappeared; reused output text is not a new operation identity.
 
+If the handle can no longer be inspected because the harness reports it unknown or the process is
+gone, treat that as a terminal failure: check the operation's real outcome, such as whether the PR,
+push, or cleanup already happened, before any retry.
+
 ## Environment variables you get
 
 Set by tron-os's dispatcher (`lib/tmux.ts`) into every worker's environment:

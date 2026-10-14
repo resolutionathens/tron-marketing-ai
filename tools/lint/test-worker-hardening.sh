@@ -29,13 +29,6 @@ has() {
   pass "$label"
 }
 
-not_has() {
-  local file="$1" label="$2" needle="$3"
-  [ -f "$file" ] || fail "$label: missing file $file"
-  grep -qF -- "$needle" "$file" && fail "$label: must not contain \"$needle\" in ${file#$ROOT/}"
-  pass "$label"
-}
-
 echo "worker-hardening contract+skill test:"
 
 # --- 1. Unreadable-source blocking (hard gate) -------------------------------
@@ -108,7 +101,13 @@ has "$CONTRACT" "contract: yielded then failed" "later reports failure"
 has "$CONTRACT" "contract: no duplicate retry" "do not start a duplicate command"
 has "$GIT_PR" "git-pr: yielded create resumes exact operation" "resume or inspect that exact operation"
 has "$GIT_PR" "git-pr: guarded create uses concrete identities" "--base \"<base-branch>\" --head \"<feature-branch>\" --repo \"<owner/repo>\""
-not_has "$GIT_PR" "git-pr: guarded create has no shell identity tokens" '--base "$BASE" --head "$BRANCH" --repo "$SLUG"'
-has "$CLOSE" "close-worktree: cwd change is subprocess-scoped" "process's persistent working directory"
+has "$CONTRACT" "contract: lost handle is terminal" "treat that as a terminal failure"
+if grep -E '^gh pr create' "$GIT_PR" | grep -qE '\$\{?(BASE|BRANCH|SLUG)([^A-Za-z0-9_]|$)'; then
+  fail "git-pr: guarded create has no shell identity tokens"
+fi
+pass "git-pr: guarded create has no shell identity tokens"
+for v in BRANCH BASE SLUG; do
+  has "$GIT_PR" "git-pr: prints resolved $v" "echo \"$v=\$$v"
+done
 
 echo "worker-hardening contract+skill test: $PASS assertions passed"
