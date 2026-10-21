@@ -261,6 +261,36 @@ Edit URL: https://app.hubspot.com/pages/46442771/editor/216811382540/content'
 pass "cms work requires separately openable edit and verification locations"
 
 # --- CLI (--file / stdin, JSON) ---------------------------------------------
+# --- rubric-version 4: research tickets and several repos (MD-3262) ------------
+RESEARCH='Done: A write-up comparing Flue and Pi Durable, with a recommendation
+Type: engineering
+Deliverable type: research
+Context: https://facilitron.atlassian.net/wiki/x/FgD9BgE
+Decision: Ian signs off
+Intent: The team knows which framework the coordinator keeps
+Repo: tron-coordinator, tron-coordinator-do
+Acceptance criteria:
+- the write-up compares crash recovery, streaming and approvals
+- it recommends one framework'
+rb_deliverable_type_valid "$RESEARCH" engineering || fail "research is an engineering deliverable type"
+rb_is_research "$RESEARCH" || fail "rb_is_research on a research ticket"
+rb_is_research "${RESEARCH/research/pr}" && fail "rb_is_research is false for a pr ticket"
+[[ "$(rb_verdict "$RESEARCH")" == "high: actionable" ]] || fail "research ticket without Affected paths should lint high (got: $(rb_verdict "$RESEARCH"))"
+[[ "$(rb_verdict "${RESEARCH/research/pr}")" == "medium: routable but thin" ]] || fail "a pr ticket still needs Affected paths"
+[[ "$(rb_verdict "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: TBD}")" == "medium: routable but thin" ]] || fail "research still needs a Repo"
+pass "research: engineering deliverable with no Affected paths, still needs Repo"
+
+repo() { rb_repo_valid "Repo: $1"; }
+repo 'marketing-pages' || fail "one repo key"
+repo 'tron-coordinator, tron-coordinator-do' || fail "comma-separated repos"
+repo 'resolutionathens/tron-os,Facilitron/facilitron-ui' || fail "owner/repo entries"
+repo 'marketing-pages (footer only)' || fail "a note after the key is allowed"
+repo 'marketing-pages, TBD' && fail "a placeholder entry is invalid"
+repo 'marketing-pages,' && fail "an empty entry is invalid"
+repo 'see the epic!' && fail "free text is not a repo"
+repo 'TBD' && fail "a placeholder Repo is invalid"
+pass "Repo: one repo key or several, each validated"
+
 command -v jq >/dev/null || { echo "  (skipping CLI JSON checks — jq not on PATH)"; echo "rubric smoke: $PASS checks passed"; exit 0; }
 
 TMP="$(mktemp "${TMPDIR:-/tmp}/rubric-hi.XXXXXX")"
