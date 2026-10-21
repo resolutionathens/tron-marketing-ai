@@ -110,16 +110,19 @@ rb_acceptance_criteria_valid() {
 # entry must be a repo key (`marketing-pages`) or `owner/repo`, optionally followed by a
 # note in parentheses (`marketing-pages (footer only)`). Returns 0 valid, 1 invalid.
 rb_repo_valid() {
-  local value item first
+  local value item key items
   value="$(rb_marker_value "$1" "Repo")"
   rb_value_is_real "$value" || return 1
+  # Notes come out first, so a comma inside one doesn't split an entry.
+  value="$(printf '%s' "$value" | sed -E 's/\([^)]*\)//g')"
   # A split on commas drops a trailing empty entry, so empty entries are caught first.
   [[ "$value" =~ (^|,)[[:space:]]*(,|$) ]] && return 1
-  local IFS=','
-  for item in $value; do
-    first="$(printf '%s' "$item" | sed -E 's/^[[:space:]]+//; s/[[:space:]]*\(.*\)[[:space:]]*$//; s/[[:space:]]+$//')"
-    rb_value_is_real "$first" || return 1
-    [[ "$first" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?$ ]] || return 1
+  # read -ra splits without filename expansion: a `*` in a value is text, not a glob.
+  IFS=',' read -ra items <<< "$value"
+  for item in "${items[@]}"; do
+    key="$(printf '%s' "$item" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    rb_value_is_real "$key" || return 1
+    [[ "$key" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?$ ]] || return 1
   done
   return 0
 }

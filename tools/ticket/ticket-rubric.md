@@ -87,13 +87,15 @@ what separates "we know what this is" from "we don't."
 | `Affected paths:`      | Files / routes / components the work touches (not for `research`) |
 
 `Repo:` names every repository the work lands in: `Repo: tron-coordinator, tron-coordinator-do` for work that
-changes two. Each entry is a repo key or `owner/repo`, optionally with a note in parentheses; tools that read it (Baton's inspections search only
-these repositories) treat each entry separately.
+changes two. Each entry is a repo key or `owner/repo`, optionally with a note in parentheses; the lint checks each
+entry's form, not that the repository exists. Free text after a key (`marketing-pages — footer`) no longer
+counts: put notes in parentheses. Tools that read it (Facilitron's ticket coordinator searches
+only these repositories for a ticket's work) treat each entry separately.
 
 `Deliverable type: research` is engineering work that produces no pull request: a spike, an evaluation, a
 comparison or a write-up. It still names the `Repo:` it concerns and has acceptance criteria (the questions
-it settles, the write-up it produces), but no `Affected paths:`. Tools that look for a ticket's code, such as
-Baton's GitHub search, skip a research ticket rather than reporting missing work.
+it settles, the write-up it produces), but no `Affected paths:`. Tools that look for a ticket's code skip a
+research ticket rather than reporting missing work.
 
 Acceptance criteria describe properties of the change, not process gates. Put commands and their
 expected success in the verification prose below the machine header: a reviewer can inspect a diff to
@@ -251,7 +253,7 @@ The spine is designed so a new `Type` slots in without reworking it:
 
 1. Add the `Type` value and its `Deliverable type:` values to the tables above and bump `rubric-version`.
 2. Add a work-type section with its required markers.
-3. Add the `Type` and its section markers to `TYPE_SECTIONS` in `rubric-lib.sh`, and a case to
+3. Add the `Type` and its section markers to `rb_deliverable_types` and `rb_section_markers` in `rubric-lib.sh`, and a case to
    `test-rubric-lint.sh`.
 4. Mirror the change in the `tron-os` triage fixtures.
 

@@ -260,7 +260,6 @@ Edit URL: https://app.hubspot.com/pages/46442771/editor/216811382540/content'
   || fail "cms ticket without public verification flags Verify URL"
 pass "cms work requires separately openable edit and verification locations"
 
-# --- CLI (--file / stdin, JSON) ---------------------------------------------
 # --- rubric-version 4: research tickets and several repos (MD-3262) ------------
 RESEARCH='Done: A write-up comparing Flue and Pi Durable, with a recommendation
 Type: engineering
@@ -278,6 +277,10 @@ rb_is_research "${RESEARCH/research/pr}" && fail "rb_is_research is false for a 
 [[ "$(rb_verdict "$RESEARCH")" == "high: actionable" ]] || fail "research ticket without Affected paths should lint high (got: $(rb_verdict "$RESEARCH"))"
 [[ "$(rb_verdict "${RESEARCH/research/pr}")" == "medium: routable but thin" ]] || fail "a pr ticket still needs Affected paths"
 [[ "$(rb_verdict "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: TBD}")" == "medium: routable but thin" ]] || fail "research still needs a Repo"
+rb_is_research "${RESEARCH/research/  Research  }" || fail "research is case- and space-insensitive"
+rb_is_research "${RESEARCH/Type: engineering/Type: design}" && fail "research is engineering only"
+NOREPO="$(printf '%s\n' "$RESEARCH" | grep -v '^Repo:')"
+[[ "$(rb_verdict "$NOREPO" 1)" == "high: actionable" ]] || fail "a valid PREFIX satisfies Repo for research too"
 pass "research: engineering deliverable with no Affected paths, still needs Repo"
 
 repo() { rb_repo_valid "Repo: $1"; }
@@ -289,8 +292,13 @@ repo 'marketing-pages, TBD' && fail "a placeholder entry is invalid"
 repo 'marketing-pages,' && fail "an empty entry is invalid"
 repo 'see the epic!' && fail "free text is not a repo"
 repo 'TBD' && fail "a placeholder Repo is invalid"
+repo '*' && fail "a glob character is text, not a file pattern"
+repo 'marketing-pages (footer, header), tron-os' || fail "a comma inside a note doesn't split an entry"
+repo $'\tmarketing-pages ,  tron-os  ' || fail "surrounding whitespace is ignored"
+repo 'marketing-pages — footer' && fail "free text after a key is invalid (put notes in parentheses)"
 pass "Repo: one repo key or several, each validated"
 
+# --- CLI (--file / stdin, JSON) ---------------------------------------------
 command -v jq >/dev/null || { echo "  (skipping CLI JSON checks — jq not on PATH)"; echo "rubric smoke: $PASS checks passed"; exit 0; }
 
 TMP="$(mktemp "${TMPDIR:-/tmp}/rubric-hi.XXXXXX")"

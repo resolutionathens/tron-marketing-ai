@@ -81,7 +81,8 @@ Walk the fields for the chosen `Type`, one at a time, in plain conversation. Col
   not the selected implementation). Add `Intent` only when the source evidence establishes it; never invent
   one to complete a ticket.
 - **The type's section markers:**
-  - engineering: `Repo`, `Affected paths`, `Acceptance criteria` (2+ checkable bullets).
+  - engineering: `Repo` (one repo, or several comma-separated), `Affected paths`, `Acceptance criteria` (2+
+    checkable bullets). A `research` deliverable (no PR expected) skips `Affected paths`.
   - design: `Figma`, `Format`, `Brand refs`, `Lands`.
   - content: `Destination`, `Format`, `SEO target`, `Draft`.
   - campaign-asset: `Campaign`, `Asset`, `Format`, `Lands`.
