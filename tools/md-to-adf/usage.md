@@ -4,6 +4,13 @@ Shared usage notes for the vendored converter at `tools/md-to-adf/md-to-adf.mjs`
 (lazy-installs its one npm dep on first run). Consumed by `tron:jira` and
 `tron:jira-ticket-enricher`.
 
+Dependency installation disables npm executable symlinks because Codex rejects
+them when fingerprinting plugin hooks. The converter imports the library directly
+and does not need these shortcuts. Each invocation also removes an existing
+`node_modules/.bin/markdown-it` symlink from older installs, preserving its target
+and any regular file at that path. Run the updated converter once, then start a
+new Codex session to reload hooks after repairing an older install.
+
 ## The acli plain-text gotcha
 
 `acli` sends `--description` as plain text wrapped in a single ADF paragraph node. Jira Cloud's
