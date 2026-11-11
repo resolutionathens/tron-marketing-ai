@@ -1,4 +1,4 @@
-# Ticket rubric — the shared spec (rubric-version: 3)
+# Ticket rubric — the shared spec (rubric-version: 4)
 
 The one rubric behind three consumers:
 
@@ -66,7 +66,7 @@ markers below are the contract, the prose around them is for the human.
 
 | `Type`      | `Deliverable type:` values                          |
 | ----------- | --------------------------------------------------- |
-| engineering | `pr`, `page`, `bugfix`, `config`, `script`          |
+| engineering | `pr`, `page`, `bugfix`, `config`, `script`, `research` |
 | design      | `figma`, `image`, `pdf`, `brand-asset`              |
 | content     | `news`, `guide`, `toolkit`, `case-study`, `pdf`     |
 | campaign-asset | `image`, `pdf`, `print`, `merch`, `collateral`   |
@@ -82,9 +82,20 @@ what separates "we know what this is" from "we don't."
 
 | Marker                 | Meaning                                                         |
 | ---------------------- | -------------------------------------------------------------- |
-| `Repo:`                | Target repo key (also stamp the summary `PREFIX:`)             |
+| `Repo:`                | Target repo key, or several separated by commas (also stamp the summary `PREFIX:`) |
 | `Acceptance criteria:` | Bullet list of checkable, diff-reviewable outcomes             |
-| `Affected paths:`      | Files / routes / components the work touches                  |
+| `Affected paths:`      | Files / routes / components the work touches (not for `research`) |
+
+`Repo:` names every repository the work lands in: `Repo: tron-coordinator, tron-coordinator-do` for work that
+changes two. Each entry is a repo key or `owner/repo`, optionally with a note in parentheses; the lint checks each
+entry's form, not that the repository exists. Free text after a key (`marketing-pages — footer`) no longer
+counts: put notes in parentheses. Tools that read it (Facilitron's ticket coordinator searches
+only these repositories for a ticket's work) treat each entry separately.
+
+`Deliverable type: research` is engineering work that produces no pull request: a spike, an evaluation, a
+comparison or a write-up. It still names the `Repo:` it concerns and has acceptance criteria (the questions
+it settles, the write-up it produces), but no `Affected paths:`. Tools that look for a ticket's code skip a
+research ticket rather than reporting missing work.
 
 Acceptance criteria describe properties of the change, not process gates. Put commands and their
 expected success in the verification prose below the machine header: a reviewer can inspect a diff to
@@ -196,6 +207,19 @@ Part of the rebrand rollout. The footer still shows the legacy mark. Build to th
 [Figma frame](https://figma.com/file/abc?node-id=1:2).
 ````
 
+A **research** ticket keeps `Repo:`, drops `Affected paths:`, and states what it settles:
+
+```
+Done: A write-up comparing Flue and Pi Durable for the coordinator, with a recommendation
+Type: engineering
+Deliverable type: research
+Context: https://facilitron.atlassian.net/wiki/x/FgD9BgE
+Repo: tron-coordinator, tron-coordinator-do
+Acceptance criteria:
+- the write-up compares crash recovery, streaming and approvals in both frameworks
+- it recommends one, with what that choice costs
+```
+
 Swap the section markers for the ticket's `Type`:
 
 ```
@@ -229,7 +253,7 @@ The spine is designed so a new `Type` slots in without reworking it:
 
 1. Add the `Type` value and its `Deliverable type:` values to the tables above and bump `rubric-version`.
 2. Add a work-type section with its required markers.
-3. Add the `Type` and its section markers to `TYPE_SECTIONS` in `rubric-lib.sh`, and a case to
+3. Add the `Type` and its section markers to `rb_deliverable_types` and `rb_section_markers` in `rubric-lib.sh`, and a case to
    `test-rubric-lint.sh`.
 4. Mirror the change in the `tron-os` triage fixtures.
 

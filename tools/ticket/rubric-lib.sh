@@ -9,7 +9,7 @@
 # same verdict Scout triage reports, so tron:create-ticket and tron:ticket-lint
 # (and, on the SCOUT side, triage) all score a ticket identically. If you change
 # a marker key or the verdict ladder here, change ticket-rubric.md and the SCOUT
-# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 3.
+# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 4.
 
 # --- marker presence ---------------------------------------------------------
 
@@ -106,12 +106,41 @@ rb_acceptance_criteria_valid() {
   [ -z "$(rb_command_gate_criteria "$1")" ]
 }
 
+# `Repo:` names one repository or several, comma-separated (rubric-version 4). Each
+# entry must be a repo key (`marketing-pages`) or `owner/repo`, optionally followed by a
+# note in parentheses (`marketing-pages (footer only)`). Returns 0 valid, 1 invalid.
+rb_repo_valid() {
+  local value item key items
+  value="$(rb_marker_value "$1" "Repo")"
+  rb_value_is_real "$value" || return 1
+  # Notes come out first, so a comma inside one doesn't split an entry.
+  value="$(printf '%s' "$value" | sed -E 's/\([^)]*\)//g')"
+  # A split on commas drops a trailing empty entry, so empty entries are caught first.
+  [[ "$value" =~ (^|,)[[:space:]]*(,|$) ]] && return 1
+  # read -ra splits without filename expansion: a `*` in a value is text, not a glob.
+  IFS=',' read -ra items <<< "$value"
+  for item in "${items[@]}"; do
+    key="$(printf '%s' "$item" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    rb_value_is_real "$key" || return 1
+    [[ "$key" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)?$ ]] || return 1
+  done
+  return 0
+}
+
 # Presence check for any rubric marker, dispatching the list-style ones.
 rb_present() {
   case "$2" in
     "Acceptance criteria") rb_acceptance_criteria_valid "$1" ;;
+    Repo)                  rb_repo_valid "$1" ;;
     *)                     rb_marker_present "$1" "$2" ;;
   esac
+}
+
+# Is this a research ticket: engineering work with no pull request expected
+# (`Deliverable type: research`, rubric-version 4)? Returns 0 yes, 1 no.
+rb_is_research() {
+  [ "$(rb_type "$1")" = engineering ] || return 1
+  [ "$(rb_marker_value "$1" "Deliverable type" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')" = research ]
 }
 
 # --- work type ---------------------------------------------------------------
@@ -133,7 +162,7 @@ rb_type() {
 # Echo the pipe-delimited allowed Deliverable type values for a Type.
 rb_deliverable_types() {
   case "$1" in
-    engineering)    echo "pr|page|bugfix|config|script" ;;
+    engineering)    echo "pr|page|bugfix|config|script|research" ;;
     design)         echo "figma|image|pdf|brand-asset" ;;
     content)        echo "news|guide|toolkit|case-study|pdf" ;;
     campaign-asset) echo "image|pdf|print|merch|collateral" ;;
@@ -210,6 +239,8 @@ rb_missing() {
     read -ra ms <<< "$(rb_section_markers "$type")"
     for m in "${ms[@]}"; do
       [ "$m" = Repo ] && [ "$prefix_ok" = 1 ] && continue
+      # Research produces no change to the code, so there are no paths to name.
+      [ "$m" = "Affected paths" ] && rb_is_research "$text" && continue
       rb_present "$text" "$m" || printf 'section:%s\n' "$m"
     done
   fi
