@@ -21,7 +21,15 @@ import { execSync } from 'child_process';
 const __dir = path.dirname(fileURLToPath(import.meta.url));
 if (!fs.existsSync(path.join(__dir, 'node_modules', 'markdown-to-adf'))) {
   console.error('md-to-adf: installing dependencies (first run, one time)…');
-  execSync('npm install --silent --no-audit --no-fund', { cwd: __dir, stdio: ['ignore', 'ignore', 'inherit'] });
+  execSync('npm install --silent --no-audit --no-fund --bin-links=false', { cwd: __dir, stdio: ['ignore', 'ignore', 'inherit'] });
+}
+// Codex hook fingerprinting rejects symlinks anywhere in the plugin. Older
+// installs created this unused npm shortcut; unlink it without touching its target.
+const markdownItBin = path.join(__dir, 'node_modules', '.bin', 'markdown-it');
+try {
+  if (fs.lstatSync(markdownItBin).isSymbolicLink()) fs.unlinkSync(markdownItBin);
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
 }
 const { markdownToAdf } = await import('markdown-to-adf');
 
