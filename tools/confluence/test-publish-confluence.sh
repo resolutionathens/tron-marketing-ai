@@ -13,6 +13,26 @@ has() { printf '%s' "$1" | rg -q -F -- "$2" || fail "$3: $1"; }
 mkdir -p "$ROOT/bin"
 printf '<p>Finished deliverable</p>\n' > "$ROOT/deliverable.html"
 
+# Resolve a real node executable, never a version-manager shim (MD-3398). A mise shim
+# only works while mise can pick a version: with no global node it falls through to the
+# next node on PATH, and dies at once where there is none. Ask node for its own execPath
+# on the caller's PATH; where no node runs there at all, pin mise's installed LTS
+# explicitly. Every node call below (mock server, publisher, assertions) uses it.
+resolve_node() {
+  local p
+  p="$(node -p process.execPath 2>/dev/null)" && [ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+  command -v mise >/dev/null 2>&1 \
+    && p="$(mise exec node@lts -- node -p process.execPath 2>/dev/null)" && [ -x "$p" ] \
+    && { printf '%s\n' "$p"; return 0; }
+  echo "FAIL: no runnable node found on PATH or through mise (node@lts)" >&2
+  return 1
+}
+NODE_REAL="$(resolve_node)"
+mkdir -p "$ROOT/node-bin"
+ln -s "$NODE_REAL" "$ROOT/node-bin/node"
+PATH="$ROOT/node-bin:$PATH"
+export PATH
+
 cat > "$ROOT/bin/cloudflared" <<'SH'
 #!/usr/bin/env bash
 [[ "${STUB_AUTH_FAIL:-0}" == 1 ]] && exit 1
@@ -59,7 +79,15 @@ JS
 PORT_FILE="$ROOT/port" REQUEST_LOG="$ROOT/requests.jsonl" node "$ROOT/mock-server.mjs" &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true; cleanup' EXIT
-while [[ ! -s "$ROOT/port" ]]; do sleep 0.05; done
+# Wait for the port file, but fail fast: stop as soon as the server exits, and give up
+# after ~5s, so a server that never starts can't hang the suite.
+waited=0
+while [[ ! -s "$ROOT/port" ]]; do
+  kill -0 "$SERVER_PID" 2>/dev/null || fail "mock server exited before writing its port"
+  (( waited < 100 )) || fail "mock server did not write its port within 5s"
+  sleep 0.05
+  waited=$((waited + 1))
+done
 BASE="http://127.0.0.1:$(cat "$ROOT/port")/jira"
 
 run_publish() {
