@@ -83,9 +83,10 @@ run_gencard() {
     perl -MPOSIX=setsid -e 'defined setsid() or die "setsid failed: $!\n"; exec @ARGV' \
     bash "$GENCARD" "$@" --no-upload --output "$FAKE/outputs/${phase}.webp" >"$out" 2>"$err" &
   pid=$!
+  # Poll every 0.1s (200 ticks = the same 20s cap) so a fast run isn't billed a full second.
   elapsed=0
-  while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 20 ]; do
-    sleep 1
+  while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 200 ]; do
+    sleep 0.1
     elapsed=$((elapsed + 1))
   done
   if kill -0 "$pid" 2>/dev/null; then

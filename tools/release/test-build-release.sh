@@ -14,8 +14,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
-node "$ROOT/tools/release/build-release.mjs" "$OUT" >/dev/null
-node "$ROOT/tools/release/build-release.mjs" "$OUT_AGAIN" >/dev/null
+# Each pair of builds is independent, so run them side by side (MD-3398: a full release
+# build takes ~11s; four in sequence made this the slowest Layer-1 test by far). Any
+# failing build still fails the test.
+build_pair() {
+  local script="$1" first="$2" second="$3" pid_a pid_b rc=0
+  node "$script" "$first" >/dev/null & pid_a=$!
+  node "$script" "$second" >/dev/null & pid_b=$!
+  wait "$pid_a" || rc=$?
+  wait "$pid_b" || rc=$?
+  return "$rc"
+}
+
+build_pair "$ROOT/tools/release/build-release.mjs" "$OUT" "$OUT_AGAIN"
 
 archive_has() {
   local archive="$1"
@@ -124,8 +135,7 @@ GIT_COMMITTER_EMAIL="release@facilitron.com" \
 GIT_COMMITTER_DATE="1970-01-01T00:00:00Z" \
 git -C "$FIXTURE" commit -q -m "fixture: working tree snapshot"
 
-node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT" >/dev/null
-node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT_AGAIN" >/dev/null
+build_pair "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT" "$FIXTURE_OUT_AGAIN"
 for ARTIFACT in "$FIXTURE_OUT"/*; do
   ARTIFACT="$(basename "$ARTIFACT")"
   cmp "$FIXTURE_OUT/$ARTIFACT" "$FIXTURE_OUT_AGAIN/$ARTIFACT"
