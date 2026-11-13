@@ -2,10 +2,11 @@
 # Direct unit test for confluence-lib.sh's pure functions. Fully offline — the
 # lib is sourced, not executed. Pins the two contracts the rest of the toolchain
 # leans on:
-#   • cl_extract_page_id's return-code map: 0 = resolved id (raw or /pages/<id>/),
-#     2 = a URL we CAN'T read offline (tiny link → caller must follow a redirect),
-#     1 = unparseable garbage. The rc=2 tiny-link contract is load-bearing:
-#     fetch-confluence.sh keys its "curl -sIL redirect" branch off exactly rc≠0.
+#   • cl_extract_page_id's return-code map: 0 = resolved id (raw, /pages/<id>/,
+#     or a /wiki/x/ tiny link decoded offline), 1 = anything else, with NO
+#     output. There is no "needs network" code any more (MD-3082): a redirect
+#     scrape returned a digit from the identifier itself (MYA5AgE → 5), so an
+#     unresolvable input must fail rather than hand back a guessed id.
 #   • cl_referenced_images: doc-order, de-duplicated <ri:attachment> filenames.
 #
 #   bash tools/confluence/test-confluence-lib.sh
@@ -41,15 +42,45 @@ pass "raw numeric id → same id, rc 0"
   || fail "pages id no-title: $(idrc 'https://x.atlassian.net/wiki/spaces/X/pages/999')"
 pass "full /pages/<id>/ URL → extracted id, rc 0 (query/fragment stripped)"
 
-# --- rc 2: tiny link (a URL we can't parse offline → needs a redirect) --------
-for tiny in \
-  'https://facilitron.atlassian.net/wiki/x/DYCR5Q' \
-  'http://facilitron.atlassian.net/wiki/x/AbC123' \
-  'https://facilitron.atlassian.net/l/cp/abcd1234'; do
-  out="$(idrc "$tiny")"
-  [[ "$out" == '|2' ]] || fail "tiny link should be empty|rc2 (got $out for $tiny)"
+# --- rc 0: /wiki/x/ tiny link decoded offline (MD-3082) ----------------------
+# Known-good fixtures, confirmed against the live pages (CCAL-2228/CCAL-2229).
+# MYA5AgE decodes the same under either alphabet; K4A-AgE carries a '-', so it
+# is the fixture that pins Confluence's mapping ('-'→'/', '_'→'+') over
+# base64url's ('-'→'+', '_'→'/'). The redirect scrape returned 5 and 4.
+# Run with curl off PATH so any network attempt would fail the case.
+offline() { PATH=/nonexistent idrc "$1"; }
+for case in \
+  'https://facilitron.atlassian.net/wiki/x/MYA5AgE|4332290097' \
+  'https://facilitron.atlassian.net/wiki/x/K4A-AgE|4332683307' \
+  'https://facilitron.atlassian.net/wiki/x/DYCR5Q|3851517965' \
+  'http://facilitron.atlassian.net/wiki/x/K4A-AgE/|4332683307' \
+  'https://facilitron.atlassian.net/wiki/x/MYA5AgE?atlOrigin=abc#top|4332290097'; do
+  url="${case%|*}"; want="${case##*|}"
+  out="$(offline "$url")"
+  [[ "$out" == "$want|0" ]] || fail "tiny link should decode to $want|0 (got $out for $url)"
 done
-pass "tiny/short link → empty output, rc 2 (needs network redirect)"
+pass "tiny link → page id decoded offline, rc 0 (incl. the '-' alphabet fixture)"
+
+# cl_decode_tiny_id directly: the '_' half of the alphabet, and base64url's
+# mapping must NOT be what is used (K4A+AgE is the base64url reading of K4A-AgE).
+[[ "$(cl_decode_tiny_id 'AB_-')" == 12525312 ]] || fail "'_'→'+' / '-'→'/' mapping wrong: $(cl_decode_tiny_id 'AB_-' || true)"
+[[ "$(cl_decode_tiny_id K4A-AgE)" != 4332617771 ]] || fail "K4A-AgE decoded with the base64url mapping"
+pass "cl_decode_tiny_id uses Confluence's alphabet ('-'→'/', '_'→'+'), not base64url"
+
+# --- rc 1: undecodable tiny link → no id, never a scraped digit --------------
+for bad in \
+  'https://facilitron.atlassian.net/wiki/x/' \
+  'https://facilitron.atlassian.net/wiki/x/AB!C5' \
+  'https://facilitron.atlassian.net/wiki/x/ABCDE' \
+  'https://facilitron.atlassian.net/wiki/x/MYA5AgF' \
+  'https://facilitron.atlassian.net/wiki/x/AAAA' \
+  'https://facilitron.atlassian.net/wiki/x/ABCDEFGHIJKLMNOP' \
+  'https://facilitron.atlassian.net/l/cp/abcd1234' \
+  'https://example.com/some/other/page5'; do
+  out="$(offline "$bad")"
+  [[ "$out" == '|1' ]] || fail "undecodable link should be empty|rc1 (got $out for $bad)"
+done
+pass "undecodable tiny link / unknown URL → empty output, rc 1 (no guessed id)"
 
 # --- rc 1: unparseable non-URL garbage ---------------------------------------
 for junk in 'just some text' 'MD-1234' '' 'not/a/url'; do

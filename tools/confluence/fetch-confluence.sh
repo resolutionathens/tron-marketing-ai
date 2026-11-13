@@ -125,14 +125,14 @@ cf_download() { # <downloadlink> <outfile>
 
 mkdir -p "$OUTDIR/raw"
 
-# 2. Resolve to a numeric page ID. confluence-lib resolves raw ids and full
-#    /pages/<id>/ URLs offline; only a /wiki/x/ tiny link needs the redirect.
+# 2. Resolve to a numeric page ID, offline: confluence-lib handles raw ids,
+#    full /pages/<id>/ URLs, and decodes /wiki/x/ tiny links (MD-3082).
 # shellcheck source=/dev/null
 source "$(dirname "$0")/confluence-lib.sh"
 if ! PAGE_ID="$(cl_extract_page_id "$INPUT")"; then
-  PAGE_ID="$(curl -sIL "$INPUT" | grep -i '^location:' | tail -1 | grep -oE '[0-9]+' | tail -1)"
+  echo "Could not resolve a page ID from: $INPUT (pass a raw id, a /pages/<id>/ URL, or a /wiki/x/ tiny link)" >&2
+  exit 1
 fi
-: "${PAGE_ID:?Could not resolve a page ID from: $INPUT}"
 
 # 3. Fetch the storage-format body (broker-first, see cf_get above).
 cf_get "/api/v2/pages/$PAGE_ID?body-format=storage" "$OUTDIR/page.json"

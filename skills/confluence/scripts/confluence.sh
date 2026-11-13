@@ -39,17 +39,12 @@ LIB="${ROOT:+$ROOT/tools/confluence/confluence-lib.sh}"
 # shellcheck source=/dev/null
 source "$LIB"
 
-# Resolve any input to a numeric page id. Offline for raw/URL; a tiny link does
-# one redirect-follow. Echoes the id, or returns 1.
+# Resolve any input to a numeric page id, offline: raw ids, /pages/<id>/ URLs,
+# and decoded /wiki/x/ tiny links (MD-3082). Echoes the id, or returns 1.
 resolve_id() {
-  local in="$1" id rc
-  id="$(cl_extract_page_id "$in")" && rc=0 || rc=$?
-  if [[ "$rc" -eq 0 ]]; then printf '%s' "$id"; return 0; fi
-  if [[ "$rc" -eq 2 ]]; then
-    id="$(curl -sIL "$in" | grep -i '^location:' | tail -1 | grep -oE '[0-9]+' | tail -1 || true)"
-    [[ -n "$id" ]] && { printf '%s' "$id"; return 0; }
-  fi
-  return 1
+  local id
+  id="$(cl_extract_page_id "$1")" || return 1
+  printf '%s' "$id"
 }
 
 cmd_resolve() {

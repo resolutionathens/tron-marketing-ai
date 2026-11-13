@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Smoke for confluence.sh + confluence-lib.sh. The acli fetch and tiny-link
-# redirect need network/auth and aren't asserted. The pure surface is fully
-# testable offline: page-id extraction from raw ids and full URLs, the
+# Smoke for confluence.sh + confluence-lib.sh. The real acli fetch needs
+# network/auth and isn't asserted. The pure surface is fully testable offline:
+# page-id extraction from raw ids, full URLs, and decoded tiny links, the
 # referenced-image scan, and the usage/error contract.
 #
 #   bash skills/confluence/scripts/test-confluence.sh
@@ -34,9 +34,9 @@ ID="$(cl_extract_page_id 'https://facilitron.atlassian.net/wiki/spaces/x/pages/7
 [[ "$ID" == 777 ]] || fail "query/fragment should be stripped (got: $ID)"
 pass "cl_extract_page_id strips ?query and #fragment"
 
-rc=0; cl_extract_page_id 'https://facilitron.atlassian.net/wiki/x/DYCR5Q' >/dev/null || rc=$?
-[[ "$rc" -eq 2 ]] || fail "tiny link should signal needs-network (rc 2, got $rc)"
-pass "cl_extract_page_id tiny link → rc 2 (needs network)"
+ID="$(cl_extract_page_id 'https://facilitron.atlassian.net/wiki/x/DYCR5Q')"
+[[ "$ID" == 3851517965 ]] || fail "tiny link should decode offline (got: $ID)"
+pass "cl_extract_page_id tiny link → decoded id, offline"
 
 rc=0; cl_extract_page_id 'just some text' >/dev/null || rc=$?
 [[ "$rc" -eq 1 ]] || fail "non-URL garbage should be unparseable (rc 1, got $rc)"
@@ -64,6 +64,20 @@ O="$(bash "$SCRIPT" resolve 'https://facilitron.atlassian.net/wiki/spaces/k/page
 has "$O" '"pageId":"42"' "url resolve id"
 has "$O" '"source":"url"' "url resolve source"
 pass "resolve <full URL> → {ok,pageId,source:url}"
+
+# Tiny links decode offline; curl is shadowed so a redirect follow would fail.
+NOCURL="$ROOT/nocurl"; mkdir -p "$NOCURL"
+printf '#!/bin/sh\necho "curl called: $*" >&2; exit 99\n' > "$NOCURL/curl"; chmod +x "$NOCURL/curl"
+O="$(PATH="$NOCURL:$PATH" bash "$SCRIPT" resolve 'https://facilitron.atlassian.net/wiki/x/K4A-AgE')"
+has "$O" '"pageId":"4332683307"' "tiny resolve id (CCAL-2229 regression: was 4)"
+has "$O" '"source":"tiny"' "tiny resolve source"
+pass "resolve <tiny link> → decoded offline, {ok,pageId,source:tiny}"
+
+rc=0; O="$(PATH="$NOCURL:$PATH" bash "$SCRIPT" resolve 'https://facilitron.atlassian.net/wiki/x/MYA5AgF')" || rc=$?
+[[ "$rc" == 1 ]] || fail "undecodable tiny link should exit 1 (got $rc: $O)"
+has "$O" '"ok":false' "undecodable tiny link reports failure"
+has "$O" '"error":"could-not-resolve"' "undecodable tiny link error code"
+pass "resolve <undecodable tiny link> → {ok:false}, exit 1, no guessed id"
 
 # --- script: images subcommand ----------------------------------------------
 O="$(bash "$SCRIPT" images "$ROOT/body.html")"

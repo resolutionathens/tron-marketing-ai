@@ -38,7 +38,7 @@ bash "$SKILL_DIR/scripts/confluence.sh" images  body.html     # referenced attac
 
 ## Manual resolution (if script unavailable)
 
-- **Tiny link** — follow the redirect: `curl -sIL "https://facilitron.atlassian.net/wiki/x/XXXXX" | grep -i "location:"` and extract the numeric page ID.
+- **Tiny link** — decode it offline; do not follow the redirect (unauthenticated it never reaches the page, and any digit scraped from the response names the wrong page). The `/wiki/x/<identifier>` part is unpadded base64 of the page ID's bytes, little-endian, with `-` standing for `/` and `_` for `+` (not base64url): `python3 -c "import base64,sys; s=sys.argv[1].replace('-','/').replace('_','+'); print(int.from_bytes(base64.b64decode(s+'='*(-len(s)%4)),'little'))" XXXXX`.
 - **Full URL** — extract the numeric ID from `/pages/<id>/` in the path.
 - **Raw ID** — use directly.
 

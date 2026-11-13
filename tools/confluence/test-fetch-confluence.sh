@@ -3,7 +3,7 @@
 # storage body + its referenced image attachments" tool. Every network + auth
 # leg is faked:
 #   • curl is PATH-stubbed to serve canned storage-XML page JSON, an attachment
-#     listing, tiny-link redirect headers, and per-attachment download bytes,
+#     listing, and per-attachment download bytes,
 #     keyed off the request URL + flags (a -sIL HEAD vs a -o GET). It also
 #     routes broker (secrets.facilitron.work/jira/wiki/*) requests, controllable
 #     via STUB_BROKER_CODE / STUB_BROKER_DOWN, and logs every host it sees to
@@ -15,8 +15,9 @@
 #   • python3 (body extraction + referenced/unused split) runs for real, offline.
 #   • confluence-lib.sh (page-id resolution) is the REAL sibling — no fake root.
 #
-# Asserts: the three page-id resolution paths (raw id / full URL offline, tiny
-# link via the redirect follow), referenced-vs-unused attachment filtering (only
+# Asserts: the three page-id resolution paths (raw id, full URL, and a tiny link
+# decoded offline with no redirect HEAD — MD-3082), an undecodable tiny link
+# failing before any fetch, referenced-vs-unused attachment filtering (only
 # referenced files are downloaded), netrc temp-file mode 600 + trap cleanup, a
 # missing credential fails fast when the broker is unavailable, the broker path
 # covers a no-attachment page with zero local credentials, the broker still
@@ -79,10 +80,14 @@ if [[ -n "${STUB_NETRC_COPY:-}" && -n "$nf" && ! -e "$STUB_NETRC_COPY" ]]; then
 fi
 
 if [[ "$head" == 1 ]]; then
-  # tiny-link resolution: emit a redirect Location carrying the numeric page id
-  printf 'HTTP/2 302\r\nlocation: https://facilitron.atlassian.net/wiki/spaces/x/pages/%s/Resolved\r\n\r\n' "${STUB_REDIRECT_ID:-123}"
+  # Tiny links decode offline (MD-3082); a HEAD redirect follow is a regression.
+  # Record it, and answer like the unauthenticated tinyurl.action page does: no
+  # /pages/<id>/ location, so only a digit scrape could "resolve" it.
+  [[ -n "${STUB_HEADLOG:-}" ]] && echo "$url" >> "$STUB_HEADLOG"
+  printf 'HTTP/2 202\r\nlocation: https://facilitron.atlassian.net/wiki/pages/tinyurl.action?urlIdentifier=MYA5AgE\r\n\r\n'
   exit 0
 fi
+[[ -n "${STUB_URLLOG:-}" ]] && echo "$url" >> "$STUB_URLLOG"
 
 # Log every host this stub sees, so tests can assert broker-vs-direct routing.
 if [[ -n "${STUB_HITLOG:-}" ]]; then
@@ -136,7 +141,7 @@ cfetch() { # <input> <outdir> ; env overridable: JIRA_API_TOKEN, HOME, TMPDIR_OV
   JIRA_API_TOKEN="${TOK-faketoken}" ATLASSIAN_EMAIL="${EMAIL_OVR-smoke@tron.local}" \
   TMPDIR="${TMPDIR_OVR:-$ROOT/tmp}" \
   STUB_PAGE="${PAGE_OVR:-$ROOT/page.json}" STUB_ATTACH="${ATTACH_OVR:-$ROOT/attachments.json}" \
-  STUB_REDIRECT_ID=123 STUB_NETRC_COPY="${NETRC_COPY:-}" \
+  STUB_HEADLOG="$ROOT/head.log" STUB_URLLOG="${STUB_URLLOG:-}" STUB_NETRC_COPY="${NETRC_COPY:-}" \
   STUB_CF_FAIL="${STUB_CF_FAIL-1}" STUB_CF_TOKEN="${STUB_CF_TOKEN:-}" \
   STUB_BROKER_CODE="${STUB_BROKER_CODE:-}" STUB_BROKER_DOWN="${STUB_BROKER_DOWN:-0}" \
   STUB_HITLOG="${STUB_HITLOG:-}" \
@@ -178,13 +183,26 @@ cfetch 'https://facilitron.atlassian.net/wiki/spaces/K/pages/123/Some+Title' "$O
 has "$(cat "$ROOT/stdout2")" 'TITLE: My Test Page' "full URL resolves + fetches"
 pass "full /pages/<id>/ URL → resolved offline, page fetched"
 
-# --- 3. tiny link resolves via the -sIL redirect follow ----------------------
-OUT3="$ROOT/out-tiny"
-cfetch 'https://facilitron.atlassian.net/wiki/x/DYCR5Q' "$OUT3" \
+# --- 3. tiny link decodes OFFLINE to its real id (MD-3082) -------------------
+# K4A-AgE carries a '-', so it pins Confluence's alphabet; the old redirect
+# scrape returned 4 for it.
+OUT3="$ROOT/out-tiny"; URLLOG3="$ROOT/urls3.log"; rm -f "$ROOT/head.log"
+STUB_URLLOG="$URLLOG3" cfetch 'https://facilitron.atlassian.net/wiki/x/K4A-AgE' "$OUT3" \
   > "$ROOT/stdout3" 2>&1 || fail "tiny-link run failed: $(cat "$ROOT/stdout3")"
-has "$(cat "$ROOT/stdout3")" 'TITLE: My Test Page' "tiny link followed the redirect to id 123"
+has "$(cat "$ROOT/stdout3")" 'TITLE: My Test Page' "tiny link resolves + fetches"
+grep -qF '/api/v2/pages/4332683307?' "$URLLOG3" || fail "tiny link should fetch decoded id 4332683307 (urls: $(cat "$URLLOG3"))"
+[[ ! -e "$ROOT/head.log" ]] || fail "tiny link must not follow a redirect (HEAD: $(cat "$ROOT/head.log"))"
 [[ -f "$OUT3/raw/hero.png" ]] || fail "tiny-link path did not download referenced attachments"
-pass "tiny link → redirect followed (id resolved), page + attachments fetched"
+pass "tiny link → decoded offline to 4332683307 (no redirect HEAD), page + attachments fetched"
+
+# --- 3b. undecodable tiny link fails loudly, before any fetch ----------------
+URLLOG3B="$ROOT/urls3b.log"; rm -f "$ROOT/head.log"
+rc=0; STUB_URLLOG="$URLLOG3B" cfetch 'https://facilitron.atlassian.net/wiki/x/MYA5AgF' "$ROOT/out-bad" \
+  > "$ROOT/stdout3b" 2>&1 || rc=$?
+[[ "$rc" -ne 0 ]] || fail "undecodable tiny link should exit nonzero (output: $(cat "$ROOT/stdout3b"))"
+has "$(cat "$ROOT/stdout3b")" 'Could not resolve a page ID from' "undecodable tiny link names the failure"
+[[ ! -e "$URLLOG3B" && ! -e "$ROOT/head.log" ]] || fail "undecodable tiny link must not reach the network"
+pass "undecodable tiny link → nonzero exit, clear error, no request made"
 
 # --- 4. missing credential fails fast ----------------------------------------
 # Empty token + a HOME with no ~/.env → the JIRA_API_TOKEN guard must abort.
