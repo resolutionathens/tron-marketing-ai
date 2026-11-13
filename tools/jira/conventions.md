@@ -47,7 +47,7 @@ bash "$L" delete 126430 "MD-3268 is blocked by MD-3396"
 bash "$L" replace 126430 "MD-3268 blocks MD-3396"   # correct a link in place
 ```
 
-`delete` and `replace` take the link id from `show`, plus the statement (or the two issues) that id
+`delete` and `replace` take the link id from `show`, plus the statement (or, for `replace`, the two issues and link type) that id
 must be. The helper refuses (exit `4`) when the id is a different link, so a correction cannot remove
 an unrelated link on the same issue. Never pick an id from `acli jira workitem link list`: it omits
 the other issue's key, so two Blocks links on one issue look identical. To cross-check by hand, the

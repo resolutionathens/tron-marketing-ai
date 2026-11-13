@@ -23,7 +23,7 @@
 # "This work item is blocked by X"). `acli ... link list --json` is not used:
 # it omits the other issue's key, so it cannot tell two Blocks links apart.
 #
-# Delete and replace take a link id AND the issues it must connect. The helper
+# Delete and replace take a link id AND the issues (and link type) it must be. The helper
 # refuses unless that id is the named link, so a correction cannot remove an
 # unrelated link on the same issue (MD-3268 lost "is blocked by MD-3262" to a
 # link id picked off an ambiguous list).
@@ -169,6 +169,8 @@ cmd_replace() {
   [ -n "$row" ] || refuse "link $id is not on $ST_A" "$rows"
   [ "$(printf '%s' "$row" | cut -f4)" = "$ST_B" ] \
     || refuse "link $id is \"$(say_row "$ST_A" "$row")\", which does not connect $ST_A and $ST_B" "$rows"
+  [ "$(printf '%s' "$row" | cut -f2)" = "$ST_TYPE" ] \
+    || refuse "link $id is \"$(say_row "$ST_A" "$row")\", not a $ST_TYPE link" "$rows"
   echo "replacing: $(say_row "$ST_A" "$row")"
   delete_verified "$id" "$rows"
   create_verified

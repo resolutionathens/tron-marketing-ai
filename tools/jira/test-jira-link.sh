@@ -157,12 +157,15 @@ jq --slurpfile a "$FIX/view-MD-3397-after.json" \
   "$STUB/view-MD-3397-deleted.json" > "$STUB/view-MD-3397-replaced.json"
 run replace 126434 "MD-3397 blocks MD-3268"
 [ "$RC" -eq 4 ] && [ -z "$(calls delete)" ] || fail "replace across issues should be refused: rc=$RC"
+run replace 126434 "MD-3397 blocks MD-3082"
+[ "$RC" -eq 4 ] && [ -z "$(calls delete)" ] || fail "replace of a Relates id for a Blocks fix should be refused: rc=$RC"
+case "$ERR" in *"link 126434 is \"MD-3397 relates to MD-3082"*"not a Blocks link"*) ;; *) fail "wrong-type refusal: $ERR" ;; esac
 run replace 126433 "MD-3397 blocks MD-3082"
 [ "$RC" -eq 0 ] || fail "replace: rc=$RC err=$ERR"
 [ "$(calls delete)" = "--id 126433 --yes" ] || fail "replace delete: $(calls delete)"
 [ "$(calls create)" = "--out MD-3082 --in MD-3397 --type Blocks --yes" ] || fail "replace create: $(calls create)"
 case "$OUT" in *"MD-3397 blocks MD-3082 (link 126435"*) ;; *) fail "replace output: $OUT" ;; esac
-pass "replace deletes the named id only, recreates in the intended direction, verifies"
+pass "replace refuses another issue or another link type; deletes the named id only, recreates in the intended direction, verifies"
 
 # --- show + usage ------------------------------------------------------------
 setup only unused unused
