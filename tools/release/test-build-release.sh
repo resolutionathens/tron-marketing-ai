@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# build-release.mjs reads GITHUB_REPOSITORY (set in CI). Pin a fixed value so the
+# builds never depend on the caller's environment (MD-3398).
+export GITHUB_REPOSITORY="Facilitron/tron-marketing-ai"
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-test.XXXXXX")"
 OUT_AGAIN="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-test-again.XXXXXX")"
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/tron-release-fixture.XXXXXX")"

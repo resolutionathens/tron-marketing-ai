@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 need_cmd() {
@@ -9,7 +13,6 @@ need_cmd() {
   }
 }
 need_cmd node
-need_cmd trash
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/tron-packages-test.XXXXXX")"
 # The alternate builds live in their own dir: build-packages.mjs empties its output dir

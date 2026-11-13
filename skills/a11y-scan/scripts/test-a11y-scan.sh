@@ -3,6 +3,10 @@
 # binary/flags per mode and generates the right pa11y-ci config, WITHOUT downloading
 # axe/pa11y-ci or hitting the network (A11Y_DRY_RUN short-circuits before npx runs).
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/a11y-scan.sh"
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a11y-cleanup-smoke.XXXXXX")"

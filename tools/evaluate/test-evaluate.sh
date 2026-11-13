@@ -2,6 +2,10 @@
 # Hermetic regression coverage for deterministic discovery and the explicit,
 # bounded model path. The fake claude process makes no network or model calls.
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"

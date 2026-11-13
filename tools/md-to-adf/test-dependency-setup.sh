@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # MD-3346: dependency setup must keep installed Codex plugins fingerprintable.
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/md-to-adf-deps.XXXXXX")"

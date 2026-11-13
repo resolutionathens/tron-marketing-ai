@@ -13,10 +13,11 @@ if ! command -v bun >/dev/null 2>&1; then
   exit 77
 fi
 
-# build.ts imports yaml from this skill's isolated package manifest. Provision it
-# here so the parse-layer test works from a fresh checkout, not just a reused one.
+# build.ts imports yaml from this skill's isolated package manifest. The test never
+# installs it (MD-3398: no network from Layer 1); a checkout without it skips.
 if [ ! -d "$HERE/node_modules/yaml" ]; then
-  (cd "$HERE" && bun install --frozen-lockfile >/dev/null)
+  echo "SKIP: skills/md-to-pdf/node_modules/yaml is not installed (run: cd skills/md-to-pdf && bun install --frozen-lockfile)"
+  exit 77
 fi
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT

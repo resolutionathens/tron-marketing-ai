@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SKILLS="brainstorm case-study creative-request email-campaign grill initiative-report keyword-research landing-page-seo md-to-pdf onesheet press-release seo-report social-post spotlight video-brief video-publish weekly-update"
