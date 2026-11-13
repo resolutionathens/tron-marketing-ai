@@ -14,19 +14,33 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Each pair of builds is independent, so run them side by side (MD-3398: a full release
-# build takes ~11s; four in sequence made this the slowest Layer-1 test by far). Any
-# failing build still fails the test.
-build_pair() {
-  local script="$1" first="$2" second="$3" pid_a pid_b rc=0
-  node "$script" "$first" >/dev/null & pid_a=$!
-  node "$script" "$second" >/dev/null & pid_b=$!
-  wait "$pid_a" || rc=$?
-  wait "$pid_b" || rc=$?
-  return "$rc"
-}
+# Snapshot the current working tree (including uncommitted edits) into a fixture repo,
+# used by the fixture-level checks further down.
+FIXTURE_PATHS=(.claude-plugin .codex-plugin .agents skills agents tools hooks packages README.md WORKER_CONTRACT.md)
+for PATH_ENTRY in "${FIXTURE_PATHS[@]}"; do
+  cp -R "$ROOT/$PATH_ENTRY" "$FIXTURE/$PATH_ENTRY"
+done
+git -C "$FIXTURE" init -q
+git -C "$FIXTURE" add -A
+GIT_AUTHOR_NAME="Tron Release Fixture" \
+GIT_AUTHOR_EMAIL="release@facilitron.com" \
+GIT_AUTHOR_DATE="1970-01-01T00:00:00Z" \
+GIT_COMMITTER_NAME="Tron Release Fixture" \
+GIT_COMMITTER_EMAIL="release@facilitron.com" \
+GIT_COMMITTER_DATE="1970-01-01T00:00:00Z" \
+git -C "$FIXTURE" commit -q -m "fixture: working tree snapshot"
 
-build_pair "$ROOT/tools/release/build-release.mjs" "$OUT" "$OUT_AGAIN"
+# The four release builds are independent, so they run side by side (MD-3398: a full
+# release build takes ~11s; four in sequence made this the slowest Layer-1 test by far).
+# Any failing build still fails the test; every assertion below is unchanged.
+pids=()
+node "$ROOT/tools/release/build-release.mjs" "$OUT" >/dev/null & pids+=($!)
+node "$ROOT/tools/release/build-release.mjs" "$OUT_AGAIN" >/dev/null & pids+=($!)
+node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT" >/dev/null & pids+=($!)
+node "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT_AGAIN" >/dev/null & pids+=($!)
+build_rc=0
+for pid in "${pids[@]}"; do wait "$pid" || build_rc=$?; done
+[ "$build_rc" -eq 0 ] || { printf 'FAIL: a release build exited %s.\n' "$build_rc" >&2; exit 1; }
 
 archive_has() {
   local archive="$1"
@@ -121,21 +135,7 @@ printf 'PASS: deterministic dual-harness release artifacts and integrity manifes
 
 # Fixture-level: builds must be byte-deterministic against a snapshot of the current
 # working tree (including uncommitted edits), without requiring a commit on this branch.
-FIXTURE_PATHS=(.claude-plugin .codex-plugin .agents skills agents tools hooks packages README.md WORKER_CONTRACT.md)
-for PATH_ENTRY in "${FIXTURE_PATHS[@]}"; do
-  cp -R "$ROOT/$PATH_ENTRY" "$FIXTURE/$PATH_ENTRY"
-done
-git -C "$FIXTURE" init -q
-git -C "$FIXTURE" add -A
-GIT_AUTHOR_NAME="Tron Release Fixture" \
-GIT_AUTHOR_EMAIL="release@facilitron.com" \
-GIT_AUTHOR_DATE="1970-01-01T00:00:00Z" \
-GIT_COMMITTER_NAME="Tron Release Fixture" \
-GIT_COMMITTER_EMAIL="release@facilitron.com" \
-GIT_COMMITTER_DATE="1970-01-01T00:00:00Z" \
-git -C "$FIXTURE" commit -q -m "fixture: working tree snapshot"
-
-build_pair "$FIXTURE/tools/release/build-release.mjs" "$FIXTURE_OUT" "$FIXTURE_OUT_AGAIN"
+# (The fixture snapshot and its two builds were made up front, alongside the real ones.)
 for ARTIFACT in "$FIXTURE_OUT"/*; do
   ARTIFACT="$(basename "$ARTIFACT")"
   cmp "$FIXTURE_OUT/$ARTIFACT" "$FIXTURE_OUT_AGAIN/$ARTIFACT"
