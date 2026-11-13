@@ -71,6 +71,24 @@ acli jira workitem create --project <PROJECT> --type <type> --summary '<summary>
 # Always assign the creator with --assignee '@me' (see "Creating tickets" below)
 ```
 
+### Linking tickets (Blocks, Relates)
+
+Never run `acli jira workitem link create` or `link delete` directly. **acli's success message
+prints the reverse of what it stores:** `--out A --in B --type Blocks` stores "A is blocked by B"
+and prints "(A Blocks B)", so trusting the printed line (or the `--out` help text) and "fixing" it
+stores the wrong direction. Use the helper, which takes the direction in plain words and verifies
+what Jira stored (exit `3` if reversed, `4` if a delete/replace id is not the named link):
+
+```bash
+L="$PLUGIN_ROOT/tools/jira/jira-link.sh"   # PLUGIN_ROOT from the resolver block under "Rich descriptions"
+[ -f "$L" ] || { echo "tron:jira: tools/jira/jira-link.sh missing; update the Tron package" >&2; exit 1; }
+bash "$L" create "MD-3396 blocks MD-3268"  # or "<A> is blocked by <B>", "<A> relates to <B>"
+bash "$L" show MD-3268                     # link ids in plain words; never use `link list` ids
+bash "$L" replace <id> "MD-3396 blocks MD-3268"
+```
+
+Full usage and the delete form: [tools/jira/conventions.md](../../tools/jira/conventions.md#dependency-links-blocks-relates).
+
 ### Marking a ticket Done at close-out
 
 This is the canonical form of the invocation for closing out a ticket:
