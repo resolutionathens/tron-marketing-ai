@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 need_cmd() {
@@ -9,13 +13,42 @@ need_cmd() {
   }
 }
 need_cmd node
-need_cmd trash
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/tron-packages-test.XXXXXX")"
-cleanup() { trash "$OUT"; }
+# The alternate builds live in their own dir: build-packages.mjs empties its output dir
+# first, so the main build would delete anything built concurrently inside $OUT.
+ALT="$(mktemp -d "${TMPDIR:-/tmp}/tron-packages-test-alt.XXXXXX")"
+cleanup() { trash "$OUT" "$ALT"; }
 trap cleanup EXIT
 
-node "$ROOT/tools/package/build-packages.mjs" "$OUT" >/dev/null
+# The three full builds below are independent, so they run side by side (MD-3398: each
+# takes ~2s, and in sequence they made this one of the slowest Layer-1 tests). Their
+# assertions further down are unchanged. The two alternate maps are written first.
+NO_REPOS_MAP="$ALT/no-repos-package-map.json"
+node - "$ROOT/packages/package-map.json" "$NO_REPOS_MAP" <<'NODE'
+const fs = require("fs");
+const [source, target] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+delete map.repos;
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+CONTRACT_MAP="$ALT/contract-only-resources.json"
+node - "$ROOT/packages/package-map.json" "$CONTRACT_MAP" <<'NODE'
+const fs = require("fs");
+const [source, target] = process.argv.slice(2);
+const map = JSON.parse(fs.readFileSync(source, "utf8"));
+const contracted = new Set(["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"]);
+map.packages.core.resources = map.packages.core.resources.filter((resource) => !contracted.has(resource));
+fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
+NODE
+node "$ROOT/tools/package/build-packages.mjs" "$OUT" >/dev/null & build_main=$!
+TRON_PACKAGE_MAP="$NO_REPOS_MAP" node "$ROOT/tools/package/build-packages.mjs" "$ALT/no-repos" >/dev/null & build_no_repos=$!
+TRON_PACKAGE_MAP="$CONTRACT_MAP" node "$ROOT/tools/package/build-packages.mjs" "$ALT/contract-only" >/dev/null & build_contract=$!
+build_rc=0
+wait "$build_main" || build_rc=$?
+wait "$build_no_repos" || build_rc=$?
+wait "$build_contract" || build_rc=$?
+[ "$build_rc" -eq 0 ] || { printf 'FAIL: a package build exited %s.\n' "$build_rc" >&2; exit 1; }
 
 node - "$ROOT" "$OUT" <<'NODE'
 const fs = require("fs");
@@ -370,18 +403,9 @@ fi
 
 # Adding repo bundles must leave every role package byte-identical, so a repo
 # scoping change can never silently alter what a role worker installs.
-NO_REPOS_MAP="$OUT/no-repos-package-map.json"
-node - "$ROOT/packages/package-map.json" "$NO_REPOS_MAP" <<'NODE'
-const fs = require("fs");
-const [source, target] = process.argv.slice(2);
-const map = JSON.parse(fs.readFileSync(source, "utf8"));
-delete map.repos;
-fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
-NODE
-TRON_PACKAGE_MAP="$NO_REPOS_MAP" node "$ROOT/tools/package/build-packages.mjs" "$OUT/no-repos" >/dev/null
 for PACKAGE in core engineer designer content seo manager social video; do
   for HARNESS in claude codex; do
-    diff -r "$OUT/no-repos/$HARNESS/tron-$PACKAGE" "$OUT/$HARNESS/tron-$PACKAGE" >/dev/null || {
+    diff -r "$ALT/no-repos/$HARNESS/tron-$PACKAGE" "$OUT/$HARNESS/tron-$PACKAGE" >/dev/null || {
       printf 'FAIL: repo bundles changed the generated %s/%s tree.\n' "$HARNESS" "$PACKAGE" >&2
       exit 1
     }
@@ -416,19 +440,9 @@ reject_map unsafe-repo-resource 'map.repos["tron-os"].resources.push("../README.
 # The manifest's per-skill resourceContract is installer input, not descriptive
 # metadata. Even if an aggregate package declaration omits those paths, the
 # builder must materialize the exact closure for every included contracted skill.
-CONTRACT_MAP="$OUT/contract-only-resources.json"
-node - "$ROOT/packages/package-map.json" "$CONTRACT_MAP" <<'NODE'
-const fs = require("fs");
-const [source, target] = process.argv.slice(2);
-const map = JSON.parse(fs.readFileSync(source, "utf8"));
-const contracted = new Set(["tools/jira", "tools/md-to-adf", "tools/skill", "tools/ticket", "tools/voice"]);
-map.packages.core.resources = map.packages.core.resources.filter((resource) => !contracted.has(resource));
-fs.writeFileSync(target, `${JSON.stringify(map)}\n`);
-NODE
-TRON_PACKAGE_MAP="$CONTRACT_MAP" node "$ROOT/tools/package/build-packages.mjs" "$OUT/contract-only" >/dev/null
 for HARNESS in claude codex; do
   for RESOURCE in tools/jira tools/md-to-adf tools/skill tools/ticket tools/voice; do
-    test -e "$OUT/contract-only/$HARNESS/tron-core/$RESOURCE" || {
+    test -e "$ALT/contract-only/$HARNESS/tron-core/$RESOURCE" || {
       printf 'FAIL: resourceContract did not materialize %s for %s/tron-core.\n' "$RESOURCE" "$HARNESS" >&2
       exit 1
     }

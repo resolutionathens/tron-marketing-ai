@@ -15,7 +15,7 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLI="$HERE/imagekit.mjs"
 
-command -v node >/dev/null 2>&1 || { echo "SKIP: node not installed"; exit 0; }
+node -e 0 >/dev/null 2>&1 || { echo "SKIP: no runnable node"; exit 77; }
 
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/imagekit-fallback.XXXXXX")"
 trap 'kill "${SRV_PID:-}" 2>/dev/null; rm -rf "$TMP"' EXIT

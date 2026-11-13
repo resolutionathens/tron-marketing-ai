@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/confluence-publish-test.XXXXXX")"
 SCRIPT="$(cd "$(dirname "$0")" && pwd)/publish-confluence.mjs"
@@ -12,6 +16,29 @@ has() { printf '%s' "$1" | rg -q -F -- "$2" || fail "$3: $1"; }
 
 mkdir -p "$ROOT/bin"
 printf '<p>Finished deliverable</p>\n' > "$ROOT/deliverable.html"
+
+# Resolve a real node executable, never a version-manager shim (MD-3398). A mise shim
+# only works while mise can pick a version: with no global node it falls through to the
+# next node on PATH, and dies at once where there is none. Ask node for its own execPath
+# on the caller's PATH; where no node runs there at all, use the newest node mise
+# has installed. Every node call below (mock server, publisher, assertions) uses it.
+resolve_node() {
+  local p
+  p="$(node -p process.execPath 2>/dev/null)" && [ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+  # Newest node mise already has installed: never node@lts, which can name a version that
+  # isn't installed and trigger a download.
+  local v
+  v="$(mise ls --installed node 2>/dev/null | awk '$1=="node"{print $2}' | sort -V | tail -1)" || v=""
+  [ -n "$v" ] && p="$(mise where "node@$v" 2>/dev/null)/bin/node" && [ -x "$p" ] \
+    && { printf '%s\n' "$p"; return 0; }
+  echo "FAIL: no runnable node on PATH and none installed through mise" >&2
+  return 1
+}
+NODE_REAL="$(resolve_node)"
+mkdir -p "$ROOT/node-bin"
+ln -s "$NODE_REAL" "$ROOT/node-bin/node"
+PATH="$ROOT/node-bin:$PATH"
+export PATH
 
 cat > "$ROOT/bin/cloudflared" <<'SH'
 #!/usr/bin/env bash
@@ -59,7 +86,15 @@ JS
 PORT_FILE="$ROOT/port" REQUEST_LOG="$ROOT/requests.jsonl" node "$ROOT/mock-server.mjs" &
 SERVER_PID=$!
 trap 'kill "$SERVER_PID" >/dev/null 2>&1 || true; cleanup' EXIT
-while [[ ! -s "$ROOT/port" ]]; do sleep 0.05; done
+# Wait for the port file, but fail fast: stop as soon as the server exits, and give up
+# after ~5s, so a server that never starts can't hang the suite.
+waited=0
+while [[ ! -s "$ROOT/port" ]]; do
+  kill -0 "$SERVER_PID" 2>/dev/null || fail "mock server exited before writing its port"
+  (( waited < 100 )) || fail "mock server did not write its port within 5s"
+  sleep 0.05
+  waited=$((waited + 1))
+done
 BASE="http://127.0.0.1:$(cat "$ROOT/port")/jira"
 
 run_publish() {

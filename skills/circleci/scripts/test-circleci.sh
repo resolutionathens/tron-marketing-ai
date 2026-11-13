@@ -178,19 +178,16 @@ pass "help → prints usage (exit 0)"
 
 # --- fallback path: missing token error & graceful handling -----------------
 # Test that resolve_circleci_token does not abort under set -euo pipefail
-# when CIRCLECI_TOKEN is missing from ~/.env.
-TMPENV="$(mktemp)"
-trap 'rm -f "$TMPENV"' EXIT
-# Create a .env without CIRCLECI_TOKEN
-echo "OTHER_VAR=value" > "$TMPENV"
-HOME_BACKUP="$HOME"
-export HOME="$(dirname "$TMPENV")"
-ln -s "$TMPENV" "$HOME/.env" 2>/dev/null || true
-O="$(bash -c "source $SCRIPT 2>/dev/null; resolve_circleci_token" || echo 'exit_1')"
+# when CIRCLECI_TOKEN is missing from ~/.env. The fake HOME lives in this test's own
+# temp dir and only the subshell sees it: the real HOME is never changed or cleaned up
+# (MD-3398: the old version deleted the real ~/.env). An exported CIRCLECI_TOKEN would
+# win over ~/.env, so it is cleared for this case.
+FAKE_HOME="$ROOT/home"
+mkdir -p "$FAKE_HOME"
+echo "OTHER_VAR=value" > "$FAKE_HOME/.env"
+O="$(env -u CIRCLECI_TOKEN HOME="$FAKE_HOME" bash -c "source \"$SCRIPT\" 2>/dev/null; resolve_circleci_token" || echo 'exit_1')"
 [[ "$O" == "exit_1" || -z "$O" ]] || fail "resolve_circleci_token should handle missing CIRCLECI_TOKEN gracefully (got: $O)"
 pass "resolve_circleci_token handles missing key gracefully under set -euo pipefail"
-export HOME="$HOME_BACKUP"
-rm -f "$HOME/.env" 2>/dev/null || true
 
 echo ""
 echo "✅ circleci smoke PASSED ($PASS checks)"

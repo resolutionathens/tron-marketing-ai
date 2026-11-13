@@ -73,11 +73,11 @@ scout:
   effects: [report]
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed an invalid category"
 fi
-grep -q "FAIL bad-category" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "category 'sales'" /tmp/scout-smoke-out.$$ || fail "failure output should name the bad category value"
+grep -q "FAIL bad-category" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "category 'sales'" "$FIXTURE/smoke-out" || fail "failure output should name the bad category value"
 pass "catches an invalid category"
 
 # --- inputs entry missing a label fails ---------------------------------------
@@ -93,11 +93,11 @@ scout:
       required: true
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed an inputs entry missing a label"
 fi
-grep -q "FAIL missing-label" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "missing a non-empty label" /tmp/scout-smoke-out.$$ || fail "failure output should call out the missing label"
+grep -q "FAIL missing-label" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "missing a non-empty label" "$FIXTURE/smoke-out" || fail "failure output should call out the missing label"
 pass "catches an inputs entry missing a label"
 
 # --- surface: true missing display copy fails ---------------------------------
@@ -109,12 +109,12 @@ scout:
   effects: [report]
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed a surface: true skill missing display copy"
 fi
-grep -q "FAIL missing-copy" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "requires a non-empty title" /tmp/scout-smoke-out.$$ || fail "failure output should call out the missing title"
-grep -q "requires a non-empty category" /tmp/scout-smoke-out.$$ || fail "failure output should call out the missing category"
+grep -q "FAIL missing-copy" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "requires a non-empty title" "$FIXTURE/smoke-out" || fail "failure output should call out the missing title"
+grep -q "requires a non-empty category" "$FIXTURE/smoke-out" || fail "failure output should call out the missing category"
 pass "catches a surface: true skill missing display copy"
 
 # --- bad surface value fails ---------------------------------------------------
@@ -126,11 +126,11 @@ scout:
   effects: [local]
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed a surface value outside true | developer | false"
 fi
-grep -q "FAIL bad-surface" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "surface 'yes'" /tmp/scout-smoke-out.$$ || fail "failure output should name the bad surface value"
+grep -q "FAIL bad-surface" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "surface 'yes'" "$FIXTURE/smoke-out" || fail "failure output should name the bad surface value"
 pass "catches a surface value outside true | developer | false"
 
 # --- bad effects entry fails ----------------------------------------------------
@@ -142,11 +142,11 @@ scout:
   effects: [deploy]
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed an invalid effects entry"
 fi
-grep -q "FAIL bad-effects" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "effects entry 'deploy'" /tmp/scout-smoke-out.$$ || fail "failure output should name the bad effects value"
+grep -q "FAIL bad-effects" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "effects entry 'deploy'" "$FIXTURE/smoke-out" || fail "failure output should name the bad effects value"
 pass "catches an invalid effects entry"
 
 # --- bad inputs type falls back silently in tron-os, so this lint catches it --
@@ -162,11 +162,11 @@ scout:
       type: number
 ---
 '
-if bash "$SCRIPT" "$FIXTURE" >/tmp/scout-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed an invalid inputs type"
 fi
-grep -q "FAIL bad-type" /tmp/scout-smoke-out.$$ || fail "failure output should name the broken skill"
-grep -q "type 'number'" /tmp/scout-smoke-out.$$ || fail "failure output should name the bad type value"
+grep -q "FAIL bad-type" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
+grep -q "type 'number'" "$FIXTURE/smoke-out" || fail "failure output should name the bad type value"
 pass "catches an invalid inputs type"
 
 # --- a skill with no scout: block at all is skipped, not flagged ---------------
@@ -195,5 +195,5 @@ scout:
 bash "$SCRIPT" "$FIXTURE" >/dev/null || fail "effects: [] should not crash the linter (CCAL-2092 effs[@] regression)"
 pass "effects: [] parses to an empty effs[@] safely under set -u (CCAL-2092)"
 
-rm -f /tmp/scout-smoke-out.$$
+rm -f "$FIXTURE/smoke-out"
 echo "check-scout-frontmatter smoke: $PASS passed"

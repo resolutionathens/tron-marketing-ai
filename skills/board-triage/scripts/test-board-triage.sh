@@ -8,6 +8,10 @@
 #
 #   bash skills/board-triage/scripts/test-board-triage.sh
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in jq; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/board-triage.sh"
@@ -110,7 +114,9 @@ rc=0; run bogus-cmd >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 2 ]] || fail "unknown subcommand should exit 2 (got $rc)"
 pass "usage: unknown subcommand → exit 2"
 
-rc=0; PATH="/usr/bin:/bin" bash "$SCRIPT" fetch >/dev/null 2>&1 || rc=$?
+# jq comes from command -v, not an assumed /usr/bin/jq (MD-3398); acli stays absent.
+SYSTOOLS="$ROOT/systools"; mkdir -p "$SYSTOOLS"; ln -s "$(command -v jq)" "$SYSTOOLS/jq"
+rc=0; PATH="$SYSTOOLS:/usr/bin:/bin" bash "$SCRIPT" fetch >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 1 ]] || fail "missing acli should exit 1 (got $rc)"
 pass "usage: missing acli → exit 1 (with remedy)"
 

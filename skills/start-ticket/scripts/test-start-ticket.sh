@@ -6,6 +6,10 @@
 #
 #   bash skills/start-ticket/scripts/test-start-ticket.sh
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in jq; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/start-ticket.sh"
@@ -378,7 +382,12 @@ grep -q '"error":"ambiguous-ref"' <<<"$OUT" || fail "ambiguous ref should error:
 pass "ambiguous bare-number ref → ambiguous-ref error (no worktree created)"
 
 # With a real ref but wt absent from PATH, it fails fast and clean (no partial state).
-OUT="$(PATH="/usr/bin:/bin" bash "$SCRIPT" 'MD-1' --branch 'MD-1-x' 2>/dev/null || true)"
+# jq comes from command -v, not an assumed /usr/bin/jq (MD-3398), so the script gets past
+# its jq check to the wt check this case is about.
+SYSTOOLS="$(mktemp -d "${TMPDIR:-/tmp}/start-ticket-systools.XXXXXX")"
+ln -s "$(command -v jq)" "$SYSTOOLS/jq"
+OUT="$(PATH="$SYSTOOLS:/usr/bin:/bin" bash "$SCRIPT" 'MD-1' --branch 'MD-1-x' 2>/dev/null || true)"
+rm -rf "$SYSTOOLS"
 grep -q '"error":"wt-not-found"' <<<"$OUT" || fail "missing wt should error wt-not-found: $OUT"
 pass "missing wt → wt-not-found error (fails fast)"
 

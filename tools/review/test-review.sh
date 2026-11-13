@@ -26,7 +26,7 @@ check() { case "$3" in *"$2"*) pass "$1" ;; *) fail "$1 — expected \"$2\" in: 
 # rc_of <expected> <label> -- <cmd...>
 rc_of() { local want="$1" label="$2"; shift 3; local rc=0; "$@" >/dev/null 2>&1 || rc=$?; [ "$rc" = "$want" ] || fail "$label — expected exit $want, got $rc"; pass "$label"; }
 
-command -v node >/dev/null 2>&1 || { echo "review smoke: SKIPPED — node not on PATH"; exit 0; }
+node -e 0 >/dev/null 2>&1 || { echo "review smoke: SKIPPED — no runnable node"; exit 77; }
 
 echo "review CLI smoke: tmp=$TMP"
 

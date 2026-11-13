@@ -2,6 +2,10 @@
 # Hermetic regression coverage for deterministic discovery and the explicit,
 # bounded model path. The fake claude process makes no network or model calls.
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
@@ -111,9 +115,13 @@ i=0
 while [ ! -s "$FAKE_CLAUDE_CHILD_PID" ] && [ "$i" -lt 100 ]; do sleep 0.05; i=$((i+1)); done
 ORPHAN_PID="$(sed -n '1p' "$FAKE_CLAUDE_CHILD_PID")"
 kill -TERM "$EVAL_PID"
+# Bound the wait (MD-3398): if cancellation ever stops working, a 5s watchdog kills the
+# run (exit 137, failing the exit-code check below) instead of stalling the whole suite.
+( sleep 5 && kill -KILL "$EVAL_PID" ) 2>/dev/null & WATCHDOG_PID=$!
 set +e
 wait "$EVAL_PID"; rc=$?
 set -e
+kill "$WATCHDOG_PID" 2>/dev/null || true
 EVAL_PID=""
 i=0
 while kill -0 "$ORPHAN_PID" 2>/dev/null && [ "$i" -lt 40 ]; do sleep 0.05; i=$((i+1)); done

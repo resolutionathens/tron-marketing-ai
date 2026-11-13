@@ -28,6 +28,30 @@ printf 'bun %s\n' "$*" >> "$TRACE"
 BUNEOF
 chmod +x "$FIXTURE_BIN/mise" "$FIXTURE_BIN/bun"
 
+# Resolve a real node executable, never a version-manager shim (MD-3398). A mise shim
+# only works while mise can pick a version: with no global node it falls through to the
+# next node on PATH, so it breaks once PATH is narrowed. Ask node for its own execPath on
+# the caller's PATH; where no node runs there at all, use the newest node mise has installed.
+resolve_node() {
+  local p
+  p="$(node -p process.execPath 2>/dev/null)" && [ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+  # Newest node mise already has installed: never node@lts, which can name a version that
+  # isn't installed and trigger a download.
+  local v
+  v="$(mise ls --installed node 2>/dev/null | awk '$1=="node"{print $2}' | sort -V | tail -1)" || v=""
+  [ -n "$v" ] && p="$(mise where "node@$v" 2>/dev/null)/bin/node" && [ -x "$p" ] \
+    && { printf '%s\n' "$p"; return 0; }
+  echo "FAIL: no runnable node on PATH and none installed through mise" >&2
+  return 1
+}
+# The selector runs node itself; put the resolved binary first on PATH for every case.
+NODE_FIXTURE_BIN="$ROOT/node-bin"
+NODE_REAL="$(resolve_node)"
+mkdir -p "$NODE_FIXTURE_BIN"
+ln -s "$NODE_REAL" "$NODE_FIXTURE_BIN/node"
+PATH="$NODE_FIXTURE_BIN:$PATH"
+export PATH
+
 PASS=0
 
 assert_contains() {
@@ -142,7 +166,7 @@ mkdir -p "$NO_MISE_BIN"
 cat > "$NO_MISE_REPO/package.json" <<'JSON'
 {"scripts":{"test":"bun test"}}
 JSON
-ln -s "$(command -v node)" "$NO_MISE_BIN/node"
+ln -s "$NODE_REAL" "$NO_MISE_BIN/node"
 no_mise_output="$(PATH="$NO_MISE_BIN:/usr/bin:/bin" bash "$SCRIPT" --repo-dir "$NO_MISE_REPO" --dry-run)"
 assert_contains "$no_mise_output" "selected test gate: bun run test"
 

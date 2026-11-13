@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Verifies ticket-authoring and manual-image instructions use owned TMPDIR workspaces.
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 need() { rg -q "$2" "$1" || { echo "FAIL: $3" >&2; exit 1; }; echo "ok  : $3"; }
 need "$ROOT/skills/create-ticket/SKILL.md" 'mktemp -d.*tron-create-ticket' 'create-ticket uses a unique workspace'

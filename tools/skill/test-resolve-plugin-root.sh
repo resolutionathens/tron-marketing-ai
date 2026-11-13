@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 RESOLVER="$HERE/resolve-plugin-root.sh"
+# The clean-install case runs md-to-adf, which lazy-installs markdown-to-adf on first run.
+# The test never lets it (MD-3398: no network from Layer 1); without the installed
+# dependency the whole test skips.
+if [ ! -d "$ROOT/tools/md-to-adf/node_modules/markdown-to-adf" ]; then
+  echo "SKIP: tools/md-to-adf/node_modules/markdown-to-adf is not installed (run: cd tools/md-to-adf && npm ci)"
+  exit 77
+fi
 FIXTURE="$(mktemp -d "${TMPDIR:-/tmp}/tron-plugin-root.XXXXXX")"
 cleanup() { trash "$FIXTURE"; }
 trap cleanup EXIT

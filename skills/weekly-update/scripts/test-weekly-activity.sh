@@ -10,6 +10,10 @@
 #
 #   bash skills/weekly-update/scripts/test-weekly-activity.sh
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in jq python3; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/weekly-activity.sh"
@@ -87,8 +91,12 @@ pass "github: unauthenticated gh → skipped (run: gh auth login)"
 
 # gh entirely absent: build a PATH with only our stub acli + system coreutils,
 # no gh. Point at the stub dir for acli, then a clean PATH for the rest.
+# jq and python3 are found with command -v wherever this host keeps them (MD-3398) and
+# linked into the clean dir, so the narrowed PATH never depends on /usr/bin having them.
 CLEAN="$ROOT/clean"; mkdir -p "$CLEAN"; cp "$BIN/acli" "$CLEAN/acli"
-O="$(PATH="$CLEAN:/usr/bin:/bin" bash "$SCRIPT" fetch --start 2026-05-04)"
+SYSTOOLS="$ROOT/systools"; mkdir -p "$SYSTOOLS"
+for tool in jq python3; do ln -s "$(command -v "$tool")" "$SYSTOOLS/$tool"; done
+O="$(PATH="$CLEAN:$SYSTOOLS:/usr/bin:/bin" bash "$SCRIPT" fetch --start 2026-05-04)"
 has "$O" 'gh not installed' "absent gh → Jira-only note"
 has "$O" 'Jira-only mode' "absent gh names Jira-only mode"
 pass "github: gh not installed → Jira-only mode (no failure)"
@@ -127,7 +135,7 @@ rc=0; run bogus-cmd >/dev/null 2>&1 || rc=$?
 pass "usage: unknown subcommand → exit 2"
 
 # acli absent → logical failure (exit 1), not a usage error
-rc=0; PATH="/usr/bin:/bin" bash "$SCRIPT" fetch --start 2026-05-04 --no-github >/dev/null 2>&1 || rc=$?
+rc=0; PATH="$SYSTOOLS:/usr/bin:/bin" bash "$SCRIPT" fetch --start 2026-05-04 --no-github >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 1 ]] || fail "missing acli should exit 1 (got $rc)"
 pass "usage: missing acli → exit 1 (with remedy)"
 

@@ -374,8 +374,17 @@ pass "CLI arg handling: missing values, --key/--file exclusivity, unknown args e
 # create-ticket writes the marker block as a fenced code block precisely so it
 # survives md-to-adf (ordinary lines collapse to a space-joined paragraph and
 # bare URLs split off their Key:). Guard on node + the converter being present.
+# md-to-adf lazy-installs markdown-to-adf on first run; the test never lets it (MD-3398:
+# no network from Layer 1). Without the installed dependency this check is skipped and
+# the whole test reports SKIP (exit 77) once the other checks have run.
 ADF="$HERE/../md-to-adf/md-to-adf.mjs"
-if command -v node >/dev/null && [ -f "$ADF" ]; then
+ADF_SKIPPED=""
+if [ ! -d "$HERE/../md-to-adf/node_modules/markdown-to-adf" ]; then
+  ADF_SKIPPED="tools/md-to-adf/node_modules/markdown-to-adf is not installed (run: cd tools/md-to-adf && npm ci)"
+elif ! node -e 0 >/dev/null 2>&1 || [ ! -f "$ADF" ]; then
+  ADF_SKIPPED="node or md-to-adf.mjs unavailable"
+fi
+if [ -z "$ADF_SKIPPED" ]; then
   RT="$(mktemp "${TMPDIR:-/tmp}/rubric-rt.XXXXXX")"
   trap 'rm -f "$TMP" "$RT"' EXIT
   cat > "$RT" <<'MD'
@@ -409,8 +418,10 @@ MD
   printf '%s\n' "$EXTRACT" | grep -qE '^Intent: Visitors can recognize the current BAS brand' \
     || fail "ADF round-trip: Intent should stay on its marker line"
   pass "ADF round-trip: fenced marker block survives md-to-adf → lints high"
-else
-  echo "  (skipping ADF round-trip check — node or md-to-adf.mjs unavailable)"
 fi
 
 echo "rubric smoke: $PASS checks passed"
+if [ -n "$ADF_SKIPPED" ]; then
+  echo "SKIP: ADF round-trip check — $ADF_SKIPPED"
+  exit 77
+fi

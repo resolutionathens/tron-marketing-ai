@@ -2,6 +2,10 @@
 # Hermetic regression coverage for git-pr Jira-key resolution.
 
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/resolve-jira-key.sh"

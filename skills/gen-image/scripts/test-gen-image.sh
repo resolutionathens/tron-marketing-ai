@@ -4,8 +4,11 @@
 #     command (edit + one --image per ref + --out + subject/medium prompt). Also run the
 #     real CLI in --dry-run (no key needed by the CLI for dry-run; works if image_gen.py
 #     is installed) to confirm the request shape.
-#   - PATH B (exec fallback): with NO key and a FAKE codex on PATH, verify auth-fail bails
+#   - PATH C (exec fallback): with NO key and a FAKE codex on PATH, verify auth-fail bails
 #     fast, arg validation, and that a fresh fake image is copied out.
+# Every case sets or clears exactly the keys it needs (MD-3398): worker sessions export
+# OPENAI_API_KEY/OPENROUTER_API_KEY from ~/.env, and an inherited key routes the script to a
+# live API path instead of the one under test.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/gen-image.sh"
@@ -23,12 +26,17 @@ logo="$HERE/../../md-to-pdf/facilitron-logo.png"
 
 # ========================================================================================
 # PATH A — CLI command assembly (preferred path). Set OPENAI_API_KEY explicitly (it takes
-# precedence over the ~/.env source) and point CODEX_HOME at the real install so the CLI is
-# found. GENIMG_PRINT_CMD prints the assembled argv and exits.
+# precedence over the ~/.env source) and point CODEX_HOME at a fixture holding a stub
+# image_gen.py, so the assertions run whether or not codex is installed here.
+# GENIMG_PRINT_CMD prints the assembled argv and exits before the stub would run.
 # ========================================================================================
-REAL_CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-cmd="$(OPENAI_API_KEY=sk-test CODEX_HOME="$REAL_CODEX_HOME" GENIMG_PRINT_CMD=1 \
+FAKE_CODEX_HOME="$TMP/codex-home"
+mkdir -p "$FAKE_CODEX_HOME/skills/.system/imagegen/scripts"
+printf 'raise SystemExit("stub image_gen.py must not run")\n' \
+  > "$FAKE_CODEX_HOME/skills/.system/imagegen/scripts/image_gen.py"
+cmd="$(OPENAI_API_KEY=sk-test CODEX_HOME="$FAKE_CODEX_HOME" GENIMG_PRINT_CMD=1 \
        bash "$SCRIPT" "$refdir" "an empty wooden park bench" "$TMP/out.png" 2>/dev/null || true)"
+contains "CLI: selected with OPENAI_API_KEY set" "$FAKE_CODEX_HOME/skills/.system/imagegen/scripts/image_gen.py" "$cmd"
 if [ -n "$cmd" ]; then
   contains "CLI: uses image_gen.py"            "image_gen.py" "$cmd"
   contains "CLI: uses the edit subcommand"     "image_gen.py edit" "$cmd"
@@ -40,12 +48,12 @@ if [ -n "$cmd" ]; then
   contains "CLI: forbids copying subjects"     "Do NOT copy their specific subjects" "$cmd"
   contains "CLI: demands distinct composition" "VISIBLY DISTINCT composition" "$cmd"
   contains "CLI: forbids near-duplicate re-skin" "near-duplicate of one reference" "$cmd"
-else
-  echo "note: CLI path not selected (image_gen.py or python missing) — skipping CLI assertions"
 fi
 
 # Real dry-run through the CLI (validates the request shape end-to-end without a live call).
-IMAGE_GEN="${CODEX_HOME:-$HOME/.codex}/skills/.system/imagegen/scripts/image_gen.py"
+# Optional extra: it needs codex's real image_gen.py, so it runs only where one is installed.
+REAL_CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+IMAGE_GEN="$REAL_CODEX_HOME/skills/.system/imagegen/scripts/image_gen.py"
 if [ -f "$IMAGE_GEN" ] && command -v python3 >/dev/null 2>&1; then
   dry="$(OPENAI_API_KEY=sk-test CODEX_HOME="$REAL_CODEX_HOME" GENIMG_DRY_RUN=1 \
          bash "$SCRIPT" "$refdir" "an empty wooden park bench" "$TMP/out.png" 2>&1 || true)"
@@ -54,18 +62,12 @@ if [ -f "$IMAGE_GEN" ] && command -v python3 >/dev/null 2>&1; then
 fi
 
 # ========================================================================================
-# PATH B — exec fallback (no key). Fake codex on PATH; fake ~/.env-free HOME.
-# Skip these tests when unauthenticated (no API keys) in CI, since PATH C/exec is
-# unreliable in headless environments (openai/codex #28102/#19133/#23015).
+# PATH C — exec fallback (no key). Fake codex on PATH; fake ~/.env-free HOME. The exec path
+# is only taken with no API key, so run_exec clears both keys (an exported one would send
+# the script to PATH A or B and a live API) and CODEX_HOME (the fake codex writes under
+# $HOME/.codex, which is where the script must look). Nothing here reaches a real codex.
 # ========================================================================================
-
-# Skip exec tests if: no OPENAI_API_KEY, no OPENROUTER_API_KEY, AND running in CI.
-if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ] && [ -n "${CI:-}" ]; then
-  echo "SKIP: exec fallback tests — unauthenticated in CI (PATH C is unreliable headless)"
-  echo
-  [ "$fail" -eq 0 ] || { echo "FAILURES above"; exit 1; }
-  exit 77
-fi
+run_exec() { env -u OPENAI_API_KEY -u OPENROUTER_API_KEY -u CODEX_HOME "$@"; }
 
 mkfake() {
   local mode="$1"; mkdir -p "$TMP/bin"
@@ -86,7 +88,7 @@ EOF
 # auth failure → exit 3, no output
 mkfake fail
 set +e
-out="$(PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$refdir" "a gym" "$TMP/o1.png" 2>&1)"; code=$?
+out="$(run_exec PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$refdir" "a gym" "$TMP/o1.png" 2>&1)"; code=$?
 set -e
 expect_exit "exec: auth-fail bails fast"     3 "$code"
 contains    "exec: shows re-auth ask"        "BLOCKED on codex auth" "$out"
@@ -94,14 +96,14 @@ contains    "exec: shows re-auth ask"        "BLOCKED on codex auth" "$out"
 # missing source → exit 2
 mkfake ok
 set +e
-out="$(PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$TMP/nope" "x" "$TMP/o2.png" 2>&1)"; code=$?
+out="$(run_exec PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$TMP/nope" "x" "$TMP/o2.png" 2>&1)"; code=$?
 set -e
 expect_exit "exec: missing source exits 2"   2 "$code"
 
 # happy path → fresh fake image copied out, exit 0
 mkfake ok
 set +e
-out="$(PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$refdir" "a school gymnasium" "$TMP/o3.png" 2>&1)"; code=$?
+out="$(run_exec PATH="$TMP/bin:$PATH" HOME="$TMP/exec-home" bash "$SCRIPT" "$refdir" "a school gymnasium" "$TMP/o3.png" 2>&1)"; code=$?
 set -e
 expect_exit "exec: happy path exits 0"       0 "$code"
 [ -s "$TMP/o3.png" ] && echo "ok  : exec: fresh image copied to target" || { echo "FAIL: exec no output"; fail=1; }
@@ -119,7 +121,7 @@ mkfake ok
 narrowpath="$TMP/bin:/usr/bin:/bin"
 if ! PATH="$narrowpath" command -v timeout >/dev/null 2>&1; then
   set +e
-  out="$(PATH="$narrowpath" HOME="$TMP/exec-home" /bin/bash "$SCRIPT" "$refdir" "an empty gym" "$TMP/o4.png" 2>&1)"; code=$?
+  out="$(run_exec PATH="$narrowpath" HOME="$TMP/exec-home" /bin/bash "$SCRIPT" "$refdir" "an empty gym" "$TMP/o4.png" 2>&1)"; code=$?
   set -e
   if printf '%s' "$out" | grep -q 'unbound variable'; then
     echo "FAIL: CCAL-2092 TO=() — unbound variable under bash 3.2 (no timeout on PATH)"; fail=1

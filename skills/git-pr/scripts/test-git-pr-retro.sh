@@ -20,7 +20,10 @@ trap 'rm -rf "$ROOT"' EXIT
 has() { grep -q "$2" <<<"$1" || fail "$3 — got: $1"; }
 not_has() { if grep -q "$2" <<<"$1"; then fail "$3 — got: $1"; fi; }
 
-command -v jq >/dev/null 2>&1 || { echo "git-pr-retro smoke: SKIPPED — jq not on PATH"; exit 0; }
+# The tests below set CLAUDE_PLUGIN_ROOT themselves where they need it; an inherited one
+# would run an installed plugin's token-usage.sh instead of this checkout's (MD-3398).
+unset CLAUDE_PLUGIN_ROOT
+command -v jq >/dev/null 2>&1 || { echo "git-pr-retro smoke: SKIPPED — jq not on PATH"; exit 77; }
 
 # ---- gh shim: intercepts pr comment ------------------------------------------
 # Any other gh subcommand falls through to `exit 1`, which is itself a guard: if

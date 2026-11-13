@@ -21,7 +21,7 @@ rc_of() { local rc=0; bash "$SCRIPT" "$@" >/dev/null 2>&1 || rc=$?; echo "$rc"; 
 
 if ! command -v jq >/dev/null 2>&1; then
   echo "gh smoke: SKIPPED — jq is not on PATH; gh.sh hard-requires it (install: brew install jq)"
-  exit 0
+  exit 77
 fi
 
 # These are pure flag-parsing/contract tests — no network. Prepend a stub `gh`

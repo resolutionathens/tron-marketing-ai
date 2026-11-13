@@ -4,6 +4,10 @@
 # pushed past the truncation window — fails with the offending path and its
 # line count.
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in trash rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/check-reference-contents.sh"

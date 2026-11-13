@@ -7,7 +7,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/seo-audit.sh"
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
-command -v python3 >/dev/null 2>&1 || { echo "SKIP: python3 not found — seo-audit.sh requires it"; exit 0; }
+command -v python3 >/dev/null 2>&1 || { echo "SKIP: python3 not found — seo-audit.sh requires it"; exit 77; }
 
 fail=0
 contains()    { if printf '%s' "$3" | grep -qF -- "$2"; then echo "ok  : $1"; else echo "FAIL: $1 — missing '$2'"; fail=1; fi; }

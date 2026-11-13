@@ -17,8 +17,8 @@ exists()   { if [ -f "$2" ]; then echo "ok  : $1"; else echo "FAIL: $1 — no fi
 absent()   { if [ -f "$2" ]; then echo "FAIL: $1 — unexpected file $2"; fail=1; else echo "ok  : $1"; fi; }
 
 need() { command -v "$1" >/dev/null 2>&1; }
-need pngquant || { echo "SKIP: pngquant not installed"; exit 0; }
-need cwebp   || { echo "SKIP: cwebp not installed"; exit 0; }
+need pngquant || { echo "SKIP: pngquant not installed"; exit 77; }
+need cwebp   || { echo "SKIP: cwebp not installed"; exit 77; }
 
 # --- portable image helpers: prefer ImageMagick, fall back to macOS sips ------------------
 IM=""

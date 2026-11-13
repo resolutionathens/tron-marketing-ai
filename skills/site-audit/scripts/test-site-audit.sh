@@ -3,6 +3,10 @@
 # CORRECT binary/flags and scopes the crawl, WITHOUT downloading Chromium or hitting the
 # network (UNLH_DRY_RUN short-circuits before npx runs).
 set -euo pipefail
+# Host tools this test runs (MD-3398): skip cleanly where one is missing.
+for tool in rg; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "SKIP: $tool is not installed"; exit 77; }
+done
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SCRIPT="$HERE/site-audit.sh"
 ROOT="$(mktemp -d "${TMPDIR:-/tmp}/site-audit-cleanup-smoke.XXXXXX")"
@@ -102,7 +106,12 @@ victim=$!
 for _ in $(seq 1 60); do [[ -s "$MARK" ]] && break; sleep 0.1; done
 child="$(cat "$MARK" 2>/dev/null || true)"
 kill -TERM "$victim" 2>/dev/null || true
-wait "$victim" 2>/dev/null || true
+# Bound the wait (MD-3398): if the script ever ignores SIGTERM, a 5s watchdog kills it
+# (exit 137) instead of letting the fake child's sleep 300 stall the whole suite.
+( sleep 5 && kill -KILL "$victim" ) 2>/dev/null & watchdog=$!
+victim_rc=0; wait "$victim" 2>/dev/null || victim_rc=$?
+kill "$watchdog" 2>/dev/null || true
+[[ "$victim_rc" != 137 ]] || { echo "FAIL: orphan-reap: script ignored SIGTERM for 5s"; fail=1; }
 for _ in $(seq 1 30); do kill -0 "$child" 2>/dev/null || break; sleep 0.1; done
 if [[ -z "$child" ]]; then
   echo "FAIL: orphan-reap: fake scanner never recorded a child pid"; fail=1
