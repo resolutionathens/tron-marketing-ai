@@ -238,7 +238,8 @@ rb_missing() {
     local IFS='|' ms m
     read -ra ms <<< "$(rb_section_markers "$type")"
     for m in "${ms[@]}"; do
-      [ "$m" = Repo ] && [ "$prefix_ok" = 1 ] && continue
+      # A PREFIX stands in for a missing Repo, but an explicit Repo is still validated.
+      [ "$m" = Repo ] && [ "$prefix_ok" = 1 ] && ! rb_marker_present "$text" Repo && continue
       # Research produces no change to the code, so there are no paths to name.
       [ "$m" = "Affected paths" ] && rb_is_research "$text" && continue
       rb_present "$text" "$m" || printf 'section:%s\n' "$m"

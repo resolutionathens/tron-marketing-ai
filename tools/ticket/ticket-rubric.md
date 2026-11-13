@@ -43,7 +43,9 @@ markers below are the contract, the prose around them is for the human.
 - `Acceptance criteria:` may be a single line or introduce a bullet list beneath it; either counts as present.
 - `Repo:` is satisfied *either* by the marker *or* by a valid summary `PREFIX:`
   (see [tools/jira/conventions.md](../jira/conventions.md)) — engineering tickets should carry both, but the
-  prefix alone satisfies the routing requirement.
+  prefix alone satisfies the routing requirement. The prefix stands in only for a missing `Repo:`: a `Repo:`
+  with a real value is still checked entry by entry, so `Repo: marketing-pages, TBD` is a gap even under a
+  valid prefix.
 - **The whole marker block goes in one fenced code block** at the top of the description (the "machine
   header"), then the human prose sections follow. This is not cosmetic: `acli` stores descriptions as ADF,
   and md-to-adf collapses ordinary consecutive lines into one space-joined paragraph (and turns bare URLs
