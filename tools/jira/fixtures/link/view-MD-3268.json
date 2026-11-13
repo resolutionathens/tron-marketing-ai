@@ -1,0 +1,40 @@
+{
+  "key": "MD-3268",
+  "fields": {
+    "issuelinks": [
+      {
+        "id": "125525",
+        "type": {
+          "name": "Relates",
+          "inward": "relates to",
+          "outward": "relates to"
+        },
+        "inwardIssue": {
+          "key": "SR-5781"
+        }
+      },
+      {
+        "id": "126430",
+        "type": {
+          "name": "Blocks",
+          "inward": "is blocked by",
+          "outward": "blocks"
+        },
+        "inwardIssue": {
+          "key": "MD-3396"
+        }
+      },
+      {
+        "id": "126432",
+        "type": {
+          "name": "Blocks",
+          "inward": "is blocked by",
+          "outward": "blocks"
+        },
+        "inwardIssue": {
+          "key": "MD-3262"
+        }
+      }
+    ]
+  }
+}

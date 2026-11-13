@@ -1,0 +1,29 @@
+{
+  "key": "MD-3082",
+  "fields": {
+    "issuelinks": [
+      {
+        "id": "126433",
+        "type": {
+          "name": "Blocks",
+          "inward": "is blocked by",
+          "outward": "blocks"
+        },
+        "outwardIssue": {
+          "key": "MD-3397"
+        }
+      },
+      {
+        "id": "126434",
+        "type": {
+          "name": "Relates",
+          "inward": "relates to",
+          "outward": "relates to"
+        },
+        "outwardIssue": {
+          "key": "MD-3397"
+        }
+      }
+    ]
+  }
+}

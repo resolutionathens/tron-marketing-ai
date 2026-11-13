@@ -173,6 +173,20 @@ acli jira workitem view <NEW-KEY> --fields assignee
 The output should include a non-empty `Assignee:` line. If no assignee appears, the acli invocation
 was missing the `--assignee` flag.
 
+### Linking the new ticket
+
+To link the new ticket to another (it blocks, is blocked by, or relates to one), use the shared
+helper with the `PLUGIN_ROOT` resolved above, never raw `acli jira workitem link create`: acli's
+success message prints the reverse of the direction it stores.
+
+```bash
+L="$PLUGIN_ROOT/tools/jira/jira-link.sh"
+[ -f "$L" ] || { echo "tron:create-ticket: tools/jira/jira-link.sh missing; update the Tron package" >&2; exit 1; }
+bash "$L" create "<NEW-KEY> is blocked by MD-1234"   # exits 3 if Jira stored the reverse
+```
+
+Usage, `show`, and delete/replace by link id: [tools/jira/conventions.md](../../tools/jira/conventions.md#dependency-links-blocks-relates).
+
 ## Quality rules
 
 - Markers in a fenced code block; prose (with clickable links) below. Always.
