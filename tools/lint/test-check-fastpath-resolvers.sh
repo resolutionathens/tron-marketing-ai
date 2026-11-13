@@ -38,10 +38,10 @@ cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
    ```
 EOF
 
-if bash "$SCRIPT" "$FIXTURE" >/tmp/fastpath-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have failed a skill missing the cache/marketplace fallback"
 fi
-grep -q "FAIL widget" /tmp/fastpath-smoke-out.$$ || fail "failure output should name the broken skill"
+grep -q "FAIL widget" "$FIXTURE/smoke-out" || fail "failure output should name the broken skill"
 pass "catches a SKILL.md missing the cache/marketplace fallback"
 
 # --- restoring the shared resolver bootstrap makes it pass again -------------
@@ -75,11 +75,11 @@ cat >"$FIXTURE/skills/widget/SKILL.md" <<'EOF'
    bash "$SKILL_DIR/scripts/widget.sh"
    ```
 EOF
-if bash "$SCRIPT" "$FIXTURE" >/tmp/fastpath-smoke-out.$$ 2>&1; then
+if bash "$SCRIPT" "$FIXTURE" >"$FIXTURE/smoke-out" 2>&1; then
   fail "should have rejected the legacy hand-rolled find bootstrap (MD-2450)"
 fi
-grep -q "FAIL widget" /tmp/fastpath-smoke-out.$$ || fail "failure output should name the skill on the legacy bootstrap"
+grep -q "FAIL widget" "$FIXTURE/smoke-out" || fail "failure output should name the skill on the legacy bootstrap"
 pass "rejects the legacy hand-rolled find that skips the shared resolver"
 
-rm -f /tmp/fastpath-smoke-out.$$
+rm -f "$FIXTURE/smoke-out"
 echo "check-fastpath-resolvers smoke: $PASS passed"

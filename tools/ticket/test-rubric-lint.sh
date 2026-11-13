@@ -375,7 +375,7 @@ pass "CLI arg handling: missing values, --key/--file exclusivity, unknown args e
 # survives md-to-adf (ordinary lines collapse to a space-joined paragraph and
 # bare URLs split off their Key:). Guard on node + the converter being present.
 ADF="$HERE/../md-to-adf/md-to-adf.mjs"
-if command -v node >/dev/null && [ -f "$ADF" ]; then
+if node -e 0 >/dev/null 2>&1 && [ -f "$ADF" ]; then
   RT="$(mktemp "${TMPDIR:-/tmp}/rubric-rt.XXXXXX")"
   trap 'rm -f "$TMP" "$RT"' EXIT
   cat > "$RT" <<'MD'

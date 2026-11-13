@@ -11,8 +11,8 @@ set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLI="$HERE/md-to-adf.mjs"
 
-command -v node >/dev/null 2>&1 || { echo "SKIP: node not installed"; exit 0; }
-[ -d "$HERE/node_modules/markdown-to-adf" ] || { echo "SKIP: markdown-to-adf not installed (run once to lazy-install)"; exit 0; }
+node -e 0 >/dev/null 2>&1 || { echo "SKIP: no runnable node"; exit 77; }
+[ -d "$HERE/node_modules/markdown-to-adf" ] || { echo "SKIP: markdown-to-adf not installed (run once to lazy-install)"; exit 77; }
 
 fail=0
 ok()  { echo "  ok  : $1"; }

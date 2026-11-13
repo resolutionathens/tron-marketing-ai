@@ -17,6 +17,50 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
+# The suite sets up what it depends on instead of inheriting it from the machine
+# (MD-3398), so a failure means the code is wrong, not that this host is set up
+# differently.
+RUN_TMP="$(mktemp -d "${TMPDIR:-/tmp}/layer1-run.XXXXXX")"
+trap 'rm -rf "$RUN_TMP"' EXIT
+
+# node: put a real binary first on PATH. A mise shim with no global version fails as
+# soon as a test narrows PATH; node's own execPath is the binary behind it. Where no
+# node runs on PATH at all, use mise's installed LTS.
+node_real="$(node -p process.execPath 2>/dev/null)" || node_real=""
+if [ ! -x "$node_real" ] && command -v mise >/dev/null 2>&1; then
+  node_real="$(mise exec node@lts -- node -p process.execPath 2>/dev/null)" || node_real=""
+fi
+if [ -x "$node_real" ]; then
+  mkdir -p "$RUN_TMP/bin"
+  ln -s "$node_real" "$RUN_TMP/bin/node"
+  PATH="$RUN_TMP/bin:$PATH"
+  export PATH
+else
+  echo "WARN: no runnable node found on PATH or through mise; node-based tests will fail or skip" >&2
+fi
+
+# git: the tests commit, merge and push in fixture repos. Give them a known identity and
+# default branch, and keep the host's global and system git config (hooks, signing,
+# insteadOf rewrites, init.defaultBranch) out of them.
+cat > "$RUN_TMP/gitconfig" <<'GITCONFIG'
+[user]
+	name = Layer-1 Test
+	email = layer1@example.invalid
+[init]
+	defaultBranch = master
+[commit]
+	gpgsign = false
+[tag]
+	gpgsign = false
+GITCONFIG
+GIT_CONFIG_GLOBAL="$RUN_TMP/gitconfig"
+GIT_CONFIG_NOSYSTEM=1
+export GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM
+
+# Backstop: no single test may run longer than this, so a hang reports as a failure
+# instead of stalling the suite. The slowest test (the release build) takes ~20s.
+LAYER1_TEST_TIMEOUT="${LAYER1_TEST_TIMEOUT:-120}"
+
 fail=0
 failed=""
 total=0
@@ -36,16 +80,21 @@ while IFS= read -r t; do
   total=$((total + 1))
   # GitHub Actions folds ::group::/::endgroup:: blocks; harmless locally.
   echo "::group::$t"
-  bash "$t"
+  started="$(perl -MTime::HiRes=time -e 'printf "%.1f", time')"
+  perl -e 'alarm shift @ARGV; exec @ARGV or die "exec: $!\n"' "$LAYER1_TEST_TIMEOUT" bash "$t"
   rc=$?
+  took="$(perl -MTime::HiRes=time -e 'printf "%.1fs", time - $ARGV[0]' "$started")"
+  if [ "$rc" -eq 142 ]; then
+    echo "TIMEOUT: $t ran longer than ${LAYER1_TEST_TIMEOUT}s"
+  fi
   if [ "$rc" -eq 0 ]; then
-    echo "PASS: $t"
+    echo "PASS: $t ($took)"
   elif [ "$rc" -eq 77 ]; then
-    echo "SKIP: $t"
+    echo "SKIP: $t ($took)"
     skipped_tests="$skipped_tests  $t"$'\n'
     skipped=$((skipped + 1))
   else
-    echo "FAIL: $t (exit $rc)"
+    echo "FAIL: $t (exit $rc, $took)"
     failed="$failed  $t"$'\n'
     fail=1
   fi

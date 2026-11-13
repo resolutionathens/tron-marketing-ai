@@ -10,7 +10,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 if ! command -v bun >/dev/null 2>&1; then
   echo "SKIP: bun not found on PATH — test-build.sh needs bun to run build.ts (install: https://bun.sh)"
-  exit 0
+  exit 77
 fi
 
 # build.ts imports yaml from this skill's isolated package manifest. Provision it

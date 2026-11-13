@@ -25,16 +25,20 @@ assert_slug() {
   PASS=$((PASS + 1))
 }
 
+# Captured output lives in this test's own temp file, not a fixed /tmp path (MD-3398).
+OUTF="$(mktemp "${TMPDIR:-/tmp}/resolve-origin-slug-out.XXXXXX")"
+trap 'rm -f "$OUTF"' EXIT
+
 assert_error() {
   shell="$1"
   url="$2"
-  if "$shell" "$SCRIPT" "$url" >/tmp/resolve-origin-slug-out.$$ 2>&1; then
+  if "$shell" "$SCRIPT" "$url" >"$OUTF" 2>&1; then
     echo "FAIL ($shell): $url -> expected failure, got success" >&2
-    cat /tmp/resolve-origin-slug-out.$$ >&2
-    rm -f /tmp/resolve-origin-slug-out.$$
+    cat "$OUTF" >&2
+    rm -f "$OUTF"
     exit 1
   fi
-  rm -f /tmp/resolve-origin-slug-out.$$
+  rm -f "$OUTF"
   PASS=$((PASS + 1))
 }
 
