@@ -25,9 +25,9 @@ skipped_tests=""
 
 tests="$(find skills tools -name 'test-*.sh' -not -path '*/node_modules/*' | sort)"
 if [ -n "${CI:-}" ]; then
-  # gen-image test now skips unauthenticated exec tests on CI via CI= guard in the
-  # test itself, so it runs cleanly in CI. Only exclude test-generate-card.sh which
-  # is image publishing related and requires ImageKit auth.
+  # gen-image's test clears or sets every API key it needs and fakes codex, so it runs
+  # the same in CI as anywhere (MD-3398). Only exclude test-generate-card.sh, which is
+  # image-publishing related and requires ImageKit auth.
   tests="$(printf '%s\n' "$tests" | grep -v -e '/image/test-generate-card\.sh$')"
 fi
 

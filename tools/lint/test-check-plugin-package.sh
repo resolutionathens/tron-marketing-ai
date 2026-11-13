@@ -4,7 +4,20 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-NODE="${NODE_BIN:-$(command -v node)}"
+# Resolve a real node executable, never a version-manager shim (MD-3398). A mise shim
+# only works while mise can pick a version: with no global node it falls through to the
+# next node on PATH, so it breaks once PATH is narrowed. Ask node for its own execPath on
+# the caller's PATH; where no node runs there at all, pin mise's installed LTS explicitly.
+resolve_node() {
+  local p
+  p="$(node -p process.execPath 2>/dev/null)" && [ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
+  command -v mise >/dev/null 2>&1 \
+    && p="$(mise exec node@lts -- node -p process.execPath 2>/dev/null)" && [ -x "$p" ] \
+    && { printf '%s\n' "$p"; return 0; }
+  echo "FAIL: no runnable node found on PATH or through mise (node@lts)" >&2
+  return 1
+}
+NODE="${NODE_BIN:-$(resolve_node)}"
 
 # Match the general Layer-1 job, which deliberately has no Claude/Codex CLI.
 PATH="/usr/bin:/bin"
