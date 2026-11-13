@@ -111,12 +111,15 @@ rb_acceptance_criteria_valid() {
 # note in parentheses (`marketing-pages (footer only)`). Returns 0 valid, 1 invalid.
 rb_repo_valid() {
   local value item key items
+  # Held in a variable: rb_missing calls this under `local IFS='|'`, and bash 3.2 then
+  # treats an unquoted `|` in an inline regex as a literal character (MD-3268).
+  local empty_entry='(^|,)[[:space:]]*(,|$)'
   value="$(rb_marker_value "$1" "Repo")"
   rb_value_is_real "$value" || return 1
   # Notes come out first, so a comma inside one doesn't split an entry.
   value="$(printf '%s' "$value" | sed -E 's/\([^)]*\)//g')"
   # A split on commas drops a trailing empty entry, so empty entries are caught first.
-  [[ "$value" =~ (^|,)[[:space:]]*(,|$) ]] && return 1
+  [[ "$value" =~ $empty_entry ]] && return 1
   # read -ra splits without filename expansion: a `*` in a value is text, not a glob.
   IFS=',' read -ra items <<< "$value"
   for item in "${items[@]}"; do

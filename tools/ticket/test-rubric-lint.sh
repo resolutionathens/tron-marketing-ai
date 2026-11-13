@@ -344,6 +344,15 @@ OUT_BR="$(printf '%s\n' "$BADREPO" | bash "$CLI" --summary 'PAGES: Port interfac
 [[ "$(jq -r '.missing.section | index("Repo")' <<<"$OUT_BR")" != "null" ]] || fail "CLI reports the invalid Repo as a section gap"
 pass "CLI --summary PREFIX does not hide an invalid Repo entry"
 
+# An empty Repo entry is caught through the CLI under the system bash 3.2, where
+# rb_missing's `local IFS='|'` once made the `|` in the empty-entry regex literal (MD-3268).
+for ENTRY in 'tron-os,' ',tron-os' 'tron-os,,marketing-pages'; do
+  OUT_EE="$(printf '%s\n' "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: $ENTRY}" | /bin/bash "$CLI")"
+  [[ "$(jq -r '.missing.section | index("Repo")' <<<"$OUT_EE")" != "null" ]] \
+    || fail "CLI (/bin/bash): 'Repo: $ENTRY' reports a Repo gap"
+done
+pass "CLI under /bin/bash rejects empty Repo entries"
+
 # a thin, real-world title-only ticket → none, with concrete gaps listed
 OUT3="$(printf 'Make the banner pop\n' | bash "$CLI")"
 [[ "$(jq -r '.verdict' <<<"$OUT3")" == "none: needs human direction" ]] || fail "thin ticket → none"
