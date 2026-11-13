@@ -25,10 +25,14 @@ trap 'rm -rf "$RUN_TMP"' EXIT
 
 # node: put a real binary first on PATH. A mise shim with no global version fails as
 # soon as a test narrows PATH; node's own execPath is the binary behind it. Where no
-# node runs on PATH at all, use mise's installed LTS.
+# node runs on PATH at all, use the newest node mise already has installed (never
+# node@lts, which can name an uninstalled version and trigger a download).
 node_real="$(node -p process.execPath 2>/dev/null)" || node_real=""
 if [ ! -x "$node_real" ] && command -v mise >/dev/null 2>&1; then
-  node_real="$(mise exec node@lts -- node -p process.execPath 2>/dev/null)" || node_real=""
+  node_version="$(mise ls --installed node 2>/dev/null | awk '$1=="node"{print $2}' | sort -V | tail -1)" || node_version=""
+  if [ -n "$node_version" ]; then
+    node_real="$(mise where "node@$node_version" 2>/dev/null)/bin/node" || node_real=""
+  fi
 fi
 if [ -x "$node_real" ]; then
   mkdir -p "$RUN_TMP/bin"
@@ -61,6 +65,28 @@ export GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM
 # instead of stalling the suite. The slowest test (the release build) takes ~20s.
 LAYER1_TEST_TIMEOUT="${LAYER1_TEST_TIMEOUT:-120}"
 
+# Run one test in its own process group. On timeout (exit 142), or if the runner itself
+# is interrupted, the whole group is terminated, so no builder or server a test started
+# keeps running into the next test.
+run_bounded() {
+  perl -e '
+    my $limit = shift @ARGV;
+    my $pid = fork;
+    die "fork: $!\n" unless defined $pid;
+    if ($pid == 0) { setpgrp(0, 0); exec @ARGV or die "exec: $!\n"; }
+    sub stop_group { kill "TERM", -$pid; sleep 2; kill "KILL", -$pid; waitpid($pid, 0); exit $_[0]; }
+    $SIG{ALRM} = sub { stop_group(142) };
+    $SIG{INT}  = sub { stop_group(130) };
+    $SIG{TERM} = sub { stop_group(143) };
+    alarm $limit;
+    waitpid($pid, 0);
+    my $status = $?;
+    alarm 0;
+    kill "KILL", -$pid;   # reap anything the test left running in its group
+    exit(($status & 127) ? 128 + ($status & 127) : $status >> 8);
+  ' "$LAYER1_TEST_TIMEOUT" "$@"
+}
+
 fail=0
 failed=""
 total=0
@@ -80,8 +106,8 @@ while IFS= read -r t; do
   total=$((total + 1))
   # GitHub Actions folds ::group::/::endgroup:: blocks; harmless locally.
   echo "::group::$t"
-  started="$(perl -MTime::HiRes=time -e 'printf "%.1f", time')"
-  perl -e 'alarm shift @ARGV; exec @ARGV or die "exec: $!\n"' "$LAYER1_TEST_TIMEOUT" bash "$t"
+  started="$(perl -MTime::HiRes=time -e 'printf "%.3f", time')"
+  run_bounded bash "$t" </dev/null
   rc=$?
   took="$(perl -MTime::HiRes=time -e 'printf "%.1fs", time - $ARGV[0]' "$started")"
   if [ "$rc" -eq 142 ]; then

@@ -7,14 +7,17 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # Resolve a real node executable, never a version-manager shim (MD-3398). A mise shim
 # only works while mise can pick a version: with no global node it falls through to the
 # next node on PATH, so it breaks once PATH is narrowed. Ask node for its own execPath on
-# the caller's PATH; where no node runs there at all, pin mise's installed LTS explicitly.
+# the caller's PATH; where no node runs there at all, use the newest node mise has installed.
 resolve_node() {
   local p
   p="$(node -p process.execPath 2>/dev/null)" && [ -x "$p" ] && { printf '%s\n' "$p"; return 0; }
-  command -v mise >/dev/null 2>&1 \
-    && p="$(mise exec node@lts -- node -p process.execPath 2>/dev/null)" && [ -x "$p" ] \
+  # Newest node mise already has installed: never node@lts, which can name a version that
+  # isn't installed and trigger a download.
+  local v
+  v="$(mise ls --installed node 2>/dev/null | awk '$1=="node"{print $2}' | sort -V | tail -1)" || v=""
+  [ -n "$v" ] && p="$(mise where "node@$v" 2>/dev/null)/bin/node" && [ -x "$p" ] \
     && { printf '%s\n' "$p"; return 0; }
-  echo "FAIL: no runnable node found on PATH or through mise (node@lts)" >&2
+  echo "FAIL: no runnable node on PATH and none installed through mise" >&2
   return 1
 }
 NODE="${NODE_BIN:-$(resolve_node)}"
