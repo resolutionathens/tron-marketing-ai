@@ -298,6 +298,16 @@ repo $'\tmarketing-pages ,  tron-os  ' || fail "surrounding whitespace is ignore
 repo 'marketing-pages — footer' && fail "free text after a key is invalid (put notes in parentheses)"
 pass "Repo: one repo key or several, each validated"
 
+# A PREFIX stands in for a missing Repo, not for a malformed one (MD-3268).
+[[ "$(rb_verdict "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: marketing-pages, TBD}" 1)" == "medium: routable but thin" ]] \
+  || fail "a PREFIX doesn't excuse an invalid entry in an explicit Repo list"
+[[ "$(rb_verdict "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: marketing-pages — footer}" 1)" == "medium: routable but thin" ]] \
+  || fail "a PREFIX doesn't excuse free text in Repo"
+[[ "$(rb_verdict "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: TBD}" 1)" == "high: actionable" ]] \
+  || fail "a PREFIX still satisfies a placeholder Repo"
+[[ "$(rb_verdict "$RESEARCH" 1)" == "high: actionable" ]] || fail "a PREFIX with a valid Repo list stays high"
+pass "PREFIX satisfies a missing Repo, but an explicit Repo is still validated"
+
 # --- CLI (--file / stdin, JSON) ---------------------------------------------
 command -v jq >/dev/null || { echo "  (skipping CLI JSON checks — jq not on PATH)"; echo "rubric smoke: $PASS checks passed"; exit 0; }
 
@@ -325,6 +335,23 @@ OUT2="$(printf '%s\n' "$NOREPO" | bash "$CLI" --summary 'TRON-PLUGIN: swap the l
 [[ "$(jq -r '.prefix_ok' <<<"$OUT2")" == true ]] || fail "CLI prefix_ok detection"
 [[ "$(jq -r '.verdict' <<<"$OUT2")" == "high: actionable" ]] || fail "CLI prefix satisfies Repo"
 pass "CLI stdin + --summary PREFIX satisfies Repo requirement"
+
+# recognized prefix + an invalid second repo → Repo gap still reported (MD-3268)
+BADREPO="${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: marketing-pages, TBD}"
+OUT_BR="$(printf '%s\n' "$BADREPO" | bash "$CLI" --summary 'PAGES: Port interfaces')"
+[[ "$(jq -r '.prefix_ok' <<<"$OUT_BR")" == true ]] || fail "CLI prefix_ok for PAGES:"
+[[ "$(jq -r '.verdict' <<<"$OUT_BR")" == "medium: routable but thin" ]] || fail "CLI: PREFIX + invalid Repo entry is not high"
+[[ "$(jq -r '.missing.section | index("Repo")' <<<"$OUT_BR")" != "null" ]] || fail "CLI reports the invalid Repo as a section gap"
+pass "CLI --summary PREFIX does not hide an invalid Repo entry"
+
+# An empty Repo entry is caught through the CLI under the system bash 3.2, where
+# rb_missing's `local IFS='|'` once made the `|` in the empty-entry regex literal (MD-3268).
+for ENTRY in 'tron-os,' ',tron-os' 'tron-os,,marketing-pages'; do
+  OUT_EE="$(printf '%s\n' "${RESEARCH/Repo: tron-coordinator, tron-coordinator-do/Repo: $ENTRY}" | /bin/bash "$CLI")"
+  [[ "$(jq -r '.missing.section | index("Repo")' <<<"$OUT_EE")" != "null" ]] \
+    || fail "CLI (/bin/bash): 'Repo: $ENTRY' reports a Repo gap"
+done
+pass "CLI under /bin/bash rejects empty Repo entries"
 
 # a thin, real-world title-only ticket → none, with concrete gaps listed
 OUT3="$(printf 'Make the banner pop\n' | bash "$CLI")"
