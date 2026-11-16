@@ -105,7 +105,7 @@ rb_command_gate_criteria() {
 # or fail (an address, a text, an element's state, a response). A question ("shouldn't
 # all staging pages be https?") or a word that checks nothing ("it works", "as
 # expected") is not one: agents went round after round of review trying to meet such
-# criteria. Quoted copy (“Need help?”) is what a page says, never the criterion asking,
+# criteria. Quoted copy (“Need help?” or "Need help?") is what a page says, never the criterion asking,
 # so it is masked before reading. Baton mirrors these rules in
 # lib/ticket-rules/rubric.ts; keep the two in lockstep.
 #
@@ -126,6 +126,7 @@ rb_text_kind() {
     sub flat {
       my $t = shift;
       $t =~ s/\x{201C}[^\x{201D}]*\x{201D}/\x{201C}\x{2026}\x{201D}/g;
+      $t =~ s/"[^"]*"/"\x{2026}"/g;
       $t =~ s/\s+/ /g;
       $t =~ s/^\s+|\s+$//g;
       return $t;

@@ -215,6 +215,7 @@ for ac in \
   'On /favorites: the address bar shows https://facilities.staging.facilitron.com/favorites' \
   'On /, “Old” is replaced by “Need help?”' \
   'On /, “Old” is replaced by “Help: Need help?”' \
+  'The button reads "Need help?"' \
   'Does nothing when the menu is open no longer happens: the Search dialog opens' \
   'Should open the Search dialog when Search is tapped'; do
   T="$CHECKABLE_BASE
@@ -239,6 +240,8 @@ Intent: is it https?" | bash "$CLI")"
 # A quoted value ending in a question mark is copy, not a question.
 [[ "$(rb_verdict "$(printf '%s\n' "$CHECKABLE_BASE" | sed 's/^Done: .*/Done: The button reads “Need help?”/')
 - On /, “Old” is replaced by “Need help?”")" == "high: actionable" ]] || fail "a Done quoting copy with a question mark is a statement"
+[[ "$(rb_verdict "$(printf '%s\n' "$CHECKABLE_BASE" | sed 's/^Done: .*/Done: The button reads "Need help?"/')
+- The button reads "Need help?"")" == "high: actionable" ]] || fail "straight-quoted copy with a question mark is a statement"
 QLINT="$(printf '%s\n' "$CHECKABLE_BASE
 - It works
 - Is the page https" | bash "$CLI")"

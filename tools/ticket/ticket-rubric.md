@@ -111,7 +111,7 @@ element's state, a response. A question (“shouldn't all staging pages be https
 question, “is the page https”) and a criterion that names nothing to check (“it works”, “as expected”,
 “none yet”) are invalid the same way, so the ticket can't grade `high: actionable`: keep the question for
 the reviewer and state the outcome instead. A `Done:` that is a question counts as no `Done:`, and an
-`Intent:` that is a question as no `Intent:`. Quoted copy (“Need help?”) is what a page says, not a
+`Intent:` that is a question as no `Intent:`. Quoted copy (“Need help?” or "Need help?") is what a page says, not a
 question. Baton's drafts are graded by a mirror of these rules (SR-6176).
 
 ### design
