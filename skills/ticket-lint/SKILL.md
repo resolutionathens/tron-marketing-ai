@@ -2,7 +2,7 @@
 name: ticket-lint
 model: sonnet
 effort: low
-description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it. Use for 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', or the bulk 'lint my board' / 'which of my tickets are too thin'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
+description: "Self-assess a Jira ticket (or a whole board) against the shared ticket rubric and report the gaps in plain language, including the verdict Scout triage would give it. Product, engineering, bug, data and spike tickets are checked against the Ticketing pilot template for their Jira stage (the <KEY>-engineering.md brief when attached), naming each missing field or section (Stakeholder, Engineer, section 3. Pages & Roles). Use for 'lint this ticket', 'is MD-1234 good enough', 'why can't triage scope my ticket', or the bulk 'lint my board' / 'which of my tickets are too thin'. Read-only: it reports gaps and offers to hand thin tickets to tron:jira-source-discovery / tron:jira-ticket-enricher or tron:create-ticket; it does not edit tickets itself."
 allowed-tools:
   - Bash
   - Read
@@ -37,6 +37,12 @@ The rubric, markers, and verdict ladder live in one file:
 the deterministic `tools/ticket/rubric-lint.sh`, so its verdict matches what triage and `tron:create-ticket`
 compute for the same ticket.
 
+Product, engineering, bug, data and spike tickets are checked against the pilot template
+([tools/ticket/pilot-template.md](../../tools/ticket/pilot-template.md)) for the stage their Jira status maps
+to: created (Backlog, To Do), ready (Ready to Develop), kickoff (In Progress, In Development), review (Dev
+Review, In Review, QA, Done). For an engineering ticket, the script reads the newest `<KEY>-engineering.md`
+attachment (the brief) instead of the description; that needs `ATLASSIAN_EMAIL` and `JIRA_API_TOKEN`.
+
 ## Fast path (scripted)
 
 The parse + verdict is one deterministic script — it fetches the ticket, parses the rubric markers, and
@@ -47,7 +53,11 @@ LINT="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket/rubric-lint.sh
 
 # Single ticket
 bash "$LINT" --key MD-1234
-# → {key, verdict, type, prefix_ok, missing:{spine,section,recommended}, present}
+# → {key, verdict, type, prefix_ok, missing:{spine,section,recommended}, issues, present,
+#    template ("pilot" or "rubric"), stage (null for a marker type), source}
+
+# A draft file, graded for a stage (or --status "<Jira status>"; default created)
+bash "$LINT" --file draft.md --stage ready
 ```
 
 ### Bulk: lint a whole board or query
@@ -77,9 +87,18 @@ Translate the JSON into what the owner should do. For a single ticket:
 - Then the concrete gaps, most-blocking first:
   - `missing.spine` — the fields that make triage give up. "Add a `Done:` line naming the deliverable."
   - `missing.section` — the work-type specifics. "Add `Acceptance criteria:` and `Affected paths:`."
-  - `missing.recommended` — `Decision:` (due date, sign-off owner) and optional `Intent:` (the desired user
-    or system outcome). Flag either only as advisory: an absent or placeholder `Intent:` never lowers an
-    otherwise actionable verdict.
+  - `missing.recommended` — marker types only: `Decision:` (due date, sign-off owner) and optional
+    `Intent:` (the desired user or system outcome). Flag either only as advisory: on a design, content,
+    campaign-asset or cms ticket an absent or placeholder `Intent:` never lowers an otherwise actionable
+    verdict.
+- For a **pilot ticket** (`template: "pilot"`), say which stage it was checked at and why ("In Progress, so
+  kickoff"), then name every missing field and section exactly as the JSON gives it: "Add `Stakeholder:`
+  (who decides; ask them, don't guess)", "Add `Engineer:`", "Add `## 3. Pages & Roles`". `Intent:` and
+  `Decision:` are required here, so they appear in `missing.section`, not as advice. Read each `issues`
+  line out as well: an Open decision at ready, header AC numbers that don't match section 5, a product
+  ticket naming Repo before kickoff, a criterion that asks a question. A line starting `Warning:` is advice
+  that doesn't change the verdict. If `source` is the description of an engineering ticket, say the brief
+  attachment is missing.
 - Name what is already good (`present`) so the fix feels small.
 - End with the remedy: offer `tron:jira-source-discovery` + `tron:jira-ticket-enricher` to fill it in, or note the rubric template.
 
@@ -94,9 +113,9 @@ Straight from the rubric ladder ([the verdict mapping](../../tools/ticket/ticket
 | Verdict                       | What to tell the owner                                                   |
 | ----------------------------- | ------------------------------------------------------------------------ |
 | `none: needs human direction` | Triage can't tell what the work is. Missing `Done:` or `Deliverable type:`. |
-| `low: needs enrichment`       | Work class is unclear. A spine marker (`Type`/`Context`) is missing.     |
-| `medium: routable but thin`   | Triage can route it, but the work-type specifics are missing.            |
-| `high: actionable`            | Good to go. Nothing required is missing.                                  |
+| `low: needs enrichment`       | Work class is unclear. A spine marker (`Type`/`Context`) is missing; on a pilot ticket, or the `Stakeholder:`. |
+| `medium: routable but thin`   | Triage can route it, but the work-type specifics are missing; on a pilot ticket, a field or section its stage requires, or a rule is broken. |
+| `high: actionable`            | Good to go. Nothing required is missing (for a pilot ticket, at its stage). |
 
 ## Quality rules
 

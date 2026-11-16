@@ -1,4 +1,22 @@
-# Ticket rubric — the shared spec (rubric-version: 4)
+# Ticket rubric — the shared spec (rubric-version: 5)
+
+## Contents
+
+- [Pilot types (rubric-version 5)](#pilot-types-rubric-version-5)
+- [Why machine-readable markers](#why-machine-readable-markers)
+- [Marker syntax](#marker-syntax)
+- [The spine (every ticket)](#the-spine-every-ticket)
+- [Work-type sections](#work-type-sections)
+- [The verdict mapping](#the-verdict-mapping)
+- [The template body](#the-template-body)
+- [Adding a work type later](#adding-a-work-type-later)
+
+**Engineering and product tickets use the pilot template.** Since rubric-version 5 (MD-3405), a ticket whose
+`Type:` is `product`, `engineering`, `bug`, `data` or `spike` is written and graded against
+[pilot-template.md](pilot-template.md), the canonical copy of the Ticketing pilot template. See
+[Pilot types](#pilot-types-rubric-version-5) below for how `rubric-lint.sh` grades them. Everything else
+in this file (the marker spine, the work-type sections) applies to `design`, `content`, `campaign-asset`
+and `cms` tickets, which grade exactly as they did in version 4.
 
 The one rubric behind three consumers:
 
@@ -17,15 +35,48 @@ change too, and vice versa. Keep the deterministic parser (`tools/ticket/rubric-
 the marker table below — the parser is the executable form of this spec and its `test-rubric-lint.sh`
 sibling is the regression net.
 
-## Contents
+## Pilot types (rubric-version 5)
 
-- [Why machine-readable markers](#why-machine-readable-markers)
-- [Marker syntax](#marker-syntax)
-- [The spine (every ticket)](#the-spine-every-ticket)
-- [Work-type sections](#work-type-sections)
-- [The verdict mapping](#the-verdict-mapping)
-- [The template body](#the-template-body)
-- [Adding a work type later](#adding-a-work-type-later)
+`product`, `engineering`, `bug`, `data` and `spike` follow [pilot-template.md](pilot-template.md): a fenced
+metadata header, then sections `## 1. Problem` to `## 7. Change log`. An engineering ticket's description is
+for people, and its brief (the whole template) is the attachment `<KEY>-engineering.md`; a product ticket's
+whole template is its description until kickoff. `rubric-lint.sh --key` grades the newest
+`<KEY>-engineering.md` attachment when there is one, otherwise the description.
+
+A pilot ticket is graded for its **stage**, which comes from its Jira status (`--key`), or from `--stage` or
+`--status` for a file or stdin (default `created`):
+
+| Stage   | Jira status                     | What it adds                                                                 |
+| ------- | ------------------------------- | ---------------------------------------------------------------------------- |
+| created | Backlog, To Do (and anything unrecognised) | `Done`, `Intent`, `Type`, `Deliverable type`, `Stakeholder`, `Context`, `Decision`; section 1 |
+| ready   | Ready to Develop                | `Engineer` (not "not yet assigned"); two or more criteria numbered `AC1`, `AC2`… (not for a spike); the type's sections; no Open decision in section 6; the header's AC numbers match section 5's |
+| kickoff | In Progress, In Development     | `Repo` (validated as above; a summary `PREFIX:` stands in for a missing one) and `Affected paths` (not for `Deliverable type: research`) |
+| review  | Dev Review, In Review, QA, Done | nothing more                                                                 |
+
+The sections each type needs from ready on: `bug` 1, 3, 4, 5; `data` 1, 2, 5; `spike` 1, 2, 6; `product`
+and `engineering` 1 to 6. Section 7 (the change log) is not checked, as in Baton's check. `Deliverable type`
+takes any real value for a pilot type (the template lists `pr`, `research`, `report`…).
+
+The verdict ladder is the same four strings:
+
+| Verdict                       | Pilot condition                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `none: needs human direction` | `Done:` missing or a question, or `Deliverable type:` missing                      |
+| `low: needs enrichment`       | `Context:` or `Stakeholder:` missing                                               |
+| `medium: routable but thin`   | Another field or section the stage requires is missing, or a rule is broken (`problem:` below) |
+| `high: actionable`            | Everything the stage requires is present and no rule is broken                     |
+
+The question and uncheckable-criterion rule (SR-6176) applies to pilot criteria at every stage: a criterion
+that asks, names nothing to check, or only asserts a command result holds the ticket at `medium`. A product
+ticket that names `Repo:` or `Affected paths:` before kickoff breaks a rule (`medium`); a product section that
+names code (a file name or a call) only draws a warning.
+
+`rubric-lint.sh` reports pilot gaps by name: `missing.spine` and `missing.section` hold field names
+(`Stakeholder`, `Engineer`) and section names (`section 3. Pages & Roles`); broken rules and warnings go to
+`issues`; `missing.recommended` is empty. The JSON also carries `template` (`pilot` or `rubric`), `stage`
+(null for a marker-rubric type) and `source` (`description`, `attachment:<KEY>-engineering.md`, `file` or
+`stdin`). Baton's `lib/ticket-rules/pilot.ts` mirrors these rules (SR-6185); Scout's vendored copy takes
+rubric-version 5 in MD-3403.
 
 ## Why machine-readable markers
 
@@ -58,7 +109,7 @@ markers below are the contract, the prose around them is for the human.
 | Marker             | Meaning                                                        | Required |
 | ------------------ | ------------------------------------------------------------- | -------- |
 | `Done:`            | One line naming the concrete deliverable (definition of done) | yes      |
-| `Type:`            | `engineering` \| `design` \| `content` \| `campaign-asset` \| `cms` | yes |
+| `Type:`            | `design` \| `content` \| `campaign-asset` \| `cms` here; `product` \| `engineering` \| `bug` \| `data` \| `spike` use the [pilot template](#pilot-types-rubric-version-5) | yes |
 | `Deliverable type:`| Fine-grained deliverable class (see table below)              | yes      |
 | `Context:`         | Link to the brief / Figma / folder / draft that grounds it    | yes      |
 | `Decision:`        | Due date, sign-off owner, and any hard constraints            | recommended |
@@ -68,7 +119,7 @@ markers below are the contract, the prose around them is for the human.
 
 | `Type`      | `Deliverable type:` values                          |
 | ----------- | --------------------------------------------------- |
-| engineering | `pr`, `page`, `bugfix`, `config`, `script`, `research` |
+| engineering | `pr`, `page`, `bugfix`, `config`, `script`, `research` (version 4; a pilot ticket takes any real value) |
 | design      | `figma`, `image`, `pdf`, `brand-asset`              |
 | content     | `news`, `guide`, `toolkit`, `case-study`, `pdf`     |
 | campaign-asset | `image`, `pdf`, `print`, `merch`, `collateral`   |
@@ -81,6 +132,10 @@ drops the ticket to `medium: routable but thin` rather than to `none: needs huma
 what separates "we know what this is" from "we don't."
 
 ### engineering
+
+Since rubric-version 5 an engineering ticket is graded against the pilot template
+([Pilot types](#pilot-types-rubric-version-5)). The `Repo:`, research and acceptance-criteria rules below
+still apply to it: `Repo:` and `Affected paths:` from kickoff, criteria from creation.
 
 | Marker                 | Meaning                                                         |
 | ---------------------- | -------------------------------------------------------------- |
@@ -191,8 +246,11 @@ achieve, rather than the implementation selected to achieve it.
 
 ## The template body
 
-`tron:create-ticket` writes this shape: the machine header (fenced marker block) first, then the human prose.
-Include only the section markers for the ticket's `Type`. Worked example for an **engineering** ticket:
+For `product`, `engineering`, `bug`, `data` and `spike`, `tron:create-ticket` writes the
+[pilot template](pilot-template.md) instead. For the other types it writes this shape: the machine header
+(fenced marker block) first, then the human prose. Include only the section markers for the ticket's `Type`.
+The engineering examples below show the version 4 marker block; since version 5 the same markers sit in the
+pilot header, next to `Stakeholder`, `Engineer` and numbered criteria. Worked example of the version 4 shape:
 
 ````markdown
 # Swap the BAS logo across the footer

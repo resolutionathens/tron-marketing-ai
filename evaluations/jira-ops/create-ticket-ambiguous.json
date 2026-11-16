@@ -4,6 +4,7 @@
   "expected_behavior": [
     "Does not guess a target repository, engineering prefix, source context, owner, or definition of done",
     "Asks for the missing repository or work type and a real context source before assembling a ticket",
+    "Asks who the Stakeholder is (who decides and signs off) and does not fill it in itself",
     "Does not create a Jira ticket with placeholders or invented acceptance criteria"
   ]
 }
