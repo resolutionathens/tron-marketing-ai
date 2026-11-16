@@ -85,6 +85,23 @@ spine="$(   printf '%s\n' "$MISS" | sed -n 's/^spine://p')"
 section="$( printf '%s\n' "$MISS" | sed -n 's/^section://p')"
 rec="$(     printf '%s\n' "$MISS" | sed -n 's/^rec://p')"
 issues="$(printf '%s\n' "$GATES" | sed '/^$/d; s/^/Acceptance criterion asserts a command result: /; s/$/. State the verification in the description instead, then describe a reviewable property of the change here./')"
+# SR-6176: a criterion that asks, or names nothing to check, and a Done or Intent that asks.
+UNCHECKABLE="$(rb_uncheckable_criteria "$TEXT")"
+while IFS="$(printf '\t')" read -r kind criterion; do
+  [ -n "$kind" ] || continue
+  if [ "$kind" = question ]; then
+    line="Acceptance criterion is a question, not something to check: $criterion. Keep the question for the reviewer, and state here one outcome a person or a browser test can check pass or fail."
+  else
+    line="Acceptance criterion names no outcome anyone can check: $criterion. Name one thing a person or a browser test can check pass or fail (an address, a text, an element's state, a response)."
+  fi
+  issues="$issues"$'\n'"$line"
+done <<< "$UNCHECKABLE"
+for k in Done Intent; do
+  v="$(rb_marker_value "$TEXT" "$k" || true)"
+  if rb_value_is_real "$v" && rb_ends_question "$v"; then
+    issues="$issues"$'\n'"$k is a question: $v. State the outcome instead, and keep the question for the reviewer."
+  fi
+done
 
 # Present spine+section markers (for the "what's already good" line).
 present=""

@@ -100,10 +100,82 @@ rb_command_gate_criteria() {
   done < <(rb_acceptance_criteria_lines "$1")
 }
 
-# Acceptance criteria are valid when present and none is a command-result gate.
+# --- checkable outcomes (SR-6176) -------------------------------------------
+# An acceptance criterion names one thing a person or a browser test can check pass
+# or fail (an address, a text, an element's state, a response). A question ("shouldn't
+# all staging pages be https?") or a word that checks nothing ("it works", "as
+# expected") is not one: agents went round after round of review trying to meet such
+# criteria. Quoted copy (“Need help?”) is what a page says, never the criterion asking,
+# so it is masked before reading. Baton mirrors these rules in
+# lib/ticket-rules/rubric.ts; keep the two in lockstep.
+#
+# rb_text_kind reads stdin, one criterion or value per line, and echoes per line:
+#   question   it asks (ends with "?", or opens the way a question does)
+#   vague      its outcome names nothing to check
+#   ends-q     (with --ends-question) only whether it ends with a question mark
+#   (empty)    a checkable statement
+# perl -CSD reads and writes UTF-8 whatever the locale, so curly quotes match on
+# macOS bash 3.2 and BSD tools.
+rb_text_kind() {
+  local mode="${1:-}"
+  perl -CSD -ne '
+    my $mode = "'"$mode"'";
+    chomp;
+    my $s = $_;
+    $s =~ s/^\s*AC\d+\s+//;
+    sub flat {
+      my $t = shift;
+      $t =~ s/\x{201C}[^\x{201D}]*\x{201D}/\x{201C}\x{2026}\x{201D}/g;
+      $t =~ s/\s+/ /g;
+      $t =~ s/^\s+|\s+$//g;
+      return $t;
+    }
+    sub asks {
+      my $t = flat(shift);
+      $t =~ s/[\x{201D}"\x{2019}\x27)\]]+$//;
+      return 1 if $t =~ /\?$/;
+      return 1 if $t =~ /^(why|how come|what if|shouldn[\x{2019}\x27]?t|wouldn[\x{2019}\x27]?t|couldn[\x{2019}\x27]?t|isn[\x{2019}\x27]?t it|aren[\x{2019}\x27]?t (they|these|those))\b/i;
+      return 1 if $t =~ /^(is|are|was|were|does|do|did|can|could|should|would|will|has|have)\s+(the|this|that|these|those|it|there|we|you|they|all|any|every|our|my)\b/i;
+      return 0;
+    }
+    if ($mode eq "--ends-question") {
+      print((flat($s) =~ /\?[\x{201D}"\x{2019}\x27)\]]*$/) ? "ends-q\n" : "\n");
+      next;
+    }
+    my $m = flat($s);
+    my $o = index($m, ": ") >= 0 ? substr($m, rindex($m, ": ") + 2) : $m;
+    my $vague = qr/^(it |this |that )?(works?|is fixed|gets fixed|is better|is improved|behaves (correctly|as expected)|as expected|looks (good|right|fine)|should work|is correct|n\/?a|tbd|none yet\b.*)[.!]?$/i;
+    if (asks($m) || asks($o)) { print "question\n" }
+    elsif ($o =~ $vague || $m =~ $vague) { print "vague\n" }
+    else { print "\n" }
+  '
+}
+
+# Does a single value end with a question mark (quoted copy aside)? Returns 0 yes, 1 no.
+rb_ends_question() {
+  [ "$(printf '%s\n' "$1" | rb_text_kind --ends-question)" = ends-q ]
+}
+
+# Echo `question<TAB>criterion` or `vague<TAB>criterion` for each acceptance
+# criterion that names nothing to check. A command gate is reported by
+# rb_command_gate_criteria instead, never twice.
+rb_uncheckable_criteria() {
+  local criterion kind gates
+  gates="$(rb_command_gate_criteria "$1")"
+  while IFS= read -r criterion; do
+    [ -n "$criterion" ] || continue
+    if [ -n "$gates" ] && printf '%s\n' "$gates" | grep -qxF -- "$criterion"; then continue; fi
+    kind="$(printf '%s\n' "$criterion" | rb_text_kind)"
+    if [ -n "$kind" ]; then printf '%s\t%s\n' "$kind" "$criterion"; fi
+  done < <(rb_acceptance_criteria_lines "$1")
+}
+
+# Acceptance criteria are valid when present, none is a command-result gate, and
+# each names an outcome someone can check.
 rb_acceptance_criteria_valid() {
   rb_list_marker_present "$1" "Acceptance criteria" || return 1
-  [ -z "$(rb_command_gate_criteria "$1")" ]
+  [ -z "$(rb_command_gate_criteria "$1")" ] || return 1
+  [ -z "$(rb_uncheckable_criteria "$1")" ]
 }
 
 # `Repo:` names one repository or several, comma-separated (rubric-version 4). Each
@@ -135,6 +207,8 @@ rb_present() {
   case "$2" in
     "Acceptance criteria") rb_acceptance_criteria_valid "$1" ;;
     Repo)                  rb_repo_valid "$1" ;;
+    # A question is not a finished outcome or an intended one (SR-6176).
+    Done|Intent)           rb_marker_present "$1" "$2" && ! rb_ends_question "$(rb_marker_value "$1" "$2")" ;;
     *)                     rb_marker_present "$1" "$2" ;;
   esac
 }

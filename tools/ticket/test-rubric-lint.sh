@@ -179,6 +179,76 @@ UPPERCASE_GATE='ACCEPTANCE CRITERIA:
   || fail "uppercase command-only acceptance criteria should be invalid"
 pass "command-result acceptance criteria are invalid; observable command behaviour is valid"
 
+# --- acceptance criteria name something checkable (SR-6176) ------------------
+# Baton drafted "Done: shouldn't all staging pages be https?" and an acceptance
+# criterion ending in the same question. A question, or a criterion that checks
+# nothing, keeps the ticket below high: actionable.
+CHECKABLE_BASE='Done: The Favorites page loads over https on staging
+Type: engineering
+Deliverable type: bugfix
+Context: https://facilitron.atlassian.net/browse/SR-6176
+Repo: Facilitron/facilitron
+Affected paths: /favorites
+Acceptance criteria:'
+for ac in \
+  'On /, click Favorites: shouldn’t all staging pages be https?' \
+  "AC1 On /, click Favorites: shouldn't all staging pages be https?" \
+  'Is the page https' \
+  'Can we add a map' \
+  'Why does Escape close the whole panel' \
+  'It works' \
+  'On /, click Favorites: as expected' \
+  'None yet: the reviewer decides the expected result'; do
+  T="$CHECKABLE_BASE
+- $ac"
+  [[ -n "$(rb_uncheckable_criteria "$T")" ]] || fail "uncheckable criterion should be flagged: $ac"
+  [[ "$(rb_verdict "$T")" == "medium: routable but thin" ]] \
+    || fail "uncheckable criterion should hold the verdict at medium: $ac (got: $(rb_verdict "$T"))"
+done
+[[ "$(rb_uncheckable_criteria "$CHECKABLE_BASE
+- Is the page https")" == question$'\t'"Is the page https" ]] \
+  || fail "a verb-first question is reported as a question"
+[[ "$(rb_uncheckable_criteria "$CHECKABLE_BASE
+- It works")" == vague$'\t'"It works" ]] \
+  || fail "a criterion that checks nothing is reported as vague"
+for ac in \
+  'On /favorites: the address bar shows https://facilities.staging.facilitron.com/favorites' \
+  'On /, “Old” is replaced by “Need help?”' \
+  'On /, “Old” is replaced by “Help: Need help?”' \
+  'Does nothing when the menu is open no longer happens: the Search dialog opens' \
+  'Should open the Search dialog when Search is tapped'; do
+  T="$CHECKABLE_BASE
+- $ac"
+  [[ -z "$(rb_uncheckable_criteria "$T")" ]] || fail "checkable criterion must not be flagged: $ac"
+  [[ "$(rb_verdict "$T")" == "high: actionable" ]] || fail "checkable criterion should lint high: $ac"
+done
+# A command gate is reported once, as a gate.
+[[ -z "$(rb_uncheckable_criteria "$CHECKABLE_BASE
+- the suite passes")" ]] || fail "a command gate is not also reported as uncheckable"
+# A Done that asks is no Done; an Intent that asks is no Intent.
+QDONE="$(printf '%s\n' "$CHECKABLE_BASE" | sed 's/^Done: .*/Done: shouldn’t all staging pages be https?/')
+- On /favorites: the page loads over https"
+[[ "$(rb_verdict "$QDONE")" == "none: needs human direction" ]] || fail "a question as Done needs human direction"
+QJSON="$(printf '%s\n' "$QDONE
+Intent: is it https?" | bash "$CLI")"
+[[ "$(jq -r '.missing.recommended | join(",")' <<< "$QJSON")" == *Intent* ]] || fail "a question as Intent is reported missing"
+[[ "$(jq -r '.issues | join("\n")' <<< "$QJSON")" == *"Done is a question: shouldn’t all staging pages be https?."* ]] \
+  || fail "lint names the question in Done"
+[[ "$(jq -r '.issues | join("\n")' <<< "$QJSON")" == *"Intent is a question: is it https?."* ]] \
+  || fail "lint names the question in Intent"
+# A quoted value ending in a question mark is copy, not a question.
+[[ "$(rb_verdict "$(printf '%s\n' "$CHECKABLE_BASE" | sed 's/^Done: .*/Done: The button reads “Need help?”/')
+- On /, “Old” is replaced by “Need help?”")" == "high: actionable" ]] || fail "a Done quoting copy with a question mark is a statement"
+QLINT="$(printf '%s\n' "$CHECKABLE_BASE
+- It works
+- Is the page https" | bash "$CLI")"
+[[ "$(jq -r '.verdict' <<< "$QLINT")" == "medium: routable but thin" ]] || fail "lint verdict holds at medium"
+[[ "$(jq -r '.issues[0]' <<< "$QLINT")" == "Acceptance criterion names no outcome anyone can check: It works. Name one thing a person or a browser test can check pass or fail (an address, a text, an element's state, a response)." ]] \
+  || fail "lint explains a vague criterion"
+[[ "$(jq -r '.issues[1]' <<< "$QLINT")" == "Acceptance criterion is a question, not something to check: Is the page https. Keep the question for the reviewer, and state here one outcome a person or a browser test can check pass or fail." ]] \
+  || fail "lint explains a question criterion"
+pass "a question or an uncheckable criterion keeps a ticket below high; quoted copy and statements pass"
+
 # --- full content + design ticket → high ------------------------------------
 CONT='Done: Publish the HVAC maintenance guide
 Type: content
