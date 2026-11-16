@@ -106,6 +106,14 @@ settle “`bun run docs:check` exits 0,” “the suite passes,” or “CI is g
 `rubric-lint.sh` treats those command-result-only criteria as invalid and tells the author to move the
 verification into the description.
 
+Each criterion names one thing a person or a browser test can check pass or fail: an address, a text, an
+element's state, a response. A question (“shouldn't all staging pages be https?”, or one that opens like a
+question, “is the page https”) and a criterion that names nothing to check (“it works”, “as expected”,
+“none yet”) are invalid the same way, so the ticket can't grade `high: actionable`: keep the question for
+the reviewer and state the outcome instead. A `Done:` that is a question counts as no `Done:`, and an
+`Intent:` that is a question as no `Intent:` that still holds the ticket at `medium: routable but thin`. Quoted copy (“Need help?” or "Need help?") is what a page says, not a
+question. Baton's drafts are graded by a mirror of these rules (SR-6176).
+
 ### design
 
 | Marker        | Meaning                                             |
@@ -170,7 +178,7 @@ reports. This is the exact ladder `tron:ticket-lint` surfaces as "as written, Sc
 | -------------------------------- | ------------------------------------------------------------------------- |
 | `none: needs human direction`    | `Done:` missing, or `Deliverable type:` missing/invalid for the `Type` |
 | `low: needs enrichment`          | Both above valid, but another **spine** marker missing/invalid (`Type`/`Context`) |
-| `medium: routable but thin`      | Full spine present, but one or more of the `Type`'s section markers missing |
+| `medium: routable but thin`      | Full spine present, but one or more of the `Type`'s section markers missing (or `Intent:` is a question) |
 | `high: actionable`               | Full spine **and** every section marker for the `Type` present            |
 
 These four strings are the contract: `rubric-lib.sh` emits them verbatim and `tron:ticket-lint` surfaces
