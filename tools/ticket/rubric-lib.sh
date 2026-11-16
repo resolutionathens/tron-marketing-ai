@@ -334,5 +334,11 @@ rb_verdict() {
   fi
   grep -q '^spine:'   <<< "$miss" && { echo "low: needs enrichment"; return; }
   grep -q '^section:' <<< "$miss" && { echo "medium: routable but thin"; return; }
+  # SR-6176: an Intent that asks is reported as recommended-missing, and still keeps
+  # an otherwise complete ticket below high.
+  local intent; intent="$(rb_marker_value "$1" Intent || true)"
+  if rb_value_is_real "$intent" && rb_ends_question "$intent"; then
+    echo "medium: routable but thin"; return
+  fi
   echo "high: actionable"
 }

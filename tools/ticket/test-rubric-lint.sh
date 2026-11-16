@@ -237,6 +237,13 @@ Intent: is it https?" | bash "$CLI")"
   || fail "lint names the question in Done"
 [[ "$(jq -r '.issues | join("\n")' <<< "$QJSON")" == *"Intent is a question: is it https?."* ]] \
   || fail "lint names the question in Intent"
+# An Intent that asks keeps an otherwise complete ticket below high.
+QINTENT="Intent: is it https?
+$CHECKABLE_BASE
+- On /favorites: the page loads over https"
+[[ "$(rb_verdict "$QINTENT")" == "medium: routable but thin" ]] || fail "a question as Intent keeps the ticket below high"
+[[ "$(rb_verdict "$(printf '%s\n' "$QINTENT" | sed 's/^Intent: .*/Intent: Visitors reach Favorites over https/')")" == "high: actionable" ]] \
+  || fail "the same ticket with a stated Intent lints high"
 # A quoted value ending in a question mark is copy, not a question.
 [[ "$(rb_verdict "$(printf '%s\n' "$CHECKABLE_BASE" | sed 's/^Done: .*/Done: The button reads “Need help?”/')
 - On /, “Old” is replaced by “Need help?”")" == "high: actionable" ]] || fail "a Done quoting copy with a question mark is a statement"
