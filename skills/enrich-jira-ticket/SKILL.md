@@ -53,11 +53,18 @@ Delegate to `tron:jira-source-discovery` via the Skill tool with the ticket key(
 
 ### 2. Enrich the ticket
 
-Pass the discovered sources to `tron:jira-ticket-enricher` via the Skill tool. This drafts the enriched description, self-checks against the rubric, converts to ADF, and writes to Jira.
+Pass the discovered sources to `tron:jira-ticket-enricher` via the Skill tool. This drafts the enriched description, self-checks against the rubric, converts to ADF, and writes to Jira. Product, engineering, bug, data and spike tickets are written in the pilot template ([tools/ticket/pilot-template.md](../../tools/ticket/pilot-template.md)); an engineering ticket's brief goes in its `<KEY>-engineering.md` attachment. The enricher asks for a missing Stakeholder rather than inferring one.
 
 ### 3. Verify
 
-Confirm the enriched ticket is live and lints correctly.
+Confirm the enriched ticket is live and lints correctly:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket/rubric-lint.sh" --key <KEY> \
+  | jq '{verdict, stage, source, missing, issues}'
+```
+
+Report each missing pilot field or section by the name in `missing` (`Stakeholder`, `Engineer`, `section 3. Pages & Roles`) and each `issues` line, for the stage the ticket's status maps to.
 
 ## Quality rules
 

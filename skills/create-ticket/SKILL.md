@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Step 4 — Self-check against the rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Create a new, high-confidence Jira ticket by walking the shared ticket rubric for engineering, design, content, campaign-asset, or hosted-CMS work, stamping the summary PREFIX for engineering routing, and creating it via acli with machine-readable markers triage can parse. Use for 'create a ticket', 'file a Jira ticket for X', 'open a task', 'log this as a ticket', or when the user describes work that should become one. Enforces the rubric so the ticket is actionable by construction, not thin/title-only. For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
+description: "Create a new, high-confidence Jira ticket: product, engineering, bug, data and spike tickets in the Ticketing pilot template (metadata header with Stakeholder, Engineer, Intent and Done, then numbered sections; an engineering ticket gets a people description plus a <KEY>-engineering.md brief attachment), and design, content, campaign-asset or hosted-CMS tickets with the shared rubric's markers. Asks for the Stakeholder and never fills it in, stamps the summary PREFIX for engineering routing, lints the draft for its stage and creates it via acli. Use for 'create a ticket', 'file a Jira ticket for X', 'open a task', 'write a product ticket', 'log this as a ticket', or when the user describes work that should become one. Enforces the template so the ticket is actionable by construction, not thin/title-only. For fixing an EXISTING thin ticket use tron:jira-source-discovery + tron:jira-ticket-enricher; to check tickets against the rubric use tron:ticket-lint."
 allowed-tools:
   - Bash
   - Read
@@ -40,6 +40,12 @@ single source of truth for the spine, the per-work-type sections, the machine-re
 verdict ladder. This skill is the authoring front end; `tron:ticket-lint` is the checker; Scout triage
 is the third consumer. All three read that one file.
 
+**Product, engineering, bug, data and spike tickets use the pilot template**
+([tools/ticket/pilot-template.md](../../tools/ticket/pilot-template.md), rubric-version 5, Ian's decision of
+Nov 16 2026). Read it before drafting one: it holds the header fields and the stage each is required from,
+the seven sections, which sections each type needs, and the rules. Design, content, campaign-asset and cms
+tickets keep the rubric's marker shape.
+
 The skill's complete shared-resource closure is declared in the plugin manifest's versioned
 [`resourceContract`](../../tools/skill/plugin-resources.md). Installers must preserve that tree or set
 `TRON_PLUGIN_ROOT`; the workflow must stop if it cannot resolve the converter or rubric tooling.
@@ -63,26 +69,51 @@ is fine and honest; a ticket padded with `<placeholder>` values is not.
 
 Determine the canonical `Type` from the shared rubric. Do not keep a separate type list here. Then:
 
-- **engineering** — which repo does the work land in? Map it to a summary `PREFIX:` from
-  [tools/jira/conventions.md](../../tools/jira/conventions.md) (`TRON-PLUGIN`, `SCOUT`, `PAGES`, `LLLP`,
-  `MABE`, `SUPPORT`, `UI`). If the repo is not clear, ask; do not guess a prefix.
+- **product / engineering / bug / data / spike** — the pilot template. `product` is written by product
+  and says what and why, never how. The others are engineering's. For engineering work, which repo does it
+  land in? Map it to a summary `PREFIX:` from [tools/jira/conventions.md](../../tools/jira/conventions.md)
+  (`TRON-PLUGIN`, `SCOUT`, `PAGES`, `LLLP`, `MABE`, `SUPPORT`, `UI`). If the repo is not clear, ask; do not
+  guess a prefix.
 - **design / content / campaign-asset / cms** — no summary prefix; the `Deliverable type:` marker
   carries the routing.
 
-Also settle the `Deliverable type:` (the fine-grained class) from the allowed values for that `Type` in
-the rubric.
+Also settle the `Deliverable type:` (the fine-grained class): from the rubric's allowed values for a
+marker type, or the pilot template's (`pr`, `research`, `report`…) for a pilot type.
 
-### 2. Gather the rubric fields
+### 2. Gather the fields
 
-Walk the fields for the chosen `Type`, one at a time, in plain conversation. Collect:
+Walk the fields for the chosen `Type`, one at a time, in plain conversation.
+
+**Stakeholder: always ask, never fill it in yourself.** For every pilot ticket, ask the user who decides
+and signs off (one or more people, comma-separated) and write exactly what they answer. Do not take it from
+the source, the reporter, the assignee, the epic or yourself, even when one of them looks obvious; if a
+source names someone, offer that name in the question and still wait for the answer. If the user doesn't
+know, the ticket has no Stakeholder yet and lints `low`; say so rather than filling the line. When
+dispatched (no `AskUserQuestion`), ask in one plain message and stop until it is answered.
+
+For a **pilot type**, collect ([pilot-template.md](../../tools/ticket/pilot-template.md) has each field's
+meaning and the stage it is required from):
+
+- **Header:** `Done`, `Intent` (the reason, not the same as Done; never invented), `Type`,
+  `Deliverable type`, `Stakeholder` (asked, as above), `Engineer` (asked; "not yet assigned" is fine until
+  Ready to Develop), `Context` (the source link), `Decision` (who decided what and when, who signs off).
+- **Acceptance criteria:** two or more, numbered `- AC1 …`, `- AC2 …` in the header and repeated as
+  `**AC1** …` in section 5 with the same numbers. Each names one thing a person or a browser test can check
+  pass or fail; a question or "it works" holds the ticket at `medium` (SR-6176). A spike has a deliverable
+  instead.
+- **Repo and Affected paths:** only on engineering's tickets, and only once the engineer knows them. Never
+  on a product ticket before kickoff (the lint reports it as a problem).
+- **Sections:** `## 1. Problem` always; then the sections the type needs (product and engineering 1 to 6,
+  bug 1, 3, 4, 5, data 1, 2, 5, spike 1, 2, 6). An unknown becomes a section 6 row with an owner, `Open`
+  until decided.
+
+For a **marker type**, collect:
 
 - **Spine (all types):** `Done`, `Type`, `Deliverable type`, `Context`, `Decision` (due date, sign-off
   owner, constraints), plus optional `Intent` (one sentence describing the desired user or system outcome,
   not the selected implementation). Add `Intent` only when the source evidence establishes it; never invent
   one to complete a ticket.
 - **The type's section markers:**
-  - engineering: `Repo` (one repo, or several comma-separated), `Affected paths`, `Acceptance criteria` (2+
-    checkable bullets). A `research` deliverable (no PR expected) skips `Affected paths`.
   - design: `Figma`, `Format`, `Brand refs`, `Lands`.
   - content: `Destination`, `Format`, `SEO target`, `Draft`.
   - campaign-asset: `Campaign`, `Asset`, `Format`, `Lands`.
@@ -93,10 +124,22 @@ detail to fill `Context` and the section markers.
 
 ### 3. Assemble the ticket
 
-**Summary:** `PREFIX: short imperative description` for engineering; a plain imperative summary for
-all non-engineering types.
+**Summary:** `PREFIX: short imperative description` for engineering's pilot tickets; a plain imperative
+summary for product tickets and the marker types.
 
-**Description:** the machine header (a fenced code block holding every marker) first, then the human prose.
+**A pilot ticket** ([pilot-template.md](../../tools/ticket/pilot-template.md), "Where it lives"):
+
+- `Type: engineering` is written as **two parts**. The brief, `<slug>-brief.md`, is the whole template:
+  the fenced metadata header, the PR panel line and sections 1 to 7. The description, `<slug>.md`, is for
+  people: `**Done:**`, `**Intent:**`, `**Stakeholder:**`, then `### Problem`, `### Scope` and
+  `### Acceptance criteria` (the same AC numbers in plain language), ending with the line "The
+  engineering brief (affected paths, decisions, test data, change log) is the attached engineering file."
+  Nothing about how goes in the description. The brief is attached as `<KEY>-engineering.md` once the
+  ticket exists.
+- `product`, `bug`, `data` and `spike` are written as **one part**: the whole template is the description,
+  with no attachment until kickoff.
+
+**A marker ticket — description:** the machine header (a fenced code block holding every marker) first, then the human prose.
 The fenced block is required, not cosmetic: `acli` stores descriptions as ADF and md-to-adf collapses
 ordinary consecutive lines into one paragraph and splits bare URLs off their `Key:`. A code block keeps
 one marker per line with literal URLs, so triage parses exactly what you wrote. See the worked example in
@@ -108,8 +151,11 @@ scratch files: remove them after Jira consumes the ADF, including when linting o
 
 ### 4. Self-check against the rubric, then create
 
-Lint the assembled description **before** creating, and show the user the verdict. Iterate until it is
-`high` (or the user accepts a `medium` with a genuinely unknown detail). Then convert and create.
+Lint the assembled description (for an engineering pilot ticket, the brief) **before** creating, and show
+the user the verdict. A new ticket starts in Backlog, so a pilot ticket is graded at `--stage created`.
+Iterate until it is `high` (or the user accepts a `medium` with a genuinely unknown detail; a ticket without
+a Stakeholder stays `low` until the user names one). Report missing pilot fields by the names the lint
+gives (`Stakeholder`, `Engineer`, `section 3. Pages & Roles`). Then convert and create.
 
 ## Fast path (scripted)
 
@@ -140,11 +186,13 @@ trap 'rm -rf "$WORK"' EXIT
 MD="$WORK/<slug>.md"
 ADF_FILE="$WORK/<slug>.adf.json"
 
-# 1. Self-check the drafted description (offline) against the rubric.
-#    Pass --summary so a valid PREFIX satisfies engineering's Repo requirement.
-bash "$TICKET_DIR/rubric-lint.sh" --file "$MD" \
-  --summary "TRON-PLUGIN: <summary>" | jq '{verdict, missing}'
-# → iterate on the markdown until .verdict == "high: actionable"
+BRIEF="$WORK/<slug>-brief.md"   # engineering pilot tickets only
+
+# 1. Self-check the draft (offline). Lint the brief for an engineering pilot ticket,
+#    the description otherwise. Pass --summary so a valid PREFIX satisfies Repo.
+bash "$TICKET_DIR/rubric-lint.sh" --file "$BRIEF" --stage created \
+  --summary "TRON-PLUGIN: <summary>" | jq '{verdict, missing, issues}'
+# → iterate until .verdict == "high: actionable"
 
 # 2. Convert to ADF and create the ticket.
 node "$ADF" < "$MD" > "$ADF_FILE"
@@ -154,8 +202,14 @@ acli jira workitem create \
   --description-file "$ADF_FILE" \
   --assignee "@me"
 
-# 3. Verify the LIVE ticket lints high (round-trips through Jira's stored ADF).
-bash "$TICKET_DIR/rubric-lint.sh" --key <NEW-KEY> | jq '{verdict, missing}'
+# 3. Engineering pilot ticket: attach the brief as <NEW-KEY>-engineering.md
+#    (needs ATLASSIAN_EMAIL and JIRA_API_TOKEN; acli can't upload attachments).
+bash "$TICKET_DIR/brief-attachment.sh" upload <NEW-KEY> "$BRIEF"
+
+# 4. Verify the LIVE ticket lints high: --key reads the brief attachment when there
+#    is one, else the description (round-tripped through Jira's stored ADF), at the
+#    stage its Jira status maps to.
+bash "$TICKET_DIR/rubric-lint.sh" --key <NEW-KEY> | jq '{verdict, stage, source, missing}'
 ```
 
 The `--project` and `--type` follow the target board (default `MD`, `Task`). The `--assignee` flag
@@ -190,10 +244,15 @@ Usage, `show`, and delete/replace by link id: [tools/jira/conventions.md](../../
 ## Quality rules
 
 - Markers in a fenced code block; prose (with clickable links) below. Always.
+- Stakeholder is the user's answer, word for word, or nothing. Never inferred.
+- An engineering pilot ticket is never left without its brief: if the upload fails, retry it, and if it
+  still fails, say so and keep the brief file (copy it out of `$WORK` before the trap removes it) so it can
+  be attached by hand.
 - Facilitron voice in the prose you draft: see [tools/voice/facilitron-voice.md](../../tools/voice/facilitron-voice.md).
 - Never pass raw markdown to `acli --description`; always use md-to-adf + `--description-file`
   ([tools/md-to-adf/usage.md](../../tools/md-to-adf/usage.md)).
-- Engineering tickets carry both the summary `PREFIX:` and the `Repo:` marker.
+- Engineering tickets carry the summary `PREFIX:`, and the `Repo:` marker once the repo is known (a pilot
+  ticket requires it from kickoff).
 - Do not include section markers for a `Type` other than the ticket's.
 - Verify the live ticket lints `high` after creating; if Jira's stored ADF changed anything, fix it with
   `acli jira workitem edit --key <KEY> --description-file … --yes`.

@@ -280,15 +280,21 @@ MD="$FIXTURE/ticket.md"
 cat >"$MD" <<'EOF'
 ```
 Done: Ship portable resource resolution
+Intent: Every harness can create and check tickets
 Type: engineering
 Deliverable type: pr
+Stakeholder: Ian Kennedy
 Context: https://facilitron.atlassian.net/browse/MD-2607
 Decision: Preserve rich Jira descriptions
 Repo: tron-marketing-ai
 Affected paths: skills/create-ticket/SKILL.md
 Acceptance criteria:
-- installed skills resolve shared tools
+- AC1 installed skills resolve shared tools
+- AC2 a clean install converts Markdown to ADF
 ```
+
+## 1. Problem
+As a harness user, I need the shared tools so that tickets are written the same way everywhere.
 
 ## Portable Jira description
 

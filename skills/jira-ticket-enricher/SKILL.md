@@ -8,7 +8,7 @@ fallback:
   stage_skips:
     - stage: "Self-check against rubric"
       skip_when: "User confirms the draft is complete and accurate"
-description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description, using the shared ticket rubric to produce machine-readable markers. Use after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources'. Jira-write skill — it edits ticket descriptions only after the user confirms."
+description: "Take a Jira ticket with its discovered sources and write an enriched, implementation-ready description, using the shared ticket rubric to produce machine-readable markers; product, engineering, bug, data and spike tickets are written in the Ticketing pilot template (an engineering ticket's brief as its <KEY>-engineering.md attachment), and the self-check names each missing pilot field for the ticket's stage. Use after tron:jira-source-discovery has gathered the context: 'write the enriched description for MD-1234', 'draft the ticket from these sources'. Jira-write skill — it edits ticket descriptions only after the user confirms."
 allowed-tools:
   - Bash
   - Read
@@ -57,7 +57,7 @@ ADF_FILE="$WORK/<KEY>.adf.json"
 
 ### 1. Draft the enriched description
 
-Use the base shape in `reference/description-template.md` — it has a full worked example. The base shape is the rubric's fenced machine header (spine + the section markers for the ticket's `Type`) followed by human prose. Add only the prose sections a ticket needs, and never include empty sections. For a `marketing-pages` `/resources/toolkit` item sourced from a Google Doc, layer `reference/toolkit-playbook.md` on top of that base shape.
+Use the base shape in [`reference/description-template.md`](reference/description-template.md) — it has a full worked example. For a pilot type (below) its "Pilot types" section replaces the base shape. The base shape is the rubric's fenced machine header (spine + the section markers for the ticket's `Type`) followed by human prose. Add only the prose sections a ticket needs, and never include empty sections. For a `marketing-pages` `/resources/toolkit` item sourced from a Google Doc, layer `reference/toolkit-playbook.md` on top of that base shape.
 
 Fill the machine header from the sources you gathered or were given: `Done`, `Type`, `Deliverable type`, `Context`, `Decision`, and the `Type`'s section markers. Add optional `Intent` only when a source establishes the one-sentence desired user or system outcome, rather than merely naming an implementation. Do not invent a value for any marker you cannot ground in a real source.
 
@@ -65,18 +65,27 @@ When the destination repo is known, also emit the `Destination repo:` line under
 
 The rubric itself is the shared [`tools/ticket/ticket-rubric.md`](../../tools/ticket/ticket-rubric.md) — the single source of truth for the spine, the per-type section markers, and the verdict ladder.
 
+#### Pilot types: product, engineering, bug, data, spike
+
+These are written in the pilot template, [`tools/ticket/pilot-template.md`](../../tools/ticket/pilot-template.md) (rubric-version 5), not the marker shape: the fenced metadata header (with `Stakeholder`, `Engineer` and criteria numbered `AC1`, `AC2`…), then sections `## 1. Problem` to `## 7. Change log`, with the sections the type needs. The "Pilot types" section of `reference/description-template.md` says what goes where.
+
+- **Stakeholder is never inferred.** Keep the ticket's existing `Stakeholder:` as written. If it has none, ask the user who decides and signs off, even when a source names someone; never take it from the reporter, the assignee or the parent. A ticket without one stays `low: needs enrichment`, and you say so.
+- **Engineering keeps two parts.** Write the whole template as `<KEY>-engineering.md` and attach it (step 3); the description stays the people summary. Leave a description product wrote as it is (pilot rule 5: kickoff fills in the brief, on the same ticket).
+- **Product, bug, data and spike** keep the whole template in the description. A product ticket names no `Repo`, `Affected paths` or code before kickoff.
+
 ### 2. Self-check against the rubric before writing
 
 ```bash
 TICKET_DIR="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/ticket"
-bash "$TICKET_DIR/rubric-lint.sh" --file "$MD" \
-  --summary "<the ticket's current summary>" | jq '{verdict, missing}'
+# A pilot ticket is graded for its stage: pass its current Jira status.
+bash "$TICKET_DIR/rubric-lint.sh" --file "$MD" --status "<the ticket's Jira status>" \
+  --summary "<the ticket's current summary>" | jq '{verdict, stage, missing, issues}'
 ```
 
-A `medium: routable but thin` verdict is acceptable when a genuine detail is still unknown. After writing to Jira, verify the live ticket:
+A `medium: routable but thin` verdict is acceptable when a genuine detail is still unknown. Name every gap to the user by the name the lint gives (`Stakeholder`, `Engineer`, `section 4. Pre-conditions & Test Data`, an Open decision at ready). After writing to Jira, verify the live ticket (for an engineering ticket, this reads the brief attachment):
 
 ```bash
-bash "$TICKET_DIR/rubric-lint.sh" --key <KEY> | jq '{verdict, missing}'
+bash "$TICKET_DIR/rubric-lint.sh" --key <KEY> | jq '{verdict, stage, source, missing, issues}'
 ```
 
 ### 3. Convert to ADF and update Jira
@@ -85,6 +94,12 @@ bash "$TICKET_DIR/rubric-lint.sh" --key <KEY> | jq '{verdict, missing}'
 ADF="${CLAUDE_PLUGIN_ROOT:-$CLAUDE_SKILL_DIR/../..}/tools/md-to-adf/md-to-adf.mjs"
 node "$ADF" < "$MD" > "$ADF_FILE"
 acli jira workitem edit --key <KEY> --description-file "$ADF_FILE" --yes
+```
+
+For an engineering pilot ticket, attach the brief instead of (or as well as, when the description is still thin) editing the description. The newest `<KEY>-engineering.md` is the brief, so a new upload replaces the old one for every reader:
+
+```bash
+bash "$TICKET_DIR/brief-attachment.sh" upload <KEY> "$WORK/<KEY>-engineering.md"
 ```
 
 ### 4. Verify

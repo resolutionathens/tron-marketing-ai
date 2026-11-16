@@ -2,8 +2,36 @@
 
 ## Contents
 
+- [Pilot types](#pilot-types)
 - [Base template](#base-template)
 - [Worked example](#worked-example)
+
+## Pilot types
+
+Since rubric-version 5, `product`, `engineering`, `bug`, `data` and `spike` tickets follow the pilot
+template, [tools/ticket/pilot-template.md](../../../tools/ticket/pilot-template.md), instead of the base
+template below. Copy its shape exactly:
+
+- The fenced metadata header holds `Done`, `Intent`, `Type`, `Deliverable type`, `Stakeholder`,
+  `Engineer`, `Context`, `Decision`, then (engineering's tickets, once known) `Repo` and `Affected paths`,
+  then `Acceptance criteria:` with bullets numbered `- AC1 …`, `- AC2 …`.
+- Then the PR panel line and `## 1. Problem` to `## 7. Change log`. Section 5 repeats the criteria as
+  `**AC1** …` with the same numbers; section 6's table holds decisions and open questions, each with an
+  owner.
+- Fill only what a source grounds. `Stakeholder` comes from the ticket or the user, never from a source's
+  author, the reporter or the assignee. Leave a field empty rather than filling it with a guess: the lint
+  names the gap for the ticket's stage.
+- `engineering`: the template above is the brief, attached as `<KEY>-engineering.md`; the description is the
+  people summary (`**Done:**`, `**Intent:**`, `**Stakeholder:**`, `### Problem`, `### Scope`,
+  `### Acceptance criteria`, and the line pointing to the attached engineering file).
+- `product`, `bug`, `data`, `spike`: the template above is the description.
+- The `Destination repo:` line described below is part of the base template, not the pilot template. How
+  Scout routes a pilot ticket is tron-os's to settle (MD-3403); until then a pilot ticket's `Repo:` is its
+  repository signal, and a product ticket has none before kickoff (pilot rule 4).
+
+The worked example below shows the version 4 marker block for an engineering ticket. Its content maps onto
+the pilot template the same way: `Repo`, `Affected paths` and the criteria go in the header, the context into
+sections 1 and 2, and the implementation notes into section 4 or the brief.
 
 ## Base template
 
@@ -18,7 +46,7 @@ practical and implementation-ready.
 
 ```
 Done: <one-line concrete deliverable>
-Type: engineering | design | content | campaign-asset | cms
+Type: design | content | campaign-asset | cms   (pilot types: see above)
 Deliverable type: <value from the rubric's table for this Type>
 Context: <link to the brief / Figma / folder / draft that grounds it>
 Decision: <due date, sign-off owner, hard constraints — if known>

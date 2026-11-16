@@ -281,7 +281,10 @@ The plugin also carries a versioned **ticket rubric** at `tools/ticket/ticket-ru
 spec behind `tron:create-ticket`, `tron:ticket-lint`, and Scout triage) with a deterministic,
 offline parser (`tools/ticket/rubric-lint.sh` + `rubric-lib.sh`, tested by `test-rubric-lint.sh`).
 No install needed: pure bash, with `jq` required for the JSON output (all modes) and `acli`
-additionally for the `--key` (live-ticket) path.
+additionally for the `--key` (live-ticket) path. Product, engineering, bug, data and spike tickets follow
+the Ticketing pilot template, whose canonical copy is `tools/ticket/pilot-template.md` (rubric-version 5).
+Reading or attaching an engineering ticket's `<KEY>-engineering.md` brief also needs `curl` with
+`ATLASSIAN_EMAIL` and `JIRA_API_TOKEN` (`tools/ticket/brief-attachment.sh`).
 
 **ImageKit CLI**
 

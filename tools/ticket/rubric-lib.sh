@@ -9,7 +9,9 @@
 # same verdict Scout triage reports, so tron:create-ticket and tron:ticket-lint
 # (and, on the SCOUT side, triage) all score a ticket identically. If you change
 # a marker key or the verdict ladder here, change ticket-rubric.md and the SCOUT
-# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 4.
+# fixtures in lockstep — and update test-rubric-lint.sh. rubric-version: 5.
+# Since version 5 the pilot types (product, engineering, bug, data, spike) are
+# graded against pilot-template.md by the rb_pilot_* functions below.
 
 # --- marker presence ---------------------------------------------------------
 
@@ -78,7 +80,10 @@ rb_command_gate_criteria() {
   local criterion lower command_passes
   while IFS= read -r criterion; do
     [ -n "$criterion" ] || continue
-    lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]')"
+    # A pilot criterion's number (`AC1 CI is green`, `**AC2** npm test passes`) is not
+    # part of what it asserts (MD-3405); the criterion is still reported as written.
+    lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/^[[:space:]]*(\*+[[:space:]]*)?ac[0-9]+(\*+)?[[:space:]]+//')"
     command_passes=1
     case "$lower" in
       bun\ *|npm\ *|pnpm\ *|yarn\ *|npx\ *|node\ *|make\ *|just\ *|cargo\ *|go\ *|pytest\ *|rspec\ *|bundle\ *|gradle\ *|mvn\ *)
@@ -223,12 +228,16 @@ rb_is_research() {
 
 # --- work type ---------------------------------------------------------------
 
-# Echo the normalized Type: value
-# (engineering|design|content|campaign-asset|cms), or empty.
+# Echo the normalized Type: value (the pilot types product|engineering|bug|data|spike,
+# or the marker-rubric types design|content|campaign-asset|cms), or empty.
 rb_type() {
   local v; v="$(rb_marker_value "$1" "Type" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z-].*$//')"
   case "$v" in
     engineering|eng) echo engineering ;;
+    product)         echo product ;;
+    bug)             echo bug ;;
+    data)            echo data ;;
+    spike)           echo spike ;;
     design)          echo design ;;
     content)         echo content ;;
     campaign-asset)  echo campaign-asset ;;
@@ -291,6 +300,250 @@ rb_placement_context_markers() {
   echo "Campaign|Lands|Destination"
 }
 
+# --- pilot template (rubric-version 5, MD-3405) ------------------------------
+# product, engineering, bug, data and spike tickets are graded against the pilot
+# template (pilot-template.md): a fenced metadata header, then numbered sections
+# 1 to 7, with the fields each Jira stage requires. Baton's lib/ticket-rules/pilot.ts
+# mirrors these rules (SR-6185); keep the two in lockstep.
+
+# Is <type> one of the pilot template's types? Returns 0 yes, 1 no.
+rb_is_pilot_type() {
+  case "$1" in product|engineering|bug|data|spike) return 0 ;; esac
+  return 1
+}
+
+# Echo the pilot stage for a Jira status: created|ready|kickoff|review. Anything
+# unrecognised counts as just created.
+rb_stage_for_status() {
+  local s; s="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  # Held in variables: bash 3.2 reads an inline `|` literally under a caller's IFS='|' (MD-3268).
+  local review_re='review|uat|done|released' qa_re='[^a-z]qa[^a-z]' kickoff_re='progress|develop'
+  if [[ "$s" =~ $review_re ]] || [[ " $s " =~ $qa_re ]]; then echo review
+  elif [[ "$s" =~ ready ]]; then echo ready
+  elif [[ "$s" =~ $kickoff_re ]]; then echo kickoff
+  else echo created
+  fi
+}
+
+# Echo a stage's position (0 to 3), or nothing for an unknown stage.
+rb_stage_index() {
+  case "$1" in created) echo 0 ;; ready) echo 1 ;; kickoff) echo 2 ;; review) echo 3 ;; esac
+}
+
+# The header fields in order, each with the first stage that requires it.
+rb_pilot_fields() {
+  printf '%s\n' "Done|created" "Intent|created" "Type|created" "Deliverable type|created" \
+    "Stakeholder|created" "Context|created" "Decision|created" "Engineer|ready" \
+    "Acceptance criteria|ready" "Repo|kickoff" "Affected paths|kickoff"
+}
+
+# The section names, numbered 1 to 7.
+rb_pilot_section_name() {
+  case "$1" in
+    1) echo "Problem" ;; 2) echo "Scope" ;; 3) echo "Pages & Roles" ;;
+    4) echo "Pre-conditions & Test Data" ;; 5) echo "Acceptance Criteria" ;;
+    6) echo "Design, Links & Decisions" ;; 7) echo "Change log" ;;
+  esac
+}
+
+# The sections a type needs from ready on (pilot-template.md, "Sections by type").
+rb_pilot_type_sections() {
+  case "$1" in
+    bug)   echo "1 3 4 5" ;;
+    data)  echo "1 2 5" ;;
+    spike) echo "1 2 6" ;;
+    *)     echo "1 2 3 4 5 6" ;;
+  esac
+}
+
+# A pilot value is real when the rubric says so and it isn't a [bracketed] stub or
+# an Engineer that is still nobody ("not yet assigned"). Returns 0 real, 1 not.
+rb_pilot_value_is_real() {
+  rb_value_is_real "$1" || return 1
+  local low; low="$(printf '%s' "$1" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' | tr '[:upper:]' '[:lower:]')"
+  case "$low" in '['*']'|'?'|'??'|'????'|'not yet assigned'|unassigned) return 1 ;; esac
+  return 0
+}
+
+# Echo the metadata header: the first fenced block's lines, or the whole text when
+# there is no fence (a plain list of markers still grades).
+rb_pilot_header() {
+  if printf '%s\n' "$1" | grep -qE '^[[:space:]]*```'; then
+    printf '%s\n' "$1" | awk '
+      /^[[:space:]]*```/ { if (inside) exit; inside = 1; next }
+      inside { print }'
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# Echo the text after the header's closing fence (all of it when there is no fence).
+rb_pilot_body() {
+  if printf '%s\n' "$1" | grep -qE '^[[:space:]]*```'; then
+    printf '%s\n' "$1" | awk '
+      done { print; next }
+      /^[[:space:]]*```/ { fences++; if (fences == 2) done = 1; next }'
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# Echo the body of section <n> (the lines under `## <n>. …` up to the next numbered
+# heading), trimmed of blank lines at either end.
+rb_pilot_section() {
+  rb_pilot_body "$1" | awk -v n="$2" '
+    /^###?[[:space:]]*[0-9]\./ {
+      h = $0; sub(/^#+[[:space:]]*/, "", h); num = substr(h, 1, 1)
+      active = (num == n); next
+    }
+    active { print }' | sed -E '/./,$!d' | awk '{ lines[NR] = $0 } END {
+      last = NR; while (last > 0 && lines[last] ~ /^[[:space:]]*$/) last--
+      for (i = 1; i <= last; i++) print lines[i] }'
+}
+
+# Echo the numbers of the sections that have content, space-separated, in one pass.
+rb_pilot_filled_sections() {
+  rb_pilot_body "$1" | awk '
+    /^###?[[:space:]]*[0-9]\./ { h = $0; sub(/^#+[[:space:]]*/, "", h); num = substr(h, 1, 1); next }
+    num != "" && $0 !~ /^[[:space:]]*$/ { filled[num] = 1 }
+    END { for (i = 1; i <= 7; i++) if (filled[i]) printf "%d ", i }'
+}
+
+# Echo the AC ids (AC1, AC2…) at the start of each line of stdin, upper-cased.
+rb_pilot_ac_ids() {
+  sed -nE 's/^[[:space:]]*(\*+[[:space:]]*)?([Aa][Cc][0-9]+)([^0-9A-Za-z_].*)?$/\2/p' | tr '[:lower:]' '[:upper:]'
+}
+
+# Echo the header's numbered AC ids, one per line.
+rb_pilot_header_acs() {
+  rb_acceptance_criteria_lines "$(rb_pilot_header "$1")" | rb_pilot_ac_ids
+}
+
+# Echo section 5's numbered AC ids, one per line.
+rb_pilot_section_acs() {
+  rb_pilot_section "$1" 5 | rb_pilot_ac_ids
+}
+
+# Echo `<decision><TAB><owner>` for each row of section 6's table whose status is Open.
+rb_pilot_open_decisions() {
+  rb_pilot_section "$1" 6 | awk -F'|' '
+    /^[[:space:]]*\|/ && $0 !~ /^[[:space:]]*\|[[:space:]]*-/ {
+      n = 0
+      for (i = 2; i < NF; i++) { c = $i; gsub(/^[[:space:]]+|[[:space:]]+$/, "", c); cells[++n] = c }
+      if (n >= 4 && tolower(cells[1]) != "date" && tolower(cells[4]) == "open")
+        printf "%s\t%s\n", cells[2], cells[3]
+    }'
+}
+
+# Is <text>'s Deliverable type research? Returns 0 yes, 1 no.
+rb_pilot_is_research() {
+  [ "$(rb_marker_value "$(rb_pilot_header "$1")" "Deliverable type" | tr '[:upper:]' '[:lower:]' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')" = research ]
+}
+
+# Echo what a pilot ticket lacks for <stage>, one per line, tagged:
+#   spine:<Field>      Done, Deliverable type (none) or Context, Stakeholder (low)
+#   section:<Field>    another field or section the stage requires (medium)
+#   problem:<text>     a rule the ticket breaks (medium)
+#   warning:<text>     advice that doesn't change the verdict
+# Args: <text> <stage> [<prefix_ok>]. A valid summary PREFIX stands in for a
+# missing Repo, as in the marker rubric.
+rb_pilot_missing() {
+  local text="$1" stage="${2:-created}" prefix_ok="${3:-0}"
+  local header type at entry field from value n need has_acs acs h s
+  header="$(rb_pilot_header "$text")"
+  type="$(rb_type "$text")"
+  at="$(rb_stage_index "$stage")"; [ -n "$at" ] || at=0
+  has_acs=0; case " $(rb_pilot_type_sections "$type") " in *" 5 "*) has_acs=1 ;; esac
+  acs="$(rb_pilot_header_acs "$text")"
+  while IFS= read -r entry; do
+    field="${entry%%|*}"; from="${entry#*|}"
+    value="$(rb_marker_value "$header" "$field")"
+    case "$field" in
+      Done)
+        # A Done that asks is no Done, at every stage (SR-6176).
+        if ! rb_pilot_value_is_real "$value" || rb_ends_question "$value"; then printf 'spine:Done\n'; fi
+        continue ;;
+      "Deliverable type"|Context|Stakeholder)
+        rb_pilot_value_is_real "$value" || printf 'spine:%s\n' "$field"
+        continue ;;
+      Type) continue ;;   # a pilot type is already known
+      "Acceptance criteria")
+        # Questions, uncheckable criteria and command gates hold any stage below high (#130).
+        if [ -n "$(rb_acceptance_criteria_lines "$header")" ] \
+          && { [ -n "$(rb_command_gate_criteria "$header")" ] || [ -n "$(rb_uncheckable_criteria "$header")" ]; }; then
+          printf 'section:Acceptance criteria\n'
+        elif [ "$at" -ge "$(rb_stage_index "$from")" ] && [ "$has_acs" = 1 ] \
+          && [ "$(printf '%s\n' "$acs" | sed '/^$/d' | wc -l | tr -d ' ')" -lt 2 ]; then
+          printf 'section:Acceptance criteria\n'
+        fi
+        continue ;;
+    esac
+    [ "$at" -ge "$(rb_stage_index "$from")" ] || continue
+    case "$field" in
+      Intent)
+        if ! rb_pilot_value_is_real "$value" || rb_ends_question "$value"; then printf 'section:Intent\n'; fi ;;
+      Repo)
+        if ! rb_pilot_value_is_real "$value"; then
+          [ "$prefix_ok" = 1 ] || printf 'section:Repo\n'
+        else
+          rb_repo_valid "$header" || printf 'section:Repo\n'
+        fi ;;
+      "Affected paths")
+        # Research produces no change to the code, so there are no paths to name.
+        rb_pilot_is_research "$text" && continue
+        rb_pilot_value_is_real "$value" || printf 'section:Affected paths\n' ;;
+      *)
+        rb_pilot_value_is_real "$value" || printf 'section:%s\n' "$field" ;;
+    esac
+  done < <(rb_pilot_fields)
+
+  # Sections: section 1 from creation, the type's sections from ready on, and the
+  # change log (section 7) once development starts, except for a spike
+  # (pilot-template.md, "Sections by type").
+  need=1; [ "$at" -ge 1 ] && need="$(rb_pilot_type_sections "$type")"
+  [ "$at" -ge 2 ] && [ "$type" != spike ] && need="$need 7"
+  local filled; filled=" $(rb_pilot_filled_sections "$text")"
+  for n in $need; do
+    case "$filled" in *" $n "*) ;; *) printf 'section:section %s. %s\n' "$n" "$(rb_pilot_section_name "$n")" ;; esac
+  done
+
+  if [ "$at" -ge 1 ]; then
+    while IFS="$(printf '\t')" read -r h s; do
+      [ -n "$h" ] || continue
+      printf 'problem:Open decision at %s: "%s" (owner: %s). From ready on, an unknown is a decision with an owner, never Open.\n' \
+        "$stage" "$h" "${s:-none}"
+    done < <(rb_pilot_open_decisions "$text")
+    if [ "$has_acs" = 1 ] && [ -n "$acs" ]; then
+      h="$(printf '%s\n' "$acs" | sed '/^$/d' | paste -sd, -)"
+      s="$(rb_pilot_section_acs "$text" | sed '/^$/d' | paste -sd, -)"
+      [ "$h" = "$s" ] || printf "problem:Header ACs (%s) don't match section 5 (%s). Give both the same numbers.\n" "${h:-none}" "${s:-none}"
+    fi
+  fi
+
+  # A product ticket says what and why, never how, until an engineer takes it.
+  if [ "$type" = product ] && [ "$at" -lt 2 ]; then
+    for field in Repo "Affected paths"; do
+      rb_value_is_real "$(rb_marker_value "$header" "$field")" \
+        && printf "problem:%s is the engineer's to fill at kickoff, not in a product ticket.\n" "$field"
+    done
+    local code_re='[A-Za-z0-9_./-]+\.(ts|tsx|js|jsx|mjs|cjs|vue|py|sql|php|rb|go|java|kt|swift|cs|scss|css|sh|ya?ml|graphql)([^A-Za-z0-9_]|$)|[A-Za-z0-9_]+\(\)'
+    for n in 1 2 3 4 5 6 7; do
+      value="$(rb_pilot_section "$text" "$n" | grep -oE "$code_re" | head -1 | sed -E 's/[^A-Za-z0-9_)]$//')"
+      [ -n "$value" ] && printf 'warning:section %s names code ("%s"): leave how to build it to the engineer.\n' "$n" "$value"
+    done
+  fi
+  return 0
+}
+
+# Echo the verdict for a pilot ticket at <stage>, on the same four-step ladder.
+rb_pilot_verdict() {
+  local miss; miss="$(rb_pilot_missing "$1" "${2:-created}" "${3:-0}")"
+  if grep -qxE 'spine:(Done|Deliverable type)' <<< "$miss"; then echo "none: needs human direction"; return; fi
+  grep -q '^spine:' <<< "$miss" && { echo "low: needs enrichment"; return; }
+  grep -qE '^(section|problem):' <<< "$miss" && { echo "medium: routable but thin"; return; }
+  echo "high: actionable"
+}
+
 # --- assessment --------------------------------------------------------------
 
 # Echo the missing markers, one per line, tagged by class:
@@ -299,8 +552,13 @@ rb_placement_context_markers() {
 #   rec:<Key>       a recommended marker (Decision or Intent) is absent
 # Args: <text> [<prefix_ok>]  — prefix_ok=1 means the summary carries a valid
 # PREFIX:, which satisfies engineering's Repo requirement on its own.
+# Args: <text> [<prefix_ok>] [<stage>] — a pilot type (product, engineering, bug,
+# data, spike) is graded by rb_pilot_missing for <stage> (default created) instead,
+# which adds problem: and warning: lines.
 rb_missing() {
   local text="$1" prefix_ok="${2:-0}" type
+  type="$(rb_type "$text")"
+  if rb_is_pilot_type "$type"; then rb_pilot_missing "$text" "${3:-created}" "$prefix_ok"; return; fi
   rb_present "$text" Done || printf 'spine:Done\n'
   rb_present "$text" Context || printf 'spine:Context\n'
   type="$(rb_type "$text")"
@@ -325,9 +583,13 @@ rb_missing() {
   fi
 }
 
-# Echo the canonical verdict string for <text> [<prefix_ok>]. This ladder mirrors
-# Scout triage exactly (ticket-rubric.md → "The verdict mapping").
+# Echo the canonical verdict string for <text> [<prefix_ok>] [<stage>]. This ladder
+# mirrors Scout triage exactly (ticket-rubric.md → "The verdict mapping"); a pilot
+# type is graded for <stage> (default created) by rb_pilot_verdict.
 rb_verdict() {
+  if rb_is_pilot_type "$(rb_type "$1")"; then
+    rb_pilot_verdict "$1" "${3:-created}" "${2:-0}"; return
+  fi
   local miss; miss="$(rb_missing "$1" "${2:-0}")"
   if grep -qxE 'spine:(Done|Deliverable type)' <<< "$miss"; then
     echo "none: needs human direction"; return
