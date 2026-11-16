@@ -558,9 +558,30 @@ done
 # A spike has a deliverable instead of criteria: no section 5 and no header ACs.
 SPIKE="$(drop_section "$(pilot_ticket spike kickoff)" 5 | sed '/^Acceptance criteria:/d; /^- AC[0-9]/d')"
 [[ "$(rb_verdict "$SPIKE" 0 kickoff)" == "high: actionable" ]] || fail "a spike needs no acceptance criteria"
-[[ "$(rb_verdict "$(drop_section "$(pilot_ticket engineering ready)" 7)" 0 review)" == "high: actionable" ]] \
-  || fail "section 7 isn't checked (Baton doesn't either)"
-pass "sections by type: bug 1 3 4 5, data 1 2 5, spike 1 2 6, the rest 1 to 6"
+# The change log is required once development starts (kickoff on), except for a spike.
+for type in product engineering bug data; do
+  [[ "$(rb_verdict "$(drop_section "$(pilot_ticket "$type" ready)" 7)" 0 ready)" == "high: actionable" ]] \
+    || fail "$type needs no change log at ready"
+  NOLOG="$(drop_section "$(pilot_ticket "$type" kickoff)" 7)"
+  for st in kickoff review; do
+    [[ "$(rb_verdict "$NOLOG" 0 "$st")" == "medium: routable but thin" ]] || fail "$type needs section 7 at $st"
+    missing_has "$NOLOG" "$st" 'section:section 7. Change log' || fail "$type names section 7 at $st"
+  done
+done
+[[ "$(rb_verdict "$(drop_section "$SPIKE" 7)" 0 review)" == "high: actionable" ]] || fail "a spike has no change log"
+pass "sections by type: bug 1 3 4 5, data 1 2 5, spike 1 2 6, the rest 1 to 6; the change log from kickoff"
+
+# A numbered criterion that only asserts a command result is still a gate (Codex R1-1).
+for ac in 'AC2 CI is green' 'AC2 npm test passes' 'AC2 bun run docs:check exits 0' 'AC2 the suite passes'; do
+  G="${HIGHT/- AC2 The old logo file is no longer in the bundle/- $ac}"
+  [[ "$(rb_command_gate_criteria "$(rb_pilot_header "$G")")" == "$ac" ]] || fail "numbered gate is flagged as written: $ac"
+  for st in created kickoff; do
+    [[ "$(rb_verdict "$G" 0 "$st")" == "medium: routable but thin" ]] || fail "numbered gate holds the ticket at medium at $st: $ac"
+  done
+done
+[[ "$(rb_command_gate_criteria $'Acceptance criteria:\n- **AC1** CI is green')" == "**AC1** CI is green" ]] || fail "a bold AC number is stripped too"
+[[ -z "$(rb_command_gate_criteria $'Acceptance criteria:\n- AC1 The npm test command reports a stale pointer')" ]] || fail "observable command behaviour stays valid when numbered"
+pass "numbered command gates (AC1 CI is green) hold a pilot ticket at medium"
 
 # From ready on: no Open decisions, two or more numbered criteria, and the same AC numbers in the header and section 5.
 OPEN="${HIGHT/| Ian | Decided |/| Ian | Open |}"

@@ -80,7 +80,10 @@ rb_command_gate_criteria() {
   local criterion lower command_passes
   while IFS= read -r criterion; do
     [ -n "$criterion" ] || continue
-    lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]')"
+    # A pilot criterion's number (`AC1 CI is green`, `**AC2** npm test passes`) is not
+    # part of what it asserts (MD-3405); the criterion is still reported as written.
+    lower="$(printf '%s' "$criterion" | tr '[:upper:]' '[:lower:]' \
+      | sed -E 's/^[[:space:]]*(\*+[[:space:]]*)?ac[0-9]+(\*+)?[[:space:]]+//')"
     command_passes=1
     case "$lower" in
       bun\ *|npm\ *|pnpm\ *|yarn\ *|npx\ *|node\ *|make\ *|just\ *|cargo\ *|go\ *|pytest\ *|rspec\ *|bundle\ *|gradle\ *|mvn\ *)
@@ -494,8 +497,11 @@ rb_pilot_missing() {
     esac
   done < <(rb_pilot_fields)
 
-  # Sections: section 1 from creation, the type's sections from ready on.
+  # Sections: section 1 from creation, the type's sections from ready on, and the
+  # change log (section 7) once development starts, except for a spike
+  # (pilot-template.md, "Sections by type").
   need=1; [ "$at" -ge 1 ] && need="$(rb_pilot_type_sections "$type")"
+  [ "$at" -ge 2 ] && [ "$type" != spike ] && need="$need 7"
   local filled; filled=" $(rb_pilot_filled_sections "$text")"
   for n in $need; do
     case "$filled" in *" $n "*) ;; *) printf 'section:section %s. %s\n' "$n" "$(rb_pilot_section_name "$n")" ;; esac

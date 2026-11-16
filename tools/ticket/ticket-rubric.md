@@ -50,11 +50,13 @@ A pilot ticket is graded for its **stage**, which comes from its Jira status (`-
 | ------- | ------------------------------- | ---------------------------------------------------------------------------- |
 | created | Backlog, To Do (and anything unrecognised) | `Done`, `Intent`, `Type`, `Deliverable type`, `Stakeholder`, `Context`, `Decision`; section 1 |
 | ready   | Ready to Develop                | `Engineer` (not "not yet assigned"); two or more criteria numbered `AC1`, `AC2`… (not for a spike); the type's sections; no Open decision in section 6; the header's AC numbers match section 5's |
-| kickoff | In Progress, In Development     | `Repo` (validated as above; a summary `PREFIX:` stands in for a missing one) and `Affected paths` (not for `Deliverable type: research`) |
+| kickoff | In Progress, In Development     | `Repo` (validated as above; a summary `PREFIX:` stands in for a missing one) and `Affected paths` (not for `Deliverable type: research`); section 7, the change log (not for a spike) |
 | review  | Dev Review, In Review, QA, Done | nothing more                                                                 |
 
 The sections each type needs from ready on: `bug` 1, 3, 4, 5; `data` 1, 2, 5; `spike` 1, 2, 6; `product`
-and `engineering` 1 to 6. Section 7 (the change log) is not checked, as in Baton's check. `Deliverable type`
+and `engineering` 1 to 6. Section 7 (the change log) is required once development starts, from kickoff,
+for every type but `spike`; Baton's check doesn't require it yet (SR-6185 brings it in line). A numbered
+criterion is read without its number, so `AC1 CI is green` is a command gate like `CI is green`. `Deliverable type`
 takes any real value for a pilot type (the template lists `pr`, `research`, `report`…).
 
 The verdict ladder is the same four strings:
