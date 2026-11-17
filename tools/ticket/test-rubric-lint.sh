@@ -651,13 +651,21 @@ chmod +x "$STUB/acli" "$STUB/curl"
 printf '%s\n' "$HIGHT" > "$STUB/new.md"
 printf 'Make the banner pop\n' > "$STUB/old.md"
 jq -n '{fields: {summary: "UI: swap logo", status: {name: "In Progress"}, description: null, attachment: [
-  {id: "11", filename: "MD-9-engineering.md", created: "2026-11-01T10:00:00.000+0000", content: "https://x.atlassian.net/rest/api/3/attachment/content/11"},
-  {id: "22", filename: "MD-9-engineering.md", created: "2026-11-02T10:00:00.000+0000", content: "https://x.atlassian.net/rest/api/3/attachment/content/22"},
-  {id: "33", filename: "notes.md", created: "2026-11-03T10:00:00.000+0000", content: "https://x.atlassian.net/rest/api/3/attachment/content/33"}]}}' > "$STUB/brief.json"
-KOUT="$(PATH="$STUB:$PATH" RUBRIC_STUB_JSON="$STUB/brief.json" RUBRIC_STUB_DIR="$STUB" ATLASSIAN_EMAIL=a@b.c JIRA_API_TOKEN=t bash "$CLI" --key MD-9)"
+  {id: "11", filename: "MD-9-engineering.md", created: "2026-11-01T10:00:00.000+0000", content: "https://api.media.atl-paas.net/rest/api/3/attachment/content/11"},
+  {id: "22", filename: "MD-9-engineering.md", created: "2026-11-02T10:00:00.000+0000", content: "https://api.media.atl-paas.net/rest/api/3/attachment/content/22"},
+  {id: "33", filename: "notes.md", created: "2026-11-03T10:00:00.000+0000", content: "https://api.media.atl-paas.net/rest/api/3/attachment/content/33"}]}}' > "$STUB/brief.json"
+KOUT="$(PATH="$STUB:$PATH" RUBRIC_STUB_JSON="$STUB/brief.json" RUBRIC_STUB_DIR="$STUB" ATLASSIAN_EMAIL=a@b.c JIRA_API_TOKEN=t JIRA_BASE='' bash "$CLI" --key MD-9)"
 [[ "$(jq -r '[.verdict, .stage, .source] | join(",")' <<<"$KOUT")" == "high: actionable,kickoff,attachment:MD-9-engineering.md" ]] \
   || fail "--key reads the newest brief at the status's stage (got: $(jq -c . <<<"$KOUT"))"
-grep -q 'content/22' "$STUB/curl.log" || fail "--key downloads the newest brief"
+# MD-3420: the brief comes from the Jira site address, never the attachment's .content host.
+CURL_LOG="$(cat "$STUB/curl.log")"
+grep -F 'https://facilitron.atlassian.net/rest/api/3/attachment/content/22?redirect=false' <<<"$CURL_LOG" >/dev/null \
+  || fail "--key downloads the newest brief from the Jira site address (got: $CURL_LOG)"
+if grep -F 'atl-paas' <<<"$CURL_LOG" >/dev/null; then fail "--key never downloads from the attachment host"; fi
+: > "$STUB/curl.log"
+PATH="$STUB:$PATH" RUBRIC_STUB_JSON="$STUB/brief.json" RUBRIC_STUB_DIR="$STUB" ATLASSIAN_EMAIL=a@b.c JIRA_API_TOKEN=t JIRA_BASE=https://y.atlassian.net bash "$CLI" --key MD-9 >/dev/null
+grep -F 'https://y.atlassian.net/rest/api/3/attachment/content/22' "$STUB/curl.log" >/dev/null \
+  || fail "--key honours JIRA_BASE for the brief (got: $(cat "$STUB/curl.log"))"
 rc=0; PATH="$STUB:$PATH" RUBRIC_STUB_JSON="$STUB/brief.json" RUBRIC_STUB_DIR="$STUB" ATLASSIAN_EMAIL='' JIRA_API_TOKEN='' bash "$CLI" --key MD-9 >/dev/null 2>&1 || rc=$?
 [[ "$rc" == 4 ]] || fail "a brief without credentials exits 4 rather than grading the description (got: $rc)"
 pass "--key grades the newest <KEY>-engineering.md brief at the Jira status's stage"

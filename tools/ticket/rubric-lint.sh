@@ -16,7 +16,8 @@
 # Pilot types (product, engineering, bug, data, spike) are graded against
 # pilot-template.md for their stage: from the Jira status with --key (or
 # --stage/--status), else created. With --key, the newest <KEY>-engineering.md
-# attachment is the brief when there is one (needs ATLASSIAN_EMAIL + JIRA_API_TOKEN).
+# attachment is the brief when there is one (needs ATLASSIAN_EMAIL + JIRA_API_TOKEN;
+# read from JIRA_BASE, default https://facilitron.atlassian.net).
 #
 # Output (stdout): one JSON object —
 #   {key, verdict, type, prefix_ok, missing:{spine,section,recommended}, issues, present,
@@ -54,7 +55,7 @@ while [ $# -gt 0 ]; do
     --stage)   need_val "$1" "${2:-}"; STAGE="$2"; shift 2
                [ -n "$(rb_stage_index "$STAGE")" ] || { echo "rubric-lint: --stage is one of created, ready, kickoff, review" >&2; exit 2; } ;;
     --status)  need_val "$1" "${2:-}"; STATUS="$2"; shift 2 ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     *) echo "rubric-lint: unknown arg: $1" >&2; exit 2 ;;
   esac
 done
@@ -76,10 +77,15 @@ if [ -n "$KEY" ]; then
   [ -n "$STATUS" ] || STATUS="$(printf '%s' "$RAW" | jq -r '.fields.status.name // ""')"
   # The pilot brief: the newest attachment named exactly <KEY>-engineering.md
   # (pilot-template.md, "Where it lives"). Any other attachment is ignored.
-  BRIEF_URL="$(printf '%s' "$RAW" | jq -r --arg name "$KEY-engineering.md" '
+  BRIEF_ID="$(printf '%s' "$RAW" | jq -r --arg name "$KEY-engineering.md" '
     [.fields.attachment[]? | select(.filename == $name and ((.id|tostring) | test("^[0-9]+$")))]
-    | sort_by([(.created // ""), ((.id|tostring)|tonumber)]) | last | .content // ""')"
-  if [ -n "$BRIEF_URL" ]; then
+    | sort_by([(.created // ""), ((.id|tostring)|tonumber)]) | last | .id // "" | tostring')"
+  if [ -n "$BRIEF_ID" ]; then
+    # Download from the Jira site address, not the attachment's .content URL: acli
+    # reports that on an atl-paas host that does not connect from every network
+    # (MD-3420). Same base as brief-attachment.sh. redirect=false makes Jira serve
+    # the file itself instead of a 303 to a media host.
+    BRIEF_URL="${JIRA_BASE:-https://facilitron.atlassian.net}/rest/api/3/attachment/content/$BRIEF_ID?redirect=false"
     [ -n "${ATLASSIAN_EMAIL:-}" ] && [ -n "${JIRA_API_TOKEN:-}" ] \
       || { echo "rubric-lint: $KEY has a $KEY-engineering.md brief; set ATLASSIAN_EMAIL and JIRA_API_TOKEN to read it" >&2; exit 4; }
     command -v curl >/dev/null || { echo "rubric-lint: curl not on PATH (needed to read the brief)" >&2; exit 3; }
