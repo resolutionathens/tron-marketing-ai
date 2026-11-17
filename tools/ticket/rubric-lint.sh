@@ -83,8 +83,9 @@ if [ -n "$KEY" ]; then
   if [ -n "$BRIEF_ID" ]; then
     # Download from the Jira site address, not the attachment's .content URL: acli
     # reports that on an atl-paas host that does not connect from every network
-    # (MD-3420). Same base as brief-attachment.sh.
-    BRIEF_URL="${JIRA_BASE:-https://facilitron.atlassian.net}/rest/api/3/attachment/content/$BRIEF_ID"
+    # (MD-3420). Same base as brief-attachment.sh. redirect=false makes Jira serve
+    # the file itself instead of a 303 to a media host.
+    BRIEF_URL="${JIRA_BASE:-https://facilitron.atlassian.net}/rest/api/3/attachment/content/$BRIEF_ID?redirect=false"
     [ -n "${ATLASSIAN_EMAIL:-}" ] && [ -n "${JIRA_API_TOKEN:-}" ] \
       || { echo "rubric-lint: $KEY has a $KEY-engineering.md brief; set ATLASSIAN_EMAIL and JIRA_API_TOKEN to read it" >&2; exit 4; }
     command -v curl >/dev/null || { echo "rubric-lint: curl not on PATH (needed to read the brief)" >&2; exit 3; }

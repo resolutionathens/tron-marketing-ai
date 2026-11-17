@@ -659,7 +659,7 @@ KOUT="$(PATH="$STUB:$PATH" RUBRIC_STUB_JSON="$STUB/brief.json" RUBRIC_STUB_DIR="
   || fail "--key reads the newest brief at the status's stage (got: $(jq -c . <<<"$KOUT"))"
 # MD-3420: the brief comes from the Jira site address, never the attachment's .content host.
 CURL_LOG="$(cat "$STUB/curl.log")"
-grep -F 'https://facilitron.atlassian.net/rest/api/3/attachment/content/22' <<<"$CURL_LOG" >/dev/null \
+grep -F 'https://facilitron.atlassian.net/rest/api/3/attachment/content/22?redirect=false' <<<"$CURL_LOG" >/dev/null \
   || fail "--key downloads the newest brief from the Jira site address (got: $CURL_LOG)"
 if grep -F 'atl-paas' <<<"$CURL_LOG" >/dev/null; then fail "--key never downloads from the attachment host"; fi
 : > "$STUB/curl.log"
